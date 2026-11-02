@@ -11,6 +11,7 @@ import {
     useLobby,
     useQuestionAnswers,
     type GiaiMaMc,
+    type KhoiDongMc,
     type LobbyData,
     type VeDichMc,
 } from "@/lib/live"
@@ -161,6 +162,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     const table = projection?.table ?? []
     const mcGiaiMa = roundId === "giai-ma" ? (v?.mc as GiaiMaMc | null) : null
     const mcVeDich = roundId === "ve-dich" ? (v?.mc as VeDichMc | null) : null
+    const mcKhoiDong = roundId === "khoi-dong" ? (v?.mc as KhoiDongMc | null) : null
 
     const byId = (id: string) => questions.find((q) => q._id === id) ?? null
     const send = (act: Record<string, unknown>) =>
@@ -326,6 +328,13 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
             if (p?.keywordLocked) card.badge = { text: "Giải mật mã", tone: "primary" }
             if (p?.eliminated) card.dimmed = true
         }
+        // The live answerer wears the purple card (see @shared/deck/rail-card):
+        // ve-dich's buzz winner, or the one who won a Khởi động race.
+        const buzzedBy = roundId === "ve-dich"
+            ? mcVeDich?.buzzerId ?? null
+            : roundId === "khoi-dong" ? mcKhoiDong?.buzzerId ?? null : null
+        if (buzzedBy !== null && buzzedBy === t.id) card.buzzing = true
+
         if (roundId === "ve-dich" && mcVeDich?.power) {
             // STAR sits on the answerer (their multiplier); ASSIGN sits on the
             // player the question was HANDED TO — the badge follows the mechanic.

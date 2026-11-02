@@ -5,7 +5,7 @@
 import { useEffect, useRef } from "react"
 import type { RemoteVideoTrack } from "livekit-client"
 import { pt } from "@shared/deck/geometry"
-import { VerdictIcon } from "@shared/deck/stage"
+import { railCardClass, railCardState, railScoreClass } from "@shared/deck/rail-card"
 
 /** What one rail card shows — the console's projection of a score row. */
 export interface CardData {
@@ -23,6 +23,8 @@ export interface CardData {
     /** the player's live camera — Room identity === card id, so a plain map
      *  lookup by `id` feeds this slot; absent → the initials show */
     video?: RemoteVideoTrack | null
+    /** this player's buzz won the current window — the live answerer */
+    buzzing?: boolean
 }
 
 /** The pill's colour, keyed by tone. */
@@ -35,7 +37,8 @@ const PILL_TONE: Record<NonNullable<CardData["badge"]>["tone"], string> = {
 const badgePill = (tone: NonNullable<CardData["badge"]>["tone"]): string =>
     `flex items-center justify-center rounded-full px-[0.6cqw] font-sans font-semibold leading-tight ${PILL_TONE[tone]}`
 
-/** The card's ring: the multi-select (giai-ma) or the verdict target. */
+/** The card's ring: the multi-select (giai-ma) or the verdict target — drawn ON
+ *  TOP of the card's own state. */
 const cardRing = (ring: CardData["ring"]): string =>
     ring === "selected" ? "ring-2 ring-primary" : ring === "active" ? "ring-2 ring-amber-400" : ""
 
@@ -69,13 +72,22 @@ export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answe
     const Interactive = onSelect ? "button" : "div"
     return (
         <>
-            {cards.map((c) => (
+            {cards.map((c) => {
+                // The card's STATE is the verdict (see @shared/deck/rail-card):
+                // bright = right, grey = wrong or eliminated, purple + dashed
+                // white = the live answerer, plain = waiting.
+                const state = railCardState({
+                    verdict: c.verdict ?? null,
+                    locked: c.dimmed === true,
+                    buzzing: c.buzzing === true
+                })
+                return (
                 <Interactive
                     key={c.id}
                     {...(onSelect ? { type: "button" as const, onClick: () => onSelect(c.id) } : {})}
-                    className={`flex ${isAnswers ? "h-[11.9cqw]" : "h-[9.3cqw]"} w-full shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl bg-card p-[0.9cqw] text-left shadow-sm ring-1 ring-border transition ${
+                    className={`flex ${isAnswers ? "h-[11.9cqw]" : "h-[9.3cqw]"} w-full shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl p-[0.9cqw] text-left shadow-sm ${railCardClass(state)} ${
                         onSelect ? "cursor-pointer hover:ring-sky-400" : ""
-                    } ${cardRing(c.ring)} ${c.dimmed ? "opacity-60" : ""}`}
+                    } ${cardRing(c.ring)}`}
                 >
                     <div className="flex min-h-0 flex-1 gap-[0.7cqw]">
                         <div className="relative w-[52%] shrink-0">
@@ -100,7 +112,7 @@ export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answe
                             <span className="truncate font-display font-medium leading-none text-foreground" style={{ fontSize: pt(12) }}>
                                 {c.name}
                             </span>
-                            <span className="font-display font-bold leading-none tabular-nums text-foreground" style={{ fontSize: pt(isAnswers ? 44 : 34) }}>
+                            <span className={`font-display font-bold leading-none tabular-nums ${railScoreClass(state)}`} style={{ fontSize: pt(isAnswers ? 44 : 34) }}>
                                 {c.points}
                             </span>
                         </div>
@@ -123,16 +135,16 @@ export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answe
                                 </span>
                             ) : (
                                 <>
-                                    <span className="truncate font-sans font-semibold tabular-nums text-foreground" style={{ fontSize: pt(12) }}>
+                                    <span className={`truncate font-sans font-semibold tabular-nums ${railScoreClass(state)}`} style={{ fontSize: pt(12) }}>
                                         {c.value ?? "—"}
                                     </span>
-                                    {c.verdict !== undefined && <VerdictIcon verdict={c.verdict} />}
                                 </>
                             )}
                         </div>
                     ) : null}
                 </Interactive>
-            ))}
+                )
+            })}
         </>
     )
 }

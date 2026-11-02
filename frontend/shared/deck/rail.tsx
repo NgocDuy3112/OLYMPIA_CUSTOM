@@ -9,7 +9,7 @@ import { useEffect, useRef } from "react"
 import type { LocalVideoTrack } from "livekit-client"
 import { useSelfCam } from "@shared/lib/rtc"
 import { pt } from "./geometry"
-import { VerdictIcon } from "./primitives"
+import { railCardClass, railCardState, railScoreClass } from "./rail-card"
 import type { PlayerView } from "./types"
 
 /**
@@ -63,12 +63,19 @@ export function Rail({ variant, view, myId, currentQid }: {
                 const myVerdict = currentQid ? view.me.verdicts?.[currentQid] : undefined
                 // …and, when the round publishes, the whole field's verdict.
                 const shownVerdict = mine ? myVerdict : publicFor(row.id, currentQid)
+                // The card's STATE is the verdict: bright (right), grey (wrong or
+                // locked out), purple + dashed white (buzzed first), plain (waiting).
+                const state = railCardState({
+                    verdict: shownVerdict ?? null,
+                    locked: mine && view.me.lockedOut === true,
+                    buzzing: view.me.buzzer === row.id,
+                })
                 const activeRun = view.oral?.playerId === row.id
                 return (
                     <div
                         key={row.id}
                         title={mine ? "Bạn" : undefined}
-                        className={`flex ${compact ? "h-[9.3cqw]" : "h-[11.9cqw]"} shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl bg-card p-[0.9cqw] shadow-sm ring-1 ring-border ${cardRing(mine, activeRun)}`}
+                        className={`flex ${compact ? "h-[9.3cqw]" : "h-[11.9cqw]"} shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl p-[0.9cqw] shadow-sm ${railCardClass(state)} ${cardRing(mine, activeRun)}`}
                     >
                         <div className="flex min-h-0 flex-1 gap-[0.7cqw]">
                             <div
@@ -84,15 +91,15 @@ export function Rail({ variant, view, myId, currentQid }: {
                                     <span className="truncate">{row.displayName}</span>
                                     {mine && <span className="rounded bg-sky-500 px-[0.3cqw] text-[0.65em] leading-none text-white">BẠN</span>}
                                 </span>
-                                <span className="font-display font-bold leading-none tabular-nums text-foreground" style={{ fontSize: pt(compact ? 34 : 44) }}>
+                                <span className={`font-display font-bold leading-none tabular-nums ${railScoreClass(state)}`} style={{ fontSize: pt(compact ? 34 : 44) }}>
                                     {row.points}
                                 </span>
                             </div>
                         </div>
                         {!compact && (
                             <div className="flex shrink-0 items-center justify-center gap-[0.4cqw] text-center" style={{ fontSize: pt(12) }}>
-                                <span className="inline-flex items-center gap-[0.3cqw] text-muted-foreground">
-                                    câu này <VerdictIcon verdict={shownVerdict ?? null} />
+                                <span className="inline-flex items-center gap-[0.3cqw]">
+                                    {state === "waiting" ? "chờ chấm" : state === "correct" ? "đúng" : state === "wrong" ? "chưa đúng" : "đang trả lời"}
                                 </span>
                             </div>
                         )}
