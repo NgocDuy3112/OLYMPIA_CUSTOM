@@ -19,6 +19,12 @@ import { fetchOperatorRtcToken, fetchViewerRtcToken, useRtcPeerTracks, useRtcRoo
 import { useApiSurface } from "@/lib/surface"
 import { expandRoundEntries, navigatorStartPlan } from "./navigator-plan"
 
+// giai-ma's multi-select: the clicked player ids, plus the question they were
+// clicked on — the scope is what makes a stale selection unreadable instead of
+// needing an effect to clear it.
+type Picked = { qid: string | null; ids: ReadonlySet<string> }
+const EMPTY_PICKS: ReadonlySet<string> = new Set()
+
 // The CONTROLLER's model — every hook, derived fact and action the portal's
 // match control needs. No JSX lives here: the controller host draws whichever
 // phase this returns, and `rounds/*` draws the deck itself from `facts`.
@@ -69,8 +75,10 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     const [selectedQ, setSelectedQ] = useState<string | null>(null)
     const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
     // giai-ma: MULTI-select — the clicked cards are the players Đúng / Đúng từ
-    // khoá will judge CORRECT. Cleared whenever the judged question changes.
-    const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(() => new Set())
+    // khoá will judge CORRECT. Scoped to the question it was made on: the stored
+    // id is compared at read time, so moving to another question reads as
+    // "nothing selected" and a stale set can never leak into the next commit.
+    const [picked, setPicked] = useState<Picked>(() => ({ qid: null, ids: EMPTY_PICKS }))
     const [adjustFor, setAdjustFor] = useState<string | null>(null)
     const oralQuestionId = live.data?.projection.oral?.questionId ?? null
     const effWatch = watch.qid === oralQuestionId ? watch : freshWatch(oralQuestionId)
@@ -111,10 +119,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     const answers = useQuestionAnswers(tournamentId, matchId, judgingId ?? resolvingId)
     const rows = answers.data ?? []
 
-    // A stale selection must never leak into the next question's commit.
-    useEffect(() => {
-        setSelectedIds(new Set())
-    }, [judgingId])
+    const selectedIds = picked.qid === judgingId ? picked.ids : EMPTY_PICKS
 
     // Commits are ready when a selected player actually SUBMITTED the current
     // question — hint commit needs a window, keyword commit needs none.
@@ -216,11 +221,11 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     }
     // giai-ma's selection: click toggles membership — the selected SET is what
     // the commits judge (selected = correct, the rest of the submitters = wrong).
-    const toggleSelect = (userId: string) => setSelectedIds((prev) => {
-        const next = new Set(prev)
+    const toggleSelect = (userId: string) => setPicked((prev) => {
+        const next = new Set(prev.qid === judgingId ? prev.ids : EMPTY_PICKS)
         if (next.has(userId)) next.delete(userId)
         else next.add(userId)
-        return next
+        return { qid: judgingId, ids: next }
     })
     const verdictOf = (qid: string, uid: string): "CORRECT" | "INCORRECT" | null => {
         const key = `${qid}:${uid}`
