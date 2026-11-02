@@ -218,6 +218,13 @@
       "when": 1793584352411,
       "tag": "0030_romantic_mister_sinister",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1793586277106,
+      "tag": "0031_pretty_squadron_supreme",
+      "breakpoints": true
     }
   ]
 }

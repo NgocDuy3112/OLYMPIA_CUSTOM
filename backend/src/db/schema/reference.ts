@@ -93,9 +93,6 @@ export const questionBank = pgTable(
         id: uuid("id").primaryKey().defaultRandom(),
         kind: questionKind("kind").notNull(),
         questionText: text("question_text").notNull(),
-        // The ve-dich board's category label — presentation only: no filtering,
-        // no eligibility, no scoring. Copied into the match at assembly.
-        domain: varchar("domain", { length: 64 }),
         // A hint belongs to exactly one keyword: the set it lives under.
         keywordId: uuid("keyword_id").references((): AnyPgColumn => questionBank.id),
         media: jsonb("media").$type<Media>(), 

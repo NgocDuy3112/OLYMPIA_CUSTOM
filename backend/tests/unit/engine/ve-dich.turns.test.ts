@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+    BOARD_COMPOSITION,
     VeDichRuleError,
     advanceTurn,
     beginPhase2,
@@ -24,17 +25,20 @@ import {
 const NOW = "2026-01-01T00:00:00.000Z";
 const at = (sec: number) => new Date(Date.parse(NOW) + sec * 1000).toISOString();
 
-const Q = (domain: string, value: number): VeDichQuestion => ({
-    id: `${domain}-${value}`,
-    domain,
-    value
-});
+// The board's cells are identified by their frozen id and sized by their value;
+// the label is only a test handle ("THTH-40" reads better than a uuid).
+const Q = (label: string, value: number): VeDichQuestion => ({ id: `${label}-${value}`, value });
 
-// Small pool for readability: one question per value across two domains.
-const POOL: VeDichQuestion[] = [
-    Q("THTH", 50), Q("THTH", 40), Q("THTH", 30), Q("THTH", 20),
-    Q("TNSS", 50), Q("TNSS", 40), Q("TNSS", 30), Q("TNSS", 20)
+// A REAL board: 6×20, 6×30, 4×40, 4×50 — createVeDich refuses anything else, so
+// a fixture that is not the show's composition cannot even build a round.
+const board = (): VeDichQuestion[] => [
+    Q("THTH", 20), Q("TNSS", 20), Q("A", 20), Q("B", 20), Q("C", 20), Q("D", 20),
+    Q("THTH", 30), Q("TNSS", 30), Q("E", 30), Q("F", 30), Q("G", 30), Q("H", 30),
+    Q("THTH", 40), Q("TNSS", 40), Q("I", 40), Q("J", 40),
+    Q("THTH", 50), Q("TNSS", 50), Q("K", 50), Q("L", 50)
 ];
+const POOL: VeDichQuestion[] = board();
+const countOf = (qs: VeDichQuestion[], value: number) => qs.filter((q) => q.value === value).length;
 
 const player = (id: string, score: number): PlayerState => ({
     id,
@@ -70,6 +74,34 @@ describe("turn order", () => {
     });
 });
 
+describe("the board's composition", () => {
+    const players_ = [player("a", 0)];
+
+    it("accepts the show's board: 6×20, 6×30, 4×40, 4×50", () => {
+        expect(() => createVeDich(board(), players_)).not.toThrow();
+        expect(BOARD_COMPOSITION).toEqual({ 20: 6, 30: 6, 40: 4, 50: 4 });
+    });
+
+    it("refuses a board with the wrong counts — the classic 24-cell grid is no longer a round", () => {
+        const sixByFour = [20, 30, 40, 50].flatMap((value) =>
+            ["THTH", "TNSS", "XHPL", "VHNT", "TTGT", "KTTH"].map((label) => Q(label, value))
+        );
+        expect(sixByFour).toHaveLength(24);
+        expect(codeOf(() => createVeDich(sixByFour, players_))).toBe("BOARD_COMPOSITION");
+    });
+
+    it("refuses a face value the board never holds, and says what it got", () => {
+        const odd = [...board().slice(0, 19), Q("ODD", 60)];
+        expect(codeOf(() => createVeDich(odd, players_))).toBe("BOARD_COMPOSITION");
+        try {
+            createVeDich(odd, players_);
+        } catch (e) {
+            expect((e as VeDichRuleError).detail.message).toContain("60×1 (not a face value)");
+            expect((e as VeDichRuleError).detail.message).toContain("50×3 (want 4)");
+        }
+    });
+});
+
 describe("Phase 1 picks", () => {
     it("the current player takes the highest-value question", () => {
         const state = createVeDich(POOL, [player("a", 0), player("b", 0)]);
@@ -102,8 +134,11 @@ describe("Phase 1 picks", () => {
 describe("Chung is a 20/30 table — the partition rule", () => {
     it("phase 1 offers only 20s and 30s; 40/50 wait in deferred", () => {
         const state = createVeDich(POOL, [player("a", 0)]);
-        expect(state.remaining.map((q) => q.value).sort((x, y) => x - y)).toEqual([20, 20, 30, 30]);
-        expect(state.deferred?.map((q) => q.value).sort((x, y) => x - y)).toEqual([40, 40, 50, 50]);
+        expect(countOf(state.remaining, 20)).toBe(6);
+        expect(countOf(state.remaining, 30)).toBe(6);
+        expect(state.remaining.every((q) => q.value === 20 || q.value === 30)).toBe(true);
+        expect(countOf(state.deferred ?? [], 40)).toBe(4);
+        expect(countOf(state.deferred ?? [], 50)).toBe(4);
     });
 
     it("a 40/50 cell can never open in phase 1 — not even by id", () => {
@@ -114,9 +149,9 @@ describe("Chung is a 20/30 table — the partition rule", () => {
 
     it("the summit pool = deferred 40/50 PLUS every unplayed 20/30", () => {
         const state = beginPhase2(createVeDich(POOL, [player("a", 0)]));
-        expect(state.remaining).toHaveLength(POOL.length);
-        expect(state.remaining.map((q) => q.value).sort((x, y) => x - y))
-            .toEqual([20, 20, 30, 30, 40, 40, 50, 50]);
+        expect(state.remaining).toHaveLength(POOL.length);      // all 20 cells
+        expect(countOf(state.remaining, 40)).toBe(4);
+        expect(countOf(state.remaining, 50)).toBe(4);
         expect(state.deferred).toEqual([]);
     });
 });

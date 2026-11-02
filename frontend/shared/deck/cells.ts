@@ -5,7 +5,10 @@
 
 export type CellWhere = "free" | "pending" | "open" | "taken" | "deferred"
 
-const CELL_SHAPE = "flex aspect-[133/59] flex-col items-center justify-center rounded-lg shadow-sm"
+// Every cell is the SAME HEIGHT (`h-[4.43cqw]`, the chips' own height) and its
+// width comes from the grid span — so six 20s and four 40s read as one balanced
+// board: the higher bands are wider, never taller.
+const CELL_SHAPE = "flex h-[4.43cqw] flex-col items-center justify-center rounded-lg shadow-sm"
 
 // The STATE look — identical on both surfaces: the MC's grid and the player's
 // picker must read the same cell the same way.

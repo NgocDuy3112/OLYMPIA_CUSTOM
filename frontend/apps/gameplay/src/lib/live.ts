@@ -106,7 +106,6 @@ export interface LiveView {
     // ve-dich: free cells + this turn's batch + the open question.
     board?: Array<{
         questionId: string
-        domain: string
         value: number
         where: "free" | "pending" | "open" | "taken" | "deferred"
     }>

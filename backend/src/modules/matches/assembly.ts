@@ -85,7 +85,6 @@ function copyOf(params: {
         media: source.media ?? null,
         timeLimit: source.timeLimit,
         points,
-        domain: source.domain ?? null,
         payload: source.payload,
         sourceId: source.id
     };

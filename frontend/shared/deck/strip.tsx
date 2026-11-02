@@ -53,10 +53,11 @@ export function Strip({ items }: { items: StripItem[] }) {
 
 /**
  * Về đích's used-question chips above the open question — a flow row of
- * fixed-size chips, any count (phase 1 shows up to 4, phase 2 up to 3).
+ * fixed-size chips, any count (phase 2 shows up to 3, phase 1 up to 4). A chip
+ * is its FACE VALUE: the board has no categories any more.
  */
 export function VeDichStripCells({ cells, phase2 }: {
-    cells: Array<{ questionId: string; domain: string; value: number; where: string }>
+    cells: Array<{ questionId: string; value: number; where: string }>
     phase2: boolean
 }) {
     return (
@@ -67,7 +68,6 @@ export function VeDichStripCells({ cells, phase2 }: {
                     className={`flex h-[4.43cqw] w-[10cqw] shrink-0 flex-col items-center justify-center rounded-lg shadow-sm ring-1 ${c.where === "open" ? "bg-primary text-primary-foreground ring-primary" : "bg-muted ring-border"}`}
                     style={DECK_PAD}
                 >
-                    <span className="truncate px-[0.3cqw] text-center font-display leading-tight" style={{ fontSize: pt(12) }}>{c.domain}</span>
                     <b className="font-display leading-none" style={{ fontSize: pt(20) }}>{c.value}</b>
                 </span>
             ))}

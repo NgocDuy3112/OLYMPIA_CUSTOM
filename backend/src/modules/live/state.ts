@@ -121,7 +121,6 @@ const PowerSchema = Type.Union([Type.Literal("HOPE"), Type.Literal("SHIELD")]);
 
 export const VeDichQuestionSchema = Type.Object({
     id: Type.String(),
-    domain: Type.String(),
     value: Type.Integer()
 });
 

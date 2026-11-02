@@ -28,7 +28,6 @@ export const CreateQuestionInput = Type.Object({
     kind: QuestionKind,
     questionText: Type.String({ minLength: 1 }),
     // Presentation-only board category for the ve-dich grid.
-    domain: Type.Optional(Type.Union([Type.String({ maxLength: 64 }), Type.Null()])),
     // A HINT carries the keyword of its set; the service enforces the pairing.
     // Null clears the link (a HINT converted back to TEXT).
     keywordId: Type.Optional(Type.Union([Uuid, Type.Null()])),

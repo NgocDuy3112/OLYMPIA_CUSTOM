@@ -169,8 +169,14 @@ describe("player view — an unknown round", () => {
 });
 
 describe("player view — ve-dich", () => {
-    const VQ = (domain: string, value: number): VeDichQuestion => ({ id: `${domain}-${value}`, domain, value });
-    const POOL = [VQ("THTH", 50), VQ("THTH", 40), VQ("THTH", 30), VQ("THTH", 20)];
+    const VQ = (label: string, value: number): VeDichQuestion => ({ id: `${label}-${value}`, value });
+    // The show's board: 6×20, 6×30, 4×40, 4×50 (createVeDich refuses anything else).
+    const POOL = [
+        VQ("THTH", 20), VQ("TNSS", 20), VQ("A", 20), VQ("B", 20), VQ("C", 20), VQ("D", 20),
+        VQ("THTH", 30), VQ("TNSS", 30), VQ("E", 30), VQ("F", 30), VQ("G", 30), VQ("H", 30),
+        VQ("THTH", 40), VQ("TNSS", 40), VQ("I", 40), VQ("J", 40),
+        VQ("THTH", 50), VQ("TNSS", 50), VQ("K", 50), VQ("L", 50)
+    ];
     const P = (id: string): PlayerState => ({ id, score: 0, powersLeft: ["HOPE", "SHIELD"] });
 
     const phase1 = () => createVeDich(POOL, [P("p0"), P("p1")]);
@@ -320,16 +326,20 @@ describe("player view — oral for everyone (G2)", () => {
 });
 
 describe("player view — ve-dich board (G3)", () => {
-    const VQ = (domain: string, value: number): VeDichQuestion => ({ id: `${domain}-${value}`, domain, value });
-    const POOL = [VQ("THTH", 50), VQ("THTH", 40), VQ("TNTT", 30), VQ("XHPL", 20)];
+    const VQ = (label: string, value: number): VeDichQuestion => ({ id: `${label}-${value}`, value });
+    const POOL = [
+        VQ("THTH", 20), VQ("XHPL", 20), VQ("A", 20), VQ("B", 20), VQ("C", 20), VQ("D", 20),
+        VQ("TNTT", 30), VQ("TNSS", 30), VQ("E", 30), VQ("F", 30), VQ("G", 30), VQ("H", 30),
+        VQ("THTH", 40), VQ("TNSS", 40), VQ("I", 40), VQ("J", 40),
+        VQ("THTH", 50), VQ("TNSS", 50), VQ("K", 50), VQ("L", 50)
+    ];
     const P = (id: string): PlayerState => ({ id, score: 0, powersLeft: ["HOPE", "SHIELD"] });
 
     // The board is built from the FROZEN set now — give the view one.
     const veFrozen = (qs: VeDichQuestion[]): MatchQuestion[] =>
-        qs.map((q, index) => ({
+        qs.map((q) => ({
             ...frozen([q.id])[0],
             roundId: "ve-dich",
-            domain: q.domain,
             points: q.value
         } as unknown as MatchQuestion));
 
@@ -337,12 +347,12 @@ describe("player view — ve-dich board (G3)", () => {
         const state = createVeDich(POOL, [P("p0"), P("p1")]);
         const view = buildPlayerView(base({ roundId: "ve-dich", state, userId: "p0", questions: veFrozen(POOL) }));
 
-        expect(view.board).toHaveLength(4);                          // one entry per frozen cell
-        expect(view.board).toContainEqual({ questionId: "TNTT-30", domain: "TNTT", value: 30, where: "free" });
-        expect(view.board).toContainEqual({ questionId: "XHPL-20", domain: "XHPL", value: 20, where: "free" });
+        expect(view.board).toHaveLength(POOL.length);                 // one entry per frozen cell
+        expect(view.board).toContainEqual({ questionId: "TNTT-30", value: 30, where: "free" });
+        expect(view.board).toContainEqual({ questionId: "XHPL-20", value: 20, where: "free" });
         // Chung: the 40/50s are on the table but waiting upstairs (deferred)
-        expect(view.board).toContainEqual({ questionId: "THTH-50", domain: "THTH", value: 50, where: "deferred" });
-        expect(view.board).toContainEqual({ questionId: "THTH-40", domain: "THTH", value: 40, where: "deferred" });
+        expect(view.board).toContainEqual({ questionId: "THTH-50", value: 50, where: "deferred" });
+        expect(view.board).toContainEqual({ questionId: "THTH-40", value: 40, where: "deferred" });
         expect(view.board?.filter((c) => c.where === "free").every((c) => c.value <= 30)).toBe(true);
     });
 
@@ -351,12 +361,12 @@ describe("player view — ve-dich board (G3)", () => {
         const view = () => buildPlayerView(base({ roundId: "ve-dich", state, userId: "p0", questions: veFrozen(POOL) }));
         state = pickPhase1(state, "p0", "TNTT-30");   // highest free = 30
         expect(view().board)
-            .toContainEqual({ questionId: "TNTT-30", domain: "TNTT", value: 30, where: "open" });
+            .toContainEqual({ questionId: "TNTT-30", value: 30, where: "open" });
 
         state = resolveQuestion(state, { answerer: true });
         state = advanceTurn(state);                     // this turn is over
         expect(view().board)
-            .toContainEqual({ questionId: "TNTT-30", domain: "TNTT", value: 30, where: "taken" });
+            .toContainEqual({ questionId: "TNTT-30", value: 30, where: "taken" });
     });
 
     it("marks the open question and this turn's picks, each cell exactly once", () => {

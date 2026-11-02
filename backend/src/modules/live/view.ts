@@ -75,7 +75,7 @@ export interface PlayerView {
     } | null;
     // ve-dich: the FULL show table — every frozen cell with its state: playable
     // now, this turn's batch, picked (black), or (in Chung) waiting upstairs.
-    board?: Array<{ questionId: string; domain: string; value: number; where: "free" | "pending" | "open" | "taken" | "deferred" }>;
+    board?: Array<{ questionId: string; value: number; where: "free" | "pending" | "open" | "taken" | "deferred" }>;
     // giai-ma: THE keyword question — without it a player cannot submit the one
     // thing the round is about. Sanitized like every other exposure.
     keyword?: { questionId: string; question: SanitizedQuestion | null } | null;
@@ -300,7 +300,7 @@ function veDichView(input: ViewInput, state: VeDichState): PlayerView {
                 // can only be waiting, never picked.
                 : deferredIds.has(q._id) || (state.phase === 1 && q.points > 30) ? "deferred" as const
                 : "taken" as const;
-            return { questionId: q._id, domain: q.domain ?? "", value: q.points, where };
+            return { questionId: q._id, value: q.points, where };
         });
 
     const isMyTurn = !state.ended && open === null

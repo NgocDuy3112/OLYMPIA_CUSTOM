@@ -53,7 +53,6 @@ interface BankQuestion {
     kind: Kind
     questionText: string
     // The ve-dich board's category label — presentation only.
-    domain?: string | null
     // A hint's set: the keyword it lives under.
     keywordId?: string | null
     status: Status
@@ -169,7 +168,6 @@ interface Normalize {
 interface Draft {
     kind: Kind
     questionText: string
-    domain: string // ve-dich board category; "" = none
     keywordId: string // HINT only: the set this hint joins; "" = none yet
     timeLimit: string // "" = none
     options: Array<{ id: string; text: string }>
@@ -193,7 +191,6 @@ function draftFrom(row: BankQuestion | null, presetKeywordId?: string, presetKin
     const base: Draft = {
         kind: row?.kind ?? presetKind ?? "TEXT",
         questionText: row?.questionText ?? "",
-        domain: row?.domain ?? "",
         keywordId: row?.keywordId ?? presetKeywordId ?? "",
         timeLimit: row?.timeLimit != null ? String(row.timeLimit) : "",
         options: [
@@ -472,7 +469,6 @@ function McCard({
                     )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    {row.domain && <Badge variant="outline">{row.domain}</Badge>}
                     <StatusBadge status={row.status} />
                     <span className="text-xs text-muted-foreground">{dateFormat.format(new Date(row.updatedAt))}</span>
                 </div>
@@ -689,7 +685,6 @@ function PreviewDialog({ row, onClose }: { row: BankQuestion | null; onClose: ()
                         <span className="text-sm text-muted-foreground">
                             Updated {dateFormat.format(new Date(row.updatedAt))}
                             {row.timeLimit != null ? ` · ${row.timeLimit}s limit` : " · no time limit"}
-                            {row.domain ? ` · ${row.domain}` : ""}
                         </span>
                     </div>
 
@@ -1048,7 +1043,6 @@ function QuestionDialog({
             ? textOk && payload !== null
             : draft.kind !== row.kind ||
             draft.questionText.trim() !== row.questionText ||
-            draft.domain.trim() !== (row.domain ?? "") ||
             draft.keywordId !== (row.keywordId ?? "") ||
             draft.timeLimit !== (row.timeLimit != null ? String(row.timeLimit) : "") ||
             JSON.stringify(payload) !== JSON.stringify(row.payload)
@@ -1069,7 +1063,6 @@ function QuestionDialog({
         mutationFn: () => {
             const body: Record<string, unknown> = {
                 questionText: draft.questionText.trim(),
-                domain: draft.domain.trim() || null,
                 payload,
             }
             if (row) {
@@ -1161,18 +1154,6 @@ function QuestionDialog({
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                            <label className="text-sm font-medium" htmlFor="q-domain">
-                                Board category (optional)
-                            </label>
-                            <Input
-                                id="q-domain"
-                                value={draft.domain}
-                                onChange={(event) => patch({ domain: event.target.value })}
-                                placeholder="e.g. THTH — the ve-dich board column"
-                                maxLength={64}
-                            />
-                        </div>
                         <div className="grid gap-2">
                             <label className="text-sm font-medium" htmlFor="q-limit">Time limit (s, optional)</label>
                             <Input

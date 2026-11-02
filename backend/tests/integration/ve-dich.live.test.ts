@@ -11,8 +11,14 @@ import type { MatchQuestion } from "../../src/game/contracts/index.js";
 // ve-dich end to end: phase 1 typed (pick → draft → controller finalizes), phase 2 oral
 // with a buzz window and powers.
 
-const DOMAINS = ["THTH", "TNSS", "XHPL", "VHNT", "TTGT", "KTTH"];
-const VALUES = [50, 40, 30, 20];
+// The show's board — 6×20, 6×30, 4×40, 4×50 — and the engine refuses anything
+// else at start, so this fixture IS the round's composition.
+const BOARD: Array<[string, number]> = [
+    ["THTH", 20], ["TNSS", 20], ["XHPL", 20], ["VHNT", 20], ["TTGT", 20], ["KTTH", 20],
+    ["THTH", 30], ["TNSS", 30], ["XHPL", 30], ["VHNT", 30], ["TTGT", 30], ["KTTH", 30],
+    ["THTH", 40], ["TNSS", 40], ["XHPL", 40], ["VHNT", 40],
+    ["THTH", 50], ["TNSS", 50], ["XHPL", 50], ["VHNT", 50]
+];
 
 let app: FastifyInstance;
 let ownerCookie: string;
@@ -25,9 +31,9 @@ const qid = new Map<string, string>();     // "THTH-50" -> question id
 const auth = (cookie: string) => ({ cookie: `portal_session=${cookie}` });
 const asPlayer = (cookie: string) => ({ cookie: `gameplay_session=${cookie}` });
 
-const question = (domain: string, value: number, position: number): MatchQuestion => ({
+const question = (label: string, value: number, position: number): MatchQuestion => ({
     _id: randomUUID(), roundId: "ve-dich", turnId: "grid", position, mode: "text", kind: "TEXT",
-    questionText: `${domain} ${value}`, media: null, timeLimit: null, points: value, domain,
+    questionText: `${label} ${value}`, media: null, timeLimit: null, points: value,
     payload: { acceptedAnswers: ["x"], normalize: { caseSensitive: false, trim: true, stripAccents: true } },
     sourceId: randomUUID()
 });
@@ -65,12 +71,10 @@ beforeAll(async () => {
 
     const questions: MatchQuestion[] = [];
     let position = 0;
-    for (const domain of DOMAINS) {
-        for (const value of VALUES) {
-            const q = question(domain, value, position++);
-            questions.push(q);
-            qid.set(`${domain}-${value}`, q._id);
-        }
+    for (const [label, value] of BOARD) {
+        const q = question(label, value, position++);
+        questions.push(q);
+        qid.set(`${label}-${value}`, q._id);
     }
 
     const [match] = await db.insert(matches).values({
@@ -124,13 +128,13 @@ async function score(playerId: string): Promise<number> {
 }
 
 describe("ve-dich — start", () => {
-    it("builds the grid: 12 cells for Chung, 12 deferred for the summit", async () => {
+    it("builds the board: 12 cells for Chung, 8 deferred for the summit", async () => {
         const res = await act({ kind: "ve-dich.start" });
         expect(res.statusCode).toBe(200);
         const state = res.json().state;
         expect(state.phase).toBe(1);
-        expect(state.remaining).toHaveLength(12);   // Chung: the 20s and 30s only
-        expect(state.deferred).toHaveLength(12);    // the 40s and 50s wait
+        expect(state.remaining).toHaveLength(12);   // Chung: six 20s + six 30s
+        expect(state.deferred).toHaveLength(8);     // Riêng: four 40s + four 50s
         expect(state.players.map((p: { id: string }) => p.id)).toEqual(playerIds);
         expect(state.players.every((p: { powersLeft: string[] }) => p.powersLeft.length === 2)).toBe(true);
     });

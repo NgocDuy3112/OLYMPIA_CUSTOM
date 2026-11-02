@@ -72,7 +72,6 @@ describe("QuestionsPage", () => {
         expect(body).toEqual({
             kind: "TEXT",
             questionText: "Thủ đô của Việt Nam là?",
-            domain: null,
             payload: {
                 acceptedAnswers: ["Hà Nội", "Ha Noi"],
                 normalize: { caseSensitive: false, trim: true, stripAccents: true },

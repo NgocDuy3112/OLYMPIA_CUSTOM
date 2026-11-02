@@ -12,8 +12,9 @@ describe("vé-đích cells", () => {
         for (const where of states) {
             const mc = mcCellClass(where, false)
             const player = playerCellClass({ where, chosen: false, actionable: false })
-            expect(mc).toContain("aspect-[133/59]")
-            expect(player).toContain("aspect-[133/59]")
+            // one fixed height, widths from the grid span — the board stays balanced
+            expect(mc).toContain("h-[4.43cqw]")
+            expect(player).toContain("h-[4.43cqw]")
             // The state palette is shared, not duplicated per surface.
             const palette = where === "open"
                 ? "bg-primary text-primary-foreground"

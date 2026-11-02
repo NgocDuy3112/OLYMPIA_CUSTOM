@@ -118,12 +118,12 @@ function khoiDongContext(
     };
 }
 
-// The ve-dich board: value from the question's points, category from its domain.
+// The ve-dich board: the cell's face value IS the question's points.
 function veDichQuestions(match: { questions: MatchQuestion[] }) {
     return match.questions
         .filter((q) => q.roundId === "ve-dich")
         .sort((a, b) => a.position - b.position)
-        .map((q) => ({ id: q._id, domain: q.domain ?? "", value: q.points }));
+        .map((q) => ({ id: q._id, value: q.points }));
 }
 
 // The match's questions for a round, in position order. Resolved server-side, so a client

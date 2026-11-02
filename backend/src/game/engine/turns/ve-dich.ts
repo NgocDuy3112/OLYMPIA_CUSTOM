@@ -4,13 +4,43 @@
 import { veDichPoints, type Power } from "../scoring/ve-dich.js";
 import { VE_DICH_DEFAULTS, type VeDichRules } from "../rules.js";
 
-export const DOMAINS = ["THTH", "TNSS", "XHPL", "VHNT", "TTGT", "KTTH"] as const;
 export const VALUES = [20, 30, 40, 50] as const;
 
+/**
+ * The board's composition — the SHOW's, not the staff's: six 20s, six 30s,
+ * four 40s, four 50s (20 cells). Chung plays the twelve 20/30 cells, Riêng the
+ * eight 40/50s. A question set that does not match this is refused at start, so
+ * a wrong board can never reach the projector.
+ */
+export const BOARD_COMPOSITION: Record<(typeof VALUES)[number], number> = {
+    20: 6,
+    30: 6,
+    40: 4,
+    50: 4
+};
+
+/** How a question set differs from BOARD_COMPOSITION, as "20×5 (want 6)" lines. */
+function compositionDiffs(questions: VeDichQuestion[]): string[] {
+    const counted = new Map<number, number>();
+    for (const q of questions) counted.set(q.value, (counted.get(q.value) ?? 0) + 1);
+
+    const diffs: string[] = [];
+    for (const value of VALUES) {
+        const want = BOARD_COMPOSITION[value];
+        const got = counted.get(value) ?? 0;
+        if (got !== want) diffs.push(`${value}×${got} (want ${want})`);
+    }
+    for (const [value, got] of counted) {
+        if (!VALUES.includes(value as (typeof VALUES)[number])) {
+            diffs.push(`${value}×${got} (not a face value)`);
+        }
+    }
+    return diffs;
+}
+
 export interface VeDichQuestion {
-    id: string;        // e.g. "THTH-40"
-    domain: string;
-    value: number;
+    id: string;        // the frozen MatchQuestion id
+    value: number;     // the face value — 20/30 in Chung, 40/50 in Riêng
 }
 
 export interface PlayerState {
@@ -56,6 +86,7 @@ export type VeDichError =
     | { code: "ALREADY_OPEN"; message: string }
     | { code: "NOTHING_OPEN"; message: string }
     | { code: "WINDOW_CLOSED"; message: string }
+    | { code: "BOARD_COMPOSITION"; message: string }
     | { code: "PHASE1_INCOMPLETE"; message: string };
 
 export class VeDichRuleError extends Error {
@@ -73,6 +104,13 @@ export function createVeDich(
     players: PlayerState[],
     rules: VeDichRules = VE_DICH_DEFAULTS
 ): VeDichState {
+    // The board is fixed: 6×20, 6×30, 4×40, 4×50. Refuse anything else rather
+    // than draw a board the show never agreed to.
+    const diffs = compositionDiffs(questions);
+    if (diffs.length > 0) {
+        fail("BOARD_COMPOSITION", `ve-dich needs 6×20, 6×30, 4×40, 4×50 — got ${diffs.join(", ")}`);
+    }
+
     // Chung plays the 20s and 30s ONLY; the 40s and 50s wait for the summit
     // and join it together with whatever 20/30 cells Chung never reached.
     const isChung = (q: VeDichQuestion) => q.value === 20 || q.value === 30;

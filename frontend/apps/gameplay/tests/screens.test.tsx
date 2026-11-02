@@ -26,10 +26,10 @@ const question = (id: string, kind: "MC" | "TEXT" | "KEYWORD" = "TEXT") => ({
 })
 
 const board = [
-    { questionId: "q20", domain: "THTH", value: 20, where: "free" as const },
-    { questionId: "q30", domain: "TNSS", value: 30, where: "free" as const },
-    { questionId: "q40", domain: "XHPL", value: 40, where: "taken" as const },
-    { questionId: "q50", domain: "VHNT", value: 50, where: "deferred" as const },
+    { questionId: "q20", value: 20, where: "free" as const },
+    { questionId: "q30", value: 30, where: "free" as const },
+    { questionId: "q40", value: 40, where: "taken" as const },
+    { questionId: "q50", value: 50, where: "deferred" as const },
 ]
 
 function view(over: Partial<PlayerView> = {}): PlayerView {

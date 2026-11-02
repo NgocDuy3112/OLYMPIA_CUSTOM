@@ -42,7 +42,6 @@ function questionValues(ctx: WriteContext, input: CreateQuestionInput) {
     return {
         kind: input.kind,
         questionText: input.questionText,
-        domain: input.domain ?? null,
         keywordId: input.keywordId ?? null,
         payload: input.payload,
         media: input.media ?? null,

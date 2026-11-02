@@ -228,7 +228,7 @@ describe("matches — assembly (explicit)", () => {
         expect(question.turnId).toBe("turn-1");
         expect(question.mode).toBe("oral");
         expect(question.points).toBe(10);
-        expect(question.domain).toBe("THTH");
+        // the frozen copy carries no category: the board is sized by points
         expect(question._id).not.toBe(sourceId);
         expect(question.payload.correctSet).toEqual(["A"]);
     });

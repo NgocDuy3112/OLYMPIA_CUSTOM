@@ -18,8 +18,6 @@ export interface ConsoleQuestion {
     questionText: string
     timeLimit: number | null
     points: number
-    // Board category: copied from the question's domain at assembly.
-    domain?: string | null
     // The JUDGE sees everything: options and the correct set are both here on
     // purpose — this is the staff route's own copy of the frozen set.
     payload: { options?: Array<{ id: string; text: string }>; [key: string]: unknown }
@@ -52,7 +50,7 @@ export interface Projection {
         elapsedS: number
         budgetS: number
     } | null
-    board?: Array<{ questionId: string; domain: string; value: number; where: "free" | "pending" | "open" | "taken" | "deferred" }>
+    board?: Array<{ questionId: string; value: number; where: "free" | "pending" | "open" | "taken" | "deferred" }>
 }
 
 export interface GiaiMaMc {

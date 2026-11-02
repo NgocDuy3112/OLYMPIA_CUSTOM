@@ -18,8 +18,14 @@ import { VeDichRuleError } from "../../../src/game/engine/turns/ve-dich.js";
 const NOW = "2026-01-01T00:00:00.000Z";
 const at = (s: number) => new Date(Date.parse(NOW) + s * 1000).toISOString();
 
-const Q = (domain: string, value: number): VeDichQuestion => ({ id: `${domain}-${value}`, domain, value });
-const POOL = [Q("THTH", 50), Q("THTH", 40), Q("THTH", 30), Q("THTH", 20), Q("TNSS", 50), Q("TNSS", 40)];
+const Q = (label: string, value: number): VeDichQuestion => ({ id: `${label}-${value}`, value });
+// The show's board — createVeDich refuses a set that is not 6×20/6×30/4×40/4×50.
+const POOL = [
+    Q("THTH", 20), Q("TNSS", 20), Q("A", 20), Q("B", 20), Q("C", 20), Q("D", 20),
+    Q("THTH", 30), Q("TNSS", 30), Q("E", 30), Q("F", 30), Q("G", 30), Q("H", 30),
+    Q("THTH", 40), Q("TNSS", 40), Q("I", 40), Q("J", 40),
+    Q("THTH", 50), Q("TNSS", 50), Q("K", 50), Q("L", 50)
+];
 const PLAYERS = ["p0", "p1", "p2"];
 
 const ctx = (over: Partial<VeDichContext> = {}): VeDichContext => ({
@@ -29,7 +35,7 @@ const ctx = (over: Partial<VeDichContext> = {}): VeDichContext => ({
 });
 
 const started = (scores: number[] = [0, 0, 0]): VeDichState =>
-    applyVeDichAction(createVeDich([], []), { kind: "ve-dich.start" }, ctx({
+    applyVeDichAction(createVeDich(POOL, []), { kind: "ve-dich.start" }, ctx({
         players: PLAYERS.map((id, i) => ({ id, score: scores[i] }))
     })).state;
 
@@ -65,7 +71,7 @@ describe("ve-dich start", () => {
     });
 
     it("start with phase: 2 skips the untouched phase 1 — the summit runs on current scores", () => {
-        const s = applyVeDichAction(createVeDich([], []), { kind: "ve-dich.start", phase: 2 }, ctx({
+        const s = applyVeDichAction(createVeDich(POOL, []), { kind: "ve-dich.start", phase: 2 }, ctx({
             players: PLAYERS.map((id, i) => ({ id, score: [10, 50, 0][i] }))
         })).state;
         expect(s.phase).toBe(2);

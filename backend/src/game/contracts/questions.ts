@@ -47,7 +47,6 @@ export const MatchQuestionSchema = Type.Object({
     points: Type.Integer(),
     // The ve-dich board's category label (presentation only). Optional: copies
     // frozen before this field existed simply carry none.
-    domain: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     payload: QuestionPayloadSchema,
     sourceId: Uuid
 });
