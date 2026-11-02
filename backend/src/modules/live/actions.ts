@@ -206,6 +206,9 @@ export const ScoreAdjustActionSchema = Type.Object({
 export type ScoreAdjustAction = Static<typeof ScoreAdjustActionSchema>;
 
 // What a client may send: every controller action, but no server-built answer action.
+// Exception: ve-dich.declarePower — the console declares powers for the player
+// whose turn it is (the show deck is the operator's), so the door is open for it
+// too; the engine still enforces NOT_YOUR_TURN / INVALID_TARGET on the claim.
 export const LiveActionSchema = Type.Union([
     GiaiMaStart,
     GiaiMaOpenHint,
@@ -236,6 +239,7 @@ export const LiveActionSchema = Type.Union([
     VeDichResolve,
     VeDichAdvanceTurn,
     VeDichEndRound,
+    VeDichDeclarePower,
     RoundGoToAction,
     ScoreAdjustActionSchema
 ]);
