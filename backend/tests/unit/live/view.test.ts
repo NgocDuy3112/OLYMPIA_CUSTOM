@@ -6,6 +6,7 @@ import { endKhoiDong, startKhoiDong } from "../../../src/game/engine/turns/khoi-
 import {
     advanceTurn,
     beginPhase2 as beginVeDichPhase2,
+    buzz,
     closeCurrentAnswer,
     createVeDich,
     declarePower,
@@ -240,6 +241,11 @@ describe("player view — ve-dich", () => {
         expect(viewOf(outsider).canBuzz).toBe(false);
         // …and nobody may declare a power once the duel has started
         expect(viewOf(answerer).canDeclarePower).toBe(false);
+
+        // Once one of them buzzes, the offer disappears for BOTH: one answerer.
+        const won = buzz(duel, partner, at(1));
+        expect(buildPlayerView(base({ roundId: "ve-dich", state: won, userId: answerer })).me.canBuzz).toBe(false);
+        expect(buildPlayerView(base({ roundId: "ve-dich", state: won, userId: partner })).me.canBuzz).toBe(false);
     });
 
     it("phase 2: the buzz is offered only while the window is open — the clock decides", () => {

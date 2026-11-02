@@ -279,6 +279,22 @@ describe("powers — ASSIGN", () => {
         expect(codeOf(() => buzz(after, b, at(1)))).toBe("NO_ERROR");
     });
 
+    it("the FIRST buzz locks the other half — a duel has one answerer, like any question", () => {
+        const s = twoUp();
+        const a = s.players[0].id;
+        const b = s.players[1].id;
+        const racing = declarePower(openPhase2Question(s, "THTH-40"), a, "ASSIGN", { targetId: b, nowIso: NOW });
+
+        const afterA = buzz(racing, a, at(1));
+        expect(afterA.open?.buzzer).toBe(a);
+        // B is still inside the question's 30 s clock, and still not allowed in.
+        expect(codeOf(() => buzz(afterA, b, at(2)))).toBe("ALREADY_OPEN");
+
+        const afterB = buzz(racing, b, at(1));
+        expect(afterB.open?.buzzer).toBe(b);
+        expect(codeOf(() => buzz(afterB, a, at(2)))).toBe("ALREADY_OPEN");
+    });
+
     it("A buzzes and is right: A +100%, B −50%", () => {
         const s = twoUp();
         const a = s.players[0].id;
