@@ -283,6 +283,23 @@ export async function readQuestionAnswers(matchId: string, questionId: string) {
     }).from(answers).where(and(eq(answers.matchId, matchId), eq(answers.questionId, questionId)));
 }
 
+/**
+ * Every JUDGED row of the match — the public verdict board some rounds show.
+ * Bounded by (players × questions of one match), so a scan is cheap and it needs
+ * no round knowledge: the caller decides which of them may be published.
+ */
+export async function readJudgedAnswers(matchId: string): Promise<Array<{
+    questionId: string;
+    userId: string;
+    verdict: "CORRECT" | "INCORRECT" | null;
+}>> {
+    return db.select({
+        questionId: answers.questionId,
+        userId: answers.userId,
+        verdict: answers.verdict
+    }).from(answers).where(and(eq(answers.matchId, matchId), eq(answers.judged, true)));
+}
+
 // Current version and state, for the console to reload after a 409.
 export async function readLive(matchId: string): Promise<{
     version: number;

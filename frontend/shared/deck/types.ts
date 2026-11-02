@@ -91,6 +91,16 @@ export interface PlayerView {
     // giai-ma: THE keyword question.
     keyword?: { questionId: string; question: PlayerQuestion | null } | null
     me: PlayerMe
+    /**
+     * Who was judged RIGHT, once the MC has judged — for rounds whose verdicts
+     * are public (khởi động, bứt phá, về đích; NOT giải mã, whose hints and
+     * keyword stay private). Absent while nothing has been judged.
+     */
+    publicVerdicts?: Array<{
+        questionId: string
+        userId: string
+        verdict: "CORRECT" | "INCORRECT"
+    }>
 }
 
 export type AnswerValue = { picked?: string[]; text?: string }

@@ -176,6 +176,35 @@ describe("player view — khoi-dong", () => {
     });
 });
 
+describe("player view — the public verdict board", () => {
+    const judged = [
+        { questionId: "q1", userId: "p0", verdict: "CORRECT" as const },
+        { questionId: "q1", userId: "p1", verdict: "INCORRECT" as const },
+        { questionId: "q1", userId: "p2", verdict: null }
+    ];
+
+    it("khởi động publishes the field's judged verdicts once the MC has judged", () => {
+        const state = startKhoiDong(["p0", "p1"], ["a1", "a2", "a3", "a4", "a5", "a6"]);
+        const view = buildPlayerView(base({ roundId: "khoi-dong", state, judged }));
+        expect(view.publicVerdicts).toEqual([
+            { questionId: "q1", userId: "p0", verdict: "CORRECT" },
+            { questionId: "q1", userId: "p1", verdict: "INCORRECT" }
+        ]);
+    });
+
+    it("giai-ma keeps them private — hints and the keyword wait for the MC", () => {
+        const state = startGiaiMa(["p0", "p1"], ["h1", "h2", "h3", "h4", "h5", "h6", "h7", "h8"]);
+        const view = buildPlayerView(base({ roundId: "giai-ma", state, judged }));
+        expect(view.publicVerdicts).toBeUndefined();
+    });
+
+    it("says nothing while nothing has been judged", () => {
+        const state = startKhoiDong(["p0", "p1"], ["a1", "a2", "a3", "a4", "a5", "a6"]);
+        const view = buildPlayerView(base({ roundId: "khoi-dong", state, judged: [] }));
+        expect(view.publicVerdicts).toBeUndefined();
+    });
+});
+
 describe("player view — an unknown round", () => {
     it("degrades to an empty view instead of throwing", () => {
         const view = buildPlayerView(base({ roundId: "mystery-round" }));

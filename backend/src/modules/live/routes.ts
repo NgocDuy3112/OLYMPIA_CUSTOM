@@ -11,7 +11,7 @@ import { auditFromRequest } from "../audit/service.js";
 import { canWriteTournament } from "../../lib/tournament-access.js";
 import { applyLiveAction, assertVerdictCoverage, mutateLive, type AnswerDraft, type Transition } from "./apply.js";
 import { LiveConflictError } from "./conflict.js";
-import { isSessionActive, readLive, readPlayerAnswers, readQuestionAnswers, sumAdjustmentsByPlayer, sumPointsByPlayer, LiveNotFoundError, pgLiveStore } from "./store.js";
+import { isSessionActive, readJudgedAnswers, readLive, readPlayerAnswers, readQuestionAnswers, sumAdjustmentsByPlayer, sumPointsByPlayer, LiveNotFoundError, pgLiveStore } from "./store.js";
 import { RuleError } from "../../game/engine/turns/errors.js";
 import { VeDichRuleError } from "../../game/engine/turns/ve-dich.js";
 import { LiveActionSchema, type ButPhaAction, type GiaiMaAction, type KhoiDongAction, type LiveAction, type VeDichAction } from "./actions.js";
@@ -359,6 +359,24 @@ function mcFacts(roundId: string, raw: unknown): Record<string, unknown> | null 
     return {};  // but-pha: the shared projection (stage/open/deadlines) says it all
 }
 
+/**
+ * A frozen question as the AUDIENCE may see it: the same shape the screens read,
+ * with every ANSWER stripped — no `correctSet`, no `acceptedAnswers`, no keyword
+ * `code`. The options and the code LENGTH stay: that is what the deck draws.
+ */
+function publicQuestions(questions: MatchQuestion[]): MatchQuestion[] {
+    return questions.map((q) => {
+        const payload = q.payload as Record<string, unknown>;
+        const safe =
+            q.kind === "MC" && Array.isArray(payload.options)
+                ? { options: payload.options }
+                : q.kind === "KEYWORD" && typeof payload.code === "string"
+                    ? { codeLength: payload.code.length }
+                    : {};
+        return { ...q, payload: safe as MatchQuestion["payload"] };
+    });
+}
+
 export async function liveRoutes(app: FastifyInstance) {
     app.setErrorHandler((error, _request, reply) => {
         if (error instanceof SubmitError) {
@@ -657,12 +675,6 @@ export async function liveRoutes(app: FastifyInstance) {
         { onRequest: [requireRole("PORTAL", ["ADMIN", "OPERATOR"])], schema: answersSchema },
         answersHandler
     );
-    app.get(
-        "/spectate/tournaments/:tournamentId/matches/:matchId/live/answers",
-        { ...publicReadRate, schema: answersSchema },
-        answersHandler
-    );
-
     // The console's read — what GET /live returns AND what the stream pushes.
     // Null = no live round yet (the GET 404s; the stream says UNAVAILABLE).
     const consoleViewOf = async (matchId: string): Promise<ConsoleView | null> => {
@@ -714,11 +726,34 @@ export async function liveRoutes(app: FastifyInstance) {
             };
     };
 
+    /**
+     * The AUDIENCE's read — "Khán giả cùng leo núi".
+     *
+     * Same round, same projection (stage, question text, board, table, deadlines),
+     * but the judge's extras are withheld:
+     *   • `questions[]` keep their SHAPE and lose their ANSWERS (no correctSet, no
+     *     acceptedAnswers, no keyword code) — the screens still draw, the room
+     *     cannot read the answer;
+     *   • `mc` (the console's own facts) is not served at all.
+     * The answers ledger has no public twin either: an audience does not judge.
+     */
+    const audienceViewOf = async (matchId: string): Promise<ConsoleView | null> => {
+        const full = await consoleViewOf(matchId);
+        if (!full) return null;
+        return { ...full, questions: publicQuestions(full.questions), mc: null };
+    };
+
     // Read the current state and version. The console calls this after a 409 —
-    // the spectate twin serves the identical body to the link-only audience.
+    // the audience's twin serves the public read of the same round.
     const liveHandler = async (request: FastifyRequest) => {
             const { matchId } = request.params as { matchId: string };
             const payload = await consoleViewOf(matchId);
+            if (!payload) throw app.httpErrors.notFound("no live round");
+            return payload;
+    };
+    const audienceHandler = async (request: FastifyRequest) => {
+            const { matchId } = request.params as { matchId: string };
+            const payload = await audienceViewOf(matchId);
             if (!payload) throw app.httpErrors.notFound("no live round");
             return payload;
     };
@@ -730,7 +765,7 @@ export async function liveRoutes(app: FastifyInstance) {
     app.get(
         "/spectate/tournaments/:tournamentId/matches/:matchId/live",
         { ...publicReadRate, schema: { params: matchParams } },
-        liveHandler
+        audienceHandler
     );
 
     // ── Console realtime channel ────────────────────────────────────────────────
@@ -741,12 +776,13 @@ export async function liveRoutes(app: FastifyInstance) {
     const openConsoleStream = async (
         socket: WebSocket,
         request: FastifyRequest,
-        sessionCheck: { userId: string; tokenVersion: number } | null
+        sessionCheck: { userId: string; tokenVersion: number } | null,
+        audience = false
     ) => {
         const { matchId } = request.params as { matchId: string };
 
         const send = async () => {
-            const payload = await consoleViewOf(matchId);
+            const payload = audience ? await audienceViewOf(matchId) : await consoleViewOf(matchId);
             if (!payload) {
                 socket.send(JSON.stringify(errorMessage("UNAVAILABLE", "no live round")));
                 return;
@@ -806,7 +842,8 @@ export async function liveRoutes(app: FastifyInstance) {
         "/spectate/tournaments/:tournamentId/matches/:matchId/live/stream",
         { websocket: true, ...publicReadRate, schema: { params: matchParams } },
         async (socket, request) => {
-            await openConsoleStream(socket, request, null);
+            // The audience door: no session to check, and no judge's extras.
+            await openConsoleStream(socket, request, null, true);
         }
     );
 
@@ -867,7 +904,9 @@ export async function liveRoutes(app: FastifyInstance) {
                           state,
                           submitted: await readPlayerAnswers(matchId, user.id),
                           questions: match.questions,
-                          table
+                          table,
+                          // Rounds that publish their verdicts show the field's ✓/✗.
+                          judged: await readJudgedAnswers(matchId)
                       });
 
                 socket.send(JSON.stringify(viewMessage(view)));
@@ -1029,7 +1068,9 @@ export async function liveRoutes(app: FastifyInstance) {
                 state: parseRoundState(live.roundId, live.state),
                 submitted: await readPlayerAnswers(matchId, user.id),
                 questions: match.questions,
-                table
+                table,
+                // Rounds that publish their verdicts show the field's ✓/✗.
+                judged: await readJudgedAnswers(matchId)
             });
         }
     );

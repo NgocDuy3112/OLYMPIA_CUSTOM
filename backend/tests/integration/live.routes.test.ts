@@ -497,6 +497,36 @@ describe("round progression", () => {
     });
 });
 
+describe("the audience's read — public gameplay, no judge's extras", () => {
+    it("strips every answer out of the question payloads", async () => {
+        const res = await app.inject({
+            method: "GET", url: `/spectate/tournaments/${tournamentId}/matches/${matchId}/live`
+        });
+        expect(res.statusCode).toBe(200);
+        const body = res.json();
+
+        // The screens still draw from these (options, code LENGTH)…
+        const keyword = body.questions.find((q: { kind: string }) => q.kind === "KEYWORD");
+        expect(Object.keys(keyword.payload)).toEqual(["codeLength"]);
+        // …but the answer itself never crosses the public door.
+        for (const q of body.questions) {
+            expect(JSON.stringify(q.payload)).not.toContain("correctSet");
+            expect(JSON.stringify(q.payload)).not.toContain("acceptedAnswers");
+            expect(q.payload.code).toBeUndefined();
+        }
+        // The MC's own facts are the CONSOLE's, not the audience's.
+        expect(body.mc).toBeNull();
+    });
+
+    it("has no answers ledger — an audience does not judge", async () => {
+        const res = await app.inject({
+            method: "GET",
+            url: `/spectate/tournaments/${tournamentId}/matches/${matchId}/live/answers?questionId=${hintIds[0]}`
+        });
+        expect(res.statusCode).toBe(404);
+    });
+});
+
 describe("live actions — authorisation", () => {
     it("a PLAYER cannot drive a live match", async () => {
         const portalPlayer = signToken(app, "PORTAL", { sub: playerIds[0], role: "PLAYER", tokenVersion: 0 });

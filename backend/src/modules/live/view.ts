@@ -31,6 +31,13 @@ export interface SubmittedAnswer {
     verdict: "CORRECT" | "INCORRECT" | null;
 }
 
+/**
+ * Rounds whose VERDICTS are public once judged: the whole field may see who got
+ * the question right. giai-ma is deliberately absent — its hints and keyword are
+ * private until the MC reveals them, so its verdicts stay with the player.
+ */
+const PUBLISHES_VERDICTS = new Set(["khoi-dong", "but-pha", "ve-dich"]);
+
 export interface ViewInput {
     matchId: string;
     roundId: string;
@@ -39,6 +46,8 @@ export interface ViewInput {
     userId: string;
     state: unknown;
     submitted: SubmittedAnswer[];
+    /** Every JUDGED row of the round in play (any player) — the public board. */
+    judged?: Array<{ questionId: string; userId: string; verdict: "CORRECT" | "INCORRECT" | null }>;
     // The match's frozen questions — the source of every payload in the view.
     // Texts and options are shown; answers never are (sanitizeQuestion).
     questions?: MatchQuestion[];
@@ -80,6 +89,16 @@ export interface PlayerView {
     // giai-ma: THE keyword question — without it a player cannot submit the one
     // thing the round is about. Sanitized like every other exposure.
     keyword?: { questionId: string; question: SanitizedQuestion | null } | null;
+    /**
+     * Who was judged RIGHT, once the MC has judged — for rounds whose verdicts
+     * are public (khởi động, bứt phá, về đích; NOT giải mã, whose hints and the
+     * keyword stay private until the MC reveals them).
+     */
+    publicVerdicts?: Array<{
+        questionId: string;
+        userId: string;
+        verdict: "CORRECT" | "INCORRECT";
+    }>;
     me: Record<string, unknown>;
 }
 
@@ -353,6 +372,20 @@ function veDichView(input: ViewInput, state: VeDichState): PlayerView {
 }
 
 export function buildPlayerView(input: ViewInput): PlayerView {
+    const view = roundViewOf(input);
+    if (!PUBLISHES_VERDICTS.has(input.roundId)) return view;
+    const judged = (input.judged ?? []).filter((row) => row.verdict !== null);
+    return judged.length === 0 ? view : {
+        ...view,
+        publicVerdicts: judged.map((row) => ({
+            questionId: row.questionId,
+            userId: row.userId,
+            verdict: row.verdict as "CORRECT" | "INCORRECT"
+        }))
+    };
+}
+
+function roundViewOf(input: ViewInput): PlayerView {
     switch (input.roundId) {
         case "giai-ma":
             return giaiMaView(input, input.state as GiaiMaState);

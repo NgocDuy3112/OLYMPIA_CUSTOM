@@ -50,11 +50,19 @@ export function Rail({ variant, view, myId, currentQid }: {
     // This player's own broadcast (null outside the match provider — then all
     // cards stay initials, which is exactly right).
     const selfCam = useSelfCam()
+    // Rounds that publish their verdicts (khởi động / bứt phá / về đích) hand the
+    // deck the whole field's ✓/✗ for the question in play; giai-ma never does.
+    const publicFor = (userId: string, qid: string | null | undefined) =>
+        qid
+            ? view.publicVerdicts?.find((row) => row.questionId === qid && row.userId === userId)?.verdict
+            : undefined
     return (
         <>
             {view.table.slice(0, 4).map((row) => {
                 const mine = myId !== null && row.id === myId
                 const myVerdict = currentQid ? view.me.verdicts?.[currentQid] : undefined
+                // …and, when the round publishes, the whole field's verdict.
+                const shownVerdict = mine ? myVerdict : publicFor(row.id, currentQid)
                 const activeRun = view.oral?.playerId === row.id
                 return (
                     <div
@@ -84,7 +92,7 @@ export function Rail({ variant, view, myId, currentQid }: {
                         {!compact && (
                             <div className="flex shrink-0 items-center justify-center gap-[0.4cqw] text-center" style={{ fontSize: pt(12) }}>
                                 <span className="inline-flex items-center gap-[0.3cqw] text-muted-foreground">
-                                    câu này <VerdictIcon verdict={myVerdict ?? null} />
+                                    câu này <VerdictIcon verdict={shownVerdict ?? null} />
                                 </span>
                             </div>
                         )}
