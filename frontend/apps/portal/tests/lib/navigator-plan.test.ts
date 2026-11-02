@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { expandRoundEntries, navigatorStartPlan } from "@/console/navigator-plan"
+import { startAction, type LiveAction } from "@/lib/live-actions"
 import type { LobbyData } from "@/lib/live"
 
 // The rounds navigator's click: what the controller sends to open a round.
@@ -21,7 +22,7 @@ const lobby = (over: Partial<LobbyData> = {}): LobbyData => ({
     ...over,
 })
 
-const start = { kind: "giai-ma.start" }
+const start: LiveAction = { kind: "giai-ma.start", playerIds: ["p1"], hintIds: ["q1"] }
 
 describe("navigatorStartPlan — what a round button sends", () => {
     it("the ACTIVE fresh round starts bare — no navigation needed", () => {
@@ -44,9 +45,13 @@ describe("navigatorStartPlan — what a round button sends", () => {
             .toEqual([{ kind: "round.goTo", roundId: "but-pha" }])
     })
 
-    it("a round the lobby doesn't list still gets go+start (defensive)", () => {
-        expect(navigatorStartPlan(lobby(), "mystery", { kind: "mystery.start" }))
-            .toEqual([{ kind: "round.goTo", roundId: "mystery" }, { kind: "mystery.start" }])
+    it("a round the lobby doesn't list still gets go — and no start the contract can't type", () => {
+        // startAction returns null for a round it doesn't know: the old code
+        // sent `{kind: "mystery.start"}` anyway and the backend 400'd it.
+        const unknown = startAction("mystery", { playerIds: [], questions: [] })
+        expect(unknown).toBeNull()
+        expect(navigatorStartPlan(lobby(), "mystery", unknown))
+            .toEqual([{ kind: "round.goTo", roundId: "mystery" }])
     })
 })
 

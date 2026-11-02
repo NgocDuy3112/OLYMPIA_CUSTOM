@@ -5,7 +5,6 @@ import { valueText } from "@/components/stage/ledger"
 import { isKnownRound, isWaitingStage } from "@shared/deck/geometry"
 import { endRoundPlanOf, nextQuestionPlanOf, railVariantOf, roundModuleOf, type RoundModule } from "@/rounds"
 import {
-    startActionPayload,
     useLive,
     useLiveAction,
     useLobby,
@@ -15,6 +14,7 @@ import {
     type LobbyData,
     type VeDichConsole,
 } from "@/lib/live"
+import { startAction, type LiveAction } from "@/lib/live-actions"
 import { useMatches } from "@/lib/tournament"
 import { fetchOperatorRtcToken, useRtcPeerTracks, useRtcRoom } from "@shared/lib/rtc"
 import { expandRoundEntries, navigatorStartPlan } from "./navigator-plan"
@@ -162,10 +162,10 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     const consoleKhoiDong = roundId === "khoi-dong" ? (v?.console as KhoiDongConsole | null) : null
 
     const byId = (id: string) => questions.find((q) => q._id === id) ?? null
-    const send = (act: Record<string, unknown>) =>
+    const send = (act: LiveAction) =>
         writer.mutate({ expectedVersion: v!.version, action: act })
     /** Sequential actions, each carrying the version the previous one returned. */
-    const sendChain = async (actions: Record<string, unknown>[]) => {
+    const sendChain = async (actions: LiveAction[]) => {
         let ver = v!.version
         for (const action of actions) {
             try {
@@ -193,7 +193,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     }
     const commitKeyword = () => {
         if (!commitKeywordReady || !keywordQuestionId) return
-        const actions = rows.map((r) => ({
+        const actions: LiveAction[] = rows.map((r) => ({
             kind: "giai-ma.judgeKeyword",
             playerId: r.userId,
             questionId: keywordQuestionId,
@@ -358,14 +358,10 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         setRoundsView(false)
         setAtWaiting(false)   // leaving the waiting room for the round's deck
         setEntered(true)      // navigating IN — waiting stages (saved ended) still show the deck
-        const startPayload = {
-            kind: `${nextRoundId}.start`,
-            // The paired rounds' "· Chung/· Riêng" entry: skip the untouched
-            // phase 1 in the SAME start action (the engine refuses a touched one).
-            ...(phase === 2 ? { phase: 2 as const } : {}),
-            ...startActionPayload(nextRoundId, userSeats, questions),
-        }
-        const plan = navigatorStartPlan(lobby.data, nextRoundId, startPayload)
+        // The paired rounds' "· Chung/· Riêng" entry: skip the untouched
+        // phase 1 in the SAME start action (the engine refuses a touched one).
+        const start = startAction(nextRoundId, { phase, playerIds: userSeats, questions })
+        const plan = navigatorStartPlan(lobby.data, nextRoundId, start)
         if (plan.length > 1) return void sendChain(plan)
         if (plan.length === 1) return send(plan[0])
     }

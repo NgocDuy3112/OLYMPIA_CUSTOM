@@ -47,7 +47,9 @@ export const butPhaAOC: RoundModule = {
         return [
             ...finalizeIfNeeded(input),
             { kind: "but-pha.closeQuestion" },
-            ...(isLastQuestion ? [] : [{ kind: "but-pha.openQuestion" }]),
+            // `as const`: through the ternary the literal widens to string and
+            // the compiler can no longer see which action this is.
+            ...(isLastQuestion ? [] : [{ kind: "but-pha.openQuestion" as const }]),
         ]
     },
 }

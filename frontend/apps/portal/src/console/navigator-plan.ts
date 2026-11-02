@@ -1,4 +1,5 @@
 import type { LobbyData } from "@/lib/live"
+import type { LiveAction } from "@/lib/live-actions"
 
 // Rounds that ARE two halves — the lobby shows them as a pair of entries.
 // phase 1 → the "· riêng/chung" first label, phase 2 → the second:
@@ -36,20 +37,23 @@ export function expandRoundEntries(rounds: LobbyData["rounds"]): LobbyData["roun
  * What the rounds navigator sends when the console clicks a round: a fresh ("new")
  * ACTIVE round starts bare; anything else re-opens via round.goTo, appending a
  * start only for rounds that never ran. Pure — table-tested.
+ *
+ * `start` is null when the contract has no start for that round (see
+ * startAction): the navigation still goes out, the impossible start does not.
  */
 export function navigatorStartPlan(
     lobby: LobbyData,
     roundId: string,
-    startPayload: Record<string, unknown>,
-): Record<string, unknown>[] {
+    start: LiveAction | null,
+): LiveAction[] {
     const target = lobby.rounds.find((r) => r.id === roundId)
     const isActive = lobby.roundId === roundId
 
-    if (target?.status === "new" && isActive) return [startPayload]
+    if (target?.status === "new" && isActive) return start ? [start] : []
 
-    const chain: Record<string, unknown>[] = [{ kind: "round.goTo", roundId }]
-    if (target?.status !== "ended" && target?.status !== "playing") {
-        chain.push(startPayload)
+    const chain: LiveAction[] = [{ kind: "round.goTo", roundId }]
+    if (start && target?.status !== "ended" && target?.status !== "playing") {
+        chain.push(start)
     }
     return chain
 }

@@ -3,6 +3,7 @@
 // its screens need (`rounds/<round>/logic` → `ScreenCore & { …extras }`), so a
 // screen's ctx type says exactly what it depends on.
 import type { ConsoleQuestion, LiveResponse, QuestionAnswerRow } from "@/lib/live"
+import type { LiveAction } from "@/lib/live-actions"
 import type { CardData } from "./rail"
 
 export interface ConsoleFacts {
@@ -33,7 +34,7 @@ export interface ConsoleFacts {
     /** stage an override verdict for the selected card (committed by Kết thúc). */
     setVerdict: (correct: boolean) => void
     /** version-guarded action senders. */
-    send: (action: Record<string, unknown>) => void
+    send: (action: LiveAction) => void
     /** turn-based (ve-dich): finish the current TURN — the open question, verdicts first. */
     hetLuot: () => void
     /** end the whole ROUND (turn-based: the turn itself is hetLuot's job). */

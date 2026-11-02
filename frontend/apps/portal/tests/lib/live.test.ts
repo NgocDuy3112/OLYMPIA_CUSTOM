@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest"
-import { hintPool, mergedVerdicts, startActionPayload, type ConsoleQuestion, type GiaiMaConsole, type QuestionAnswerRow } from "@/lib/live"
+import { hintPool, mergedVerdicts, type ConsoleQuestion, type GiaiMaConsole, type QuestionAnswerRow } from "@/lib/live"
 
-// The console's pure decisions: which hints remain, what start must carry,
-// and which verdicts a finalize sends (engine draft, MC overwrite wins).
+// The console's pure decisions: which hints remain and which verdicts a
+// finalize sends (engine draft, MC overwrite wins). The start action's own
+// table lives in tests/lib/live-actions.test.ts.
 
 const question = (over: Partial<ConsoleQuestion>): ConsoleQuestion => ({
     _id: "q",
@@ -65,28 +66,6 @@ describe("hintPool", () => {
     it("an id the frozen set does not know degrades to the id as text", () => {
         const pool = hintPool(giaiMaMc({ hintsRemaining: ["ghost"] }), questions)
         expect(pool).toEqual([{ questionId: "ghost", text: "ghost" }])
-    })
-})
-
-
-describe("startActionPayload", () => {
-    it("giai-ma carries the field and the hint order (keyword excluded, position-sorted)", () => {
-        const questions = [
-            question({ _id: "b", position: 2 }),
-            question({ _id: "a", position: 1 }),
-            question({ _id: "kw", kind: "KEYWORD", turnId: "keyword", position: 0 }),
-            question({ _id: "other", roundId: "but-pha", position: 0 }),
-        ]
-        expect(startActionPayload("giai-ma", ["p1", "p2"], questions)).toEqual({
-            playerIds: ["p1", "p2"],
-            hintIds: ["a", "b"],
-        })
-    })
-
-    it("every other round starts bare", () => {
-        expect(startActionPayload("khoi-dong", ["p1"], [question({})])).toEqual({})
-        expect(startActionPayload("but-pha", ["p1"], [question({})])).toEqual({})
-        expect(startActionPayload("ve-dich", ["p1"], [question({})])).toEqual({})
     })
 })
 

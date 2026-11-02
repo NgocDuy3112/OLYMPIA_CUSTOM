@@ -1,8 +1,10 @@
 import type { ReactNode } from "react"
 import type { ConsoleFacts } from "@/components/stage/deck"
+import type { LiveAction } from "@/lib/live-actions"
 import type { QuestionAnswerRow } from "@/lib/live"
 
-export type RoundAction = Record<string, unknown>
+/** A round planner may only build actions the engine's contract knows. */
+export type RoundAction = LiveAction
 
 /** What a round's planners need — the orchestrator gathers it. */
 export interface RoundPlanInput {

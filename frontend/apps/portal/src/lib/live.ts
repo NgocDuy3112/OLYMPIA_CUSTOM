@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api } from "@shared/lib/api"
 import { useSocketStream } from "@shared/lib/ws"
+import type { LiveAction, Verdict } from "./live-actions"
 
 // The console's data layer: one polled read, one version-guarded action
 // writer, one drafts reader for judging — plus the pure helpers that decide
@@ -218,7 +219,7 @@ export function useLiveAction(tournamentId: string, matchId: string) {
     const queryClient = useQueryClient()
 
     return useMutation({
-        mutationFn: (input: { expectedVersion: number; action: Record<string, unknown> }) =>
+        mutationFn: (input: { expectedVersion: number; action: LiveAction }) =>
             api<{ version?: number }>(
                 `/portal/tournaments/${tournamentId}/matches/${matchId}/live/actions`,
                 { method: "POST", body: JSON.stringify(input) }
@@ -281,25 +282,9 @@ export function mergedVerdicts(
     questionId: string,
     rows: QuestionAnswerRow[],
     overrides: Record<string, boolean>
-): Array<{ playerId: string; correct: boolean }> {
+): Verdict[] {
     return rows.flatMap((row) => {
         const correct = overrides[`${questionId}:${row.userId}`]
         return correct === undefined ? [] : [{ playerId: row.userId, correct }]
     })
-}
-
-// The `start` action's payloads differ per round: giai-ma needs the field and the
-// hint order resolved server-side style (from the frozen set, keyword excluded);
-// every other round starts bare.
-export function startActionPayload(
-    roundId: string,
-    playerIds: string[],
-    questions: ConsoleQuestion[]
-): Record<string, unknown> {
-    if (roundId !== "giai-ma") return {}
-    const hintIds = questions
-        .filter((q) => q.roundId === roundId && q.kind !== "KEYWORD")
-        .sort((a, b) => a.position - b.position)
-        .map((q) => q._id)
-    return { playerIds, hintIds }
 }

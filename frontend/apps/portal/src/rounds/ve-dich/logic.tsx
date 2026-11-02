@@ -46,9 +46,13 @@ export function hetLuotAction(facts: HetLuotFacts): RoundAction | null {
     if (facts.answererVerdict === null) return null
     if (facts.buzzerId !== null && facts.buzzerVerdict === null) return null
 
-    const action: RoundAction = { kind: "ve-dich.resolve", answerer: facts.answererVerdict === "CORRECT" }
-    if (facts.buzzerId !== null) action.buzzer = facts.buzzerVerdict === "CORRECT"
-    return action
+    // The buzzer's verdict rides along only when a buzzer exists — a plain
+    // resolve carries no `buzzer` key (the engine reads its absence as such).
+    return {
+        kind: "ve-dich.resolve",
+        answerer: facts.answererVerdict === "CORRECT",
+        ...(facts.buzzerId !== null ? { buzzer: facts.buzzerVerdict === "CORRECT" } : {}),
+    }
 }
 
 export const veDichAOC: RoundModule = {
