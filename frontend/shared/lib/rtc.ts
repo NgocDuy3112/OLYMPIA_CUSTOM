@@ -16,15 +16,13 @@
 //   feedback loop of four mics in four rooms), viewers with autoSubscribe:
 //   true.
 
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
     Room,
     RoomEvent,
     ConnectionState,
     type LocalVideoTrack,
     type RemoteAudioTrack,
-    type RemoteParticipant,
-    type RemoteTrack,
     type RemoteVideoTrack,
 } from "livekit-client";
 import { api, ApiError } from "./api";
@@ -71,44 +69,6 @@ export interface RtcPeerTracks {
 /** Keyed by participant identity (the user id for players). */
 export type RtcPeerTracksMap = ReadonlyMap<string, RtcPeerTracks>;
 
-// Immutable updates: React state, and the console re-renders per change.
-
-export function setPeerTrack(
-    peers: RtcPeerTracksMap,
-    identity: string,
-    kind: "audio" | "video",
-    track: RemoteAudioTrack | RemoteVideoTrack
-): RtcPeerTracksMap {
-    const next = new Map(peers);
-    const current = next.get(identity) ?? {};
-    next.set(identity, { ...current, [kind]: track });
-    return next;
-}
-
-export function dropPeerTrack(
-    peers: RtcPeerTracksMap,
-    identity: string,
-    kind: "audio" | "video"
-): RtcPeerTracksMap {
-    const existing = peers.get(identity);
-    if (!existing) return peers;
-    // Typed by hand: computed-key rest destructuring collapses to {} here.
-    const rest: RtcPeerTracks = {};
-    if (kind !== "video" && existing.video) rest.video = existing.video;
-    if (kind !== "audio" && existing.audio) rest.audio = existing.audio;
-    const next = new Map(peers);
-    if (rest.video || rest.audio) next.set(identity, rest);
-    else next.delete(identity);
-    return next;
-}
-
-export function dropPeer(peers: RtcPeerTracksMap, identity: string): RtcPeerTracksMap {
-    if (!peers.has(identity)) return peers;
-    const next = new Map(peers);
-    next.delete(identity);
-    return next;
-}
-
 // ── Connection lifecycle ─────────────────────────────────────────────────────
 
 export type RtcStatus =
@@ -140,6 +100,12 @@ export interface RtcRoomHandle {
  * (the same rule `useSocketStream` follows for its callback). `resetKey`
  * (e.g. the match id) forces a fresh dial when the room's SUBJECT changes —
  * the route component stays mounted across param changes.
+ *
+ * The dial's outcome is ONE state tagged with the key it was made for. That is
+ * why the effect never has to clear anything on its way in: a snapshot made for
+ * a previous key is simply not read, so `status` and `room` derive instead of
+ * being pushed through setState synchronously (which would cost a second
+ * render on every mount, and a stale first paint on every reset).
  */
 export function useRtcRoom(opts: {
     enabled: boolean;
@@ -148,34 +114,42 @@ export function useRtcRoom(opts: {
     resetKey?: string;
 }): RtcRoomHandle {
     const { enabled, autoSubscribe, resetKey } = opts;
-    const getToken = useRef(opts.getToken);
-    getToken.current = opts.getToken;
 
-    const [room, setRoom] = useState<Room | null>(null);
-    const [status, setStatus] = useState<RtcStatus>("idle");
-    const [error, setError] = useState<RtcRoomError | null>(null);
+    // Latest-ref, written from an effect (a write during render is what the
+    // compiler refuses): declared FIRST so the dial effect below always reads
+    // this render's closure.
+    const getToken = useRef(opts.getToken);
+    useEffect(() => {
+        getToken.current = opts.getToken;
+    });
+
+    const key = `${enabled}|${autoSubscribe}|${resetKey ?? ""}`;
+    const [dial, setDial] = useState<Dial | null>(null);
+    const current = dial && dial.key === key ? dial : null;
 
     useEffect(() => {
-        if (!enabled) {
-            setRoom(null);
-            setStatus("idle");
-            setError(null);
-            return;
-        }
+        if (!enabled) return;
 
         let cancelled = false;
         let active: Room | null = null;
-        setStatus("connecting");
-        setError(null);
 
-        const onState = (state: ConnectionState) => {
-            if (state === ConnectionState.Connected) setStatus("connected");
-            else if (state === ConnectionState.Reconnecting) setStatus("reconnecting");
-            else if (state === ConnectionState.Disconnected) setStatus("disconnected");
-            else setStatus("connecting");
+        // Guarded write: a dial that was cancelled (disable, reset) can never
+        // clobber the snapshot of the one that replaced it.
+        const write = (patch: Partial<Omit<Dial, "key">>) => {
+            if (cancelled) return;
+            setDial((prev) => ({
+                key,
+                room: null,
+                connection: null,
+                error: null,
+                ...(prev && prev.key === key ? prev : null),
+                ...patch,
+            }));
         };
 
-        (async () => {
+        const onState = (state: ConnectionState) => write({ connection: state });
+
+        void (async () => {
             try {
                 const grant = await getToken.current();
                 if (cancelled) return;
@@ -191,15 +165,15 @@ export function useRtcRoom(opts: {
                     await next.disconnect(true);
                     return;
                 }
-                setRoom(next);
-                setStatus("connected");
+                write({ room: next, connection: ConnectionState.Connected });
             } catch (e) {
                 if (cancelled) return;
-                setError({
-                    message: e instanceof Error ? e.message : String(e),
-                    status: e instanceof ApiError ? e.status : undefined,
+                write({
+                    error: {
+                        message: e instanceof Error ? e.message : String(e),
+                        status: e instanceof ApiError ? e.status : undefined,
+                    },
                 });
-                setStatus("failed");
                 // A half-open room from a failed connect still needs tearing down.
                 if (active) await active.disconnect(true).catch(() => {});
             }
@@ -211,11 +185,39 @@ export function useRtcRoom(opts: {
                 active.off(RoomEvent.ConnectionStateChanged, onState);
                 void active.disconnect(true).catch(() => {});
             }
-            setRoom(null);
         };
-    }, [enabled, autoSubscribe, resetKey]);
+    }, [enabled, autoSubscribe, resetKey, key]);
 
-    return { room, status, error };
+    return {
+        room: current?.room ?? null,
+        status: statusOf(enabled, current),
+        error: current?.error ?? null,
+    };
+}
+
+// One dial attempt, tagged with the key it belongs to (see useRtcRoom).
+interface Dial {
+    key: string;
+    room: Room | null;
+    /** The last ConnectionStateChanged — the only source of status after connect. */
+    connection: ConnectionState | null;
+    error: RtcRoomError | null;
+}
+
+function statusOf(enabled: boolean, dial: Dial | null): RtcStatus {
+    if (!enabled) return "idle";
+    if (!dial) return "connecting";            // a dial for this key is in flight
+    if (dial.error) return "failed";
+    switch (dial.connection) {
+        case ConnectionState.Connected:
+            return "connected";
+        case ConnectionState.Reconnecting:
+            return "reconnecting";
+        case ConnectionState.Disconnected:
+            return "disconnected";
+        default:
+            return "connecting";
+    }
 }
 
 // ── Remote tracks, keyed by identity ────────────────────────────────────────
@@ -232,67 +234,81 @@ export function useRtcRoom(opts: {
  * participant never appears — a player's own camera is rendered locally by
  * the CameraPanel, not from a remote track.
  */
-export function useRtcPeerTracks(room: Room | null): RtcPeerTracksMap {
-    const [peers, setPeers] = useState<RtcPeerTracksMap>(() => new Map());
+const EMPTY_PEERS: RtcPeerTracksMap = new Map();
+const noop = () => {};
 
-    useEffect(() => {
-        if (!room) {
-            setPeers(new Map());
-            return;
+// A livekit Room's participant/track tables are MUTABLE state that the SDK owns
+// and announces with events. So instead of mirroring it into React state (which
+// means a setState in the effect body, and a stale first paint on every mount),
+// the map is DERIVED from the room on read and cached per version: one stable
+// object identity until an event says something moved — exactly what
+// useSyncExternalStore requires of its snapshot.
+const peerVersion = new WeakMap<Room, number>();
+const peerCache = new WeakMap<Room, { version: number; peers: RtcPeerTracksMap }>();
+
+function peersOf(room: Room): RtcPeerTracksMap {
+    const version = peerVersion.get(room) ?? 0;
+    const cached = peerCache.get(room);
+    if (cached && cached.version === version) return cached.peers;
+
+    const peers = new Map<string, RtcPeerTracks>();
+    for (const [identity, participant] of room.remoteParticipants) {
+        const tracks: RtcPeerTracks = {};
+        for (const pub of participant.trackPublications.values()) {
+            if (!pub.track) continue;
+            if (pub.track.kind === "video") tracks.video = pub.track as RemoteVideoTrack;
+            else tracks.audio = pub.track as RemoteAudioTrack;
         }
+        if (tracks.video || tracks.audio) peers.set(identity, tracks);
+    }
 
-        const seed = (): RtcPeerTracksMap => {
-            const next = new Map<string, RtcPeerTracks>();
-            for (const [identity, participant] of room.remoteParticipants) {
-                const tracks: RtcPeerTracks = {};
-                for (const pub of participant.trackPublications.values()) {
-                    if (!pub.track) continue;
-                    if (pub.track.kind === "video") tracks.video = pub.track as RemoteVideoTrack;
-                    else tracks.audio = pub.track as RemoteAudioTrack;
-                }
-                if (tracks.video || tracks.audio) next.set(identity, tracks);
-            }
-            return next;
-        };
-
-        const onSubscribed = (
-            track: RemoteTrack,
-            _pub: unknown,
-            participant: RemoteParticipant
-        ) => {
-            if (track.kind === "video") {
-                setPeers((prev) => setPeerTrack(prev, participant.identity, "video", track as RemoteVideoTrack));
-            } else {
-                setPeers((prev) => setPeerTrack(prev, participant.identity, "audio", track as RemoteAudioTrack));
-            }
-        };
-        const onUnsubscribed = (
-            track: RemoteTrack,
-            _pub: unknown,
-            participant: RemoteParticipant
-        ) => {
-            setPeers((prev) => dropPeerTrack(prev, participant.identity, track.kind === "video" ? "video" : "audio"));
-        };
-        const onLeave = (participant: RemoteParticipant) => {
-            setPeers((prev) => dropPeer(prev, participant.identity));
-        };
-        const onGone = () => setPeers(new Map());
-
-        room.on(RoomEvent.TrackSubscribed, onSubscribed);
-        room.on(RoomEvent.TrackUnsubscribed, onUnsubscribed);
-        room.on(RoomEvent.ParticipantDisconnected, onLeave);
-        room.on(RoomEvent.Disconnected, onGone);
-        setPeers(seed());
-
-        return () => {
-            room.off(RoomEvent.TrackSubscribed, onSubscribed);
-            room.off(RoomEvent.TrackUnsubscribed, onUnsubscribed);
-            room.off(RoomEvent.ParticipantDisconnected, onLeave);
-            room.off(RoomEvent.Disconnected, onGone);
-        };
-    }, [room]);
-
+    peerCache.set(room, { version, peers });
     return peers;
+}
+
+// Every room event that can change what a viewer sees. Subscribed/unsubscribed
+// covers a track coming or going, ParticipantDisconnected a whole participant,
+// and Disconnected the end of the room.
+const PEER_EVENTS = [
+    RoomEvent.TrackSubscribed,
+    RoomEvent.TrackUnsubscribed,
+    RoomEvent.ParticipantDisconnected,
+    RoomEvent.ParticipantConnected,
+    RoomEvent.Disconnected,
+] as const;
+
+function subscribePeers(room: Room, notify: () => void): () => void {
+    const bump = () => {
+        peerVersion.set(room, (peerVersion.get(room) ?? 0) + 1);
+        notify();
+    };
+    for (const event of PEER_EVENTS) room.on(event, bump);
+    return () => {
+        for (const event of PEER_EVENTS) room.off(event, bump);
+    };
+}
+
+/**
+ * Everything currently subscribed, keyed by participant identity — the exact
+ * shape the PlayerCard rail and the spectator grid render from:
+ *
+ *   const peers = useRtcPeerTracks(room)
+ *   const video = peers.get(playerUserId)?.video
+ *
+ * Reads the room's live tables, so participants already present when the room
+ * is handed over are there from the first paint (events don't replay history).
+ * The local participant never appears — a player's own camera is rendered
+ * locally by the CameraPanel, not from a remote track.
+ */
+export function useRtcPeerTracks(room: Room | null): RtcPeerTracksMap {
+    // Stable per room: useSyncExternalStore re-subscribes whenever the
+    // subscribe callback changes identity.
+    const subscribe = useCallback(
+        (notify: () => void) => (room ? subscribePeers(room, notify) : noop),
+        [room]
+    );
+    const snapshot = useCallback(() => (room ? peersOf(room) : EMPTY_PEERS), [room]);
+    return useSyncExternalStore(subscribe, snapshot);
 }
 
 // ── THIS player's own broadcast (publish side) ───────────────────────────────
