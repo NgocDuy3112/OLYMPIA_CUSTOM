@@ -1,1 +1,0 @@
-ALTER TABLE "season_standings" DROP COLUMN "total_score";

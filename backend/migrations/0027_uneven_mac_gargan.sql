@@ -1,1 +1,0 @@
-ALTER TABLE "match_live" ADD COLUMN "archive" jsonb DEFAULT '{}'::jsonb NOT NULL;

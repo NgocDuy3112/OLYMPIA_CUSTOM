@@ -1,6 +1,6 @@
 {
-  "id": "6421bee5-a15a-4304-bdaf-e5619a43b142",
-  "prevId": "517c930d-2772-4015-89be-68613bad7387",
+  "id": "06c6fe48-e82f-42ca-933c-fdcfb28f9a09",
+  "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1073,13 +1073,7 @@
           "name": "user_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": false
-        },
-        "team_id": {
-          "name": "team_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "base_points": {
           "name": "base_points",
@@ -1180,35 +1174,6 @@
             }
           ],
           "isUnique": true,
-          "where": "team_id IS NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "match_stats_team_unique": {
-          "name": "match_stats_team_unique",
-          "columns": [
-            {
-              "expression": "match_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "round_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "team_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "user_id IS NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -1280,13 +1245,9 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "match_stats_one_identity_check": {
-          "name": "match_stats_one_identity_check",
-          "value": "(user_id IS NULL) <> (team_id IS NULL)"
-        },
         "match_stats_question_grain_check": {
           "name": "match_stats_question_grain_check",
-          "value": "(team_id IS NULL) = (question_id IS NOT NULL)"
+          "value": "question_id IS NOT NULL"
         }
       },
       "isRLSEnabled": false
@@ -1646,13 +1607,7 @@
           "name": "user_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": false
-        },
-        "team_id": {
-          "name": "team_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "rank": {
           "name": "rank",
@@ -1692,29 +1647,6 @@
             }
           ],
           "isUnique": true,
-          "where": "team_id IS NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "tournament_standings_team_unique": {
-          "name": "tournament_standings_team_unique",
-          "columns": [
-            {
-              "expression": "tournament_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "team_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "user_id IS NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -1751,12 +1683,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "tournament_standings_one_identity_check": {
-          "name": "tournament_standings_one_identity_check",
-          "value": "(user_id IS NULL) <> (team_id IS NULL)"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.question_bank": {
@@ -1782,12 +1709,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "domain": {
-          "name": "domain",
-          "type": "varchar(64)",
-          "primaryKey": false,
-          "notNull": false
         },
         "keyword_id": {
           "name": "keyword_id",
@@ -1928,6 +1849,13 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
+        },
+        "group": {
+          "name": "group",
+          "type": "player_group",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
         },
         "enrolled_at": {
           "name": "enrolled_at",
@@ -2185,6 +2113,14 @@
       "values": [
         "CORRECT",
         "INCORRECT"
+      ]
+    },
+    "public.player_group": {
+      "name": "player_group",
+      "schema": "public",
+      "values": [
+        "A",
+        "B"
       ]
     },
     "public.question_kind": {
