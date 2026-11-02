@@ -16,6 +16,17 @@ export interface AnswerFact {
     autoMatched: boolean;
 }
 
+// A player's submission stored as a DRAFT — no verdict yet, awaiting the MC.
+// Written in the SAME transaction as the round state it accompanies (a keyword
+// locks the player), so a submission and its lock can never disagree.
+export interface DraftFact {
+    type: "draft";
+    questionId: string;
+    userId: string;
+    value: { text: string } | { picked: string[] };
+    suggestion: Verdict;        // the auto-matcher's OPINION — never a verdict
+}
+
 // One row in `match_events`: a PICK, BUZZ, or POWER.
 export interface EventFact {
     type: "event";
@@ -47,4 +58,4 @@ export interface AdjustFact {
     actorId: string;
 }
 
-export type LiveFact = AnswerFact | EventFact | JudgeFact | AdjustFact;
+export type LiveFact = AnswerFact | DraftFact | EventFact | JudgeFact | AdjustFact;

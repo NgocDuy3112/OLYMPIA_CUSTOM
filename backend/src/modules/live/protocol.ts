@@ -2,7 +2,7 @@
 // schema per client command. Every server message carries `v` and `type`; replies carry
 // the requestId they answer, so a result can be matched even though view pushes interleave.
 import { Type, Static } from "@sinclair/typebox";
-import { SubmittedAnswerValueSchema } from "../../game/contracts/index.js";
+import { SubmittedAnswerValueSchema, type MatchQuestion } from "../../game/contracts/index.js";
 import type { PlayerView } from "./view.js";
 
 export const PROTOCOL_VERSION = 1;
@@ -73,13 +73,27 @@ export type ClientMessage = Static<typeof ClientMessageSchema>;
 // the offset once and correct every deadline. It is display only — never authority.
 export interface ServerEnvelope {
     v: typeof PROTOCOL_VERSION;
-    type: "view" | "ack" | "error";
+    type: "view" | "console" | "ack" | "error";
     at: string;                  // ISO, server time
     requestId?: string;
 }
 
+// The console's read — what GET .../live returns: the shared projection plus
+// the judge's extras (the full frozen set, mc facts, socket presence).
+export interface ConsoleView {
+    version: number;
+    roundId: string;
+    state: Record<string, unknown>;
+    questions: MatchQuestion[];
+    projection: Omit<PlayerView, "me">;
+    roundEnded: boolean;
+    connected: string[];
+    mc: Record<string, unknown> | null;
+}
+
 export type ServerMessage =
     | (ServerEnvelope & { type: "view"; data: { view: PlayerView } })
+    | (ServerEnvelope & { type: "console"; data: { view: ConsoleView } })
     | (ServerEnvelope & { type: "ack"; data: { for: ClientMessage["type"]; result: unknown } })
     | (ServerEnvelope & { type: "error"; data: { code: string; message: string } });
 
@@ -87,6 +101,10 @@ const nowIso = () => new Date().toISOString();
 
 export function viewMessage(view: PlayerView, at: string = nowIso()): ServerMessage {
     return { v: PROTOCOL_VERSION, type: "view", at, data: { view } };
+}
+
+export function consoleViewMessage(view: ConsoleView, at: string = nowIso()): ServerMessage {
+    return { v: PROTOCOL_VERSION, type: "console", at, data: { view } };
 }
 
 export function ackMessage(

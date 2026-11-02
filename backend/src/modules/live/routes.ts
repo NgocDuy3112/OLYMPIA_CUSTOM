@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
+import type WebSocket from "ws";
 import { Value } from "@sinclair/typebox/value";
 import { requireAuth, requireRole } from "../../lib/guards.js";
 import { getMatch, getMatchById, requireMatchScope, type MatchRow } from "../matches/service.js";
@@ -8,7 +9,7 @@ import { orderedMatchRounds } from "../matches/rounds.js";
 import { isSeatedInMatch } from "../matches/seats.js";
 import { auditFromRequest } from "../audit/service.js";
 import { canWriteTournament } from "../../lib/tournament-access.js";
-import { applyLiveAction, mutateLive, type AnswerDraft, type Transition } from "./apply.js";
+import { applyLiveAction, assertVerdictCoverage, mutateLive, type AnswerDraft, type Transition } from "./apply.js";
 import { LiveConflictError } from "./conflict.js";
 import { isSessionActive, readLive, readPlayerAnswers, readQuestionAnswers, sumAdjustmentsByPlayer, sumPointsByPlayer, LiveNotFoundError, pgLiveStore } from "./store.js";
 import { RuleError } from "../../game/engine/turns/errors.js";
@@ -25,13 +26,15 @@ import {
     ackMessage,
     CLOSE_CODES,
     ClientMessageSchema,
+    consoleViewMessage,
     errorMessage,
     requestIdOf,
     viewMessage,
     type ClientMessage,
+    type ConsoleView,
     type ServerMessage
 } from "./protocol.js";
-import { connectedUsers, publish, subscribe } from "./hub.js";
+import { CONSOLE_SUBSCRIBER, connectedUsers, publish, subscribe } from "./hub.js";
 import { attachHeartbeat } from "./heartbeat.js";
 import { attachSessionGuard } from "./session-guard.js";
 import { LiveStateError, parseButPhaState, parseGiaiMaState, parseKhoiDongState, parseRoundState, parseVeDichState } from "./state.js";
@@ -260,7 +263,7 @@ function giaiMaContext(
     action: LiveAction,
     roundId: string,
     actorId: string,
-    submittedAnswers: Record<string, boolean>
+    answerDrafts: AnswerDraft[]
 ): GiaiMaContext {
     let hintTurnId = "";
 
@@ -273,7 +276,7 @@ function giaiMaContext(
         hintTurnId = q.turnId;
     }
 
-    if (action.kind === "giai-ma.submitKeyword") {
+    if (action.kind === "giai-ma.submitKeyword" || action.kind === "giai-ma.judgeKeyword") {
         const q = match.questions.find((candidate) => candidate._id === action.questionId);
         if (!q) throw app.httpErrors.badRequest("question is not part of this match");
         if (q.kind !== "KEYWORD") {
@@ -282,10 +285,9 @@ function giaiMaContext(
     }
 
     return {
-        actorId, roundId, hintTurnId, submittedAnswers,
+        actorId, roundId, hintTurnId, answerDrafts,
         now: new Date().toISOString(),
-        rules: giaiMaRules((match as { roundConfigs?: Record<string, RoundConfig> }).roundConfigs?.[roundId]),
-        keywordAutoMatched: false           // the MC asserted the verdict
+        rules: giaiMaRules((match as { roundConfigs?: Record<string, RoundConfig> }).roundConfigs?.[roundId])
     };
 }
 
@@ -465,19 +467,42 @@ export async function liveRoutes(app: FastifyInstance) {
                             );
                         }
 
+                        // No round may end while a submitted answer still waits for a
+                        // verdict — the freeze would silently drop it. Read inside this
+                        // transaction. (ve-dich is excluded: its pass-the-turn flow can
+                        // legitimately leave a resolved-later draft behind.)
+                        if (action.kind === "giai-ma.endRound"
+                            || action.kind === "but-pha.endRound"
+                            || action.kind === "khoi-dong.endRound") {
+                            const questionIds = match.questions
+                                .filter((q) => q.roundId === current.roundId)
+                                .map((q) => q._id);
+                            for (const questionId of questionIds) {
+                                const drafts = await tx.readAnswerDrafts(questionId);
+                                if (drafts.some((d) => !d.judged)) {
+                                    throw new RuleError(
+                                        "UNJUDGED_ANSWERS",
+                                        "judge every submitted answer before ending the round"
+                                    );
+                                }
+                            }
+                        }
+
                         if (current.roundId === "giai-ma") {
-                            // Resolving reads the submitted answers INSIDE this transaction, so a
+                            // Resolve coverage is read INSIDE this transaction, so a
                             // submission that landed just before it cannot be missed.
-                            let submittedAnswers: Record<string, boolean> = {};
+                            let answerDrafts: AnswerDraft[] = [];
                             if (action.kind === "giai-ma.resolveHint") {
                                 const state = parseGiaiMaState(current.state);
                                 if (state.openHint === null) {
                                     throw new RuleError("NO_OPEN_HINT", "no hint window is open");
                                 }
-                                submittedAnswers = await tx.readAnswers(state.openHint);
+                                // Read inside the tx so a submission landing mid-flight
+                                // cannot slip past the coverage check the apply layer runs.
+                                answerDrafts = await tx.readAnswerDrafts(state.openHint);
                             }
 
-                            const ctx = giaiMaContext(app, match, action, current.roundId, user.id, submittedAnswers);
+                            const ctx = giaiMaContext(app, match, action, current.roundId, user.id, answerDrafts);
                             const engine = action.kind === "giai-ma.start"
                                 ? EMPTY_GIAI_MA
                                 : parseGiaiMaState(current.state);
@@ -491,10 +516,11 @@ export async function liveRoutes(app: FastifyInstance) {
                                 ? EMPTY_BUT_PHA
                                 : parseButPhaState(current.state);
 
-                            // Finalizing reads the drafts (and their times) inside this tx.
+                            // Finalize coverage: both directions (see assertVerdictCoverage).
                             let answerDrafts: AnswerDraft[] = [];
                             if (action.kind === "but-pha.finalize") {
                                 answerDrafts = await tx.readAnswerDrafts(action.questionId);
+                                assertVerdictCoverage(answerDrafts, action.verdicts, "finalizing");
                             }
 
                             // Strict blocking: the next question requires every answer of the
@@ -527,6 +553,14 @@ export async function liveRoutes(app: FastifyInstance) {
                             const engine = action.kind === "khoi-dong.start"
                                 ? EMPTY_KHOI_DONG
                                 : parseKhoiDongState(current.state);
+
+                            // Finalize coverage, both directions: a verdict for a
+                            // non-submitter is NO_ANSWER; a waiting draft without a
+                            // verdict is UNJUDGED_ANSWERS — never a silent default.
+                            if (action.kind === "khoi-dong.finalize") {
+                                const drafts = await tx.readAnswerDrafts(action.questionId);
+                                assertVerdictCoverage(drafts, action.verdicts, "finalizing");
+                            }
 
                             const { state, facts } = applyKhoiDongAction(engine, action as KhoiDongAction, {
                                 ...khoiDongContext(match, current.roundId, user.id, new Date().toISOString())
@@ -625,12 +659,11 @@ export async function liveRoutes(app: FastifyInstance) {
         answersHandler
     );
 
-    // Read the current state and version. The console calls this after a 409 —
-    // the spectate twin serves the identical body to the link-only audience.
-    const liveHandler = async (request: FastifyRequest) => {
-            const { matchId } = request.params as { matchId: string };
+    // The console's read — what GET /live returns AND what the stream pushes.
+    // Null = no live round yet (the GET 404s; the stream says UNAVAILABLE).
+    const consoleViewOf = async (matchId: string): Promise<ConsoleView | null> => {
             const live = await readLive(matchId);
-            if (!live) throw app.httpErrors.notFound("no live round");
+            if (!live) return null;
 
             const match = await getMatchById(matchId);
             const table = await scoreTable(match);
@@ -676,6 +709,15 @@ export async function liveRoutes(app: FastifyInstance) {
                 mc: mcFacts(live.roundId, live.state)
             };
     };
+
+    // Read the current state and version. The console calls this after a 409 —
+    // the spectate twin serves the identical body to the link-only audience.
+    const liveHandler = async (request: FastifyRequest) => {
+            const { matchId } = request.params as { matchId: string };
+            const payload = await consoleViewOf(matchId);
+            if (!payload) throw app.httpErrors.notFound("no live round");
+            return payload;
+    };
     app.get(
         "/portal/tournaments/:tournamentId/matches/:matchId/live",
         { onRequest: [requireRole("PORTAL", ["ADMIN", "OPERATOR"])], schema: { params: matchParams } },
@@ -685,6 +727,83 @@ export async function liveRoutes(app: FastifyInstance) {
         "/spectate/tournaments/:tournamentId/matches/:matchId/live",
         { ...publicReadRate, schema: { params: matchParams } },
         liveHandler
+    );
+
+    // ── Console realtime channel ────────────────────────────────────────────────
+    // The console's socket twin: the same payload as the GET above, pushed
+    // whenever the round changes — an MC action, a player's buzz, a verdict.
+    // Two doors, as the GET has: the operator console (session-checked) and
+    // the link-only spectate twin (public). The 3 s poll stays as the fallback.
+    const openConsoleStream = async (
+        socket: WebSocket,
+        request: FastifyRequest,
+        sessionCheck: { userId: string; tokenVersion: number } | null
+    ) => {
+        const { matchId } = request.params as { matchId: string };
+
+        const send = async () => {
+            const payload = await consoleViewOf(matchId);
+            if (!payload) {
+                socket.send(JSON.stringify(errorMessage("UNAVAILABLE", "no live round")));
+                return;
+            }
+            socket.send(JSON.stringify(consoleViewMessage(payload)));
+        };
+
+        // A half-open socket would otherwise sit in the hub forever, receiving pushes.
+        const stopHeartbeat = attachHeartbeat(socket);
+        // The console's own socket is NOT a player: it subscribes under a sentinel
+        // id so the rail's connected dots keep meaning "a player is here".
+        const unsubscribe = subscribe(matchId, { userId: CONSOLE_SUBSCRIBER, push: send });
+
+        let stopSessionGuard: () => void = () => {};
+        const cleanup = () => {
+            stopHeartbeat();
+            stopSessionGuard();
+            unsubscribe();
+        };
+
+        // Only the operator's session can be revoked mid-connection; the spectate
+        // door has no session to re-check.
+        if (sessionCheck) {
+            const connectedAtVersion = sessionCheck.tokenVersion;
+            stopSessionGuard = attachSessionGuard({
+                check: () => isSessionActive(sessionCheck.userId, connectedAtVersion),
+                onInvalid: () => {
+                    cleanup();
+                    try { socket.close(CLOSE_CODES.SESSION_ENDED, "session ended"); } catch { /* already closed */ }
+                }
+            });
+        }
+        socket.on("close", cleanup);
+        socket.on("error", cleanup);
+
+        try {
+            await send();
+        } catch {
+            cleanup();
+            try { socket.terminate(); } catch { /* already closed */ }
+        }
+    };
+
+    app.get(
+        "/portal/tournaments/:tournamentId/matches/:matchId/live/stream",
+        {
+            websocket: true,
+            onRequest: [requireRole("PORTAL", ["ADMIN", "OPERATOR"])],
+            schema: { params: matchParams },
+        },
+        async (socket, request) => {
+            const user = request.sessionUser!;
+            await openConsoleStream(socket, request, { userId: user.id, tokenVersion: user.tokenVersion });
+        }
+    );
+    app.get(
+        "/spectate/tournaments/:tournamentId/matches/:matchId/live/stream",
+        { websocket: true, ...publicReadRate, schema: { params: matchParams } },
+        async (socket, request) => {
+            await openConsoleStream(socket, request, null);
+        }
     );
 
     // The LOBBY: same payload before the match is LIVE (the /live read 404s

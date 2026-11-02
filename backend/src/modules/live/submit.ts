@@ -13,7 +13,6 @@ import { autoMatch, type QuestionKind } from "../../game/engine/matching.js";
 import { RuleError } from "../../game/engine/turns/errors.js";
 import {
     canPlayerAnswer,
-    giaiMaPoints,
     isWindowOpen
 } from "../../game/engine/turns/giai-ma.js";
 import { elapsedSeconds, openQuestionId } from "../../game/engine/turns/but-pha.js";
@@ -24,19 +23,16 @@ import type { RoundConfig } from "../../game/contracts/index.js";
 import { applyGiaiMaAction } from "./giai-ma.js";
 import { mutateLive, type Transition } from "./apply.js";
 import { publish } from "./hub.js";
-import { pgLiveStore, readLive, recordPlayerAnswer, writeDraft } from "./store.js";
+import { pgLiveStore, readLive, writeDraft } from "./store.js";
 import { parseButPhaState, parseGiaiMaState, parseKhoiDongState, parseVeDichState } from "./state.js";
 
 export type Suggestion = "CORRECT" | "INCORRECT";
 
-export type AnswerResult =
-    | { correct: boolean }                                  // giai-ma hint: recorded outright
-    | { drafted: true; suggested: Suggestion };             // but-pha / khoi-dong: awaiting judgment
-
-export interface KeywordResult {
-    correct: boolean;
-    points: number;
-}
+// What every submission ack returns: "received, awaiting the MC's verdict".
+// Nothing about correctness crosses the wire — the auto-matcher's opinion stays
+// server-side in the draft (drafts.auto) for the MC to review; the player waits
+// for the verdict the console pushes after judging.
+export type AnswerResult = { drafted: true };
 
 // A refusal the caller can turn into an HTTP status, or a socket error message.
 export class SubmitError extends Error {
@@ -114,17 +110,22 @@ export async function submitAnswer(ctx: SubmitContext): Promise<AnswerResult> {
         const question = match.questions.find((q) => q._id === ctx.questionId);
         if (!question) throw new SubmitError(400, "NOT_IN_MATCH", "question is not part of this match");
 
-        const correct = autoMatch(question.kind as QuestionKind, question.payload, value);
-        await recordPlayerAnswer({
+        // A hint answer is a DRAFT: the auto-matcher's opinion is stored for the
+        // MC, the reveal resolves it (giai-ma.resolveHint judges every row).
+        // Revision while the window is open: last answer wins (writeDraft default).
+        const suggestion: Suggestion = autoMatch(question.kind as QuestionKind, question.payload, value)
+            ? "CORRECT" : "INCORRECT";
+        await writeDraft({
             matchId: ctx.matchId,
             questionId: ctx.questionId,
             userId: ctx.userId,
             value,
-            verdict: correct ? "CORRECT" : "INCORRECT"
+            suggestion
         });
+        await draftAudit(ctx, live.roundId, suggestion);
 
         await publish(ctx.matchId);
-        return { correct };
+        return { drafted: true };
     }
 
     if (live.roundId === "but-pha") {
@@ -165,7 +166,7 @@ export async function submitAnswer(ctx: SubmitContext): Promise<AnswerResult> {
         });
         await draftAudit(ctx, live.roundId, suggestion);
         await publish(ctx.matchId);
-        return { drafted: true, suggested: suggestion };
+        return { drafted: true };
     }
 
     if (live.roundId === "khoi-dong") {
@@ -207,7 +208,7 @@ export async function submitAnswer(ctx: SubmitContext): Promise<AnswerResult> {
         });
         await draftAudit(ctx, live.roundId, suggestion);
         await publish(ctx.matchId);
-        return { drafted: true, suggested: suggestion };
+        return { drafted: true };
     }
 
     if (live.roundId === "ve-dich") {
@@ -244,15 +245,16 @@ export async function submitAnswer(ctx: SubmitContext): Promise<AnswerResult> {
         });
         await draftAudit(ctx, live.roundId, suggestion);
         await publish(ctx.matchId);
-        return { drafted: true, suggested: suggestion };
+        return { drafted: true };
     }
 
     throw new SubmitError(409, "NO_ROUND", `round ${live.roundId} does not accept answers yet`);
 }
 
-// The giai-ma keyword. Unlike a hint answer this changes round state: the player is locked
-// and their keyword value is awarded.
-export async function submitKeyword(ctx: SubmitContext): Promise<KeywordResult> {
+// The giai-ma keyword. Unlike a hint answer this changes round state: the player is
+// locked out of hints. The typed text is stored as a DRAFT — no verdict, no points
+// until the MC judges (giai-ma.judgeKeyword).
+export async function submitKeyword(ctx: SubmitContext): Promise<AnswerResult> {
     const value = parseValue(ctx.value);
     if (!("text" in value)) throw new SubmitError(400, "BAD_VALUE", "a keyword answer must be text");
 
@@ -267,9 +269,10 @@ export async function submitKeyword(ctx: SubmitContext): Promise<KeywordResult> 
         throw new SubmitError(400, "NOT_KEYWORD", "question is not this round's keyword");
     }
 
-    const correct = autoMatch("KEYWORD", keyword.payload, value);
+    const suggestion: Suggestion = autoMatch("KEYWORD", keyword.payload, value)
+        ? "CORRECT" : "INCORRECT";
 
-    const next = await mutateLive(
+    await mutateLive(
         pgLiveStore<Record<string, unknown>>(ctx.matchId),
         (current): Transition<Record<string, unknown>> => {
             const state = parseGiaiMaState(current.state);
@@ -282,17 +285,16 @@ export async function submitKeyword(ctx: SubmitContext): Promise<KeywordResult> 
                     kind: "giai-ma.submitKeyword",
                     playerId: ctx.userId,
                     questionId: keyword._id,
-                    correct,
-                    text: value.text
+                    text: value.text,
+                    suggestion           // the matcher's OPINION — stored in the draft, never a verdict
                 },
                 {
                     actorId: ctx.userId,
                     roundId: current.roundId,
                     hintTurnId: "",
-                    submittedAnswers: {},
+                    answerDrafts: [],                    // lock+draft only — nothing to read for resolve
                     now: new Date().toISOString(),
-                    rules: giaiMaRules((match as { roundConfigs?: Record<string, RoundConfig> }).roundConfigs?.[current.roundId]),
-                    keywordAutoMatched: true         // the player typed it; the server matched it
+                    rules: giaiMaRules((match as { roundConfigs?: Record<string, RoundConfig> }).roundConfigs?.[current.roundId])
                 }
             );
             return { state: nextState as unknown as Record<string, unknown>, facts };
@@ -300,5 +302,5 @@ export async function submitKeyword(ctx: SubmitContext): Promise<KeywordResult> 
     );
 
     await publish(ctx.matchId);
-    return { correct, points: giaiMaPoints(parseGiaiMaState(next.state), ctx.userId) };
+    return { drafted: true };
 }

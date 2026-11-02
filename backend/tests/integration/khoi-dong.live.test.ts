@@ -172,7 +172,7 @@ describe("khoi-dong — phase 2 (typed, draft then judge)", () => {
     it("a player's typed answer becomes a draft, not a verdict", async () => {
         const res = await answer(playerCookies[0], phase2Ids[0], "ha noi");
         expect(res.statusCode).toBe(200);
-        expect(res.json()).toMatchObject({ drafted: true, suggested: "CORRECT" });
+        expect(res.json()).toEqual({ drafted: true });        // the ack reveals nothing
 
         const [row] = await db.select().from(answers)
             .where(and(eq(answers.matchId, matchId), eq(answers.questionId, phase2Ids[0])));
@@ -193,7 +193,7 @@ describe("khoi-dong — phase 2 (typed, draft then judge)", () => {
     it("a player may revise their draft before it is judged", async () => {
         const res = await answer(playerCookies[0], phase2Ids[0], "Hải Phòng");
         expect(res.statusCode).toBe(200);
-        expect(res.json().suggested).toBe("INCORRECT");
+        expect(res.json()).toEqual({ drafted: true });            // opinion stays server-side
         const rows = await db.select().from(answers)
             .where(and(eq(answers.matchId, matchId), eq(answers.questionId, phase2Ids[0])));
         expect(rows).toHaveLength(1);                              // revised in place

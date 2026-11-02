@@ -14,6 +14,7 @@ import type { MatchQuestion } from "../../src/game/contracts/index.js";
 let app: FastifyInstance;
 let ownerCookie: string;
 let playerCookie: string;
+let playerId: string;
 let outsiderCookie: string;
 let tournamentId: string;
 let matchId: string;
@@ -46,6 +47,7 @@ beforeAll(async () => {
         role: "PLAYER", email: "streamer@example.com", displayName: "Streamer", tokenVersion: 0
     }).returning();
     playerCookie = signToken(app, "GAMEPLAY", { sub: player.id, role: "PLAYER", tokenVersion: 0 });
+    playerId = player.id;
 
     const [outsider] = await db.insert(users).values({
         role: "PLAYER", email: "stream-outsider@example.com", displayName: "Out", tokenVersion: 0
@@ -152,7 +154,7 @@ describe("live stream — a connected player", () => {
         await nextMessage(socket);                              // the opening snapshot
 
         const pushed = nextMessage(socket);
-        const res = await act({ kind: "giai-ma.resolveHint" }); // closes the window
+        const res = await act({ kind: "giai-ma.resolveHint", verdicts: [] }); // nobody answered → closes the window
         expect(res.statusCode).toBe(200);
 
         const update = await pushed;
@@ -186,7 +188,7 @@ describe("live stream — submitting over the socket", () => {
         expect(res.statusCode).toBe(200);
     });
 
-    it("a player submits an answer and receives the auto-matched result", async () => {
+    it("a player submits an answer and receives a receipt — not a verdict", async () => {
         const socket = await connect(playerCookie);
         const next = inbox(socket);
         await next("view");                                  // the snapshot
@@ -199,17 +201,17 @@ describe("live stream — submitting over the socket", () => {
         const result = await next("ack");
         expect(result).toMatchObject({
             v: 1, type: "ack", requestId: "r1",
-            data: { for: "answer", result: { correct: true } }
+            data: { for: "answer", result: { drafted: true } }   // no correctness, no suggestion
         });
         socket.close();
     });
 
-    it("the submission is recorded, and the pushed view reflects it", async () => {
+    it("the submission is recorded as a draft the player waits on", async () => {
         const socket = await connect(playerCookie);
         const next = inbox(socket);
         const snapshot = await next("view");
         expect(snapshot.data.view.open[0].questionId).toBe(hintIds[1]);
-        expect(snapshot.data.view.me.answerState).toBe("final");   // the previous test's answer
+        expect(snapshot.data.view.me.answerState).toBe("draft");   // awaiting the MC's verdict
         socket.close();
     });
 
@@ -261,5 +263,106 @@ describe("live stream — submitting over the socket", () => {
         const socket = new WebSocket(streamUrl(), { headers: { cookie: `gameplay_session=${outsiderCookie}` } });
         const code = await new Promise<number>((resolve) => socket.once("close", resolve));
         expect(code).toBe(4403);
+    });
+});
+
+// ── The console's socket twin ──────────────────────────────────────────────────
+// Same fan-out as the players' channel, different payload (the console read),
+// two doors (operator session / spectate public).
+
+const consoleUrl = () => `${baseUrl}/portal/tournaments/${tournamentId}/matches/${matchId}/live/stream`;
+const spectateUrl = () => `${baseUrl}/spectate/tournaments/${tournamentId}/matches/${matchId}/live/stream`;
+
+function connectConsole(cookie: string | null): Promise<WebSocket> {
+    const socket = new WebSocket(consoleUrl(), cookie ? { headers: { cookie: `portal_session=${cookie}` } } : {});
+    return new Promise((resolve, reject) => {
+        socket.once("open", () => resolve(socket));
+        socket.once("error", reject);
+    });
+}
+
+describe("live stream — the console", () => {
+    it("receives the console payload as soon as it connects", async () => {
+        const socket = await connectConsole(ownerCookie);
+        const message = await nextMessage(socket);
+
+        expect(message.type).toBe("console");
+        const view = message.data.view;
+        expect(view.roundId).toBe("giai-ma");
+        expect(view.projection.roundId).toBe("giai-ma");
+        expect(view.mc).toBeTruthy();                    // mc facts ride along
+        expect(Array.isArray(view.questions)).toBe(true);
+        expect(typeof view.version).toBe("number");
+        socket.close();
+    });
+
+    it("is pushed an updated payload when the controller changes the round", async () => {
+        const socket = await connectConsole(ownerCookie);
+        const next = inbox(socket);
+        const snapshot = await next("console");
+        const before = snapshot.data.view.version;
+
+        const res = await act({ kind: "giai-ma.closeHintWindow" });
+        expect(res.statusCode).toBe(200);
+
+        const update = await next("console");
+        expect(update.type).toBe("console");
+        expect(update.data.view.version).toBeGreaterThan(before);
+        socket.close();
+    });
+
+    it("is pushed when a player submits an answer", async () => {
+        const res = await act({ kind: "giai-ma.openHint", hintId: hintIds[2] });
+        expect(res.statusCode).toBe(200);
+
+        const consoleSocket = await connectConsole(ownerCookie);
+        const next = inbox(consoleSocket);
+        await next("console");                           // the snapshot
+
+        const playerSocket = await connect(playerCookie);
+        const playerNext = inbox(playerSocket);
+        await playerNext("view");
+
+        const pushed = next("console", 5000);            // the submission's publish
+        playerSocket.send(JSON.stringify({
+            v: 1, type: "answer", requestId: "push1",
+            data: { questionId: hintIds[2], value: { text: "x" } }
+        }));
+        await playerNext("ack");
+
+        const update = await pushed;
+        expect(update.type).toBe("console");
+        playerSocket.close();
+        consoleSocket.close();
+    });
+
+    it("lists a connected player in `connected`, but never its own socket", async () => {
+        const playerSocket = await connect(playerCookie);
+        await nextMessage(playerSocket);                 // the player's snapshot
+
+        const socket = await connectConsole(ownerCookie);
+        const message = await nextMessage(socket);
+        const view = message.data.view;
+
+        expect(view.connected).toContain(playerId);
+        expect(view.connected).not.toContain("__console__");
+        socket.close();
+        playerSocket.close();
+    });
+
+    it("serves the spectate twin without a session", async () => {
+        const socket = new WebSocket(spectateUrl());
+        const message = await new Promise<any>((resolve, reject) => {
+            socket.once("message", (data) => resolve(JSON.parse(String(data))));
+            socket.once("error", reject);
+        });
+        expect(message.type).toBe("console");
+        expect(message.data.view.roundId).toBe("giai-ma");
+        socket.close();
+    });
+
+    it("refuses the operator door with no session", async () => {
+        const socket = await connectConsole(null).catch(() => null);
+        expect(socket).toBeNull();                       // upgrade refused → error, never open
     });
 });

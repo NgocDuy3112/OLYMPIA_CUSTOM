@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyLiveAction, type LiveRecord, type LiveStore, type Transition } from "../../../src/modules/live/apply.js";
+import { applyLiveAction, type AnswerDraft, type LiveRecord, type LiveStore, type Transition } from "../../../src/modules/live/apply.js";
 import type { LiveFact } from "../../../src/modules/live/facts.js";
 import { LiveConflictError } from "../../../src/modules/live/conflict.js";
 import { RuleError } from "../../../src/game/engine/turns/errors.js";
@@ -8,7 +8,7 @@ import { RuleError } from "../../../src/game/engine/turns/errors.js";
 // record untouched (state and facts together), and a successful one commits both.
 function memoryStore<S>(
     initial: LiveRecord<S>,
-    answersByQuestion: Record<string, Record<string, boolean>> = {}
+    draftsByQuestion: Record<string, AnswerDraft[]> = {}
 ) {
     let committed = structuredClone(initial);
     let committedFacts: LiveFact[] = [];
@@ -25,11 +25,8 @@ function memoryStore<S>(
                     pendingFacts = [...pendingFacts, ...structuredClone(facts)];
                     pendingWrite = true;
                 },
-                async readAnswers(questionId: string) {
-                    return structuredClone(answersByQuestion[questionId] ?? {});
-                },
-                async readAnswerDrafts() {
-                    return [];
+                async readAnswerDrafts(questionId: string) {
+                    return structuredClone(draftsByQuestion[questionId] ?? []);
                 }
             };
             const result = await fn(tx);
@@ -159,25 +156,30 @@ describe("applyLiveAction — reject, don't queue", () => {
 });
 
 describe("applyLiveAction — the transition can read inside the transaction", () => {
-    it("submitted answers read via the tx reach the transition", async () => {
-        const m = memoryStore<Counter>(rec(0, 0), { q1: { u1: true, u2: false } });
+    it("draft rows read via the tx reach the transition", async () => {
+        const m = memoryStore<Counter>(rec(0, 0), {
+            q1: [
+                { userId: "u1", suggestion: "CORRECT", answeredMs: 100, judged: false },
+                { userId: "u2", suggestion: "INCORRECT", answeredMs: 200, judged: true }
+            ]
+        });
         const out = await applyLiveAction(m.store, {
             expectedVersion: 0,
             transition: async (c, tx) => {
-                const submitted = await tx.readAnswers("q1");
-                return T({ hints: c.state.hints + (submitted.u1 ? 1 : 0) + (submitted.u2 ? 1 : 0) });
+                const drafts = await tx.readAnswerDrafts("q1");
+                return T({ hints: c.state.hints + drafts.filter((d) => !d.judged).length * 10 + drafts.length });
             }
         });
-        expect(out.state).toEqual({ hints: 1 });
+        expect(out.state).toEqual({ hints: 12 });   // 1 unjudged ×10 + 2 rows
     });
 
-    it("a missing question reads as no answers", async () => {
+    it("a missing question reads as no drafts", async () => {
         const m = memoryStore<Counter>(rec(0, 0));
         const out = await applyLiveAction(m.store, {
             expectedVersion: 0,
             transition: async (c, tx) => {
-                const submitted = await tx.readAnswers("nope");
-                return T({ hints: c.state.hints + Object.keys(submitted).length });
+                const drafts = await tx.readAnswerDrafts("nope");
+                return T({ hints: c.state.hints + drafts.length });
             }
         });
         expect(out.state).toEqual({ hints: 0 });

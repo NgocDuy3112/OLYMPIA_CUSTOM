@@ -149,7 +149,7 @@ describe("ve-dich — phase 1 (typed, one pick each)", () => {
 
         const drafted = await answer(playerCookies[0], qid.get("THTH-30")!, "x");
         expect(drafted.statusCode).toBe(200);
-        expect(drafted.json()).toMatchObject({ drafted: true, suggested: "CORRECT" });
+        expect(drafted.json()).toEqual({ drafted: true });            // opinion stays server-side
 
         const resolved = await act({ kind: "ve-dich.resolve", answerer: true });
         expect(resolved.statusCode).toBe(200);

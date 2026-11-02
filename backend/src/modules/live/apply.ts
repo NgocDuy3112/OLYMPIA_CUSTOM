@@ -2,6 +2,7 @@
 // store, so the version rule and the atomic write can be tested without Postgres.
 // In production the store is backed by a SELECT ... FOR UPDATE transaction.
 import { assertVersion, nextVersion } from "./conflict.js";
+import { RuleError } from "../../game/engine/turns/errors.js";
 import type { LiveFact } from "./facts.js";
 
 export interface LiveRecord<S> {
@@ -29,9 +30,6 @@ export interface LiveTx<S> {
     load(): Promise<LiveRecord<S>>;
     save(next: LiveRecord<S>): Promise<void>;
     recordFacts(facts: LiveFact[]): Promise<void>;
-    // Verdicts submitted for a question, keyed by user. Read inside the transaction so a
-    // resolve cannot miss a submission that landed just before it.
-    readAnswers(questionId: string): Promise<Record<string, boolean>>;
     // The raw drafts for a question, with submission times, so a controller action can
     // judge inside the same transaction.
     readAnswerDrafts(questionId: string): Promise<AnswerDraft[]>;
@@ -43,6 +41,31 @@ export interface AnswerDraft {
     suggestion: "CORRECT" | "INCORRECT" | null;
     answeredMs: number | null;
     judged: boolean;
+}
+
+// The commit contract for any MC verdict batch — both directions, never a
+// silent default:
+//   • a verdict for a player who submitted nothing → NO_ANSWER
+//   • a waiting draft without a verdict → UNJUDGED_ANSWERS
+// Called inside the transition so a submission landing mid-flight cannot slip
+// past the check (resolveHint, but-pha.finalize, khoi-dong.finalize share it).
+export function assertVerdictCoverage(
+    drafts: AnswerDraft[],
+    verdicts: Array<{ playerId: string }>,
+    what: string
+): void {
+    const submitters = new Set(drafts.map((d) => d.userId));
+    for (const v of verdicts) {
+        if (!submitters.has(v.playerId)) {
+            throw new RuleError("NO_ANSWER", `no submitted answer from ${v.playerId} to judge`);
+        }
+    }
+    const staged = new Set(verdicts.map((v) => v.playerId));
+    for (const d of drafts) {
+        if (!d.judged && !staged.has(d.userId)) {
+            throw new RuleError("UNJUDGED_ANSWERS", `judge every submitted answer before ${what}`);
+        }
+    }
 }
 
 export interface LiveStore<S> {

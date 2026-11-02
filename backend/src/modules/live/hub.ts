@@ -7,6 +7,11 @@ export interface Subscriber {
     push: () => Promise<void>;
 }
 
+// The console (and its spectate twin) subscribes for pushes under this id:
+// a live socket that is NOT a player, so the rail's connected dots keep
+// meaning "a contestant is here".
+export const CONSOLE_SUBSCRIBER = "__console__";
+
 const byMatch = new Map<string, Set<Subscriber>>();
 
 export function subscribe(matchId: string, subscriber: Subscriber): () => void {
@@ -45,5 +50,6 @@ export function subscriberCount(matchId: string): number {
 export function connectedUsers(matchId: string): string[] {
     const set = byMatch.get(matchId);
     if (!set) return [];
-    return [...new Set([...set].map((subscriber) => subscriber.userId))];
+    return [...new Set([...set].map((subscriber) => subscriber.userId))]
+        .filter((id) => id !== CONSOLE_SUBSCRIBER);
 }

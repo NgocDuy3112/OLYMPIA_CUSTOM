@@ -12,8 +12,8 @@ export interface GiaiMaPlayer {
     hintsRevealed: number;      // count of this player's correct hint answers
     revealed: string[];         // hint question ids revealed to this player (private)
     keywordLocked: boolean;     // true once the player submitted a keyword
-    keywordPoints: number;      // points earned from the keyword, 0 until submitted
-    eliminated: boolean;        // wrong keyword submission
+    keywordPoints: number;      // points earned from the keyword, 0 until judged
+    eliminated: boolean;        // wrong keyword verdict
 }
 
 export interface GiaiMaState {
@@ -118,32 +118,51 @@ export function resolveOpenHint(
     return remainingHints(next).length === 0 ? { ...next, stage: "ended" } : next;
 }
 
-// Keyword submission, allowed any time during the hint phase. Locks the player's value.
-// Correct: earns the locked value. Wrong: 0 and eliminated. Either way they stop
-// participating in hints.
-export function submitKeyword(
-    state: GiaiMaState,
-    playerId: string,
-    correct: boolean
-): GiaiMaState {
+// Keyword submission, allowed any time during the hint phase: it LOCKS the
+// player's participation — they stop picking and answering hints from now on —
+// and decides NOTHING else. The typed text lives in the answers ledger as a
+// draft; the MC judges it later with judgeKeyword. The rules' "value at the
+// moment they submit" is preserved by the lock itself: a locked player can no
+// longer gain reveals, so hintsRevealed is frozen and judging later computes
+// the exact value that was on the table at submit.
+//
+// The round's stage is deliberately NOT flipped here: with a verdict pending
+// the round is not over — the MC judges and ends it (endGiaiMa). Auto-ending
+// at the last submission would also strand any hint window open at that moment
+// (resolveOpenHint refuses a stage that is already "ended"), leaving its
+// answers unjudgeable.
+export function lockKeyword(state: GiaiMaState, playerId: string): GiaiMaState {
     if (state.stage !== "hints") fail("WRONG_STAGE", "giai-ma is over");
     const player = state.players.find((p) => p.id === playerId);
     if (!player) fail("UNKNOWN_PLAYER", `player ${playerId} is not in giai-ma`);
     if (player.keywordLocked) fail("ALREADY_SUBMITTED", "this player already submitted a keyword");
 
     const players = state.players.map((p) =>
+        p.id === playerId ? { ...p, keywordLocked: true } : p
+    );
+    return { ...state, players };
+}
+
+// The MC's verdict on a locked keyword. Correct: earns the value frozen at
+// submit (hintsRevealed cannot have moved — the lock froze it). Wrong: 0 and
+// eliminated. Allowed in either stage — the judgment may land after the round's
+// content has ended (all hints used, or everyone submitted and the MC moved on).
+// Re-judging is allowed: the MC may correct a verdict before the match freezes.
+export function judgeKeyword(state: GiaiMaState, playerId: string, correct: boolean): GiaiMaState {
+    const player = state.players.find((p) => p.id === playerId);
+    if (!player) fail("UNKNOWN_PLAYER", `player ${playerId} is not in giai-ma`);
+    if (!player.keywordLocked) fail("NOT_SUBMITTED", `player ${playerId} has not submitted a keyword`);
+
+    const players = state.players.map((p) =>
         p.id === playerId
             ? {
                   ...p,
-                  keywordLocked: true,
                   keywordPoints: correct ? keywordValue(p.hintsRevealed, state.rules) : 0,
                   eliminated: !correct
               }
             : p
     );
-
-    const everyoneDone = players.every((p) => p.keywordLocked);
-    return { ...state, players, stage: everyoneDone ? "ended" : state.stage };
+    return { ...state, players };
 }
 
 export function giaiMaPoints(state: GiaiMaState, playerId: string): number {

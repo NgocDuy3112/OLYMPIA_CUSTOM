@@ -6,12 +6,13 @@ import {
     isWindowOpen,
     endGiaiMa,
     giaiMaPoints,
+    judgeKeyword,
     keywordValueFor,
+    lockKeyword,
     openHint,
     remainingHints,
     resolveOpenHint,
     startGiaiMa,
-    submitKeyword,
     type GiaiMaState
 } from "../../../src/game/engine/turns/giai-ma.js";
 import { RuleError } from "../../../src/game/engine/turns/errors.js";
@@ -116,7 +117,7 @@ describe("giai-ma — resolution and reveals", () => {
     });
 
     it("a locked player is not revealed the hint", () => {
-        let s = submitKeyword(startGiaiMa(["a", "b"], H), "a", false);   // a is out
+        let s = lockKeyword(startGiaiMa(["a", "b"], H), "a");   // a is out
         s = openHint(s, "h1", NOW);
         s = resolveOpenHint(s, { a: true, b: true });
         expect(s.players.find((p) => p.id === "a")!.revealed).toEqual([]);
@@ -130,37 +131,59 @@ describe("giai-ma — resolution and reveals", () => {
     });
 });
 
-describe("giai-ma — keyword submission", () => {
-    it("a correct submission earns the value at that moment and locks it", () => {
+describe("giai-ma — keyword submission and judgment", () => {
+    it("submitting locks participation but awards NOTHING (no verdict yet)", () => {
         let s = startGiaiMa(["a", "b"], H);
         s = resolveOpenHint(openHint(s, "h1", NOW), { a: true, b: false });
         s = resolveOpenHint(openHint(s, "h2", NOW), { a: true, b: false });
-        s = submitKeyword(s, "a", true);      // a at 80
-        expect(giaiMaPoints(s, "a")).toBe(80);
+        s = lockKeyword(s, "a");
         expect(s.players.find((p) => p.id === "a")!.keywordLocked).toBe(true);
+        expect(giaiMaPoints(s, "a")).toBe(0);              // pending the MC's verdict
+        expect(s.players.find((p) => p.id === "a")!.eliminated).toBe(false);
     });
 
-    it("a wrong submission earns 0 and eliminates the player", () => {
-        const s = submitKeyword(startGiaiMa(["a", "b"], H), "a", false);
+    it("judging correct earns the value frozen AT SUBMIT, even later", () => {
+        let s = startGiaiMa(["a", "b"], H);
+        s = resolveOpenHint(openHint(s, "h1", NOW), { a: true, b: false });
+        s = resolveOpenHint(openHint(s, "h2", NOW), { a: true, b: false });
+        s = lockKeyword(s, "a");                          // a locked at 80
+        // judge arrives later — the lock froze hintsRevealed, so 80 stands
+        s = judgeKeyword(s, "a", true);
+        expect(giaiMaPoints(s, "a")).toBe(80);
+        expect(s.players.find((p) => p.id === "a")!.eliminated).toBe(false);
+    });
+
+    it("judging wrong earns 0 and eliminates the player", () => {
+        let s = lockKeyword(startGiaiMa(["a", "b"], H), "a");
+        s = judgeKeyword(s, "a", false);
         expect(giaiMaPoints(s, "a")).toBe(0);
         expect(s.players.find((p) => p.id === "a")!.eliminated).toBe(true);
     });
 
-    it("each player submits at most once", () => {
-        const s = submitKeyword(startGiaiMa(["a", "b"], H), "a", false);
-        expect(codeOf(() => submitKeyword(s, "a", true))).toBe("ALREADY_SUBMITTED");
+    it("judging an unsubmitted keyword is refused", () => {
+        const s = startGiaiMa(["a", "b"], H);
+        expect(codeOf(() => judgeKeyword(s, "a", true))).toBe("NOT_SUBMITTED");
     });
 
-    it("the round ends when everyone has submitted", () => {
-        let s = submitKeyword(startGiaiMa(["a", "b"], H), "a", true);
+    it("each player submits at most once", () => {
+        const s = lockKeyword(startGiaiMa(["a", "b"], H), "a");
+        expect(codeOf(() => lockKeyword(s, "a"))).toBe("ALREADY_SUBMITTED");
+    });
+
+    it("submitting does NOT end the round — the MC ends it", () => {
+        let s = lockKeyword(startGiaiMa(["a", "b"], H), "a");
         expect(s.stage).toBe("hints");
-        s = submitKeyword(s, "b", false);
-        expect(s.stage).toBe("ended");
+        s = lockKeyword(s, "b");
+        expect(s.stage).toBe("hints");              // judgment is still pending
+        s = judgeKeyword(s, "a", true);
+        s = judgeKeyword(s, "b", false);
+        expect(s.stage).toBe("hints");              // still the MC's call
+        expect(endGiaiMa(s).stage).toBe("ended");
     });
 
     it("no submissions after the round has ended", () => {
         const s = endGiaiMa(startGiaiMa(["a", "b"], H));
-        expect(codeOf(() => submitKeyword(s, "a", true))).toBe("WRONG_STAGE");
+        expect(codeOf(() => lockKeyword(s, "a"))).toBe("WRONG_STAGE");
     });
 });
 
@@ -212,14 +235,15 @@ describe("giai-ma — who may answer", () => {
     });
 
     it("a player who submitted their keyword may not answer", () => {
-        let s = submitKeyword(startGiaiMa(["a", "b"], H), "a", true);
+        let s = lockKeyword(startGiaiMa(["a", "b"], H), "a");
         s = openHint(s, "h1", NOW);
         expect(canPlayerAnswer(s, "a", NOW)).toBe(false);
         expect(canPlayerAnswer(s, "b", NOW)).toBe(true);
     });
 
     it("an eliminated player may not answer", () => {
-        let s = submitKeyword(startGiaiMa(["a", "b"], H), "a", false);
+        let s = lockKeyword(startGiaiMa(["a", "b"], H), "a");
+        s = judgeKeyword(s, "a", false);          // wrong verdict → eliminated
         s = openHint(s, "h1", NOW);
         expect(canPlayerAnswer(s, "a", NOW)).toBe(false);
     });

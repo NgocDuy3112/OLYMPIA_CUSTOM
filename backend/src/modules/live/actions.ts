@@ -19,18 +19,39 @@ export const GiaiMaCloseHintWindow = Type.Object({
     kind: Type.Literal("giai-ma.closeHintWindow")
 });
 
-// Resolves the open hint using the answers players actually submitted. The client
-// sends no answers: the route loads them from the ledger.
+// Resolves the open hint with the MC's EXPLICIT verdicts — one per submitted
+// answer (staged in the console). Nothing may be omitted: the route refuses
+// when a submitted answer has no verdict, and each verdict judges that draft
+// row as the reveal happens.
 export const GiaiMaResolveHint = Type.Object({
-    kind: Type.Literal("giai-ma.resolveHint")
+    kind: Type.Literal("giai-ma.resolveHint"),
+    verdicts: Type.Array(Type.Object({
+        playerId: Type.String(),
+        correct: Type.Boolean()
+    }))
 });
 
+// The MC's verdict on a player's submitted (drafted, locked) keyword. The typed
+// text lives in the answers ledger — this action only judges the row that is
+// already there, so it can never invent a submission.
+export const GiaiMaJudgeKeyword = Type.Object({
+    kind: Type.Literal("giai-ma.judgeKeyword"),
+    playerId: Type.String(),
+    questionId: Type.String(),                             // the keyword MatchQuestion _id
+    correct: Type.Boolean()
+});
+
+// The keyword submission: locks participation and stores the typed text as a
+// DRAFT — it carries NO verdict; the MC judges later via giai-ma.judgeKeyword.
+// Built by the submit path from the keyword command (the player's door) and
+// also accepted from the wire (the MC may enter one on a player's behalf) —
+// either way: lock + draft, never a verdict.
 export const GiaiMaSubmitKeyword = Type.Object({
     kind: Type.Literal("giai-ma.submitKeyword"),
     playerId: Type.String(),
     questionId: Type.String(),                             // the keyword MatchQuestion _id
-    correct: Type.Boolean(),
-    text: Type.String()
+    text: Type.String(),
+    suggestion: Type.Union([Type.Literal("CORRECT"), Type.Literal("INCORRECT")])
 });
 
 export const GiaiMaEndRound = Type.Object({ kind: Type.Literal("giai-ma.endRound") });
@@ -41,6 +62,7 @@ export const GiaiMaActionSchema = Type.Union([
     GiaiMaCloseHintWindow,
     GiaiMaResolveHint,
     GiaiMaSubmitKeyword,
+    GiaiMaJudgeKeyword,
     GiaiMaEndRound
 ]);
 export type GiaiMaAction = Static<typeof GiaiMaActionSchema>;
@@ -181,6 +203,7 @@ export const LiveActionSchema = Type.Union([
     GiaiMaCloseHintWindow,
     GiaiMaResolveHint,
     GiaiMaSubmitKeyword,
+    GiaiMaJudgeKeyword,
     GiaiMaEndRound,
     ButPhaStart,
     ButPhaOpenQuestion,

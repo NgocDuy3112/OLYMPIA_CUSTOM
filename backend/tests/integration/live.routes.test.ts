@@ -232,17 +232,25 @@ describe("player submissions", () => {
     it("a seated player submits a correct answer while the window is open", async () => {
         const res = await answer(playerCookies[0], hintIds[0], "ha noi");   // accents/case ignored
         expect(res.statusCode).toBe(200);
-        expect(res.json().correct).toBe(true);
+        expect(res.json()).toEqual({ drafted: true });         // ack reveals nothing
+        // the matcher's opinion lives in the DRAFT, not in a verdict
+        const rows = await db.select().from(answers).where(and(
+            eq(answers.matchId, matchId),
+            eq(answers.questionId, hintIds[0]),
+            eq(answers.userId, playerIds[0])
+        ));
+        expect(rows[0]).toMatchObject({ judged: false, verdict: null });
+        expect(rows[0].drafts).toMatchObject({ auto: "CORRECT" });   // accents/case ignored
     });
 
     it("a player may revise while the window is open: the last answer wins", async () => {
         const first = await answer(playerCookies[1], hintIds[0], "Hà Nội");
         expect(first.statusCode).toBe(200);
-        expect(first.json().correct).toBe(true);
+        expect(first.json()).toEqual({ drafted: true });
 
         const second = await answer(playerCookies[1], hintIds[0], "Hải Phòng");
         expect(second.statusCode).toBe(200);
-        expect(second.json().correct).toBe(false);
+        expect(second.json()).toEqual({ drafted: true });
 
         const rows = await db.select().from(answers).where(and(
             eq(answers.matchId, matchId),
@@ -250,7 +258,8 @@ describe("player submissions", () => {
             eq(answers.userId, playerIds[1])
         ));
         expect(rows).toHaveLength(1);                    // revised in place, not appended
-        expect(rows[0]).toMatchObject({ verdict: "INCORRECT", value: { text: "Hải Phòng" } });
+        expect(rows[0]).toMatchObject({ judged: false, verdict: null, value: { text: "Hải Phòng" } });
+        expect(rows[0].drafts).toMatchObject({ auto: "INCORRECT" });
     });
 
     it("a malformed answer value is rejected with 400", async () => {
@@ -262,9 +271,16 @@ describe("player submissions", () => {
     });
 });
 
-describe("resolve — the MC closes the window using submitted answers", () => {
-    it("resolveHint reveals the hint to the players who answered correctly", async () => {
-        const res = await act({ kind: "giai-ma.resolveHint" });
+describe("resolve — the MC closes the window with explicit verdicts", () => {
+    it("resolveHint reveals the hint to the players the MC judged correct", async () => {
+        // both submitted; the MC stages p0 correct, p1 wrong — no auto-verdict
+        const res = await act({
+            kind: "giai-ma.resolveHint",
+            verdicts: [
+                { playerId: playerIds[0], correct: true },
+                { playerId: playerIds[1], correct: false }
+            ]
+        });
         expect(res.statusCode).toBe(200);
         const state = res.json().state;
         expect(state.openHint).toBeNull();
@@ -274,16 +290,16 @@ describe("resolve — the MC closes the window using submitted answers", () => {
     });
 
     it("resolving with no open window returns 409 NO_OPEN_HINT", async () => {
-        const res = await act({ kind: "giai-ma.resolveHint" });
+        const res = await act({ kind: "giai-ma.resolveHint", verdicts: [] });
         expect(res.statusCode).toBe(409);
         expect(res.json().error).toBe("NO_OPEN_HINT");
     });
 
-    it("the answers ledger holds both submissions with auto_matched set", async () => {
+    it("the resolve judges both submissions in the ledger", async () => {
         const rows = await db.select().from(answers)
             .where(and(eq(answers.matchId, matchId), eq(answers.questionId, hintIds[0])));
         expect(rows).toHaveLength(2);
-        expect(rows.every((r) => r.autoMatched && r.judged)).toBe(true);
+        expect(rows.every((r) => r.judged)).toBe(true);                // judged by the resolve, not at submit
         expect(rows.filter((r) => r.verdict === "CORRECT")).toHaveLength(1);
     });
 });
@@ -303,13 +319,27 @@ describe("facts — committed with the state", () => {
         expect((await act({ kind: "giai-ma.closeHintWindow" })).statusCode).toBe(200);
     });
 
-    it("an MC keyword submission writes an answers row with the locked value", async () => {
-        // player 0 has one revealed hint, so their keyword is 90.
-        const res = await act({
+    it("the MC can enter a keyword for a player as a draft, then judge it", async () => {
+        // player 0 has one revealed hint → the value frozen at entry is 90.
+        const entered = await act({
             kind: "giai-ma.submitKeyword",
-            playerId: playerIds[0], questionId: keywordQuestionId, correct: true, text: "DIENBIENPHU"
+            playerId: playerIds[0], questionId: keywordQuestionId,
+            text: "DIENBIENPHU", suggestion: "CORRECT"
         });
-        expect(res.statusCode).toBe(200);
+        expect(entered.statusCode).toBe(200);
+
+        // entered = locked + draft: NO verdict, NO points until the MC judges
+        const draftRows = await db.select().from(answers)
+            .where(and(eq(answers.matchId, matchId), eq(answers.userId, playerIds[0])));
+        expect(draftRows.find((r) => r.questionId === keywordQuestionId)).toMatchObject({
+            judged: false, verdict: null, autoMatched: false
+        });
+
+        const judged = await act({
+            kind: "giai-ma.judgeKeyword",
+            playerId: playerIds[0], questionId: keywordQuestionId, correct: true
+        });
+        expect(judged.statusCode).toBe(200);
         const rows = await db.select().from(answers)
             .where(and(eq(answers.matchId, matchId), eq(answers.userId, playerIds[0])));
         const keywordRow = rows.find((r) => r.questionId === keywordQuestionId);
@@ -331,7 +361,7 @@ describe("player submission guards", () => {
     it("another active player may still answer in the same window", async () => {
         const res = await answer(playerCookies[1], hintIds[2], "Hà Nội");
         expect(res.statusCode).toBe(200);
-        expect(res.json().correct).toBe(true);
+        expect(res.json()).toEqual({ drafted: true });
     });
 
     it("an answer after the window's 15 seconds is rejected", async () => {
@@ -347,21 +377,38 @@ describe("player submission guards", () => {
 });
 
 describe("round progression", () => {
-    it("resolving the expired window reveals the hint to the correct answerer", async () => {
-        const res = await act({ kind: "giai-ma.resolveHint" });
+    it("resolving the expired window: refused until every answer is judged, then reveals", async () => {
+        // p1 submitted to this window; p0 did not (they are keyword-locked).
+        // a verdict for a non-submitter is refused FIRST (NO_ANSWER) …
+        const refused = await act({
+            kind: "giai-ma.resolveHint",
+            verdicts: [{ playerId: playerIds[0], correct: true }]
+        });
+        expect(refused.statusCode).toBe(409);
+        expect(refused.json().error).toBe("NO_ANSWER");
+
+        // … an empty set leaves p1's answer waiting (UNJUDGED_ANSWERS) …
+        const empty = await act({ kind: "giai-ma.resolveHint", verdicts: [] });
+        expect(empty.statusCode).toBe(409);
+        expect(empty.json().error).toBe("UNJUDGED_ANSWERS");
+
+        // … and the MC's explicit verdict is what reveals the hint
+        const res = await act({
+            kind: "giai-ma.resolveHint",
+            verdicts: [{ playerId: playerIds[1], correct: true }]
+        });
         expect(res.statusCode).toBe(200);
         expect(res.json().state.players.find((p: { id: string }) => p.id === playerIds[1]).hintsRevealed).toBe(1);
     });
 
-    it("a player submits their keyword and is locked with the value they earned", async () => {
-        // player 1 now has one revealed hint, so their keyword is 90.
+    it("a player submits their keyword: locked, stored as a draft (nothing leaked)", async () => {
+        // player 1 now has one revealed hint → 90 freezes at this moment.
         const res = await app.inject({
             method: "POST", url: keywordUrl(), headers: asPlayer(playerCookies[1]),
             payload: { questionId: keywordQuestionId, value: { text: "dienbienphu" } }
         });
         expect(res.statusCode).toBe(200);
-        expect(res.json().correct).toBe(true);
-        expect(res.json().points).toBe(90);
+        expect(res.json()).toEqual({ drafted: true });     // no correctness, no points
     });
 
     it("submitting a keyword twice is rejected", async () => {
@@ -373,11 +420,23 @@ describe("round progression", () => {
         expect(res.json().error).toBe("ALREADY_SUBMITTED");
     });
 
-    it("the player's keyword answer is stored with auto_matched true", async () => {
+    it("the keyword answer is a draft with the matcher's opinion — until the MC judges", async () => {
         const rows = await db.select().from(answers)
             .where(and(eq(answers.matchId, matchId), eq(answers.userId, playerIds[1])));
-        expect(rows.find((r) => r.questionId === keywordQuestionId)).toMatchObject({
-            verdict: "CORRECT", pointsAwarded: 90, autoMatched: true
+        const draft = rows.find((r) => r.questionId === keywordQuestionId);
+        expect(draft).toMatchObject({ judged: false, verdict: null, autoMatched: false });
+        expect(draft!.drafts).toMatchObject({ auto: "CORRECT" });      // opinion, not verdict
+
+        // the MC's verdict is what makes it count — frozen value 90 (one revealed hint)
+        const judged = await act({
+            kind: "giai-ma.judgeKeyword",
+            playerId: playerIds[1], questionId: keywordQuestionId, correct: true
+        });
+        expect(judged.statusCode).toBe(200);
+        const after = await db.select().from(answers)
+            .where(and(eq(answers.matchId, matchId), eq(answers.userId, playerIds[1])));
+        expect(after.find((r) => r.questionId === keywordQuestionId)).toMatchObject({
+            verdict: "CORRECT", pointsAwarded: 90, autoMatched: false
         });
     });
 
@@ -480,7 +539,7 @@ describe("but-pha round — draft, then finalize", () => {
         await backdateQuestionClock(3_000);
         const res = await answer(playerCookies[0], butPhaIds[0], "Hà Nội");
         expect(res.statusCode).toBe(200);
-        expect(res.json()).toMatchObject({ drafted: true, suggested: "CORRECT" });
+        expect(res.json()).toEqual({ drafted: true });            // opinion stays server-side
 
         const [row] = await db.select().from(answers)
             .where(and(eq(answers.matchId, matchId), eq(answers.questionId, butPhaIds[0]), eq(answers.userId, playerIds[0])));

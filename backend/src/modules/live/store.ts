@@ -54,6 +54,20 @@ export function pgLiveStore<S>(matchId: string): LiveStore<S> {
                     // Facts are idempotent: the unique keys on answers and match_events
                     // make a retried write harmless, so a double submit cannot double-count.
                     async recordFacts(facts: LiveFact[]): Promise<void> {
+                        const draftRows = facts.filter((f) => f.type === "draft");
+                        if (draftRows.length > 0) {
+                            // A submission stored as a DRAFT: no verdict, no points —
+                            // the MC judges later (judge fact UPDATEs this row).
+                            await tx.insert(answers).values(draftRows.map((f) => ({
+                                matchId,
+                                questionId: f.questionId,
+                                userId: f.userId,
+                                value: f.value,
+                                drafts: { auto: f.suggestion },
+                                judged: false
+                            }))).onConflictDoNothing();
+                        }
+
                         const answerRows = facts.filter((f) => f.type === "answer");
                         if (answerRows.length > 0) {
                             await tx.insert(answers).values(answerRows.map((f) => ({
@@ -134,13 +148,6 @@ export function pgLiveStore<S>(matchId: string): LiveStore<S> {
                             };
                         });
                     },
-                    async readAnswers(questionId: string): Promise<Record<string, boolean>> {
-                        const rows = await tx
-                            .select({ userId: answers.userId, verdict: answers.verdict })
-                            .from(answers)
-                            .where(and(eq(answers.matchId, matchId), eq(answers.questionId, questionId)));
-                        return Object.fromEntries(rows.map((r) => [r.userId, r.verdict === "CORRECT"]));
-                    }
                 });
             });
         }
@@ -274,37 +281,6 @@ export async function readQuestionAnswers(matchId: string, questionId: string) {
         judged: answers.judged,
         pointsAwarded: answers.pointsAwarded
     }).from(answers).where(and(eq(answers.matchId, matchId), eq(answers.questionId, questionId)));
-}
-
-// A player's answer, written outside the version-guarded flow: it does not change the
-// round state, so it never conflicts with the MC. Revision is allowed while the window is
-// open, so the LAST answer wins.
-export async function recordPlayerAnswer(params: {
-    matchId: string;
-    questionId: string;
-    userId: string;
-    value: { text: string } | { picked: string[] };
-    verdict: "CORRECT" | "INCORRECT";
-}): Promise<void> {
-    await db.insert(answers).values({
-        matchId: params.matchId,
-        questionId: params.questionId,
-        userId: params.userId,
-        value: params.value,
-        autoMatched: true,
-        judged: true,
-        verdict: params.verdict,
-        pointsAwarded: 0
-    }).onConflictDoUpdate({
-        target: [answers.matchId, answers.questionId, answers.userId],
-        set: {
-            value: params.value,
-            verdict: params.verdict,
-            autoMatched: true,
-            judged: true,
-            submittedAt: new Date()
-        }
-    });
 }
 
 // Current version and state, for the console to reload after a 409.
