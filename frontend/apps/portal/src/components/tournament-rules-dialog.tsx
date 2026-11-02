@@ -36,10 +36,7 @@ function defaultScoring(template: ScoringRule["template"]): ScoringRule {
                 template: "outcome_multipliers",
                 correct: 1,
                 incorrect: -0.5,
-                powers: {
-                    hope: { correct: 1.5, incorrect: -1 },
-                    shield: { correct: 0.5, incorrect: 0 }
-                }
+                powers: { star: { correct: 1.5, incorrect: -1 } }
             }
     }
 }
@@ -302,40 +299,18 @@ export function TournamentRulesDialog({
                                                     />
                                                 </label>
                                                 <label className="flex items-center gap-2">
-                                                    <span className="text-xs text-muted-foreground">HOPE</span>
+                                                    <span className="text-xs text-muted-foreground">STAR</span>
                                                     <Input
                                                         type="number"
                                                         step="0.1"
                                                         className="h-8 w-20"
-                                                        value={main.powers.hope.correct}
+                                                        value={main.powers.star.correct}
                                                         onChange={(event) =>
                                                             setScoring(round.id, {
                                                                 ...scoring,
                                                                 powers: {
-                                                                    ...main.powers,
-                                                                    hope: {
-                                                                        ...main.powers.hope,
-                                                                        correct: num(event.target.value)
-                                                                    }
-                                                                }
-                                                            } as ScoringRule)
-                                                        }
-                                                    />
-                                                </label>
-                                                <label className="flex items-center gap-2">
-                                                    <span className="text-xs text-muted-foreground">SHIELD</span>
-                                                    <Input
-                                                        type="number"
-                                                        step="0.1"
-                                                        className="h-8 w-20"
-                                                        value={main.powers.shield.correct}
-                                                        onChange={(event) =>
-                                                            setScoring(round.id, {
-                                                                ...scoring,
-                                                                powers: {
-                                                                    ...main.powers,
-                                                                    shield: {
-                                                                        ...main.powers.shield,
+                                                                    star: {
+                                                                        ...main.powers.star,
                                                                         correct: num(event.target.value)
                                                                     }
                                                                 }

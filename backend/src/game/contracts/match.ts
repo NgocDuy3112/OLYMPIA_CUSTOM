@@ -75,7 +75,9 @@ export const MatchEventPayloadSchema = Type.Union([
     Type.Object({ kind: Type.Literal("BUZZ"), buzzMs: Type.Integer(), won: Type.Boolean() }),
     Type.Object({
         kind: Type.Literal("POWER"),
-        power: Type.Union([Type.Literal("HOPE"), Type.Literal("SHIELD")])
+        power: Type.Union([Type.Literal("STAR"), Type.Literal("ASSIGN")]),
+        // ASSIGN names who the question was handed to.
+        targetId: Type.Optional(Uuid)
     })
 ]);
 export type MatchEventPayload = Static<typeof MatchEventPayloadSchema>;

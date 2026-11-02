@@ -123,7 +123,7 @@ function veDichQuestions(match: { questions: MatchQuestion[] }) {
     return match.questions
         .filter((q) => q.roundId === "ve-dich")
         .sort((a, b) => a.position - b.position)
-        .map((q) => ({ id: q._id, value: q.points }));
+        .map((q) => ({ id: q._id, value: q.points, timeLimit: q.timeLimit }));
 }
 
 // The match's questions for a round, in position order. Resolved server-side, so a client
@@ -241,7 +241,8 @@ const playerCommandBody = {
             minItems: 3,
             maxItems: 3
         },
-        power: { type: "string", enum: ["HOPE", "SHIELD"] }
+        power: { type: "string", enum: ["STAR", "ASSIGN"] },
+        targetId: { type: "string", pattern: UUID_PATTERN }
     },
 } as const;
 
@@ -330,6 +331,8 @@ function mcFacts(roundId: string, raw: unknown): Record<string, unknown> | null 
             answererId: state.open?.answerer ?? null,
             buzzerId: state.open?.buzzer ?? null,
             power: state.open?.power ?? null,
+            // ASSIGN names the partner: the console badges THAT card.
+            assignedToId: state.open?.assignedTo ?? null,
             pendingQuestionId: state.pendingPicks[0]?.id ?? null
         };
     }
@@ -952,7 +955,7 @@ export async function liveRoutes(app: FastifyInstance) {
                             break;
                         case "power":
                             reply(ackMessage("power", await submitVeDichCommand({
-                                ...base, command: { type: "power", power: message.data.power }
+                                ...base, command: { type: "power", power: message.data.power, targetId: message.data.targetId }
                             }), message.requestId));
                             break;
                         case "buzz":
@@ -1090,7 +1093,8 @@ export async function liveRoutes(app: FastifyInstance) {
                 type: string;
                 questionId?: string;
                 questionIds?: string[];
-                power?: "HOPE" | "SHIELD";
+                power?: "STAR" | "ASSIGN";
+                targetId?: string;
             };
 
             const base = {
@@ -1111,10 +1115,13 @@ export async function liveRoutes(app: FastifyInstance) {
                 return submitVeDichCommand({ ...base, command: { type: "pickBatch", questionIds: body.questionIds } });
             }
             if (body.type === "power") {
-                if (body.power !== "HOPE" && body.power !== "SHIELD") {
-                    throw app.httpErrors.badRequest("power must be HOPE or SHIELD");
+                if (body.power !== "STAR" && body.power !== "ASSIGN") {
+                    throw app.httpErrors.badRequest("power must be STAR or ASSIGN");
                 }
-                return submitVeDichCommand({ ...base, command: { type: "power", power: body.power } });
+                if (body.power === "ASSIGN" && !body.targetId) {
+                    throw app.httpErrors.badRequest("ASSIGN needs a targetId");
+                }
+                return submitVeDichCommand({ ...base, command: { type: "power", power: body.power, targetId: body.targetId } });
             }
 
             throw app.httpErrors.badRequest("unknown command");

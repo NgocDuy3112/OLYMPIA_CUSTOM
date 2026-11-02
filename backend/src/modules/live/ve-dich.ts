@@ -10,10 +10,10 @@ import {
     openPhase2Question,
     pickPhase1,
     pickPhase2,
-    resolveQuestion,
-    veDichPoints
+    resolveQuestion
 } from "../../game/engine/turns/ve-dich.js";
 import { fail } from "../../game/engine/turns/errors.js";
+import { assignPayout, veDichPoints } from "../../game/engine/scoring/ve-dich.js";
 import { VE_DICH_DEFAULTS, type VeDichRules } from "../../game/engine/rules.js";
 import type { VeDichAction } from "./actions.js";
 import type { LiveFact } from "./facts.js";
@@ -66,7 +66,7 @@ export function applyVeDichAction(
             const players: PlayerState[] = ctx.players.map((p) => ({
                 id: p.id,
                 score: p.score,                    // cumulative, so phase 1 ordering is real
-                powersLeft: ["HOPE", "SHIELD"]
+                powersLeft: ["STAR", "ASSIGN"]
             }));
             const created = createVeDich(ctx.questions, players, ctx.rules);
             // phase: 2 — the navigator's "· Riêng" entry: straight to the summit
@@ -99,7 +99,10 @@ export function applyVeDichAction(
         case "ve-dich.declarePower": {
             const questionId = state.open?.question.id;
             if (questionId === undefined) fail("NOTHING_OPEN", "no question is open");
-            const next = declarePower(state, action.playerId, action.power);
+            const next = declarePower(state, action.playerId, action.power, {
+                targetId: action.targetId,
+                nowIso: ctx.now                     // ASSIGN opens the race HERE
+            });
             return {
                 state: next,
                 facts: [{
@@ -108,7 +111,11 @@ export function applyVeDichAction(
                     userId: action.playerId,
                     roundId: ctx.roundId,
                     kind: "POWER",
-                    payload: { kind: "POWER", power: action.power }
+                    payload: {
+                        kind: "POWER",
+                        power: action.power,
+                        ...(action.targetId ? { targetId: action.targetId } : {})
+                    }
                 }]
             };
         }
@@ -145,18 +152,51 @@ export function applyVeDichAction(
             if (open === null) fail("NOTHING_OPEN", "no question is open");
 
             const face = open.question.value;
-            const answererPoints = veDichPoints({
-                faceValue: face,
-                correct: action.answerer,
-                power: open.power ?? undefined
-            }, state.rules);
-
+            const assignedTo = open.assignedTo ?? null;
             const next = resolveQuestion(state, {
                 answerer: action.answerer,
                 ...(action.buzzer === undefined ? {} : { buzzer: action.buzzer })
             });
-
             const facts: LiveFact[] = [];
+
+            // ── an ASSIGN duel: two rows, because BOTH halves are scored ────────
+            if (assignedTo !== null) {
+                const teammate = (userId: string, correct: boolean, pointsAwarded: number): LiveFact => ({
+                    type: "answer",
+                    questionId: open.question.id,
+                    userId,
+                    value: { oral: true },
+                    verdict: verdictOf(correct),
+                    pointsAwarded,
+                    autoMatched: false
+                });
+
+                if (open.buzzer === null) {
+                    // Nobody buzzed: both lose 50%. Neither answered.
+                    const payout = assignPayout({ faceValue: face, buzzerCorrect: null });
+                    facts.push(
+                        teammate(open.answerer, false, payout.buzzer),
+                        teammate(assignedTo, false, payout.partner)
+                    );
+                } else {
+                    const buzzerCorrect = action.buzzer === true;
+                    const other = open.buzzer === open.answerer ? assignedTo : open.answerer;
+                    const payout = assignPayout({ faceValue: face, buzzerCorrect });
+                    facts.push(
+                        teammate(open.buzzer, buzzerCorrect, payout.buzzer),
+                        // The partner never answered: they take the pairing penalty only.
+                        teammate(other, false, payout.partner)
+                    );
+                }
+                return { state: next, facts };
+            }
+
+            // ── the normal shapes ───────────────────────────────────────────────
+            const answererPoints = veDichPoints({
+                faceValue: face,
+                correct: action.answerer,
+                power: open.power === "STAR" ? "STAR" : undefined
+            }, state.rules);
             const verdict = verdictOf(action.answerer);
 
             if (state.phase === 1) {

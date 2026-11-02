@@ -31,7 +31,7 @@ import {
 
 export const matchStatus = pgEnum("match_status", ["UPCOMING", "LIVE", "FINISHED"]);
 export const verdict = pgEnum("verdict", ["CORRECT", "INCORRECT"]);
-export const power = pgEnum("power", ["HOPE", "SHIELD"]);
+export const power = pgEnum("power", ["STAR", "ASSIGN"]);
 export const matchEventKind = pgEnum("match_event_kind", ["PICK", "BUZZ", "POWER"]);
 
 // A match is played for points.
@@ -232,7 +232,7 @@ export const matchEvents = pgTable(
         uniqueIndex("match_events_buzz_unique")
             .on(table.matchId, table.questionId, table.userId)
             .where(sql`kind = 'BUZZ'`),
-        // One HOPE and one SHIELD per player across all of ve-dich — so the key is the
+        // One STAR and one ASSIGN per player across all of ve-dich — so the key is the
         // power itself, not the round. The old key allowed only one power per round.
         uniqueIndex("match_events_power_unique")
             .on(table.matchId, table.userId, sql`(payload->>'power')`)

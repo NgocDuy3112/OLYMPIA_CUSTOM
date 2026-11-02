@@ -21,8 +21,8 @@ export const COPY = {
     send: "Gửi",
     submit: "Nộp",
     buzz: "Bấm chuông",
-    powerHope: "Hy vọng",
-    powerShield: "Khiên",
+    powerStar: "Ngôi sao",
+    powerAssign: "Chỉ định",
 
     /** Shared placeholders. */
     waitingForMc: "Đang chờ MC…",

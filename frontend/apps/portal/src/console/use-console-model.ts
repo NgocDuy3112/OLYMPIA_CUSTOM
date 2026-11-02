@@ -322,10 +322,15 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
             if (p?.keywordLocked) card.badge = { text: "Giải mật mã", tone: "primary" }
             if (p?.eliminated) card.dimmed = true
         }
-        if (roundId === "ve-dich" && mcVeDich?.power && mcVeDich.answererId === t.id) {
-            card.badge = mcVeDich.power === "HOPE"
-                ? { text: "Bùa hy vọng", tone: "amber" }
-                : { text: "Bùa bảo hộ", tone: "emerald" }
+        if (roundId === "ve-dich" && mcVeDich?.power) {
+            // STAR sits on the answerer (their multiplier); ASSIGN sits on the
+            // player the question was HANDED TO — the badge follows the mechanic.
+            if (mcVeDich.power === "STAR" && mcVeDich.answererId === t.id) {
+                card.badge = { text: "Ngôi sao", tone: "amber" }
+            }
+            if (mcVeDich.power === "ASSIGN" && mcVeDich.assignedToId === t.id) {
+                card.badge = { text: "Được chỉ định", tone: "emerald" }
+            }
         }
         return card
     })

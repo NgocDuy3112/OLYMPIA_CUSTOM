@@ -90,6 +90,7 @@ const veDichMc = (over: Partial<VeDichMc> = {}): VeDichMc => ({
     openStage: "current",
     answererId: "u1",
     buzzerId: null,
+    assignedToId: null,
     power: null,
     pendingQuestionId: null,
     ...over,

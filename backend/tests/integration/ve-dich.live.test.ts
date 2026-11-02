@@ -234,9 +234,9 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
         expect(again.statusCode).toBeGreaterThanOrEqual(400);
     });
 
-    it("HOPE (wrong) costs -100% of face value", async () => {
+    it("STAR (wrong) costs -100% of face value", async () => {
         expect((await act({ kind: "ve-dich.openQuestion", questionId: qid.get("TNSS-40") })).statusCode).toBe(200);
-        expect((await command(playerCookies[1], { type: "power", power: "HOPE" })).statusCode).toBe(200);
+        expect((await command(playerCookies[1], { type: "power", power: "STAR" })).statusCode).toBe(200);
         expect((await act({ kind: "ve-dich.closeCurrentAnswer" })).statusCode).toBe(200);
 
         const resolved = await act({ kind: "ve-dich.resolve", answerer: false });
@@ -244,22 +244,36 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
         expect(await score(playerIds[1])).toBe(-75);       // -35 - 40
     });
 
-    it("SHIELD (wrong) costs nothing — and a second power is allowed in the same round", async () => {
+    it("ASSIGN hands the question to a partner, and the pair duel for it", async () => {
         expect((await act({ kind: "ve-dich.openQuestion", questionId: qid.get("XHPL-40") })).statusCode).toBe(200);
-        const shielded = await command(playerCookies[1], { type: "power", power: "SHIELD" });
-        expect(shielded.statusCode).toBe(200);
-        expect((await act({ kind: "ve-dich.closeCurrentAnswer" })).statusCode).toBe(200);
 
-        const resolved = await act({ kind: "ve-dich.resolve", answerer: false });
+        // The current player (1) hands the question to (0). That IS the race start:
+        // there is nobody to "answer first" in a duel.
+        const assigned = await command(playerCookies[1], {
+            type: "power", power: "ASSIGN", targetId: playerIds[0]
+        });
+        expect(assigned.statusCode).toBe(200);
+
+        // Only the two halves may buzz; the partner takes it.
+        const buzzed = await command(playerCookies[0], { type: "buzz", questionId: qid.get("XHPL-40") });
+        expect(buzzed.statusCode).toBe(200);
+
+        const resolved = await act({ kind: "ve-dich.resolve", answerer: false, buzzer: true });
         expect(resolved.statusCode).toBe(200);
-        expect(await score(playerIds[1])).toBe(-75);       // unchanged: SHIELD absorbs it
+        expect(await score(playerIds[0])).toBe(110);      // the buzzer: +100% of 40
+        expect(await score(playerIds[1])).toBe(-95);      // the assigner: −50% of 40
 
-        // Both powers inserted for the same player in one round: this is what migration
-        // 0006 fixed (the old index allowed one power per round).
-        const powers = await db.select().from(matchEvents)
-            .where(and(eq(matchEvents.matchId, matchId), eq(matchEvents.kind, "POWER")));
-        expect(powers).toHaveLength(2);
-        expect(powers.map((p) => (p.payload as { power: string }).power).sort()).toEqual(["HOPE", "SHIELD"]);
+        // The POWER event names the partner: the duel is auditable.
+        const powers = (await db.select().from(matchEvents)
+            .where(and(eq(matchEvents.matchId, matchId), eq(matchEvents.kind, "POWER"))))
+            .map((row) => row.payload as { power: string; targetId?: string });
+        expect(powers).toContainEqual({ kind: "POWER", power: "ASSIGN", targetId: playerIds[0] });
+    });
+
+    it("both powers are spent once used — the state says so", async () => {
+        const state = (await live()).state;
+        const mine = state.players.find((p: { id: string }) => p.id === playerIds[1]);
+        expect(mine.powersLeft).toEqual([]);
     });
 });
 
@@ -281,11 +295,12 @@ describe("ve-dich — round end and results", () => {
         const p0 = row.results.find((r) => r.userId === playerIds[0])!;
         const p1 = row.results.find((r) => r.userId === playerIds[1])!;
 
-        expect(p0).toMatchObject({ totalScore: 70, rank: 1 });
-        expect(p1).toMatchObject({ totalScore: -75, rank: 2 });
-        expect(p1.roundScores).toEqual({ "ve-dich": -75 });
+        expect(p0).toMatchObject({ totalScore: 110, rank: 1 });
+        expect(p1).toMatchObject({ totalScore: -95, rank: 2 });
+        expect(p1.roundScores).toEqual({ "ve-dich": -95 });
 
+        // 2 in phase 1 · 2 in the buzz question · 1 STAR · 2 for the ASSIGN duel
         const stats = await db.select().from(matchStats).where(eq(matchStats.matchId, matchId));
-        expect(stats).toHaveLength(6);      // 2 in phase 1 + 2 (answerer + buzzer) + 1 + 1
+        expect(stats).toHaveLength(7);
     });
 });

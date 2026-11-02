@@ -18,7 +18,7 @@ import { VeDichRuleError } from "../../../src/game/engine/turns/ve-dich.js";
 const NOW = "2026-01-01T00:00:00.000Z";
 const at = (s: number) => new Date(Date.parse(NOW) + s * 1000).toISOString();
 
-const Q = (label: string, value: number): VeDichQuestion => ({ id: `${label}-${value}`, value });
+const Q = (label: string, value: number): VeDichQuestion => ({ id: `${label}-${value}`, value, timeLimit: 30 });
 // The show's board — createVeDich refuses a set that is not 6×20/6×30/4×40/4×50.
 const POOL = [
     Q("THTH", 20), Q("TNSS", 20), Q("A", 20), Q("B", 20), Q("C", 20), Q("D", 20),
@@ -115,13 +115,13 @@ describe("ve-dich powers and buzz", () => {
     it("declaring a power spends it and records a POWER event", () => {
         const s = phase2Open("p0", "THTH-50");
         const res = applyVeDichAction(s, {
-            kind: "ve-dich.declarePower", playerId: "p0", power: "HOPE"
+            kind: "ve-dich.declarePower", playerId: "p0", power: "STAR"
         }, ctx());
         expect(res.facts[0]).toMatchObject({
-            type: "event", userId: "p0", kind: "POWER", payload: { kind: "POWER", power: "HOPE" }
+            type: "event", userId: "p0", kind: "POWER", payload: { kind: "POWER", power: "STAR" }
         });
-        expect(res.state.players.find((p) => p.id === "p0")!.powersLeft).toEqual(["SHIELD"]);
-        expect(res.state.open?.power).toBe("HOPE");
+        expect(res.state.players.find((p) => p.id === "p0")!.powersLeft).toEqual(["ASSIGN"]);
+        expect(res.state.open?.power).toBe("STAR");
     });
 
     it("a buzz records how long it took, measured from the window opening", () => {
@@ -177,7 +177,7 @@ describe("ve-dich resolve", () => {
     it("phase 1, wrong with a HOPE: -100% and the points are recorded", () => {
         let s = started();
         s = pickPhase1(s, "p0", "THTH-30");
-        s = applyVeDichAction(s, { kind: "ve-dich.declarePower", playerId: "p0", power: "HOPE" }, ctx()).state;
+        s = applyVeDichAction(s, { kind: "ve-dich.declarePower", playerId: "p0", power: "STAR" }, ctx()).state;
         const res = applyVeDichAction(s, { kind: "ve-dich.resolve", answerer: false }, ctx({ drafts: [draft("p0")] }));
         expect(res.facts[0]).toMatchObject({ type: "judge", pointsAwarded: -30 });
     });

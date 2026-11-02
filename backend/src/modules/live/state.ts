@@ -117,11 +117,14 @@ export function parseKhoiDongState(raw: unknown): KhoiDongState {
 
 // ── ve-dich ───────────────────────────────────────────────────────────────────
 
-const PowerSchema = Type.Union([Type.Literal("HOPE"), Type.Literal("SHIELD")]);
+// STAR (the renamed HOPE) and ASSIGN (the duel) — see scoring/ve-dich.ts.
+const PowerSchema = Type.Union([Type.Literal("STAR"), Type.Literal("ASSIGN")]);
 
 export const VeDichQuestionSchema = Type.Object({
     id: Type.String(),
-    value: Type.Integer()
+    value: Type.Integer(),
+    // Optional: states written before ASSIGN existed carry no limit.
+    timeLimit: Type.Optional(Type.Union([Type.Integer(), Type.Null()]))
 });
 
 export const VeDichPlayerSchema = Type.Object({
@@ -135,7 +138,9 @@ export const VeDichOpenSchema = Type.Object({
     answerer: Type.String(),
     power: Type.Union([PowerSchema, Type.Null()]),
     stage: Type.Union([Type.Literal("current"), Type.Literal("buzz")]),
-    buzzer: Type.Union([Type.String(), Type.Null()])
+    buzzer: Type.Union([Type.String(), Type.Null()]),
+    // ASSIGN only: the player the question was handed to (optional for archives).
+    assignedTo: Type.Optional(Type.Union([Type.String(), Type.Null()]))
 });
 
 export const VeDichStateSchema = Type.Object({

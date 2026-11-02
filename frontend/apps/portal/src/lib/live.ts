@@ -65,7 +65,9 @@ export interface VeDichMc {
     openStage: "current" | "buzz" | null
     answererId: string | null
     buzzerId: string | null
-    power: "HOPE" | "SHIELD" | null
+    power: "STAR" | "ASSIGN" | null
+    /** ASSIGN only: the player the question was handed to. */
+    assignedToId: string | null
     pendingQuestionId: string | null
 }
 export interface KhoiDongMc {

@@ -24,7 +24,15 @@ export function VeDichChungAOCPlayer({ ctx }: { ctx: VeDichChungPlayerCtx }) {
             band={
                 <>
                     {/* powers first: declaring is public and one-shot */}
-                    {v.me.canDeclarePower && <PowerButtons busy={cmdBusy} onDeclare={command} />}
+                    {/* Chung offers STAR only: ASSIGN is a Riêng rule. */}
+                    {v.me.canDeclarePower && (
+                        <PowerButtons
+                            busy={cmdBusy}
+                            powers={["STAR"]}
+                            targets={[]}
+                            onDeclare={command}
+                        />
+                    )}
                     <AnswerBand
                         question={openQ.question}
                         answerState={v.me.answerState}

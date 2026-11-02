@@ -9,6 +9,7 @@ import {
     phase1Complete,
     phase2Complete,
     buzz,
+    buzzWindowSeconds,
     closeCurrentAnswer,
     createVeDich,
     declarePower,
@@ -27,7 +28,7 @@ const at = (sec: number) => new Date(Date.parse(NOW) + sec * 1000).toISOString()
 
 // The board's cells are identified by their frozen id and sized by their value;
 // the label is only a test handle ("THTH-40" reads better than a uuid).
-const Q = (label: string, value: number): VeDichQuestion => ({ id: `${label}-${value}`, value });
+const Q = (label: string, value: number, timeLimit: number | null = 30): VeDichQuestion => ({ id: `${label}-${value}`, value, timeLimit });
 
 // A REAL board: 6×20, 6×30, 4×40, 4×50 — createVeDich refuses anything else, so
 // a fixture that is not the show's composition cannot even build a round.
@@ -43,7 +44,7 @@ const countOf = (qs: VeDichQuestion[], value: number) => qs.filter((q) => q.valu
 const player = (id: string, score: number): PlayerState => ({
     id,
     score,
-    powersLeft: ["HOPE", "SHIELD"]
+    powersLeft: ["STAR", "ASSIGN"]
 });
 
 function codeOf(fn: () => unknown): string {
@@ -172,62 +173,157 @@ describe("Phase 1 scoring", () => {
     });
 });
 
-describe("powers", () => {
-    it("declared at open, spent, cannot be reused", () => {
+describe("powers — STAR", () => {
+    it("is declared at open, spent, and cannot be reused", () => {
         const base = createVeDich(POOL, [player("a", 0)]);
         const opened = pickPhase1(base, "a", "THTH-30");
-        const withHope = declarePower(opened, "a", "HOPE");
-        expect(withHope.open?.power).toBe("HOPE");
-        expect(withHope.players[0].powersLeft).toEqual(["SHIELD"]);
+        const withStar = declarePower(opened, "a", "STAR");
+        expect(withStar.open?.power).toBe("STAR");
+        expect(withStar.players[0].powersLeft).toEqual(["ASSIGN"]);
     });
 
-    it("HOPE on a 40-pt question, correct → +60 (worked example)", () => {
-        // 40/50 cells live in the summit now — open one through the REAL phase 2
-        // (untouched phase 1 may skip straight there).
+    it("works in BOTH phases — Chung included (the old HOPE rule, renamed)", () => {
+        const chung = pickPhase1(createVeDich(POOL, [player("a", 0)]), "a", "THTH-30");
+        expect(codeOf(() => declarePower(chung, "a", "STAR"))).toBe("NO_ERROR");
+
         let s = beginPhase2(createVeDich(POOL, [player("a", 0)]));
         s = pickPhase2(s, "a", ["THTH-40", "THTH-50", "THTH-30"]);
-        s = declarePower(openPhase2Question(s, "THTH-40"), "a", "HOPE");
-        s = closeCurrentAnswer(s, NOW);   // phase 2 resolves through the window
+        expect(codeOf(() => declarePower(openPhase2Question(s, "THTH-40"), "a", "STAR"))).toBe("NO_ERROR");
+    });
+
+    it("STAR on a 40-pt question, correct → +60 (worked example)", () => {
+        let s = beginPhase2(createVeDich(POOL, [player("a", 0)]));
+        s = pickPhase2(s, "a", ["THTH-40", "THTH-50", "THTH-30"]);
+        s = declarePower(openPhase2Question(s, "THTH-40"), "a", "STAR");
+        s = closeCurrentAnswer(s, NOW);
         const after = resolveQuestion(s, { answerer: true });
         expect(after.players[0].score).toBe(60);
     });
 
-    it("cannot declare the same power twice across questions", () => {
-        const base = createVeDich(POOL, [player("a", 0)]);
-        const first = resolveQuestion(
-            declarePower(pickPhase1(base, "a", "THTH-30"), "a", "HOPE"),
-            { answerer: false }
-        );
-        const second = pickPhase1(first, "a", "TNSS-30");
-        expect(codeOf(() => declarePower(second, "a", "HOPE"))).toBe("POWER_UNAVAILABLE");
-    });
-
-    it("both powers may be used in the same phase on different questions", () => {
-        let state = createVeDich(POOL, [player("a", 0)]);
-        state = resolveQuestion(declarePower(pickPhase1(state, "a", "THTH-30"), "a", "HOPE"), { answerer: true });
-        state = resolveQuestion(declarePower(pickPhase1(state, "a", "TNSS-30"), "a", "SHIELD"), { answerer: true });
-        expect(state.players[0].powersLeft).toEqual([]);
-    });
-
-    it("a declared power counts as spent even if the question is wrong (SHIELD: no penalty)", () => {
+    it("a declared STAR is spent even when the answer is wrong (−100%)", () => {
         const base = createVeDich(POOL, [player("a", 0)]);
         const after = resolveQuestion(
-            declarePower(pickPhase1(base, "a", "THTH-30"), "a", "SHIELD"),
+            declarePower(pickPhase1(base, "a", "THTH-30"), "a", "STAR"),
             { answerer: false }
         );
-        expect(after.players[0].score).toBe(0);
-        expect(after.players[0].powersLeft).toEqual(["HOPE"]);
+        expect(after.players[0].score).toBe(-30);
+        expect(after.players[0].powersLeft).toEqual(["ASSIGN"]);
+    });
+});
+
+describe("powers — ASSIGN", () => {
+    const twoUp = () => {
+        let s = beginPhase2(createVeDich(POOL, [player("a", 0), player("b", 0), player("c", 0)]));
+        s = pickPhase2(s, s.players[0].id, ["THTH-40", "THTH-50", "THTH-30"]);
+        return s;
+    };
+
+    it("is Riêng only — Chung refuses it", () => {
+        const chung = pickPhase1(createVeDich(POOL, [player("a", 0), player("b", 0)]), "a", "THTH-30");
+        expect(codeOf(() => declarePower(chung, "a", "ASSIGN", { targetId: "b", nowIso: NOW })))
+            .toBe("WRONG_PHASE_FOR_POWER");
     });
 
-    it("only the current player may declare, and only at open", () => {
-        const base = createVeDich(POOL, [player("a", 0), player("b", 0)]);
-        const opened = pickPhase1(base, "a", "THTH-30");
-        expect(codeOf(() => declarePower(opened, "b", "HOPE"))).toBe("NOT_YOUR_TURN");
+    it("needs a partner: no target, yourself, or a stranger are all refused", () => {
+        const s = twoUp();
+        const a = s.players[0].id;
+        const opened = openPhase2Question(s, "THTH-40");
+        expect(codeOf(() => declarePower(opened, a, "ASSIGN", { nowIso: NOW }))).toBe("INVALID_TARGET");
+        expect(codeOf(() => declarePower(opened, a, "ASSIGN", { targetId: a, nowIso: NOW }))).toBe("INVALID_TARGET");
+        expect(codeOf(() => declarePower(opened, a, "ASSIGN", { targetId: "stranger", nowIso: NOW }))).toBe("INVALID_TARGET");
     });
 
-    it("a power cannot be declared without an open question", () => {
-        const base = createVeDich(POOL, [player("a", 0)]);
-        expect(codeOf(() => declarePower(base, "a", "HOPE"))).toBe("NOTHING_OPEN");
+    it("opens the duel immediately: stage buzz, the partner recorded, the clock started", () => {
+        const s = twoUp();
+        const a = s.players[0].id;
+        const b = s.players[1].id;
+        const after = declarePower(openPhase2Question(s, "THTH-40"), a, "ASSIGN", { targetId: b, nowIso: NOW });
+
+        expect(after.open?.power).toBe("ASSIGN");
+        expect(after.open?.assignedTo).toBe(b);
+        expect(after.open?.stage).toBe("buzz");
+        expect(after.buzzOpenedAt).toBe(NOW);
+        expect(after.players.find((p) => p.id === a)!.powersLeft).toEqual(["STAR"]);
+    });
+
+    it("the race runs on the QUESTION's clock, not the 5 s buzz window", () => {
+        const s = twoUp();
+        const a = s.players[0].id;
+        const b = s.players[1].id;
+        // THTH-40 carries a 30 s limit in the fixture
+        const after = declarePower(openPhase2Question(s, "THTH-40"), a, "ASSIGN", { targetId: b, nowIso: NOW });
+        expect(buzzWindowSeconds(after)).toBe(30);
+        expect(isBuzzOpen(after, at(20))).toBe(true);
+        expect(isBuzzOpen(after, at(31))).toBe(false);
+    });
+
+    it("only the two halves of the duel may buzz", () => {
+        const s = twoUp();
+        const a = s.players[0].id;
+        const b = s.players[1].id;
+        const outsider = s.players[2].id;
+        const after = declarePower(openPhase2Question(s, "THTH-40"), a, "ASSIGN", { targetId: b, nowIso: NOW });
+
+        expect(codeOf(() => buzz(after, outsider, at(1)))).toBe("NOT_YOUR_TURN");
+        // the answerer may now buzz — the normal rule does not apply to a duel
+        expect(codeOf(() => buzz(after, a, at(1)))).toBe("NO_ERROR");
+        expect(codeOf(() => buzz(after, b, at(1)))).toBe("NO_ERROR");
+    });
+
+    it("A buzzes and is right: A +100%, B −50%", () => {
+        const s = twoUp();
+        const a = s.players[0].id;
+        const b = s.players[1].id;
+        let after = declarePower(openPhase2Question(s, "THTH-40"), a, "ASSIGN", { targetId: b, nowIso: NOW });
+        after = buzz(after, a, at(2));
+        after = resolveQuestion(after, { answerer: true, buzzer: true });
+
+        expect(after.players.find((p) => p.id === a)!.score).toBe(40);
+        expect(after.players.find((p) => p.id === b)!.score).toBe(-20);
+        expect(after.open).toBeNull();
+    });
+
+    it("A buzzes and is wrong: A −50%, B nothing", () => {
+        const s = twoUp();
+        const a = s.players[0].id;
+        const b = s.players[1].id;
+        let after = declarePower(openPhase2Question(s, "THTH-40"), a, "ASSIGN", { targetId: b, nowIso: NOW });
+        after = buzz(after, a, at(2));
+        after = resolveQuestion(after, { answerer: false, buzzer: false });
+
+        expect(after.players.find((p) => p.id === a)!.score).toBe(-20);
+        expect(after.players.find((p) => p.id === b)!.score).toBe(0);
+    });
+
+    it("B buzzes and is right: B +100%, A −50% (the pairing follows the buzzer)", () => {
+        const s = twoUp();
+        const a = s.players[0].id;
+        const b = s.players[1].id;
+        let after = declarePower(openPhase2Question(s, "THTH-40"), a, "ASSIGN", { targetId: b, nowIso: NOW });
+        after = buzz(after, b, at(2));
+        after = resolveQuestion(after, { answerer: false, buzzer: true });
+
+        expect(after.players.find((p) => p.id === a)!.score).toBe(-20);
+        expect(after.players.find((p) => p.id === b)!.score).toBe(40);
+    });
+
+    it("nobody buzzes: both halves lose 50%", () => {
+        const s = twoUp();
+        const a = s.players[0].id;
+        const b = s.players[1].id;
+        let after = declarePower(openPhase2Question(s, "THTH-40"), a, "ASSIGN", { targetId: b, nowIso: NOW });
+        after = resolveQuestion(after, { answerer: false });           // no buzzer verdict needed
+
+        expect(after.players.find((p) => p.id === a)!.score).toBe(-20);
+        expect(after.players.find((p) => p.id === b)!.score).toBe(-20);
+    });
+
+    it("a buzz after the question's clock is refused", () => {
+        const s = twoUp();
+        const a = s.players[0].id;
+        const b = s.players[1].id;
+        const after = declarePower(openPhase2Question(s, "THTH-40"), a, "ASSIGN", { targetId: b, nowIso: NOW });
+        expect(codeOf(() => buzz(after, b, at(31)))).toBe("WINDOW_CLOSED");
     });
 });
 
@@ -313,7 +409,7 @@ describe("Phase 2 flow", () => {
         state = closeCurrentAnswer(state, NOW);
         state = buzz(state, "a", NOW);
         // Only the current player may declare, so a buzzer is rejected as NOT_YOUR_TURN.
-        expect(codeOf(() => declarePower(state, "a", "HOPE"))).toBe("NOT_YOUR_TURN");
+        expect(codeOf(() => declarePower(state, "a", "STAR"))).toBe("NOT_YOUR_TURN");
     });
 
     it("advanceTurn moves to the next player and clears the pending picks", () => {

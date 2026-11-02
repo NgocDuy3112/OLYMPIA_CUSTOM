@@ -22,7 +22,8 @@ function spectatorLine(ctx: VeDichRiengPlayerCtx): string {
     const me = ctx.v.me
     if (me.isAnswerer) return "Bạn trả lời miệng trước MC"
     if (me.buzzer) return `Đập chuông trước: ${ctx.nameOf(me.buzzer)}`
-    if (me.power) return `${me.power === "HOPE" ? "Bùa hy vọng" : "Bùa bảo hộ"} đã công bố`
+    if (me.power === "STAR") return "Ngôi sao đã công bố"
+    if (me.power === "ASSIGN") return "Đã chỉ định người trả lời"
     return "Theo dõi thí sinh trả lời"
 }
 
@@ -36,7 +37,16 @@ export function VeDichRiengAOCPlayer({ ctx }: { ctx: VeDichRiengPlayerCtx }) {
             band={
                 <>
                     {/* powers first: declaring is public and one-shot */}
-                    {v.me.canDeclarePower && <PowerButtons busy={cmdBusy} onDeclare={command} />}
+                    {v.me.canDeclarePower && (
+                        <PowerButtons
+                            busy={cmdBusy}
+                            powers={(v.me.powersLeft ?? []).filter((p) => p === "STAR" || p === "ASSIGN")}
+                            targets={v.table
+                                .filter((row) => row.id !== myId)
+                                .map((row) => ({ id: row.id, name: row.displayName }))}
+                            onDeclare={command}
+                        />
+                    )}
                     {v.me.canBuzz && openQ ? (
                         <button
                             type="button"

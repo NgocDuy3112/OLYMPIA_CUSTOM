@@ -35,10 +35,9 @@ export type ScoringRule =
         template: "outcome_multipliers"
         correct: number
         incorrect: number
-        powers: {
-            hope: { correct: number; incorrect: number }
-            shield: { correct: number; incorrect: number }
-        }
+        // STAR is the only configurable multiplier (HOPE, renamed). ASSIGN is a
+        // duel whose payout is the show's rule, not a knob.
+        powers: { star: { correct: number; incorrect: number } }
     }
 
 export interface RoundConfig {

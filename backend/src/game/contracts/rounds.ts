@@ -29,9 +29,11 @@ export const ScoringRuleSchema = Type.Union([
         template: Type.Literal("outcome_multipliers"),
         correct: Type.Number(),
         incorrect: Type.Number(),
+        // STAR (the renamed HOPE) is the only configurable multiplier: it fixes
+        // the outcome of YOUR OWN answer. ASSIGN is a duel — its payout table is
+        // the show's rule (engine/scoring/ve-dich.ts), not a knob.
         powers: Type.Object({
-            hope: Type.Object({ correct: Type.Number(), incorrect: Type.Number() }),
-            shield: Type.Object({ correct: Type.Number(), incorrect: Type.Number() })
+            star: Type.Object({ correct: Type.Number(), incorrect: Type.Number() })
         })
     })
 ]);

@@ -169,7 +169,7 @@ describe("player view — an unknown round", () => {
 });
 
 describe("player view — ve-dich", () => {
-    const VQ = (label: string, value: number): VeDichQuestion => ({ id: `${label}-${value}`, value });
+    const VQ = (label: string, value: number): VeDichQuestion => ({ id: `${label}-${value}`, value, timeLimit: 30 });
     // The show's board: 6×20, 6×30, 4×40, 4×50 (createVeDich refuses anything else).
     const POOL = [
         VQ("THTH", 20), VQ("TNSS", 20), VQ("A", 20), VQ("B", 20), VQ("C", 20), VQ("D", 20),
@@ -177,7 +177,7 @@ describe("player view — ve-dich", () => {
         VQ("THTH", 40), VQ("TNSS", 40), VQ("I", 40), VQ("J", 40),
         VQ("THTH", 50), VQ("TNSS", 50), VQ("K", 50), VQ("L", 50)
     ];
-    const P = (id: string): PlayerState => ({ id, score: 0, powersLeft: ["HOPE", "SHIELD"] });
+    const P = (id: string): PlayerState => ({ id, score: 0, powersLeft: ["STAR", "ASSIGN"] });
 
     const phase1 = () => createVeDich(POOL, [P("p0"), P("p1")]);
 
@@ -199,7 +199,7 @@ describe("player view — ve-dich", () => {
         expect(mine.open).toEqual([]);
         expect(mine.me.isMyTurn).toBe(true);
         expect(theirs.me.isMyTurn).toBe(false);
-        expect(mine.me.powersLeft).toEqual(["HOPE", "SHIELD"]);
+        expect(mine.me.powersLeft).toEqual(["STAR", "ASSIGN"]);
     });
 
     it("phase 2: the answerer can answer and declare a power", () => {
@@ -326,14 +326,14 @@ describe("player view — oral for everyone (G2)", () => {
 });
 
 describe("player view — ve-dich board (G3)", () => {
-    const VQ = (label: string, value: number): VeDichQuestion => ({ id: `${label}-${value}`, value });
+    const VQ = (label: string, value: number): VeDichQuestion => ({ id: `${label}-${value}`, value, timeLimit: 30 });
     const POOL = [
         VQ("THTH", 20), VQ("XHPL", 20), VQ("A", 20), VQ("B", 20), VQ("C", 20), VQ("D", 20),
         VQ("TNTT", 30), VQ("TNSS", 30), VQ("E", 30), VQ("F", 30), VQ("G", 30), VQ("H", 30),
         VQ("THTH", 40), VQ("TNSS", 40), VQ("I", 40), VQ("J", 40),
         VQ("THTH", 50), VQ("TNSS", 50), VQ("K", 50), VQ("L", 50)
     ];
-    const P = (id: string): PlayerState => ({ id, score: 0, powersLeft: ["HOPE", "SHIELD"] });
+    const P = (id: string): PlayerState => ({ id, score: 0, powersLeft: ["STAR", "ASSIGN"] });
 
     // The board is built from the FROZEN set now — give the view one.
     const veFrozen = (qs: VeDichQuestion[]): MatchQuestion[] =>

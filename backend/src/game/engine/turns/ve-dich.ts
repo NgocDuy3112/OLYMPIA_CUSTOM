@@ -1,7 +1,7 @@
 // ve-dich turn logic as pure state transitions. No DB, no I/O.
 // Scoring lives in ../scoring/ve-dich.ts; this module decides who may act,
 // which question is open, and which powers are still available.
-import { veDichPoints, type Power } from "../scoring/ve-dich.js";
+import { assignPayout, veDichPoints, type Power } from "../scoring/ve-dich.js";
 import { VE_DICH_DEFAULTS, type VeDichRules } from "../rules.js";
 
 export const VALUES = [20, 30, 40, 50] as const;
@@ -41,6 +41,9 @@ function compositionDiffs(questions: VeDichQuestion[]): string[] {
 export interface VeDichQuestion {
     id: string;        // the frozen MatchQuestion id
     value: number;     // the face value — 20/30 in Chung, 40/50 in Riêng
+    // The question's own limit (seconds). An ASSIGN race runs on THIS clock —
+    // both halves must buzz before the question's time runs out.
+    timeLimit: number | null;
 }
 
 export interface PlayerState {
@@ -72,9 +75,16 @@ export interface VeDichState {
 export interface OpenQuestion {
     question: VeDichQuestion;
     answerer: string;              // current player's id
-    power: Power | null;           // declared before opening, applies to answerer
+    power: Power | null;           // STAR: applies to the answerer. ASSIGN: the duel
     stage: "current" | "buzz";     // current answers first, then buzz window
     buzzer: string | null;         // set when a buzzer wins the window
+    /**
+     * ASSIGN only: the player the question was handed to. Set when the current
+     * player declares ASSIGN — the same call that opens the race, since in a
+     * duel there is nobody to "answer first". Optional on the type so archived
+     * states (which never had it) still read.
+     */
+    assignedTo?: string | null;
 }
 
 export type VeDichError =
@@ -86,6 +96,8 @@ export type VeDichError =
     | { code: "ALREADY_OPEN"; message: string }
     | { code: "NOTHING_OPEN"; message: string }
     | { code: "WINDOW_CLOSED"; message: string }
+    | { code: "INVALID_TARGET"; message: string }
+    | { code: "WRONG_PHASE_FOR_POWER"; message: string }
     | { code: "BOARD_COMPOSITION"; message: string }
     | { code: "PHASE1_INCOMPLETE"; message: string };
 
@@ -217,7 +229,8 @@ export function pickPhase1(
             answerer: playerId,
             power: null,
             stage: "current",
-            buzzer: null
+            buzzer: null,
+            assignedTo: null
         },
         buzzOpenedAt: null
     };
@@ -253,7 +266,8 @@ export function pickPhase2(
 export function declarePower(
     state: VeDichState,
     playerId: string,
-    power: Power | null
+    power: Power | null,
+    options: { targetId?: string; nowIso?: string } = {}
 ): VeDichState {
     if (!state.open) fail("NOTHING_OPEN", "no question is open");
     if (state.open.answerer !== playerId) {
@@ -269,14 +283,44 @@ export function declarePower(
         fail("POWER_UNAVAILABLE", `${power} already spent`);
     }
 
-    return {
+    const spent = {
         ...state,
         players: state.players.map((p) =>
             p.id === playerId
                 ? { ...p, powersLeft: p.powersLeft.filter((x) => x !== power) }
                 : p
-        ),
-        open: { ...state.open, power }
+        )
+    };
+
+    // STAR — a multiplier on your OWN answer, anywhere in the round (Chung and
+    // Riêng alike). The answer flow is unchanged.
+    if (power === "STAR") {
+        return { ...spent, open: { ...state.open, power } };
+    }
+
+    // ASSIGN — Riêng only. Handing the question to another player turns it into
+    // a DUEL: nobody answers first, and the two of you race from this moment.
+    if (state.phase !== 2) {
+        fail("WRONG_PHASE_FOR_POWER", "ASSIGN only exists in Về đích Riêng (phase 2)");
+    }
+    const targetId = options.targetId;
+    if (!targetId) fail("INVALID_TARGET", "ASSIGN needs a player to hand the question to");
+    if (targetId === playerId) fail("INVALID_TARGET", "you cannot assign the question to yourself");
+    if (!state.players.some((p) => p.id === targetId)) {
+        fail("INVALID_TARGET", `${targetId} is not playing this round`);
+    }
+    if (!options.nowIso) fail("INVALID_TARGET", "ASSIGN needs the server clock to open the race");
+
+    return {
+        ...spent,
+        open: {
+            ...state.open,
+            power: "ASSIGN",
+            assignedTo: targetId,
+            // The race IS the buzz window, opened here instead of after an answer.
+            stage: "buzz"
+        },
+        buzzOpenedAt: options.nowIso
     };
 }
 
@@ -297,7 +341,8 @@ export function openPhase2Question(state: VeDichState, questionId: string): VeDi
             answerer: currentPlayer(state).id,
             power: null,
             stage: "current",
-            buzzer: null
+            buzzer: null,
+            assignedTo: null
         },
         buzzOpenedAt: null
     };
@@ -314,13 +359,34 @@ export function closeCurrentAnswer(state: VeDichState, openedAt: string): VeDich
     return { ...state, open: { ...state.open, stage: "buzz" }, buzzOpenedAt: openedAt };
 }
 
-// Is the 5 s buzz window open at `nowIso`?
+// How long the window stays open, in seconds. A normal buzz window is the
+// round's `buzzWindowS` (5 s). An ASSIGN race runs on the QUESTION's own time
+// limit — the duel lasts as long as the question does.
+export function buzzWindowSeconds(state: VeDichState): number {
+    if (state.open?.power === "ASSIGN") {
+        return state.open.question.timeLimit ?? state.rules.buzzWindowS;
+    }
+    return state.rules.buzzWindowS;
+}
+
+// Is the buzz window open at `nowIso`?
 export function isBuzzOpen(state: VeDichState, nowIso: string): boolean {
     if (state.open === null || state.open.stage !== "buzz" || state.buzzOpenedAt === null) {
         return false;
     }
     const elapsed = Date.parse(nowIso) - Date.parse(state.buzzOpenedAt);
-    return elapsed >= 0 && elapsed <= state.rules.buzzWindowS * 1000;
+    return elapsed >= 0 && elapsed <= buzzWindowSeconds(state) * 1000;
+}
+
+// Who may buzz at all: on a normal question everyone except the answerer; on an
+// ASSIGN question ONLY the two halves of the duel.
+export function mayBuzz(state: VeDichState, playerId: string): boolean {
+    if (state.open === null) return false;
+    const assignedTo = state.open.assignedTo ?? null;
+    if (assignedTo !== null) {
+        return playerId === state.open.answerer || playerId === assignedTo;
+    }
+    return playerId !== state.open.answerer;
 }
 
 // The buzz. `nowIso` is REQUIRED: the window is a RULE, not a UI courtesy — a
@@ -332,7 +398,7 @@ export function buzz(state: VeDichState, playerId: string, nowIso: string): VeDi
     if (state.open.stage !== "buzz") fail("ALREADY_OPEN", "the buzz window is not open");
     if (!isBuzzOpen(state, nowIso)) fail("WINDOW_CLOSED", "the buzz window has closed");
     if (state.open.buzzer !== null) fail("ALREADY_OPEN", "someone already buzzed first");
-    if (playerId === state.open.answerer) fail("NOT_YOUR_TURN", "the current player cannot buzz");
+    if (!mayBuzz(state, playerId)) fail("NOT_YOUR_TURN", "this question is not yours to buzz");
 
     return { ...state, open: { ...state.open, buzzer: playerId } };
 }
@@ -342,15 +408,27 @@ export interface Verdicts {
     buzzer?: boolean;           // buzzer correct? (only if someone buzzed)
 }
 
-// Finish the question: apply each answerer's score independently, clear the open
-// question. Each answerer's power (only the current player's) is applied in scoring.
+// Finish the question. Two shapes:
+//
+//   normal — the answerer scores on their own answer (STAR/plain multipliers),
+//            and a buzzer, if any, scores on theirs. Independent.
+//   ASSIGN — a DUEL between the answerer and the player they handed it to. Only
+//            one of them answered (the faster buzz); nobody buzzed at all is a
+//            legitimate ending, and both halves lose 50%.
 export function resolveQuestion(state: VeDichState, verdicts: Verdicts): VeDichState {
     if (!state.open) fail("NOTHING_OPEN", "no question is open");
     const { open } = state;
+    const assignedTo = open.assignedTo ?? null;
 
+    // A duel may be resolved with nobody buzzing; everything else may not.
     if (open.stage === "current" && state.phase === 2) {
-        // Caller must close the buzz window before resolving in Phase 2.
-        fail("ALREADY_OPEN", "close the buzz window before resolving");
+        fail("ALREADY_OPEN", "the question is still open");
+    }
+    if (assignedTo !== null) {
+        if (open.buzzer !== null && verdicts.buzzer === undefined) {
+            fail("NOT_YOUR_TURN", "a buzzer was recorded, a buzzer verdict is required");
+        }
+        return resolveAssign(state, verdicts);
     }
     if (open.buzzer !== null && verdicts.buzzer === undefined) {
         fail("NOT_YOUR_TURN", "a buzzer was recorded, a buzzer verdict is required");
@@ -363,17 +441,42 @@ export function resolveQuestion(state: VeDichState, verdicts: Verdicts): VeDichS
     const answererPoints = veDichPoints({
         faceValue: face,
         correct: verdicts.answerer,
-        power: open.power ?? undefined
+        power: open.power === "STAR" ? "STAR" : undefined
     }, state.rules);
     const buzzerPoints =
         open.buzzer !== null
             ? veDichPoints({ faceValue: face, correct: verdicts.buzzer! }, state.rules)
             : 0;
 
-    const scoreDelta = new Map<string, number>();
-    scoreDelta.set(open.answerer, answererPoints);
-    if (open.buzzer !== null) scoreDelta.set(open.buzzer, buzzerPoints);
+    return applyDeltas(state, [
+        [open.answerer, answererPoints],
+        ...(open.buzzer !== null ? [[open.buzzer, buzzerPoints] as [string, number]] : [])
+    ]);
+}
 
+// An ASSIGN duel: the buzzer takes +100% when right / −50% when wrong, and the
+// other half of the pair takes −50% only when the buzzer was right. Nobody
+// buzzing costs both halves 50%.
+function resolveAssign(state: VeDichState, verdicts: Verdicts): VeDichState {
+    const open = state.open!;
+    const partner = open.assignedTo!;
+    const buzzer = open.buzzer;
+
+    if (buzzer === null) {
+        const payout = assignPayout({ faceValue: open.question.value, buzzerCorrect: null });
+        return applyDeltas(state, [[open.answerer, payout.buzzer], [partner, payout.partner]]);
+    }
+
+    const payout = assignPayout({ faceValue: open.question.value, buzzerCorrect: verdicts.buzzer! });
+    const other = buzzer === open.answerer ? partner : open.answerer;
+    return applyDeltas(state, [[buzzer, payout.buzzer], [other, payout.partner]]);
+}
+
+function applyDeltas(state: VeDichState, deltas: Array<[string, number]>): VeDichState {
+    const scoreDelta = new Map<string, number>();
+    for (const [id, delta] of deltas) {
+        scoreDelta.set(id, (scoreDelta.get(id) ?? 0) + delta);
+    }
     return {
         ...state,
         players: state.players.map((p) =>

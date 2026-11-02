@@ -71,14 +71,14 @@ export interface LiveMe {
     hintsRevealed?: number
     // ve-dich
     score?: number
-    powersLeft?: Array<"HOPE" | "SHIELD">
+    powersLeft?: Array<"STAR" | "ASSIGN">
     isMyTurn?: boolean
     pendingPicks?: string[]
     isAnswerer?: boolean
     canAnswer?: boolean
     canDeclarePower?: boolean
     canBuzz?: boolean
-    power?: "HOPE" | "SHIELD" | null
+    power?: "STAR" | "ASSIGN" | null
     buzzer?: string | null
 }
 
@@ -237,7 +237,7 @@ export function useLiveLobby(matchId: string, enabled: boolean) {
 export type LivePlayerCommand =
     | { type: "pick"; questionId: string }
     | { type: "pickBatch"; questionIds: string[] }
-    | { type: "power"; power: "HOPE" | "SHIELD" }
+    | { type: "power"; power: "STAR" | "ASSIGN"; targetId?: string }
     | { type: "buzz"; questionId: string }
 
 export type AnswerValue = { picked?: string[]; text?: string }

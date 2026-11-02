@@ -13,7 +13,7 @@ import { publish } from "./hub.js";
 export type VeDichCommand =
     | { type: "pick"; questionId: string }
     | { type: "pickBatch"; questionIds: string[] }
-    | { type: "power"; power: "HOPE" | "SHIELD" }
+    | { type: "power"; power: "STAR" | "ASSIGN"; targetId?: string }
     | { type: "buzz"; questionId: string };
 
 export interface VeDichCommandResult {
@@ -69,7 +69,7 @@ function toAction(command: VeDichCommand, playerId: string): VeDichAction {
         case "pickBatch":
             return { kind: "ve-dich.pickBatch", playerId, questionIds: command.questionIds };
         case "power":
-            return { kind: "ve-dich.declarePower", playerId, power: command.power };
+            return { kind: "ve-dich.declarePower", playerId, power: command.power, targetId: command.targetId };
         case "buzz":
             return { kind: "ve-dich.buzz", playerId };
     }

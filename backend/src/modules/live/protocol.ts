@@ -51,7 +51,11 @@ export const PowerCommand = Type.Object({
     v: V,
     type: Type.Literal("power"),
     requestId: Type.Optional(Type.String({ maxLength: 64 })),
-    data: Type.Object({ power: Type.Union([Type.Literal("HOPE"), Type.Literal("SHIELD")]) })
+    data: Type.Object({
+        power: Type.Union([Type.Literal("STAR"), Type.Literal("ASSIGN")]),
+        // ASSIGN hands the question to a partner: required for it, ignored otherwise.
+        targetId: Type.Optional(Type.String({ maxLength: 64 }))
+    })
 });
 
 export const BuzzCommand = Type.Object({

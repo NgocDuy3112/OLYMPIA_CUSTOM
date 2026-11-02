@@ -162,7 +162,9 @@ export const VeDichPickBatch = Type.Object({
 export const VeDichDeclarePower = Type.Object({
     kind: Type.Literal("ve-dich.declarePower"),
     playerId: Type.String(),
-    power: Type.Union([Type.Literal("HOPE"), Type.Literal("SHIELD")])
+    power: Type.Union([Type.Literal("STAR"), Type.Literal("ASSIGN")]),
+    // ASSIGN hands the question to someone: required for it, ignored otherwise.
+    targetId: Type.Optional(Type.String())
 });
 export const VeDichBuzz = Type.Object({
     kind: Type.Literal("ve-dich.buzz"),

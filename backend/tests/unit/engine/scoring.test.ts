@@ -104,13 +104,8 @@ describe("ve-dich — percentages on face value", () => {
         expect(veDichPoints({ faceValue: 50, correct: false }, VE_DICH_DEFAULTS)).toBe(-25);
     });
 
-    it("HOPE: correct = +150%, wrong = −100%", () => {
-        expect(veDichPoints({ faceValue: 30, correct: true, power: "HOPE" }, VE_DICH_DEFAULTS)).toBe(45);
-        expect(veDichPoints({ faceValue: 30, correct: false, power: "HOPE" }, VE_DICH_DEFAULTS)).toBe(-30);
-    });
-
-    it("SHIELD: correct = +50%, wrong = 0", () => {
-        expect(veDichPoints({ faceValue: 30, correct: true, power: "SHIELD" }, VE_DICH_DEFAULTS)).toBe(15);
-        expect(veDichPoints({ faceValue: 30, correct: false, power: "SHIELD" }, VE_DICH_DEFAULTS)).toBe(0);
+    it("STAR (the renamed HOPE): correct = +150%, wrong = −100%", () => {
+        expect(veDichPoints({ faceValue: 30, correct: true, power: "STAR" }, VE_DICH_DEFAULTS)).toBe(45);
+        expect(veDichPoints({ faceValue: 30, correct: false, power: "STAR" }, VE_DICH_DEFAULTS)).toBe(-30);
     });
 });

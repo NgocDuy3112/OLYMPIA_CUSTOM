@@ -113,8 +113,9 @@ export function butPhaRules(config: RoundConfig | undefined): ButPhaRules {
 export const VE_DICH_DEFAULTS = {
     correctPct: 1,
     incorrectPct: -0.5,
-    hope: { correct: 1.5, incorrect: -1 },
-    shield: { correct: 0.5, incorrect: 0 },
+    // STAR = the old HOPE: a multiplier on your own answer, usable all round.
+    // (ASSIGN's numbers are the show's duel table in scoring/ve-dich.ts.)
+    star: { correct: 1.5, incorrect: -1 },
     buzzWindowS: 5,
     pickCount: 3
 };
@@ -122,8 +123,7 @@ export const VE_DICH_DEFAULTS = {
 export interface VeDichRules {
     correctPct: number;
     incorrectPct: number;
-    hope: { correct: number; incorrect: number };
-    shield: { correct: number; incorrect: number };
+    star: { correct: number; incorrect: number };
     buzzWindowS: number;
     pickCount: number;
 }
@@ -137,8 +137,8 @@ export function veDichRules(config: RoundConfig | undefined): VeDichRules {
     return {
         correctPct: main?.correct ?? VE_DICH_DEFAULTS.correctPct,
         incorrectPct: main?.incorrect ?? VE_DICH_DEFAULTS.incorrectPct,
-        hope: main?.powers.hope ?? VE_DICH_DEFAULTS.hope,
-        shield: main?.powers.shield ?? VE_DICH_DEFAULTS.shield,
+        // `powers.star` is the only configurable multiplier (HOPE, renamed).
+        star: main?.powers.star ?? VE_DICH_DEFAULTS.star,
         buzzWindowS: phase2?.buzzWindowSeconds ?? VE_DICH_DEFAULTS.buzzWindowS,
         pickCount: phase2?.pickCount ?? VE_DICH_DEFAULTS.pickCount
     };
