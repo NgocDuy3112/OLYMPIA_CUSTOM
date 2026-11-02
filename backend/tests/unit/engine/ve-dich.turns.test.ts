@@ -217,21 +217,21 @@ describe("Phase 2 flow", () => {
     it("the fastest buzzer answers; later buzzes are blocked", () => {
         let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["THTH-50", "THTH-40", "THTH-30"]);
         state = closeCurrentAnswer(openPhase2Question(state, "THTH-50"), NOW);
-        state = buzz(state, "a");
+        state = buzz(state, "a", NOW);
         expect(state.open?.buzzer).toBe("a");
-        expect(codeOf(() => buzz(state, "b"))).toBe("ALREADY_OPEN");
+        expect(codeOf(() => buzz(state, "b", NOW))).toBe("ALREADY_OPEN");
     });
 
     it("the current player cannot buzz on their own question", () => {
         let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["THTH-50", "THTH-40", "THTH-30"]);
         state = closeCurrentAnswer(openPhase2Question(state, "THTH-50"), NOW);
-        expect(codeOf(() => buzz(state, "c"))).toBe("NOT_YOUR_TURN");
+        expect(codeOf(() => buzz(state, "c", NOW))).toBe("NOT_YOUR_TURN");
     });
 
     it("buzzing is impossible before the buzz window", () => {
         let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["THTH-50", "THTH-40", "THTH-30"]);
         state = openPhase2Question(state, "THTH-50");
-        expect(codeOf(() => buzz(state, "a"))).toBe("ALREADY_OPEN");
+        expect(codeOf(() => buzz(state, "a", NOW))).toBe("ALREADY_OPEN");
     });
 
     it("the question cannot be resolved before the buzz window closes", () => {
@@ -242,7 +242,7 @@ describe("Phase 2 flow", () => {
 
     it("both correct: current and buzzer each get face value (+50 each)", () => {
         let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["THTH-50", "THTH-40", "THTH-30"]);
-        state = buzz(closeCurrentAnswer(openPhase2Question(state, "THTH-50"), NOW), "a");
+        state = buzz(closeCurrentAnswer(openPhase2Question(state, "THTH-50"), NOW), "a", NOW);
         state = resolveQuestion(state, { answerer: true, buzzer: true });
         expect(state.players.find((p) => p.id === "c")!.score).toBe(10 + 50);
         expect(state.players.find((p) => p.id === "a")!.score).toBe(40 + 50);
@@ -250,7 +250,7 @@ describe("Phase 2 flow", () => {
 
     it("current wrong, buzzer correct: current −25, buzzer +50", () => {
         let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["THTH-50", "THTH-40", "THTH-30"]);
-        state = buzz(closeCurrentAnswer(openPhase2Question(state, "THTH-50"), NOW), "a");
+        state = buzz(closeCurrentAnswer(openPhase2Question(state, "THTH-50"), NOW), "a", NOW);
         state = resolveQuestion(state, { answerer: false, buzzer: true });
         expect(state.players.find((p) => p.id === "c")!.score).toBe(10 - 25);
         expect(state.players.find((p) => p.id === "a")!.score).toBe(40 + 50);
@@ -264,7 +264,7 @@ describe("Phase 2 flow", () => {
 
     it("a buzzer verdict is required when someone buzzed, and forbidden when nobody did", () => {
         let withBuzz = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["THTH-50", "THTH-40", "THTH-30"]);
-        withBuzz = buzz(closeCurrentAnswer(openPhase2Question(withBuzz, "THTH-50"), NOW), "a");
+        withBuzz = buzz(closeCurrentAnswer(openPhase2Question(withBuzz, "THTH-50"), NOW), "a", NOW);
         expect(codeOf(() => resolveQuestion(withBuzz, { answerer: true }))).toBe("NOT_YOUR_TURN");
 
         let noBuzz = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["THTH-50", "THTH-40", "THTH-30"]);
@@ -276,7 +276,7 @@ describe("Phase 2 flow", () => {
         let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["THTH-50", "THTH-40", "THTH-30"]);
         state = openPhase2Question(state, "THTH-50");
         state = closeCurrentAnswer(state, NOW);
-        state = buzz(state, "a");
+        state = buzz(state, "a", NOW);
         // Only the current player may declare, so a buzzer is rejected as NOT_YOUR_TURN.
         expect(codeOf(() => declarePower(state, "a", "HOPE"))).toBe("NOT_YOUR_TURN");
     });

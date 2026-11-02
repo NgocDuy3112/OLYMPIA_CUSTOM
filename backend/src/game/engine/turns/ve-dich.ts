@@ -55,6 +55,7 @@ export type VeDichError =
     | { code: "POWER_UNAVAILABLE"; message: string }
     | { code: "ALREADY_OPEN"; message: string }
     | { code: "NOTHING_OPEN"; message: string }
+    | { code: "WINDOW_CLOSED"; message: string }
     | { code: "PHASE1_INCOMPLETE"; message: string };
 
 export class VeDichRuleError extends Error {
@@ -284,10 +285,14 @@ export function isBuzzOpen(state: VeDichState, nowIso: string): boolean {
     return elapsed >= 0 && elapsed <= state.rules.buzzWindowS * 1000;
 }
 
-export function buzz(state: VeDichState, playerId: string): VeDichState {
+// The buzz. `nowIso` is REQUIRED: the window is a RULE, not a UI courtesy — a
+// buzz that arrives after buzzWindowS is refused here, so a slow player cannot
+// steal the question by posting late (the view hides the button; this enforces).
+export function buzz(state: VeDichState, playerId: string, nowIso: string): VeDichState {
     if (!state.open) fail("NOTHING_OPEN", "no question is open");
     if (state.phase !== 2) fail("WRONG_PHASE", "buzzing only exists in Phase 2");
     if (state.open.stage !== "buzz") fail("ALREADY_OPEN", "the buzz window is not open");
+    if (!isBuzzOpen(state, nowIso)) fail("WINDOW_CLOSED", "the buzz window has closed");
     if (state.open.buzzer !== null) fail("ALREADY_OPEN", "someone already buzzed first");
     if (playerId === state.open.answerer) fail("NOT_YOUR_TURN", "the current player cannot buzz");
 

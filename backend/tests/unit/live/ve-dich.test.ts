@@ -128,6 +128,26 @@ describe("ve-dich powers and buzz", () => {
         expect(res.state.open?.buzzer).toBe("p1");
     });
 
+    it("a buzz AFTER the window is refused — the clock is a rule, not a UI courtesy", () => {
+        // The window opened at t0 and is 5 s wide (VE_DICH_DEFAULTS.buzzWindowS).
+        let s = phase2Open("p0", "THTH-50");
+        s = applyVeDichAction(s, { kind: "ve-dich.closeCurrentAnswer" }, ctx({ now: at(0) })).state;
+
+        // Inside the window: accepted.
+        expect(() => applyVeDichAction(s, { kind: "ve-dich.buzz", playerId: "p1" }, ctx({ now: at(4.9) })))
+            .not.toThrow();
+
+        // One tick past it: refused, so a slow player cannot steal the question by
+        // posting late (hiding the button is not enforcement).
+        expect(() => applyVeDichAction(s, { kind: "ve-dich.buzz", playerId: "p1" }, ctx({ now: at(5.1) })))
+            .toThrow(VeDichRuleError);
+        try {
+            applyVeDichAction(s, { kind: "ve-dich.buzz", playerId: "p1" }, ctx({ now: at(5.1) }));
+        } catch (e) {
+            expect((e as VeDichRuleError).detail.code).toBe("WINDOW_CLOSED");
+        }
+    });
+
     it("a second buzz is rejected by the engine", () => {
         let s = phase2Open("p0", "THTH-50");
         s = applyVeDichAction(s, { kind: "ve-dich.closeCurrentAnswer" }, ctx()).state;

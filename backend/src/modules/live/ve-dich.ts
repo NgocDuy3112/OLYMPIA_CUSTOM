@@ -126,7 +126,7 @@ export function applyVeDichAction(
                 ? 0
                 : Math.max(0, Date.parse(ctx.now) - Date.parse(state.buzzOpenedAt));
 
-            const next = buzz(state, action.playerId);
+            const next = buzz(state, action.playerId, ctx.now);
             return {
                 state: next,
                 facts: [{
