@@ -4,10 +4,10 @@
 // thing on both decks.
 //
 // The verbal rule (kept short on purpose):
-//   correct        → BRIGHT (emerald, the only saturated card on the board)
-//   wrong / locked → GRAY  (muted, no colour at all)
-//   buzzed first   → PURPLE, with a DASHED WHITE outline (the live answerer)
-//   waiting        → the plain card
+//   correct        → BRIGHT (emerald, the only green on the board)
+//   wrong / locked → GRAY  (muted, no hue at all)
+//   buzzed first   → PURPLE, filled, with a DASHED WHITE outline (live answerer)
+//   waiting        → PURPLE, tinted — the quiet version of the live card
 //
 // Colour alone is not the only cue: wrong cards fade, the winner's outline is
 // dashed, so the states survive a colour-blind viewer and a projector.
@@ -20,9 +20,11 @@ const STATE: Record<RailCardState, string> = {
     correct: "bg-emerald-50 ring-2 ring-emerald-500",
     // The quiet one: no hue at all.
     wrong: "bg-muted text-muted-foreground ring-1 ring-border opacity-70",
-    // The live answerer: the deck's one purple surface, dashed white around it.
+    // The live answerer: the SAME purple, filled — dashed white around it.
     buzzing: "bg-primary text-primary-foreground outline-2 outline-dashed outline-white",
-    waiting: "bg-card ring-1 ring-border",
+    // The resting card is purple too, tinted: the deck is one hue, and the card
+    // that is merely waiting is the quiet version of the one that is answering.
+    waiting: "bg-primary/10 ring-1 ring-primary/40",
 }
 
 /** The score's own treatment — bright on a win, faded on a loss. */

@@ -79,7 +79,7 @@ export function Rail({ variant, view, myId, currentQid }: {
                     >
                         <div className="flex min-h-0 flex-1 gap-[0.7cqw]">
                             <div
-                                className="relative flex w-[52%] shrink-0 items-center justify-center rounded-lg bg-muted font-display font-bold text-muted-foreground"
+                                className="relative flex w-[52%] shrink-0 items-center justify-center rounded-lg bg-primary/10 font-display font-bold text-primary/70"
                                 style={{ fontSize: pt(16) }}
                                 aria-hidden
                             >

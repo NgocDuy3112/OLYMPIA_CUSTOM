@@ -32,8 +32,11 @@ describe("railCardState", () => {
         expect(railCardState({ buzzing: true, locked: true })).toBe("wrong")
     })
 
-    it("everything else waits: the plain card", () => {
+    it("everything else waits: the card is purple too, only tinted", () => {
         expect(railCardState({})).toBe("waiting")
-        expect(railCardClass("waiting")).toContain("bg-card")
+        expect(railCardClass("waiting")).toContain("bg-primary/10")
+        // …and the LIVE answerer is the same hue, filled: the outline separates them.
+        expect(railCardClass("waiting")).not.toContain("outline-dashed")
+        expect(railCardClass("buzzing")).toContain("bg-primary ")
     })
 })

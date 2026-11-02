@@ -92,7 +92,7 @@ export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answe
                     <div className="flex min-h-0 flex-1 gap-[0.7cqw]">
                         <div className="relative w-[52%] shrink-0">
                             <div
-                                className="flex h-full items-center justify-center rounded-lg bg-muted font-display font-bold text-muted-foreground"
+                                className="flex h-full items-center justify-center rounded-lg bg-primary/10 font-display font-bold text-primary/70"
                                 style={{ fontSize: pt(16) }}
                                 aria-hidden
                             >
