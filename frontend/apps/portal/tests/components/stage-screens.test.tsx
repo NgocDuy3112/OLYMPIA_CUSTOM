@@ -262,6 +262,24 @@ describe("VeDichRieng — the powers and the duel", () => {
         expect(screen.getByText("Mở chuông")).toBeInTheDocument()      // still drawn, as a slot
     })
 
+    it("a live race can be ended: Khoá chuông sends the lock", async () => {
+        const user = userEvent.setup()
+        const f = renderRound("ve-dich", {}, opened, veDichMc({
+            phase: 2, power: "ASSIGN", assignedToId: "u2", openStage: "buzz"
+        }))
+
+        await user.click(screen.getByText("Khoá chuông", BUTTON))
+        expect(f.send).toHaveBeenCalledWith({ kind: "ve-dich.lockBuzz" })
+    })
+
+    it("the lock is inert once someone buzzed — the race is already settled", () => {
+        renderRound("ve-dich", {}, opened, veDichMc({
+            phase: 2, power: "ASSIGN", openStage: "buzz", buzzerId: "u2"
+        }))
+        expect(screen.queryByText("Khoá chuông", BUTTON)).toBeNull()
+        expect(screen.getByText("Khoá chuông")).toBeInTheDocument()
+    })
+
     it("before the duel, Mở chuông is a real button", () => {
         renderRound("ve-dich", {}, opened, veDichMc({ phase: 2 }))
         expect(screen.getByText("Mở chuông", BUTTON)).toBeInTheDocument()

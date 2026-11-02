@@ -154,6 +154,8 @@ export const VeDichStateSchema = Type.Object({
     pendingPicks: Type.Array(VeDichQuestionSchema),
     open: Type.Union([VeDichOpenSchema, Type.Null()]),
     buzzOpenedAt: Type.Union([Type.String(), Type.Null()]),
+    // Optional: states written before the operator lock carry none.
+    buzzLocked: Type.Optional(Type.Boolean()),
     ended: Type.Boolean()
 });
 

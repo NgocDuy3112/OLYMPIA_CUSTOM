@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Value } from "@sinclair/typebox/value";
+import { LiveActionSchema } from "../../../src/modules/live/actions.js";
 import {
     ackMessage,
     ClientMessageSchema,
@@ -101,5 +102,15 @@ describe("requestIdOf", () => {
         expect(requestIdOf("nope")).toBeUndefined();
         expect(requestIdOf({ requestId: 7 })).toBeUndefined();
         expect(requestIdOf({})).toBeUndefined();
+    });
+});
+
+describe("the operator's race lock", () => {
+    it("is part of the action vocabulary the MC route accepts", () => {
+        expect(Value.Check(LiveActionSchema, { kind: "ve-dich.lockBuzz" })).toBe(true);
+        // it is an operator action with no payload: the STATE decides what is open
+        expect(Value.Check(LiveActionSchema, { kind: "ve-dich.lockBuzz", playerId: "x" })).toBe(true);
+        // and a made-up neighbour is still refused
+        expect(Value.Check(LiveActionSchema, { kind: "ve-dich.lockBuzzNow" })).toBe(false);
     });
 });

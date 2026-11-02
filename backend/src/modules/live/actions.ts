@@ -141,6 +141,11 @@ export const VeDichOpenQuestion = Type.Object({
 export const VeDichCloseCurrentAnswer = Type.Object({
     kind: Type.Literal("ve-dich.closeCurrentAnswer")
 });
+// The operator ends the race: the clock stops and both halves of a duel are
+// locked out. Nothing is scored here — the resolve then reports "nobody buzzed".
+export const VeDichLockBuzz = Type.Object({
+    kind: Type.Literal("ve-dich.lockBuzz")
+});
 export const VeDichResolve = Type.Object({
     kind: Type.Literal("ve-dich.resolve"),
     answerer: Type.Boolean(),
@@ -172,7 +177,7 @@ export const VeDichBuzz = Type.Object({
 });
 
 export const VeDichActionSchema = Type.Union([
-    VeDichStart, VeDichBeginPhase2, VeDichOpenQuestion, VeDichCloseCurrentAnswer,
+    VeDichStart, VeDichBeginPhase2, VeDichOpenQuestion, VeDichCloseCurrentAnswer, VeDichLockBuzz,
     VeDichResolve, VeDichAdvanceTurn, VeDichEndRound,
     VeDichPick, VeDichPickBatch, VeDichDeclarePower, VeDichBuzz
 ]);
@@ -223,6 +228,7 @@ export const LiveActionSchema = Type.Union([
     VeDichBeginPhase2,
     VeDichOpenQuestion,
     VeDichCloseCurrentAnswer,
+    VeDichLockBuzz,
     VeDichResolve,
     VeDichAdvanceTurn,
     VeDichEndRound,

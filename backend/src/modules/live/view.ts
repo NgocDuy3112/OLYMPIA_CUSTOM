@@ -326,7 +326,8 @@ function veDichView(input: ViewInput, state: VeDichState): PlayerView {
                 && open.answerer === input.userId && open.power === null,
             // Who may buzz is the ENGINE's rule, not a re-derivation: everyone but
             // the answerer on a normal question; ONLY the two halves of the duel on
-            // an ASSIGN question (where the answerer buzzes too).
+            // an ASSIGN question (where the answerer buzzes too). `isBuzzOpen` also
+            // carries the operator's lock, so a locked race offers nobody a buzz.
             canBuzz: open !== null && open.stage === "buzz" && open.buzzer === null
                 && mayBuzz(state, input.userId) && isBuzzOpen(state, input.now),
             power: open?.power ?? null,

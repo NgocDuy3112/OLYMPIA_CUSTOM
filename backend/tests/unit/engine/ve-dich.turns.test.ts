@@ -10,6 +10,7 @@ import {
     phase2Complete,
     buzz,
     buzzWindowSeconds,
+    lockBuzzWindow,
     closeCurrentAnswer,
     createVeDich,
     declarePower,
@@ -341,6 +342,55 @@ describe("powers — ASSIGN", () => {
 
         expect(after.players.find((p) => p.id === a)!.score).toBe(-20);
         expect(after.players.find((p) => p.id === b)!.score).toBe(-20);
+    });
+
+    it("the operator can END the race: the clock stops and BOTH halves are locked out", () => {
+        const s = twoUp();
+        const a = s.players[0].id;
+        const b = s.players[1].id;
+        const racing = declarePower(openPhase2Question(s, "THTH-40"), a, "ASSIGN", { targetId: b, nowIso: NOW });
+
+        // Nothing has been buzzed yet, and the 30 s clock is still running…
+        expect(isBuzzOpen(racing, at(1))).toBe(true);
+        const locked = lockBuzzWindow(racing);
+
+        // …the lock ends it anyway, for both halves, at any later time.
+        expect(isBuzzOpen(locked, at(1))).toBe(false);
+        expect(codeOf(() => buzz(locked, a, at(2)))).toBe("WINDOW_CLOSED");
+        expect(codeOf(() => buzz(locked, b, at(2)))).toBe("WINDOW_CLOSED");
+    });
+
+    it("…and the question then resolves as the nobody-buzzed case: both −50%", () => {
+        const s = twoUp();
+        const a = s.players[0].id;
+        const b = s.players[1].id;
+        const locked = lockBuzzWindow(
+            declarePower(openPhase2Question(s, "THTH-40"), a, "ASSIGN", { targetId: b, nowIso: NOW })
+        );
+        const after = resolveQuestion(locked, { answerer: false });
+
+        expect(after.players.find((p) => p.id === a)!.score).toBe(-20);
+        expect(after.players.find((p) => p.id === b)!.score).toBe(-20);
+        expect(after.open).toBeNull();
+    });
+
+    it("the lock cannot be used to steal a settled race, and cannot fire with nothing open", () => {
+        const s = twoUp();
+        const a = s.players[0].id;
+        const b = s.players[1].id;
+        const racing = declarePower(openPhase2Question(s, "THTH-40"), a, "ASSIGN", { targetId: b, nowIso: NOW });
+
+        expect(codeOf(() => lockBuzzWindow(buzz(racing, a, at(1))))).toBe("ALREADY_OPEN");
+        expect(codeOf(() => lockBuzzWindow(createVeDich(POOL, [player("a", 0)])))).toBe("NOTHING_OPEN");
+    });
+
+    it("a fresh question starts unlocked", () => {
+        const s = twoUp();
+        const a = s.players[0].id;
+        const locked = lockBuzzWindow(closeCurrentAnswer(openPhase2Question(s, "THTH-40"), NOW));
+        const nextTurn = advanceTurn(resolveQuestion(locked, { answerer: true }));
+        // The lock belonged to that question, not to the round.
+        expect(nextTurn.buzzLocked).toBe(false);
     });
 
     it("a buzz after the question's clock is refused", () => {

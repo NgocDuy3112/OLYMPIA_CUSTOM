@@ -68,7 +68,13 @@ export interface VeDichState {
     turnIndex: number;
     pendingPicks: VeDichQuestion[];
     open: OpenQuestion | null;
-    buzzOpenedAt: string | null;   // ISO time the 5 s buzz window opened
+    buzzOpenedAt: string | null;   // ISO time the buzz window opened
+    /**
+     * The operator ended the race: the clock stops and EVERY buzz is locked out
+     * from here on, whatever the time limit says. Optional — states written
+     * before the lock existed carry none.
+     */
+    buzzLocked?: boolean;
     ended: boolean;
 }
 
@@ -174,13 +180,14 @@ export function beginPhase2(state: VeDichState): VeDichState {
         turnIndex: 0,
         pendingPicks: [],
         open: null,
-        buzzOpenedAt: null
+        buzzOpenedAt: null,
+        buzzLocked: false
     };
 }
 
 export function endVeDich(state: VeDichState): VeDichState {
     if (state.ended) return state;
-    return { ...state, ended: true, open: null, buzzOpenedAt: null };
+    return { ...state, ended: true, open: null, buzzOpenedAt: null, buzzLocked: false };
 }
 
 // Phase 1: highest score first. Phase 2: lowest score first.
@@ -232,7 +239,8 @@ export function pickPhase1(
             buzzer: null,
             assignedTo: null
         },
-        buzzOpenedAt: null
+        buzzOpenedAt: null,
+        buzzLocked: false
     };
 }
 
@@ -323,7 +331,8 @@ export function declarePower(
             // The race IS the buzz window, opened here instead of after an answer.
             stage: "buzz"
         },
-        buzzOpenedAt: options.nowIso
+        buzzOpenedAt: options.nowIso,
+        buzzLocked: false
     };
 }
 
@@ -347,7 +356,8 @@ export function openPhase2Question(state: VeDichState, questionId: string): VeDi
             buzzer: null,
             assignedTo: null
         },
-        buzzOpenedAt: null
+        buzzOpenedAt: null,
+        buzzLocked: false
     };
 }
 
@@ -359,7 +369,7 @@ export function closeCurrentAnswer(state: VeDichState, openedAt: string): VeDich
     if (state.phase !== 2) return state;      // Phase 1 has no buzz window
     if (state.open.stage !== "current") fail("ALREADY_OPEN", "the buzz window already happened");
 
-    return { ...state, open: { ...state.open, stage: "buzz" }, buzzOpenedAt: openedAt };
+    return { ...state, open: { ...state.open, stage: "buzz" }, buzzOpenedAt: openedAt, buzzLocked: false };
 }
 
 // How long the window stays open, in seconds. A normal buzz window is the
@@ -372,8 +382,22 @@ export function buzzWindowSeconds(state: VeDichState): number {
     return state.rules.buzzWindowS;
 }
 
+/**
+ * END THE RACE. The operator stops the clock and BOTH halves of a duel are
+ * locked out — nothing is scored here: the question then resolves as the
+ * nobody-buzzed case (both lose 50%). Also usable on a normal question, where it
+ * simply skips the rest of the 5 s window.
+ */
+export function lockBuzzWindow(state: VeDichState): VeDichState {
+    if (!state.open) fail("NOTHING_OPEN", "no question is open");
+    if (state.open.stage !== "buzz") fail("ALREADY_OPEN", "there is no open buzz window");
+    if (state.open.buzzer !== null) fail("ALREADY_OPEN", "someone already buzzed — the race is settled");
+    return { ...state, buzzLocked: true };
+}
+
 // Is the buzz window open at `nowIso`?
 export function isBuzzOpen(state: VeDichState, nowIso: string): boolean {
+    if (state.buzzLocked === true) return false;      // the operator ended it
     if (state.open === null || state.open.stage !== "buzz" || state.buzzOpenedAt === null) {
         return false;
     }
@@ -486,7 +510,8 @@ function applyDeltas(state: VeDichState, deltas: Array<[string, number]>): VeDic
             scoreDelta.has(p.id) ? { ...p, score: p.score + scoreDelta.get(p.id)! } : p
         ),
         open: null,
-        buzzOpenedAt: null
+        buzzOpenedAt: null,
+        buzzLocked: false
     };
 }
 

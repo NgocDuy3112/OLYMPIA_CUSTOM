@@ -52,6 +52,9 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
     // A duel runs on the QUESTION's clock, so there is no answer to close: the
     // engine would refuse it. Keep the slot inert while the pair races.
     const racing = mcVeDich?.power === "ASSIGN"
+    // …but a race needs an exit: the operator stops the clock and locks BOTH
+    // halves out. Then the question resolves as the nobody-buzzed case.
+    const canLockBuzz = mcVeDich?.openStage === "buzz" && mcVeDich.buzzerId === null
 
     return (
         <ConsoleStage
@@ -62,6 +65,10 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
                     onClick: mcVeDich?.openStage === "current" && !racing
                         ? () => ctx.send({ kind: "ve-dich.closeCurrentAnswer" })
                         : undefined,
+                },
+                {
+                    label: "Khoá chuông",
+                    onClick: canLockBuzz ? () => ctx.send({ kind: "ve-dich.lockBuzz" }) : undefined,
                 },
                 {
                     label: COPY.powerStar,

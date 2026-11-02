@@ -7,6 +7,7 @@ import {
     createVeDich,
     declarePower,
     endVeDich,
+    lockBuzzWindow,
     openPhase2Question,
     pickPhase1,
     pickPhase2,
@@ -122,6 +123,10 @@ export function applyVeDichAction(
 
         case "ve-dich.openQuestion":
             return { state: openPhase2Question(state, action.questionId), facts: [] };
+
+        case "ve-dich.lockBuzz":
+            // Operator lock: no facts, no scoring — the resolve decides the outcome.
+            return { state: lockBuzzWindow(state), facts: [] };
 
         case "ve-dich.closeCurrentAnswer":
             return { state: closeCurrentAnswer(state, ctx.now), facts: [] };
