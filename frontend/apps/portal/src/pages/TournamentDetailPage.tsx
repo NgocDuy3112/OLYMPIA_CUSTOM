@@ -8,6 +8,7 @@ import { TournamentPointsCard } from "@/components/tournament-points-card"
 import { TournamentRulesTab } from "@/components/tournament-rules-tab"
 import { StagesTab } from "@/components/stages-tab"
 import { StandingsTab } from "@/components/standings-tab"
+import { GroupsTab } from "@/components/groups-tab"
 import { ChevronRight } from "lucide-react"
 
 
@@ -46,6 +47,7 @@ export function TournamentDetailPage() {
                 <TabsList variant="line" className="justify-start gap-6 border-b">
                     <TabsTrigger value="matches">Matches</TabsTrigger>
                     <TabsTrigger value="standings">Standings</TabsTrigger>
+                    <TabsTrigger value="groups">Groups</TabsTrigger>
                     <TabsTrigger value="points">Points</TabsTrigger>
                     <TabsTrigger value="stages">Stages</TabsTrigger>
                     <TabsTrigger value="rules">Round rules</TabsTrigger>
@@ -61,6 +63,10 @@ export function TournamentDetailPage() {
 
                 <TabsContent value="standings">
                     <StandingsTab tournamentId={tournamentId} />
+                </TabsContent>
+
+                <TabsContent value="groups">
+                    <GroupsTab />
                 </TabsContent>
 
                 <TabsContent value="points">
