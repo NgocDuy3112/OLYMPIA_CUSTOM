@@ -2,13 +2,13 @@
 import { render } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import type { PlayerCtx, PlayerView } from "@shared/deck/types"
-import { GiaiMaAOCPlayer } from "@/rounds/giai-ma/GiaiMaAOCPlayer"
-import { ButPhaAOCPlayer } from "@/rounds/but-pha/ButPhaAOCPlayer"
-import { KhoiDongChungAOCPlayer } from "@/rounds/khoi-dong/KhoiDongChungAOCPlayer"
-import { KhoiDongRiengAOCPlayer } from "@/rounds/khoi-dong/KhoiDongRiengAOCPlayer"
-import { VeDichChungAOCPlayer } from "@/rounds/ve-dich/VeDichChungAOCPlayer"
-import { VeDichPickAOCPlayer } from "@/rounds/ve-dich/VeDichPickAOCPlayer"
-import { VeDichRiengAOCPlayer } from "@/rounds/ve-dich/VeDichRiengAOCPlayer"
+import { GiaiMaAOCPlayer } from "@shared/deck/screens/GiaiMaAOCPlayer"
+import { ButPhaAOCPlayer } from "@shared/deck/screens/ButPhaAOCPlayer"
+import { KhoiDongChungAOCPlayer } from "@shared/deck/screens/KhoiDongChungAOCPlayer"
+import { KhoiDongRiengAOCPlayer } from "@shared/deck/screens/KhoiDongRiengAOCPlayer"
+import { VeDichChungAOCPlayer } from "@shared/deck/screens/VeDichChungAOCPlayer"
+import { VeDichPickAOCPlayer } from "@shared/deck/screens/VeDichPickAOCPlayer"
+import { VeDichRiengAOCPlayer } from "@shared/deck/screens/VeDichRiengAOCPlayer"
 
 // A smoke test per player screen: the deck is PURE (ctx in, JSX out), so each
 // screen must render from a plain fixture with no provider, no socket and no

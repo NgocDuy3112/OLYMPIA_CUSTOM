@@ -1,8 +1,8 @@
-import { PlayerStage, Progress, QuestionFrame, Rail, Timer, type PlayerCore } from "@shared/deck/player-deck"
-import { STRIP_R, pt } from "@shared/deck/geometry"
-import { COPY } from "@shared/deck/copy"
+import { PlayerStage, Progress, QuestionFrame, Rail, Timer, type PlayerCore } from "../player-deck"
+import { STRIP_R, pt } from "../geometry"
+import { COPY } from "../copy"
 import { formatBuzzMs } from "@shared/lib/clock"
-import type { PlayerView } from "@shared/deck/types"
+import type { PlayerView } from "../types"
 
 // Khởi động — lượt chung (S2): NOW a buzz race. Twelve questions, one at a
 // time; the MC opens a 5 s window and the fastest buzz answers out loud.

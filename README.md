@@ -21,9 +21,9 @@ Three hostnames, one backend, every API call same-origin:
 
 | Host | Serves | Proxies |
 |---|---|---|
-| `portal.aoc.olympia-custom.io.vn` | console / admin | `/portal/*`, `/spectate/*` |
+| `portal.aoc.olympia-custom.io.vn` | console / admin | `/portal/*` |
 | `gameplay.aoc.olympia-custom.io.vn` | player deck | `/gameplay/*` |
-| `aoc.olympia-custom.io.vn` | audience ("Khán giả cùng leo núi") | `/spectate/*`, `/public/*` |
+| `aoc.olympia-custom.io.vn` | audience app ("Khán giả cùng leo núi") | `/spectate/*`, `/public/*` |
 
 Cookies stay **host-only** (`portal_session` / `gameplay_session`), so a player
 on `gameplay.*` cannot even present an admin cookie. The full shape — Caddyfile,

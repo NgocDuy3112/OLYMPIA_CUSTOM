@@ -1,11 +1,11 @@
 import { Hand } from "lucide-react"
 import { formatRemaining } from "@shared/lib/clock"
-import { AnswerBand, PlayerStage, PowerButtons, QuestionFrame, Rail, Timer, VeDichStripCells, type PlayerCore } from "@shared/deck/player-deck"
-import { STRIP_R, pt } from "@shared/deck/geometry"
-import { stripCellsOf } from "@shared/deck/ve-dich-board"
+import { AnswerBand, PlayerStage, PowerButtons, QuestionFrame, Rail, Timer, VeDichStripCells, type PlayerCore } from "../player-deck"
+import { STRIP_R, pt } from "../geometry"
+import { stripCellsOf } from "../ve-dich-board"
 import { formatBuzzMs } from "@shared/lib/clock"
-import { COPY } from "@shared/deck/copy"
-import type { AnswerValue, VeDichCommand } from "@shared/deck/types"
+import { COPY } from "../copy"
+import type { AnswerValue, VeDichCommand } from "../types"
 
 // Về đích — câu hỏi mở, phase 2 (S8): the personal round — everyone sees the
 // question; the answer is oral, the buzz window is the typed part, and powers

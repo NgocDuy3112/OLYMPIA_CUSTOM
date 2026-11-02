@@ -1,8 +1,8 @@
-import { Badges, CardHeader, MainCard, PlayerStage, Rail, type PlayerCore } from "@shared/deck/player-deck"
-import { DECK_PAD, STRIP_R, pt } from "@shared/deck/geometry"
-import { playerCellClass, type CellWhere } from "@shared/deck/cells"
-import { VE_GRID_COLUMNS, boardRows } from "@shared/deck/ve-dich-board"
-import type { VeDichCommand } from "@shared/deck/types"
+import { Badges, CardHeader, MainCard, PlayerStage, Rail, type PlayerCore } from "../player-deck"
+import { DECK_PAD, STRIP_R, pt } from "../geometry"
+import { playerCellClass, type CellWhere } from "../cells"
+import { VE_GRID_COLUMNS, boardRows } from "../ve-dich-board"
+import type { VeDichCommand } from "../types"
 
 // Về đích — bảng chọn câu (S6 = phase 1 chọn 1 · S5 = phase 2 bốc 3): the cells
 // ARE the picker. The board is the show's — 6×20, 6×30, 4×40, 4×50 — rows are

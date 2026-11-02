@@ -1,7 +1,7 @@
-import { AnswerBand, Badges, CardHeader, KeywordBox, KeywordLengthBanner, MainCard, PlayerStage, Rail, Timer, VerdictIcon, type PlayerCore } from "@shared/deck/player-deck"
-import { DECK_PAD, STRIP_R, pt } from "@shared/deck/geometry"
-import { HINT_TILES, playerHintTileClass } from "@shared/deck/cells"
-import type { AnswerValue } from "@shared/deck/types"
+import { AnswerBand, Badges, CardHeader, KeywordBox, KeywordLengthBanner, MainCard, PlayerStage, Rail, Timer, VerdictIcon, type PlayerCore } from "../player-deck"
+import { DECK_PAD, STRIP_R, pt } from "../geometry"
+import { HINT_TILES, playerHintTileClass } from "../cells"
+import type { AnswerValue } from "../types"
 
 // Giải mã (S3): keyword banner, the count-driven hint tile grid, the lower
 // question card, and a band that is either the hint answer box or the keyword

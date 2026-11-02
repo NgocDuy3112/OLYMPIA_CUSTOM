@@ -7,14 +7,16 @@
     "dev": "npm run dev:portal",
     "dev:portal": "vite --config apps/portal/vite.config.ts",
     "dev:gameplay": "vite --config apps/gameplay/vite.config.ts",
-    "build": "npm run build:portal && npm run build:gameplay",
+    "build": "npm run build:portal && npm run build:gameplay && npm run build:audience",
     "build:portal": "tsc -p apps/portal --noEmit && vite build --config apps/portal/vite.config.ts",
     "build:gameplay": "tsc -p apps/gameplay --noEmit && vite build --config apps/gameplay/vite.config.ts",
     "preview:portal": "vite preview --config apps/portal/vite.config.ts",
     "preview:gameplay": "vite preview --config apps/gameplay/vite.config.ts",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:portal": "vitest run --config apps/portal/vitest.config.ts"
+    "test:portal": "vitest run --config apps/portal/vitest.config.ts",
+    "dev:audience": "vite --config apps/audience/vite.config.ts",
+    "build:audience": "tsc -p apps/audience --noEmit && vite build --config apps/audience/vite.config.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

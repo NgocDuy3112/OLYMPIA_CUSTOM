@@ -1,6 +1,6 @@
 import { Hand } from "lucide-react"
-import { Band, Badges, CardHeader, MainCard, Rail, StageLayout, Timer, type PlayerCtx } from "@shared/deck/player-deck"
-import { STRIP_R, pt } from "@shared/deck/geometry"
+import { Band, Badges, CardHeader, MainCard, Rail, StageLayout, Timer, type PlayerCtx } from "../player-deck"
+import { STRIP_R, pt } from "../geometry"
 
 // Tie-break — câu hỏi phụ, the fastest-finger decider. Structurally the
 // ve-dich · Riêng screen WITHOUT the question boxes: the MC reads the question

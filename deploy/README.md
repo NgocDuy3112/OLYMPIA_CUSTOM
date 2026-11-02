@@ -6,9 +6,9 @@ same-origin: no CORS, host-only cookies, same-origin WebSockets.
 
 | Host | Serves | Proxies | Session cookie |
 |---|---|---|---|
-| `portal.aoc.olympia-custom.io.vn` | the console / admin bundle (MC deck, show screen, tournaments, questions, operators, MCP keys) | `/portal/*`, `/spectate/*` | `portal_session` — **host-only** |
+| `portal.aoc.olympia-custom.io.vn` | the console / admin bundle (MC deck, show screen, tournaments, questions, operators, MCP keys) | `/portal/*` only — the old `/tournaments/:t/matches/:m/spectate` link 302s to the audience host | `portal_session` — **host-only** |
 | `gameplay.aoc.olympia-custom.io.vn` | the player bundle (join, schedule, standings, player deck, camera) | `/gameplay/*` | `gameplay_session` — **host-only** |
-| `aoc.olympia-custom.io.vn` | the audience — "Khán giả cùng leo núi": the live read + (later) public tournament pages | `/spectate/*`, `/public/*` | **none** |
+| `aoc.olympia-custom.io.vn` | `apps/audience` — "Khán giả cùng leo núi": the live deck (`/live/:tournament/:match`) + (later) public tournament pages | `/spectate/*`, `/public/*` | **none** |
 
 ## Why not an `api.` host
 
@@ -66,10 +66,19 @@ would still not cover the apex `aoc.olympia-custom.io.vn`; if you want a single
 cert anyway, add a DNS provider block to `deploy/Caddyfile` and list the three
 names under one site block with `tls { dns <provider> }`.
 
+## The audience deck is the player deck, read-only
+
+`apps/audience` renders the SAME round screens the player app does
+(`shared/deck/screens/*`), routed by the same pure rule (`shared/deck/dispatch.ts →
+playerScreenOf`) and fed by an **empty observer `me`** with no-op handlers. It is
+not the console minus its buttons: it has no ledger, no `mc` facts and no verdict
+controls at all — the API does not even serve them on this door.
+
 ## Still missing (the next slice)
 
-- **`apps/audience`** — its own small bundle. Today the audience host serves the
-  portal bundle, whose only public route is `/spectate/:tournament/:match`.
 - **`/public/*`** — public reads of a tournament (schedule, standings, groups,
   match summary). The handlers exist under `/portal/*` with staff guards; they
   need read-only twins with the same rate limit as `/spectate/*`.
+- **`shared/public/`** — the read-only views (standings table, group tables,
+  schedule list, match summary) extracted from the portal tabs + gameplay pages,
+  so the audience's tournament pages reuse them instead of growing a third copy.

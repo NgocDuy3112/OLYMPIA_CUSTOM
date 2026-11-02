@@ -45,13 +45,18 @@
 }
 
 # ── 1. the console / admin ───────────────────────────────────────────────────
-# /spectate/* is proxied here too: the operator's "open the audience view" link
-# points at this host until the audience app owns it.
+# The admin host talks to /portal/* ONLY. The audience deck used to live here
+# (/tournaments/:t/matches/:m/spectate); it now belongs to the audience host, and
+# the old links redirect there so an operator's bookmark keeps working.
 portal.aoc.olympia-custom.io.vn {
 	import security_headers
 	encode zstd gzip
 
-	@api path /portal/* /spectate/*
+	# The old spectator deep link → the audience host's live deck.
+	@oldSpectate path_regexp /tournaments/([^/]+)/matches/([^/]+)/spectate
+	redir @oldSpectate https://aoc.olympia-custom.io.vn/live/{re.oldSpectate.1}/{re.oldSpectate.2}
+
+	@api path /portal/*
 	handle @api {
 		import api
 	}

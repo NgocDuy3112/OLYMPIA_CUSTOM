@@ -1,8 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api, ApiError } from "@shared/lib/api"
 import { useServerClock, type ServerClock } from "@shared/lib/clock"
-import { isKnownRound, isWaitingStage } from "@shared/deck/geometry"
-import type { LayoutKey, LobbyData } from "@shared/deck/types"
+import type { LobbyData } from "@shared/deck/types"
 import { useSocketStream } from "@shared/lib/ws"
 
 // An API refusal, shaped for the gate screens: each status is a screen, never
@@ -182,34 +181,9 @@ export function useLiveMatch(matchId: string, enabled: boolean): UseLiveMatch {
 
 // ── which screen a view renders ────────────────────────────────────────────
 
-export type PlayerScreen =
-    | "lobby"   // round not started / ended — waiting for the MC
-    | LayoutKey // one of the deck's seven round screens (see @shared/deck/types)
-
-/**
- * Which screen a view renders. Pure — the view is the only input, so the rule
- * is unit-testable and the orchestrator never re-derives it. One reason per
- * line: the lobby wins whenever a round screen does not exist.
- */
-export function playerScreenOf(view: LiveView): PlayerScreen {
-    const { roundId, stage, open } = view
-
-    if (!isKnownRound(roundId)) return "lobby" // a round this client has no screen for
-    if (isWaitingStage(stage)) return "lobby"  // not started / over / unrecognized stage
-
-    switch (roundId) {
-        case "khoi-dong":
-            return stage === "phase2" ? "khoi-dong-chung" : "khoi-dong-rieng"
-        case "giai-ma":
-            return "giai-ma"
-        case "but-pha":
-            return "but-pha"
-        default: // ve-dich
-            return open.length === 0
-                ? "ve-dich-pick"
-                : stage === "phase2" ? "ve-dich-rieng" : "ve-dich-chung"
-    }
-}
+// The screen rule lives with the kit (shared/deck/dispatch) so the audience deck
+// uses the SAME routing. Re-exported here: gameplay's call sites keep one import.
+export { playerScreenOf, type PlayerScreen } from "@shared/deck/dispatch"
 
 // ── the lobby ───────────────────────────────────────────────────────────────────
 

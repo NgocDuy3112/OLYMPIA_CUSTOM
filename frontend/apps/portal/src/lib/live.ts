@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api } from "@shared/lib/api"
 import { useSocketStream } from "@shared/lib/ws"
-import { useApiPrefix } from "@/lib/surface"
 
 // The MC console's data layer: one polled read, one version-guarded action
 // writer, one drafts reader for judging — plus the pure helpers that decide
@@ -135,11 +134,10 @@ export const lobbyKey = (tournamentId: string, matchId: string) =>
 
 /** The MC's lobby read: polled like /live (presence moves without a round change). */
 export function useLobby(tournamentId: string, matchId: string, enabled: boolean) {
-    const prefix = useApiPrefix()
     return useQuery({
         queryKey: lobbyKey(tournamentId, matchId),
         queryFn: () =>
-            api<LobbyData>(`${prefix}/tournaments/${tournamentId}/matches/${matchId}/lobby`),
+            api<LobbyData>(`/portal/tournaments/${tournamentId}/matches/${matchId}/lobby`),
         enabled: enabled && Boolean(tournamentId && matchId),
         refetchInterval: 3_000,
         retry: false,
@@ -173,12 +171,11 @@ interface ConsoleStreamFrame {
 // (it also refreshes `connected`, which a push alone cannot announce).
 // 404 (no round yet) and 409 are answers, not crashes — no retry storm.
 export function useLive(tournamentId: string, matchId: string, onFrame?: (at: string) => void) {
-    const prefix = useApiPrefix()
     const queryClient = useQueryClient()
     const query = useQuery({
         queryKey: liveKey(tournamentId, matchId),
         queryFn: () =>
-            api<LiveResponse>(`${prefix}/tournaments/${tournamentId}/matches/${matchId}/live`),
+            api<LiveResponse>(`/portal/tournaments/${tournamentId}/matches/${matchId}/live`),
         enabled: Boolean(tournamentId && matchId),
         refetchInterval: 3_000,
         staleTime: 0,
@@ -186,7 +183,7 @@ export function useLive(tournamentId: string, matchId: string, onFrame?: (at: st
     })
 
     useSocketStream(
-        `${prefix}/tournaments/${tournamentId}/matches/${matchId}/live/stream`,
+        `/portal/tournaments/${tournamentId}/matches/${matchId}/live/stream`,
         Boolean(tournamentId && matchId),
         (message) => {
             const frame = message as ConsoleStreamFrame | null
@@ -219,12 +216,11 @@ export function useLive(tournamentId: string, matchId: string, onFrame?: (at: st
 // reject, don't queue.
 export function useLiveAction(tournamentId: string, matchId: string) {
     const queryClient = useQueryClient()
-    const prefix = useApiPrefix()
 
     return useMutation({
         mutationFn: (input: { expectedVersion: number; action: Record<string, unknown> }) =>
             api<{ version?: number }>(
-                `${prefix}/tournaments/${tournamentId}/matches/${matchId}/live/actions`,
+                `/portal/tournaments/${tournamentId}/matches/${matchId}/live/actions`,
                 { method: "POST", body: JSON.stringify(input) }
             ),
         onSuccess: () => {
@@ -246,14 +242,13 @@ export function useLiveAction(tournamentId: string, matchId: string) {
 // console-side mutation — window-focus refetch is globally off too. Without
 // this interval the MC's Đúng stays dead until a reload (smoke-tested).
 export function useQuestionAnswers(tournamentId: string, matchId: string, questionId: string | null) {
-    const prefix = useApiPrefix()
     return useQuery({
         queryKey: ["question-answers", matchId, questionId],
         // The route wraps: { items: [...] } — unwrap here or `rows.find` gets an
         // object and the console unmounts (blank stage page).
         queryFn: () =>
             api<{ items: QuestionAnswerRow[] }>(
-                `${prefix}/tournaments/${tournamentId}/matches/${matchId}/live/answers?questionId=${questionId}`
+                `/portal/tournaments/${tournamentId}/matches/${matchId}/live/answers?questionId=${questionId}`
             ).then((body) => body.items),
         enabled: Boolean(questionId),
         // Same cadence as the lobby — only while a question is open (enabled).

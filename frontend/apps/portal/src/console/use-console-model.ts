@@ -16,8 +16,7 @@ import {
     type VeDichMc,
 } from "@/lib/live"
 import { useMatches } from "@/lib/tournament"
-import { fetchOperatorRtcToken, fetchViewerRtcToken, useRtcPeerTracks, useRtcRoom } from "@shared/lib/rtc"
-import { useApiSurface } from "@/lib/surface"
+import { fetchOperatorRtcToken, useRtcPeerTracks, useRtcRoom } from "@shared/lib/rtc"
 import { expandRoundEntries, navigatorStartPlan } from "./navigator-plan"
 
 // giai-ma's multi-select: the clicked player ids, plus the question they were
@@ -69,7 +68,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     const [watch, setWatch] = useState<WatchState>(() => freshWatch(null))
     // The MC NAVIGATED into the current round (the lobby's round buttons) — a
     // waiting stage (e.g. a saved ENDED state re-opened for review) must still
-    // show the deck. Automatic ends (Về sảnh) clear it → both surfaces fall
+    // show the deck. Automatic ends (Về sảnh) clear it → the console falls
     // back to the lobby. Players never set it: they follow the pushed view.
     const [entered, setEntered] = useState(false)
     // Về sảnh ALWAYS returns this console to the waiting room, whatever
@@ -133,16 +132,14 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     const commitHintReady = roundId === "giai-ma" && open.length > 0 && selectedOnQuestion
     const commitKeywordReady = roundId === "giai-ma" && open.length === 0 && selectedOnQuestion
 
-    const surface = useApiSurface()
     const rtc = useRtcRoom({
         enabled: Boolean(live.data),
         autoSubscribe: true,
         // The spectator has no portal session — its door is the public viewer
         // token (video only: Discord carries the show's audio).
         getToken: () =>
-            surface === "spectate"
-                ? fetchViewerRtcToken(matchId)
-                : fetchOperatorRtcToken(tournamentId, matchId),
+            // One surface now: the console always dials the operator's door.
+            fetchOperatorRtcToken(tournamentId, matchId),
     })
     const peers = useRtcPeerTracks(rtc.room)
 
