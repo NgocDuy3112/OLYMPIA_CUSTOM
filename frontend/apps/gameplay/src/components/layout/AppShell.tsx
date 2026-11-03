@@ -3,12 +3,15 @@ import { NavBar } from "@/components/layout/NavBar";
 
 
 export function AppShell() {
+    // A DEFINITE height, not just a minimum: the deck's canvas sizes itself from
+    // the space it is given (`height: 100%`), and a percentage only resolves
+    // against a definite height. min-h-dvh left it indefinite, which collapsed the
+    // canvas to 0×0. `overflow-y-auto` on main keeps the ordinary scrolling pages
+    // (schedule, standings) working.
     return (
-        <div className="flex min-h-dvh flex-col">
+        <div className="flex h-dvh flex-col">
             <NavBar />
-            {/* a column, so a full-bleed child (the deck) can fill the space
-                under the bar instead of only being as tall as its content */}
-            <main className="flex flex-1 flex-col">
+            <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
                 <Outlet />
             </main>
         </div>

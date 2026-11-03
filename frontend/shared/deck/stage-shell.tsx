@@ -33,15 +33,32 @@ export function StageShell({
     }
 
     return (
-        // The deck sits CENTRED in the space it is given, not pinned to the top:
-        // a 16:9 canvas on a portrait phone is a 219 px strip, and leaving 600 px
-        // of empty page under it reads as a broken page. `flex-1` lets the shell
-        // fill whatever the layout hands it (the app shell's main, the console's
-        // stage page); `max-w` keeps the canvas inside the viewport's height, so
-        // a short window letterboxes instead of overflowing.
+        // The deck sits CENTRED in the space it is given, and as LARGE as that
+        // space allows in BOTH directions — "contain", like an image, which CSS
+        // cannot do for a plain box (aspect-ratio + max-height squashes the ratio
+        // instead of shrinking the width).
+        //
+        // Which side drives the size flips with the WINDOW's shape, not with a
+        // measurement: a wide window is short of height, a tall one is short of
+        // width. (Container query units cannot do this — `cqh` reads 0 when the
+        // container's height comes from `flex-1`, which is exactly our case.)
+        //
+        // `100dvh` was the earlier yardstick and it is the wrong one: on a zoomed
+        // page, under mobile browser chrome, or inside an embedded frame it is not
+        // the height on screen, and the deck sized itself off it and collapsed to
+        // a postage stamp.
+        //
+        // PORTRAIT PHONES are the open case: a 16:9 deck on a 390 px screen is a
+        // 219 px strip, centred but small — the text is drawn in `cqw` off a 390 px
+        // width, so it is not the size that is wrong, the LAYOUT is. A phone wants
+        // its own deck (stacked regions, portrait proportions), not this canvas
+        // letterboxed. Deferred on purpose; the contain rule above keeps the
+        // projector and the laptop correct until then.
         <div className="relative flex w-full flex-1 items-center justify-center overflow-hidden bg-background">
-            <div className="@container relative aspect-video w-full max-w-[min(100%,calc(100dvh*16/9))] overflow-hidden bg-background">
-                {children}
+            <div
+                className="relative aspect-video h-auto w-full overflow-hidden bg-background [@media(min-aspect-ratio:16/9)]:h-full [@media(min-aspect-ratio:16/9)]:w-auto"
+            >
+                <div className="@container relative h-full w-full overflow-hidden">{children}</div>
             </div>
         </div>
     )
