@@ -68,22 +68,12 @@ function TournamentLayout() {
 function ScheduleRoute() {
     const { tournament } = useOutletContext<TournamentContext>()
     const schedule = useSchedule(tournament.slug)
-    const standings = useStandings(tournament.slug)
 
     const matches = useMemo(
         () => schedule.data?.items.map((row) => toMatch(row, tournament.rounds)) ?? [],
         [schedule.data, tournament.rounds]
     )
-    const rows = useMemo(() => toStandings(standings.data?.rows ?? []), [standings.data])
-
-    return (
-        <SchedulePage
-            tournament={tournament}
-            matches={matches}
-            standings={rows}
-            loading={schedule.isPending || standings.isPending}
-        />
-    )
+    return <SchedulePage tournament={tournament} matches={matches} loading={schedule.isPending} />
 }
 
 function StandingsRoute() {

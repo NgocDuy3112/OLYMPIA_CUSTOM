@@ -1,22 +1,18 @@
 import { useMemo, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import type { TournamentDetail } from "@/lib/api"
-import type { Match, StandingRow } from "@/lib/types"
+import type { Match } from "@/lib/types"
 import { DaySection } from "@/components/schedule/DaySection"
 import { MatchCard } from "@/components/schedule/MatchCard"
 import { MatchDrawer } from "@/components/schedule/MatchDrawer"
 import { StageTimeline } from "@/components/schedule/StageTimeline"
-import { StandingsPanel } from "@/components/standings/StandingsPanel"
 import { ScheduleHeader } from "@/components/schedule/ScheduleHeader"
 import { formatDay } from "@/lib/format"
 import { Inbox } from "lucide-react"
 
-const STANDINGS_PREVIEW_COUNT = 4
-
 interface SchedulePageProps {
     tournament: TournamentDetail
     matches: Match[]
-    standings: StandingRow[]
     loading?: boolean
 }
 
@@ -24,7 +20,6 @@ interface SchedulePageProps {
 export function SchedulePage({
     tournament,
     matches,
-    standings,
     loading = false,
 }: SchedulePageProps) {
     const days = useMemo(
@@ -32,7 +27,13 @@ export function SchedulePage({
         [matches]
     )
 
-    const [day, setDay] = useState<string>(days[0] ?? "")
+    // The picked day is a PREFERENCE, not the source of truth: on a cold load the
+    // matches arrive after the first render, so a plain `useState(days[0])` froze
+    // the choice at "" — no matches on the page and "Invalid Date" in the header.
+    // Deriving it means the first day is used until somebody picks another, and a
+    // day that no longer exists (filters changed) falls back instead of blanking.
+    const [pickedDay, setDay] = useState<string | null>(null)
+    const day = pickedDay !== null && days.includes(pickedDay) ? pickedDay : (days[0] ?? "")
     const navigate = useNavigate()
 
     const goPrev = () => {
@@ -107,7 +108,7 @@ export function SchedulePage({
             {loading ? (
                 <ScheduleSkeleton />
             ) : (
-                <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)_360px]">
+                <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
                     <aside className="hidden lg:sticky lg:top-20 lg:block lg:self-start">
                         <StageTimeline stages={tournament.stages} />
                     </aside>
@@ -135,10 +136,6 @@ export function SchedulePage({
                         {groups.length === 0 && !liveMatch && <EmptyState />}
                     </div>
 
-                    <StandingsPanel
-                        rows={standings.slice(0, STANDINGS_PREVIEW_COUNT)}
-                        viewAllTo={`/s/${tournament.slug}/standings`}
-                    />
                 </div>
             )}
 

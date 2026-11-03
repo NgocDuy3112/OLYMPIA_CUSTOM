@@ -14,7 +14,6 @@ import { isUnauthorized, useLogout, useMe } from "@/lib/session"
 
 const links = [
     { to: "/", label: "Lịch thi đấu", end: true },
-    { to: "/standings", label: "Olympia Custom Ranking" },
 ]
 
 export function NavBar() {
