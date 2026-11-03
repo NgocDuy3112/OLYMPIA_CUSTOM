@@ -12,12 +12,12 @@ const GROUPS_URL = `GET /portal/tournaments/${TOURNAMENT}/groups`
 const ASSIGN_URL = (userId: string) => `PATCH /portal/tournaments/${TOURNAMENT}/players/${userId}/group`
 
 
-const line = (userId: string, displayName: string, bankedPoints: number, matchesPlayed = 1) => ({
+const line = (userId: string, displayName: string, bankedPoints: number, matchesPlayed = 1, avg: number | null = null) => ({
     userId,
     displayName,
     matchesPlayed,
     bankedPoints,
-    averages: { phase1: null, phase2: null, all: null },
+    averages: { phase1: null, phase2: null, all: avg },
 })
 
 const tables = (over: Partial<{
@@ -50,8 +50,11 @@ describe("GroupsTab — the derived tables", () => {
 
         expect(screen.getByText("An")).toBeInTheDocument()
         expect(screen.getByText("Bình")).toBeInTheDocument()
-        expect(screen.getByText("4 pts")).toBeInTheDocument()      // Nhóm A's total
-        expect(screen.getByText("0 pts")).toBeInTheDocument()      // Nhóm B's total
+        // the group totals, now named: "Tổng điểm nhóm <n>"
+        const totals = screen.getAllByText("Tổng điểm nhóm").map((el) => el.parentElement?.textContent?.replace(/\s+/g, " "))
+        expect(totals).toHaveLength(2)
+        expect(totals.join(" | ")).toContain("4")
+        expect(totals.join(" | ")).toContain("0")
     })
 
     it("keeps the frame's placeholder seats visible while a group is under-filled", async () => {
@@ -59,11 +62,15 @@ describe("GroupsTab — the derived tables", () => {
         render()
 
         await screen.findByText("An")
-        // Nhóm A holds 2 of 4; Nhóm B holds 0 of 4 → 6 placeholder rows in total.
-        expect(screen.getAllByText("—")).toHaveLength(12)   // name + points per empty seat
+        // Nhóm A holds 2 of 4; Nhóm B holds 0 of 4 → 6 placeholder rows, each with
+        // three em-dashes now (name · Điểm nhóm · Thành tích trung bình).
+        const emptyRows = screen
+            .getAllByRole("row")
+            .filter((row) => [...row.querySelectorAll("td")].filter((td) => (td.textContent || "").trim() === "—").length === 3)
+        expect(emptyRows).toHaveLength(6)
         // No cap is implied: the count is just how many are drawn.
-        expect(screen.getByText("2 seats · team points bank for the group")).toBeInTheDocument()
-        expect(screen.getByText("0 seats · team points bank for the group")).toBeInTheDocument()
+        expect(screen.getByText(/^2 seats · thứ hạng ở trận vòng bảng/)).toBeInTheDocument()
+        expect(screen.getByText(/^0 seats · thứ hạng ở trận vòng bảng/)).toBeInTheDocument()
     })
 
     it("says who is still to be drawn, and marks the frame when nobody is", async () => {
@@ -140,5 +147,45 @@ describe("GroupsTab — the draw", () => {
             )
             expect(JSON.parse(String(call?.[1]?.body))).toEqual({ group: "B" })
         })
+    })
+})
+
+describe("the two numbers on a group row", () => {
+    it("names the group's total instead of a bare '0 pts'", async () => {
+        stubFetch({ [GROUPS_URL]: { body: tables({ aPoints: 3 }) } })
+        render()
+        // one label per group card, each carrying its own number
+        const totals = (await screen.findAllByText("Tổng điểm nhóm")).map((el) => el.parentElement?.textContent?.replace(/\s+/g, " "))
+        expect(totals).toHaveLength(2)
+        expect(totals.join(" | ")).toContain("3")
+    })
+
+    it("labels the per-contestant column Điểm nhóm (it is not their score)", async () => {
+        stubFetch({ [GROUPS_URL]: { body: tables() } })
+        render()
+        expect(await screen.findAllByText("Điểm nhóm")).toHaveLength(2)
+    })
+
+    it("gives the average its OWN column, next to Điểm nhóm", async () => {
+        stubFetch({ [GROUPS_URL]: { body: tables({ a: [line("u1", "An", 3, 4, 12.5)] }) } })
+        render()
+
+        // two headers, two different numbers: rank paid the group, average per match
+        expect((await screen.findAllByText("Thành tích trung bình")).length).toBe(2)
+        expect(screen.getAllByText("Điểm nhóm").length).toBe(2)
+
+        const row = screen.getByText("An").closest("tr")!
+        const cells = [...row.querySelectorAll("td")].map((td) => (td.textContent || "").trim())
+        expect(cells[2]).toBe("3")      // Điểm nhóm
+        expect(cells[3]).toBe("12.5")   // Thành tích trung bình
+    })
+
+    it("shows — in that column when they have played nothing", async () => {
+        stubFetch({ [GROUPS_URL]: { body: tables({ a: [line("u1", "An", 0, 0, null)] }) } })
+        render()
+
+        const row = (await screen.findByText("An")).closest("tr")!
+        const cells = [...row.querySelectorAll("td")].map((td) => (td.textContent || "").trim())
+        expect(cells[3]).toBe("—")
     })
 })

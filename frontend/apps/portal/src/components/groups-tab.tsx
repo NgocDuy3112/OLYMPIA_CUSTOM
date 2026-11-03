@@ -43,7 +43,7 @@ export function GroupsTab({ tournamentId }: { tournamentId: string }) {
                 <p className="text-sm text-muted-foreground">
                     {drawn === 0
                         ? "The groups are drawn here; contestants are filled in at the draw by the operator."
-                        : `${drawn} drawn · ${unassigned.length} still to place. Placement points bank to each contestant's group.`}
+                        : `${drawn} drawn · ${unassigned.length} still to place. Điểm nhóm: thứ hạng ở trận vòng bảng đem về nhóm. Thành tích trung bình: điểm mỗi trận vòng bảng.`}
                 </p>
             </div>
 
@@ -57,10 +57,13 @@ export function GroupsTab({ tournamentId }: { tournamentId: string }) {
                         <CardHeader>
                             <CardTitle className="text-base">Nhóm {block.id}</CardTitle>
                             <CardDescription>
-                                {block.rows.length} seats · team points bank for the group
+                                {block.rows.length} seats · thứ hạng ở trận vòng bảng đem điểm về nhóm
                             </CardDescription>
                             <CardAction>
-                                <span className="text-sm font-semibold tabular-nums">{block.teamPoints} pts</span>
+                                <span className="text-sm text-muted-foreground">
+                                    Tổng điểm nhóm{" "}
+                                    <b className="tabular-nums text-foreground">{block.teamPoints}</b>
+                                </span>
                             </CardAction>
                         </CardHeader>
                         <CardContent>
@@ -69,7 +72,10 @@ export function GroupsTab({ tournamentId }: { tournamentId: string }) {
                                     <TableRow>
                                         <TableHead className="w-10">#</TableHead>
                                         <TableHead>Contestant</TableHead>
-                                        <TableHead className="text-right">Points</TableHead>
+                                        <TableHead className="text-right">Điểm nhóm</TableHead>
+                                        <TableHead className="w-32 whitespace-normal text-right">
+                                            Thành tích trung bình
+                                        </TableHead>
                                         <TableHead className="w-20" />
                                     </TableRow>
                                 </TableHeader>
@@ -90,6 +96,7 @@ export function GroupsTab({ tournamentId }: { tournamentId: string }) {
                                                 {block.rows.length + i + 1}
                                             </TableCell>
                                             <TableCell className="text-muted-foreground">—</TableCell>
+                                            <TableCell className="text-right text-muted-foreground">—</TableCell>
                                             <TableCell className="text-right text-muted-foreground">—</TableCell>
                                             <TableCell />
                                         </TableRow>
@@ -137,7 +144,12 @@ export function GroupsTab({ tournamentId }: { tournamentId: string }) {
     )
 }
 
-/** One drawn contestant: what they banked, and the way to the other group. */
+/**
+ * One drawn contestant: what they banked for the group (Điểm nhóm — the placement
+ * scale), their average score per group match (Thành tích trung bình), and the way
+ * to the other group. Two different numbers, two columns: the first is what their
+ * RANK paid the group, the second is how well they actually played.
+ */
 function GroupMemberRow({ row, seat, group, disabled, onMove }: {
     row: GroupRow
     seat: number
@@ -155,6 +167,12 @@ function GroupMemberRow({ row, seat, group, disabled, onMove }: {
                 </span>
             </TableCell>
             <TableCell className="text-right tabular-nums">{row.bankedPoints}</TableCell>
+            <TableCell
+                className="text-right tabular-nums"
+                title="Thành tích trung bình: điểm mỗi trận vòng bảng (phase 1 không xuống dưới 0)"
+            >
+                {row.averages.all === null ? "—" : row.averages.all.toFixed(1)}
+            </TableCell>
             <TableCell className="text-right">
                 <Button size="sm" variant="ghost" disabled={disabled} onClick={onMove} title={`Chuyển sang Nhóm ${other(group)}`}>
                     → {other(group)}
