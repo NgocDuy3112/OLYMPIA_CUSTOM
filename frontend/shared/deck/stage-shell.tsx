@@ -38,10 +38,16 @@ export function StageShell({
         // cannot do for a plain box (aspect-ratio + max-height squashes the ratio
         // instead of shrinking the width).
         //
-        // Which side drives the size flips with the WINDOW's shape, not with a
-        // measurement: a wide window is short of height, a tall one is short of
-        // width. (Container query units cannot do this — `cqh` reads 0 when the
-        // container's height comes from `flex-1`, which is exactly our case.)
+        // CONTAIN, exactly: the canvas is as large as this box allows in BOTH
+        // directions, and never larger. The shell is a size container and the
+        // canvas is `min(100cqw, 100cqh * 16/9)` — one rule, no breakpoints, no
+        // viewport units. (This is the one thing CSS cannot do for a plain div:
+        // `aspect-ratio` + `max-height` squashes the ratio instead of shrinking the
+        // width, measured 600×300 from a 16:9 box.)
+        //
+        // It only works because the height chain is DEFINITE — app shell `h-dvh`,
+        // main `flex-1 min-h-0`, this shell `flex-1`. With `min-h-dvh` up there,
+        // `cqh` reads 0 and the canvas collapses to nothing.
         //
         // `100dvh` was the earlier yardstick and it is the wrong one: on a zoomed
         // page, under mobile browser chrome, or inside an embedded frame it is not
@@ -52,11 +58,15 @@ export function StageShell({
         // 219 px strip, centred but small — the text is drawn in `cqw` off a 390 px
         // width, so it is not the size that is wrong, the LAYOUT is. A phone wants
         // its own deck (stacked regions, portrait proportions), not this canvas
-        // letterboxed. Deferred on purpose; the contain rule above keeps the
-        // projector and the laptop correct until then.
-        <div className="relative flex w-full flex-1 items-center justify-center overflow-hidden bg-background">
+        // letterboxed. Deferred on purpose; the contain rule keeps the projector
+        // and the laptop correct until then.
+        <div
+            className="relative flex w-full flex-1 items-center justify-center overflow-hidden bg-background"
+            style={{ containerType: "size" }}
+        >
             <div
-                className="relative aspect-video h-auto w-full overflow-hidden bg-background [@media(min-aspect-ratio:16/9)]:h-full [@media(min-aspect-ratio:16/9)]:w-auto"
+                className="relative aspect-video overflow-hidden bg-background"
+                style={{ width: "min(100cqw, calc(100cqh * 16 / 9))" }}
             >
                 <div className="@container relative h-full w-full overflow-hidden">{children}</div>
             </div>
