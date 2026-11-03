@@ -1,6 +1,7 @@
 import { and, asc, count, eq, isNull, ne, or } from "drizzle-orm";
 import { db } from "../../db/pool.js";
 import { matches, questionBank, tournaments, users } from "../../db/schema/index.js";
+import { AOC_ROUNDS } from "../../game/engine/aoc-rulebook.js";
 import { TournamentError } from "./errors.js";
 import { CreateTournamentInput, UpdateTournamentInput, validate } from "./schemas.js";
 import { RoundConfig } from "../../game/contracts/index.js";
@@ -88,7 +89,10 @@ export async function createTournament(
             name: input.name,
             slug,
             visibility: input.visibility ?? "PUBLIC",
-            rounds: input.rounds ?? [],
+            // A tournament plays the AOC rounds unless it says otherwise. An empty
+            // round list is not a valid state any more: the rulebook is not
+            // something an operator fills in, so nothing would ever fill it.
+            rounds: input.rounds && input.rounds.length > 0 ? input.rounds : AOC_ROUNDS,
             format: input.format ?? { competitorsPerMatch: 4 },
             roundRules: input.roundRules ?? null,
             stages: input.stages ?? [],

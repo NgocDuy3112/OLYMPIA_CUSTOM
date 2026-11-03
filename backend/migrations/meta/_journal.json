@@ -43,6 +43,13 @@
       "when": 1793608165047,
       "tag": "0005_question_kind_choice",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793685000000,
+      "tag": "0006_aoc_rounds_by_default",
+      "breakpoints": true
     }
   ]
 }

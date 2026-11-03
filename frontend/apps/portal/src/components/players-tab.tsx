@@ -1,16 +1,16 @@
 import { useState, type FormEvent } from "react"
-import { Pencil, Trash2, UserPlus } from "lucide-react"
+import { Pencil, Plus, Trash2 } from "lucide-react"
 import { Button } from "@shared/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
 import { Input } from "@shared/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
 import {
     useContestants,
-    useCreateContestant,
     useRemoveContestant,
     useUpdateContestant,
     type ContestantRow,
 } from "@/lib/tournament"
+import { AddContestantDialog } from "./add-contestant-dialog"
 
 /**
  * Thí sinh — the roster, and the only place a contestant is created or corrected.
@@ -26,32 +26,15 @@ import {
  */
 export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; frozen: boolean }) {
     const roster = useContestants(tournamentId)
-    const create = useCreateContestant(tournamentId)
     const update = useUpdateContestant(tournamentId)
     const remove = useRemoveContestant(tournamentId)
 
-    const [name, setName] = useState("")
-    const [email, setEmail] = useState("")
-    /** The row being edited (null: the add form). One panel, so never two forms at once. */
+    /** Adding is a dialog, like every other create on this page. */
+    const [adding, setAdding] = useState(false)
+    /** The row being edited (null: no row chosen). One panel, so never two forms at once. */
     const [editing, setEditing] = useState<ContestantRow | null>(null)
     const [editName, setEditName] = useState("")
     const [editEmail, setEditEmail] = useState("")
-
-    const add = (event: FormEvent) => {
-        event.preventDefault()
-        const trimmed = name.trim()
-        if (!trimmed || create.isPending) return
-        const address = email.trim()
-        create.mutate(
-            address ? { displayName: trimmed, email: address } : { displayName: trimmed },
-            {
-                onSuccess: () => {
-                    setName("")
-                    setEmail("")
-                },
-            }
-        )
-    }
 
     const startEdit = (row: ContestantRow) => {
         setEditing(row)
@@ -98,42 +81,14 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
                         : `${rows.length} contestant${rows.length === 1 ? "" : "s"} · ${withAccount} with an account, ${rows.length - withAccount} playing only through the PIN.`}
                 </CardDescription>
                 <CardAction>
-                    <div className="flex flex-col items-end gap-1">
-                        <form onSubmit={add} className="flex items-center gap-2">
-                            <Input
-                                value={name}
-                                onChange={(event) => setName(event.target.value)}
-                                placeholder="Contestant name"
-                                maxLength={100}
-                                aria-label="Contestant name"
-                                className="h-8 w-40"
-                            />
-                            <Input
-                                value={email}
-                                onChange={(event) => setEmail(event.target.value)}
-                                placeholder="Email (optional)"
-                                type="email"
-                                maxLength={255}
-                                aria-label="Contestant email"
-                                title="Điền email để thí sinh giữ được lịch sử khi tự đăng nhập Google. Bỏ trống: chỉ chơi tại chỗ."
-                                className="h-8 w-44"
-                            />
-                            <Button size="sm" type="submit" disabled={create.isPending || name.trim().length === 0}>
-                                <UserPlus className="size-3.5" />
-                                {create.isPending ? "Adding…" : "Add"}
-                            </Button>
-                        </form>
-                        <p className="text-xs text-muted-foreground">
-                            Email is optional — without it the contestant plays by PIN and keeps no history.
-                        </p>
-                    </div>
+                    <Button size="sm" variant="outline" onClick={() => setAdding(true)}>
+                        <Plus className="size-3.5" />
+                        Thêm thí sinh
+                    </Button>
                 </CardAction>
             </CardHeader>
 
             <CardContent className="p-0">
-                {create.isError ? (
-                    <p role="alert" className="px-6 pb-4 text-sm text-destructive">{create.error.message}</p>
-                ) : null}
                 {remove.isError ? (
                     <p role="alert" className="px-6 pb-4 text-sm text-destructive">{remove.error.message}</p>
                 ) : null}
@@ -197,6 +152,14 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
                     </Table>
                 )}
             </CardContent>
+
+            {adding ? (
+                <AddContestantDialog
+                    tournamentId={tournamentId}
+                    open
+                    onOpenChange={(open) => { if (!open) setAdding(false) }}
+                />
+            ) : null}
 
             {editing ? (
                 <div className="border-t px-6 py-4">

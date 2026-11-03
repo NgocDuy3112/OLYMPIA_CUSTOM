@@ -3,23 +3,26 @@
 // questions at creation (the New-match picker) or stay empty until assembled.
 import { tournaments } from "../../db/schema/index.js";
 import type { RoundConfig } from "../../game/contracts/index.js";
+import { resolveRoundRules } from "../../game/engine/aoc-rulebook.js";
 import { MatchError } from "./errors.js";
 
 type TournamentRow = typeof tournaments.$inferSelect;
 
 
-// The saved rules for this tournament's rounds. Every match needs them.
+// The rules for this tournament's rounds: what it saved, else the AOC rulebook.
+// A match needs them to know each turn's shape, and every round the deck can play
+// has a default — only an id the app does not know is a real gap.
 export function tournamentRoundConfigs(tournament: TournamentRow): Record<string, RoundConfig> {
-    const rules = tournament.roundRules ?? {};
+    const resolved = resolveRoundRules(tournament.rounds, tournament.roundRules);
 
-    const missing = tournament.rounds.filter((round) => !rules[round.id]).map((round) => round.id);
+    const missing = tournament.rounds.filter((round) => !resolved[round.id]).map((round) => round.id);
     if (missing.length > 0) {
         throw new MatchError(
             "NOT_READY",
-            `these rounds have no saved rules for this tournament: ${missing.join(", ")}`,
+            `these rounds are not ones this app can play: ${missing.join(", ")}`,
             missing
         );
     }
 
-    return rules;
+    return resolved;
 }

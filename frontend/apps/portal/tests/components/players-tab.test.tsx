@@ -66,23 +66,56 @@ describe("the roster list", () => {
     })
 })
 
-describe("adding a contestant", () => {
+describe("adding a contestant — in a dialog, like every other create here", () => {
+    const openDialog = async () => {
+        await userEvent.click(await screen.findByRole("button", { name: /Thêm thí sinh/ }))
+        return screen.findByRole("dialog")
+    }
+
+    it("does not put a form in the header: the roster card offers a button", async () => {
+        draw()
+        await screen.findByText("An")
+        expect(screen.queryByLabelText("Tên")).toBeNull()
+        expect(screen.getByRole("button", { name: /Thêm thí sinh/ })).toBeInTheDocument()
+    })
+
+    it("opens a dialog with a name, an optional email, and the reason for it", async () => {
+        draw()
+        await openDialog()
+        expect(screen.getByLabelText(/^Tên$/)).toBeInTheDocument()
+        expect(screen.getByLabelText(/Email \(không bắt buộc\)/)).toBeInTheDocument()
+        // the email's consequence is stated where the decision is made
+        expect(screen.getByText(/giữ được lịch sử/)).toBeInTheDocument()
+    })
+
+    it("closes on Huỷ without sending anything", async () => {
+        const { fetchMock } = draw()
+        await openDialog()
+        await userEvent.click(screen.getByRole("button", { name: "Huỷ" }))
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+        expect(callOf(fetchMock!, CREATE_URL)).toBeUndefined()
+    })
+
     it("sends the name alone when no email is given", async () => {
         const { fetchMock } = draw({ [CREATE_URL]: { body: { userId: "u9", displayName: "Em", group: null } } })
 
-        await userEvent.type(await screen.findByLabelText("Contestant name"), "  Em  ")
-        await userEvent.click(screen.getByRole("button", { name: /Add/ }))
+        await openDialog()
+        await userEvent.type(screen.getByLabelText(/^Tên$/), "  Em  ")
+        await userEvent.click(screen.getByRole("button", { name: /^Thêm$/ }))
 
         await waitFor(() => expect(callOf(fetchMock!, CREATE_URL)).toBeTruthy())
         expect(JSON.parse(String(callOf(fetchMock!, CREATE_URL)![1]?.body))).toEqual({ displayName: "Em" })
+        // and it closes itself on success
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
     })
 
     it("sends the address when given — that is what keeps their history", async () => {
         const { fetchMock } = draw({ [CREATE_URL]: { body: { userId: "u9", displayName: "Em", group: null } } })
 
-        await userEvent.type(await screen.findByLabelText("Contestant name"), "Em")
-        await userEvent.type(screen.getByLabelText("Contestant email"), "em@example.test")
-        await userEvent.click(screen.getByRole("button", { name: /Add/ }))
+        await openDialog()
+        await userEvent.type(screen.getByLabelText(/^Tên$/), "Em")
+        await userEvent.type(screen.getByLabelText(/Email/), "em@example.test")
+        await userEvent.click(screen.getByRole("button", { name: /^Thêm$/ }))
 
         await waitFor(() => expect(callOf(fetchMock!, CREATE_URL)).toBeTruthy())
         expect(JSON.parse(String(callOf(fetchMock!, CREATE_URL)![1]?.body))).toEqual({
@@ -94,10 +127,13 @@ describe("adding a contestant", () => {
     it("reports a refusal instead of pretending it worked", async () => {
         draw({ [CREATE_URL]: { body: { message: '"An" is already a contestant in this tournament' }, status: 409 } })
 
-        await userEvent.type(await screen.findByLabelText("Contestant name"), "An")
-        await userEvent.click(screen.getByRole("button", { name: /Add/ }))
+        await openDialog()
+        await userEvent.type(screen.getByLabelText(/^Tên$/), "An")
+        await userEvent.click(screen.getByRole("button", { name: /^Thêm$/ }))
 
+        // the refusal stays in the dialog, next to what caused it
         expect(await screen.findByRole("alert")).toHaveTextContent(/already a contestant/)
+        expect(screen.getByRole("dialog")).toBeInTheDocument()
     })
 })
 

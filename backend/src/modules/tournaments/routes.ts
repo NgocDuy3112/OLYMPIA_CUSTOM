@@ -4,6 +4,7 @@ import { PaginationError, parsePage } from "../../lib/pagination.js";
 import { canViewTournament, canWriteTournament } from "../../lib/tournament-access.js";
 import { TournamentError, toHttpStatus } from "./errors.js";
 import { tournamentPlaces } from "../bracket/service.js";
+import { resolveRoundRules } from "../../game/engine/aoc-rulebook.js";
 import { CreateTournamentInput, ListTournamentsQuery, UpdateTournamentInput } from "./schemas.js";
 import {
     createTournament,
@@ -92,7 +93,9 @@ export async function tournamentRoutes(app: FastifyInstance) {
             }
 
             const places = await tournamentPlaces(tournamentId);
-            return { ...tournament, places };
+            // Effective rules, not "what somebody typed": the operator no longer
+            // edits them, and the match picker still needs the turn shapes.
+            return { ...tournament, roundRules: resolveRoundRules(tournament.rounds, tournament.roundRules), places };
         }
     );
 
