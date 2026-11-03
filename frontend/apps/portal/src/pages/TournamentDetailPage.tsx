@@ -2,7 +2,7 @@ import { Link, useParams } from "react-router-dom"
 import { Badge } from "@shared/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/ui/tabs"
 import { Page, PageHeader } from "@/components/page"
-import { useTournament } from "@/lib/tournament"
+import { useMatches, useTournament } from "@/lib/tournament"
 import { MatchesTab } from "@/components/matches-tab"
 import { TournamentRulesTab } from "@/components/tournament-rules-tab"
 import { StagesTab } from "@/components/stages-tab"
@@ -14,12 +14,20 @@ import { ChevronRight } from "lucide-react"
 export function TournamentDetailPage() {
     const { tournamentId = "" } = useParams()
     const tournament = useTournament(tournamentId)
+    // The freeze signal is the SERVER's rule: the rulebook is frozen once a match
+    // has been assembled (its questions are the rulebook's output), or once the
+    // tournament is closed. Reading only `closedAt` let the dialog offer edits the
+    // server then refused with a 409.
+    const matches = useMatches(tournamentId)
 
     if (tournament.isPending) return <p className="p-6 text-sm text-muted-foreground">Loading tournament…</p>
     if (tournament.isError) return <p role="alert" className="p-6 text-sm text-destructive">{tournament.error.message}</p>
 
     const s = tournament.data
-    const frozen = s.closedAt !== null
+    // Until the match list lands, assume frozen: a false affordance that 409s is
+    // worse than a button that enables a moment late.
+    const assembled = matches.isPending || (matches.data?.items ?? []).some((match) => match.questions.length > 0)
+    const frozen = s.closedAt !== null || assembled
 
     return (
         <Page>

@@ -50,6 +50,20 @@ export function TournamentRulesTab({
                         </TableRow>
                     </TableHeader>
                     <TableBody>
+                        {rounds.length === 0 ? (
+                            // The list is empty: nothing to configure and — worse —
+                            // nothing for a match to play. Say which button fixes it,
+                            // instead of showing a table with no rows.
+                            <TableRow>
+                                <TableCell colSpan={5} className="pl-6 text-sm text-muted-foreground">
+                                    This tournament plays no rounds yet.{" "}
+                                    <Button size="sm" variant="link" className="px-0" onClick={() => setEditing(true)} disabled={frozen}>
+                                        Choose the rounds
+                                    </Button>{" "}
+                                    — a match can only go LIVE once the tournament has at least one.
+                                </TableCell>
+                            </TableRow>
+                        ) : null}
                         {rounds.flatMap((round) => {
                             const config = shown[round.id]
 

@@ -187,7 +187,11 @@ export async function updateTournament(
             "round rules are frozen once a match has been assembled"
         );
     }
-    if (patch.roundRules) assertRoundRules(existing.rounds, patch.roundRules);
+    // Validate the rules against the rounds THIS PATCH leaves behind, not the old
+    // list: adding a round and its rules is one edit to the operator, and it used
+    // to be impossible in one request ("unknown round id" for the round being added).
+    const roundsAfter = patch.rounds ?? existing.rounds;
+    if (patch.roundRules) assertRoundRules(roundsAfter, patch.roundRules);
 
     const values: Partial<typeof tournaments.$inferInsert> = { ...patch, updatedAt: new Date() };
     if (patch.name !== undefined) {
