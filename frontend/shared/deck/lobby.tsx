@@ -36,6 +36,12 @@ export function Lobby({
         canStart: boolean
         busy?: boolean
         onStart: (roundId: string, phase?: 1 | 2) => void
+        /**
+         * Pressing a round ALSO opens the match (the operator's control room).
+         * Without it the buttons wait for a LIVE match — which is right for a
+         * player, who can never start anything.
+         */
+        opensMatch?: boolean
     }
     /** One muted line under the cards (waiting reason). */
     hint?: ReactNode
@@ -118,7 +124,10 @@ export function Lobby({
                                 data.currentPhase === round.phase ||
                                 data.currentPhase === null ||
                                 data.currentPhase === undefined)
-                        const live = data.status === "LIVE" && Boolean(mc.canStart) && !mc.busy
+                        const live =
+                            (data.status === "LIVE" || Boolean(mc.opensMatch)) &&
+                            Boolean(mc.canStart) &&
+                            !mc.busy
                         const prefix = round.status === "playing" && isCurrent ? "● " : ""
                         return (
                             <button
@@ -136,7 +145,9 @@ export function Lobby({
                                             : isCurrent
                                                 ? data.status === "LIVE"
                                                     ? `Bắt đầu vòng ${round.name}`
-                                                    : "Trận chưa mở — bắt đầu ở trang trận"
+                                                    : mc.opensMatch
+                                                ? `Bắt đầu vòng ${round.name} (mở trận cùng lúc)`
+                                                : "Trận chưa mở — bắt đầu ở trang trận"
                                                 : `Bắt đầu vòng ${round.name} (nhảy tới)`
                                 }
                                 className={`rounded-[0.5cqw] px-[1.8cqw] py-[0.8cqw] font-sans font-semibold uppercase leading-none tracking-wide transition ${!live

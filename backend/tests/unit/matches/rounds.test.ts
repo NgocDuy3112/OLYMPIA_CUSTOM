@@ -2,6 +2,13 @@ import { describe, expect, it } from "vitest";
 import { nextRoundId, orderedMatchRounds } from "../../../src/modules/matches/rounds.js";
 import type { RoundConfig, TournamentRound } from "../../../src/game/contracts/index.js";
 
+// Which rounds a match plays. The RULEBOOK is the default now, so a match created
+// with no saved configs still plays the four — filtering on the saved config alone
+// left such a match with an EMPTY navigator and no live record to open.
+//
+// The original rule still holds for a round the app cannot serve: it needs an
+// explicit config to be played.
+
 const SEASON: TournamentRound[] = [
     { id: "ve-dich", name: "Ve Dich", order: 3, chart: "bars" },
     { id: "khoi-dong", name: "Khoi Dong", order: 0, chart: "bars" },
@@ -12,15 +19,21 @@ const SEASON: TournamentRound[] = [
 const cfg = (): RoundConfig => ({
     allowedKinds: ["TEXT"], scoring: { template: "constant", points: 10 }, turns: []
 });
-const CONFIGS: Record<string, RoundConfig> = { "giai-ma": cfg(), "but-pha": cfg() };
 
 describe("orderedMatchRounds", () => {
-    it("orders by the tournament's order and keeps only rounds the match configures", () => {
-        expect(orderedMatchRounds(SEASON, CONFIGS)).toEqual(["giai-ma", "but-pha"]);
+    it("orders by the tournament's order", () => {
+        expect(orderedMatchRounds(SEASON, {})).toEqual(["khoi-dong", "giai-ma", "but-pha", "ve-dich"]);
     });
 
-    it("is empty when the match configures nothing", () => {
-        expect(orderedMatchRounds(SEASON, {})).toEqual([]);
+    it("plays the AOC rounds even when the match saved no configs", () => {
+        // the case that broke: a hand-made match with `roundConfigs: {}` played nothing
+        expect(orderedMatchRounds(SEASON, {})).toHaveLength(4);
+    });
+
+    it("keeps a round the rulebook cannot serve only when the match configures it", () => {
+        const rounds = [...SEASON, { id: "custom", name: "Custom", order: 9, chart: "bars" }];
+        expect(orderedMatchRounds(rounds, {})).not.toContain("custom");
+        expect(orderedMatchRounds(rounds, { custom: cfg() })).toContain("custom");
     });
 });
 

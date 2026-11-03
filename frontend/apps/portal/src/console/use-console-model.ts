@@ -14,6 +14,7 @@
 //
 // The gate order IS the behavior, so it stays here, in one screenful: every
 // early return happens after the last hook call.
+import { useState } from "react"
 import type { ConsoleFacts } from "@/components/stage/deck"
 import { railVariantOf, roundModuleOf, type RoundModule } from "@/rounds"
 import { useLobby, type GiaiMaConsole, type KhoiDongConsole, type LobbyData, type VeDichConsole } from "@/lib/live"
@@ -26,6 +27,8 @@ import { useConsolePlans } from "./model/use-console-plans"
 import { useConsoleAdjust } from "./model/use-console-adjust"
 import { useTransitionMatch } from "@/lib/tournament"
 import { ApiError } from "@shared/lib/api"
+import { navigatorStartPlan } from "./navigator-plan"
+import { startAction } from "@/lib/live-actions"
 import { railCardsOf } from "./lib/rail-cards"
 import { lobbyViewOf } from "./lib/lobby-view"
 import { consoleFactsOf } from "./lib/facts"
@@ -49,16 +52,17 @@ type ConsoleModel = {
     /** transport failed and no lobby answered — say why, offer a retry */
     | { phase: "error"; message: string; retry: () => void }
     /**
-     * The match is not LIVE yet. The console is the operator's screen, so it is
-     * also where the match starts — sending them to another page to press one
-     * button was the reason this phase looked like "we're not in the controller".
+     * The match is not LIVE yet — the SAME waiting room as between rounds, because
+     * the operator's unit of work is the ROUND, not the match. Picking one brings
+     * the match LIVE and starts it in one gesture; making them press "start the
+     * match" first was a step the show never has.
      */
     | {
         phase: "not-live"
         lobby: LobbyData
-        /** UPCOMING → LIVE; refused (409) when seats or questions are missing */
-        start: () => void
-        starting: boolean
+        onStart: (roundId: string, phase?: 1 | 2) => void
+        busy: boolean
+        /** why the start was refused (seats, questions) — shown in the room */
         startError: string | null
     }
     /** a round is (re)selectable: the waiting room with the rounds navigator */
@@ -75,12 +79,14 @@ type ConsoleModel = {
 export function useConsoleModel(tournamentId: string, matchId: string): ConsoleModel {
     // ── hooks first — early returns belong to the HOST, not here ────────────
     const transport = useConsoleTransport(tournamentId, matchId)
-    const { live, writer, v, projection, roundId, stage, open, questions, table, byId, peers, send, sendChain } = transport
+    const { live, writer, v, projection, roundId, stage, open, questions, table, byId, peers, send, sendChain, userSeats } = transport
 
     const nav = useConsoleNav()
     // Starting the match is a MATCH transition (not a live action), so it lives by
     // the transport rather than in the action writer.
     const transition = useTransitionMatch(tournamentId)
+    const [starting, setStarting] = useState(false)
+    const [startError, setStartError] = useState<string | null>(null)
     // The stopwatch is scoped to the open oral run (null → a stopped, empty watch).
     const watch = useConsoleWatch(v?.projection.oral?.questionId ?? null)
     const judging = useConsoleJudging({ tournamentId, matchId, roundId, questions, openIds: open.map((q) => q.questionId) })
@@ -137,21 +143,47 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
 
     if (live.isError || !v || !projection) {
         if (lobby.data) {
+            /**
+             * One gesture, two steps: bring the match LIVE, then start the round the
+             * operator picked. The live read is the version's owner, so it is
+             * re-read between them — a start sent against a version the engine
+             * never minted would 409 for no reason the operator could see.
+             */
+            const startFromWaiting = async (roundId: string, phase?: 1 | 2) => {
+                if (starting) return
+                setStarting(true)
+                setStartError(null)
+                try {
+                    await transition.mutateAsync({ matchId, status: "LIVE" })
+                    const fresh = await live.refetch()
+                    const version = fresh.data?.version
+                    if (version === undefined) throw new Error("Trận chưa sẵn sàng — thử lại.")
+
+                    const plan = navigatorStartPlan(
+                        lobby.data!,
+                        roundId,
+                        startAction(roundId, { phase, playerIds: userSeats, questions })
+                    )
+                    let next = version
+                    for (const action of plan) {
+                        const res = await writer.mutateAsync({ expectedVersion: next, action })
+                        next = typeof res?.version === "number" ? res.version : next + 1
+                    }
+                    nav.enterRound()
+                } catch (error) {
+                    setStartError(startRefusal(error instanceof Error ? error : new Error("Không bắt đầu được vòng")))
+                } finally {
+                    setStarting(false)
+                }
+            }
+
             return {
                 ...adjust,
                 phase: "not-live",
                 lobby: prepareLobby(lobby.data),
-                start: () =>
-                    transition.mutate(
-                        { matchId, status: "LIVE" },
-                        // the live read is what this phase is waiting on: re-read it
-                        { onSuccess: () => void live.refetch() }
-                    ),
-                starting: transition.isPending,
-                // The API answers NOT_READY with the reasons in `details` ("no
-                // questions assembled", "seats: 3"). They are the whole point of the
-                // refusal, so they travel with it.
-                startError: transition.isError ? startRefusal(transition.error) : null,
+                onStart: (roundId: string, phase?: 1 | 2) => void startFromWaiting(roundId, phase),
+                busy: starting,
+                startError,
             }
         }
         return {

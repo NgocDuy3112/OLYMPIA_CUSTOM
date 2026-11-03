@@ -112,7 +112,7 @@ describe("the console's phase machine — which screen a phase draws", () => {
 
     it("says the match is not live when the read fails and the lobby answers", async () => {
         draw({ [LIVE]: { body: { message: "Trận chưa mở" }, status: 500 } })
-        expect(await screen.findByText(/Trận chưa bắt đầu/)).toBeTruthy()
+        expect(await screen.findByText(/Trận chưa LIVE/)).toBeTruthy()
     })
 
     it("shows the error phase when the read fails and no lobby answers either", async () => {
@@ -166,22 +166,51 @@ describe("the console's phase machine — Về sảnh", () => {
     })
 })
 
-describe("the console can start the match it is controlling", () => {
-    it("offers a start button instead of sending the operator to another page", async () => {
+describe("the waiting room before the match is LIVE", () => {
+    it("is the ROUNDS navigator, not a lone start button", async () => {
+        draw({ [LIVE]: { body: { message: "Trận chưa mở" }, status: 409 } })
+
+        // the operator's unit of work is the round: the same room they get between rounds
+        expect(await screen.findByRole("button", { name: /Khởi động · Riêng/ })).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: /Bắt đầu trận/ })).toBeNull()
+    })
+
+    it("brings the match LIVE and starts the picked round in one gesture", async () => {
         const { fetchMock } = draw({
             [LIVE]: { body: { message: "Trận chưa mở" }, status: 409 },
             [STATUS]: { body: { id: M, status: "LIVE" } },
         })
+        // Once the match is LIVE, the live read answers a view: the phase re-reads it
+        // for the version the start must carry.
+        const base = fetchMock.getMockImplementation()!
+        let wentLive = false
+        fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+            const key = `${init?.method ?? "GET"} ${String(input)}`
+            if (key === STATUS) wentLive = true
+            if (key === LIVE && wentLive) {
+                return { ok: true, status: 200, statusText: "", json: async () => liveView() } as unknown as Response
+            }
+            return base(input, init)
+        })
 
-        const start = await screen.findByRole("button", { name: /Bắt đầu trận/ })
-        await userEvent.click(start)
+        await userEvent.click(await screen.findByRole("button", { name: /Khởi động · Riêng/ }))
 
-        const call = fetchMock.mock.calls.find(([url, init]) => `${init?.method ?? "GET"} ${String(url)}` === STATUS)
-        expect(call).toBeTruthy()
-        expect(JSON.parse(String(call![1]?.body))).toEqual({ status: "LIVE" })
+        // 1) the match goes LIVE …
+        await waitFor(() => {
+            const call = fetchMock.mock.calls.find(([url, init]) => `${init?.method ?? "GET"} ${String(url)}` === STATUS)
+            expect(call).toBeTruthy()
+            expect(JSON.parse(String(call![1]?.body))).toEqual({ status: "LIVE" })
+        })
+        // … 2) and the round is started with an action
+        await waitFor(() => {
+            const sent = fetchMock.mock.calls
+                .filter(([url, init]) => `${init?.method ?? "GET"} ${String(url)}` === ACTIONS)
+                .map(([, init]) => JSON.parse(String(init?.body)))
+            expect(sent.length).toBeGreaterThan(0)
+        })
     })
 
-    it("shows the refusal when the match is not ready (no seats / no questions)", async () => {
+    it("shows why a start was refused, with the API's reasons", async () => {
         draw({
             [LIVE]: { body: { message: "Trận chưa mở" }, status: 409 },
             [STATUS]: {
@@ -190,8 +219,7 @@ describe("the console can start the match it is controlling", () => {
             },
         })
 
-        await userEvent.click(await screen.findByRole("button", { name: /Bắt đầu trận/ }))
-        // the reason stays on the control room, not in a toast that has already gone
-        expect(await screen.findByRole("alert")).toHaveTextContent(/not ready to go live/)
+        await userEvent.click(await screen.findByRole("button", { name: /Khởi động · Riêng/ }))
+        expect(await screen.findByRole("alert")).toHaveTextContent(/no questions assembled/)
     })
 })
