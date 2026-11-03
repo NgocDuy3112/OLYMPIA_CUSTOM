@@ -97,3 +97,19 @@ export function signInvite(app: FastifyInstance, payload: InviteToken): string {
 export function verifyInvite(app: FastifyInstance, token: string): InviteToken {
     return app.jwt.PORTAL.verify(token, { allowedAud: "PORTAL" }) as InviteToken;
 }
+export interface VerifyEmailToken {
+    sub: string;
+    purpose: "verify";
+}
+
+/** The link in the verification mail: 24 h, GAMEPLAY surface, one purpose. */
+export function signVerifyEmail(app: FastifyInstance, userId: string): string {
+    return app.jwt.GAMEPLAY.sign({ sub: userId, purpose: "verify" } satisfies VerifyEmailToken, {
+        aud: "GAMEPLAY",
+        expiresIn: "24h",
+    });
+}
+
+export function verifyEmailToken(app: FastifyInstance, token: string): VerifyEmailToken {
+    return app.jwt.GAMEPLAY.verify(token, { allowedAud: "GAMEPLAY" }) as VerifyEmailToken;
+}

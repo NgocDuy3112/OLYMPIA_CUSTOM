@@ -59,6 +59,16 @@ export const env = {
     // these the rtc routes answer 503 and everything else runs untouched, so
     // dev boxes and CI never need the vars. A PARTIALLY set trio still refuses
     // (isRtcConfigured) — a typo must not mint a token that cannot join.
+    // Mail (verification links). Optional: without it the mailer writes the
+    // message to the backend log, which is how a dev box verifies an account.
+    smtp: {
+        host: optional("SMTP_HOST"),
+        port: optional("SMTP_PORT"),
+        user: optional("SMTP_USER"),
+        pass: optional("SMTP_PASS"),
+        from: optional("SMTP_FROM"),
+    },
+
     livekit: {
         url: optional("LIVEKIT_URL"),
         apiKey: optional("LIVEKIT_API_KEY"),

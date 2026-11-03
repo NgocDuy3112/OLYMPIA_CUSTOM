@@ -16,6 +16,7 @@ import rateLimit from "@fastify/rate-limit";
 import websocket from "@fastify/websocket";
 import { authRoutes } from "./modules/auth/routes.js";
 import { joinRoutes } from "./modules/auth/join.js";
+import { playerAccountRoutes } from "./modules/auth/player-account.js";
 import { googleAuthRoutes } from "./modules/auth/google.js";
 import { adminRoutes } from "./modules/admin/routes.js";
 import { tournamentRoutes } from "./modules/tournaments/routes.js";
@@ -88,6 +89,7 @@ export async function buildApp() {
     });
     await app.register(authRoutes);
     await app.register(joinRoutes);
+    await app.register(playerAccountRoutes);
     await app.register(googleAuthRoutes);
     await app.register(adminRoutes);
     await app.register(tournamentRoutes);
