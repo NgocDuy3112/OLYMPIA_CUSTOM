@@ -7,7 +7,24 @@ import {
     tournamentParams,
     UUID_PATTERN
 } from "../tournament-shared.js";
-import { assignGroup, createContestant, enrollPlayers, listEnrolled, type GroupLabel } from "./service.js";
+import {
+    assignGroup,
+    createContestant,
+    enrollPlayers,
+    listEnrolled,
+    removeContestant,
+    updateContestant,
+    type GroupLabel
+} from "./service.js";
+
+const playerParams = {
+    type: "object",
+    required: ["tournamentId", "userId"],
+    properties: {
+        tournamentId: { type: "string", pattern: UUID_PATTERN },
+        userId: { type: "string", pattern: UUID_PATTERN }
+    }
+} as const;
 
 export async function rosterRoutes(app: FastifyInstance) {
     tournamentErrorHandler(app);
@@ -84,6 +101,62 @@ export async function rosterRoutes(app: FastifyInstance) {
             });
 
             return contestant;
+        }
+    );
+
+    // Edit a contestant: a typo in the name, or the address that lets their own
+    // Google sign-in attach to this same row later (their history never moves).
+    app.patch(
+        "/portal/tournaments/:tournamentId/players/:userId",
+        {
+            onRequest: staff,
+            schema: {
+                params: playerParams,
+                body: {
+                    type: "object",
+                    additionalProperties: false,
+                    minProperties: 1,
+                    properties: {
+                        displayName: { type: "string", minLength: 1, maxLength: 100 },
+                        // null (or "") detaches the address: a show-floor identity
+                        email: { type: ["string", "null"], maxLength: 255 }
+                    }
+                }
+            }
+        },
+        async (request) => {
+            const user = request.sessionUser!;
+            const { tournamentId, userId } = request.params as { tournamentId: string; userId: string };
+            const edit = request.body as { displayName?: string; email?: string | null };
+
+            await assertWrite(tournamentId, user.id, user.role);
+            const contestant = await updateContestant(tournamentId, userId, edit);
+
+            await auditFromRequest(request, "tournament_updated", {
+                details: { tournamentId, contestantId: userId, displayName: contestant.displayName }
+            });
+
+            return contestant;
+        }
+    );
+
+    // Off the roster. Refused once they have played, or while they still hold a
+    // seat: the record of the show is not a typo to correct.
+    app.delete(
+        "/portal/tournaments/:tournamentId/players/:userId",
+        { onRequest: staff, schema: { params: playerParams } },
+        async (request) => {
+            const user = request.sessionUser!;
+            const { tournamentId, userId } = request.params as { tournamentId: string; userId: string };
+
+            await assertWrite(tournamentId, user.id, user.role);
+            await removeContestant(tournamentId, userId);
+
+            await auditFromRequest(request, "tournament_updated", {
+                details: { tournamentId, removedContestant: userId }
+            });
+
+            return { removed: userId };
         }
     );
 

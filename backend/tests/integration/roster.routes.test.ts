@@ -1,9 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app.js";
 import { db } from "../../src/db/pool.js";
-import { tournamentPlayers, tournaments, users } from "../../src/db/schema/index.js";
+import { matchStats, matches, tournamentPlayers, tournaments, users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 
 // Making a contestant — the one way onto a roster without Google.
@@ -180,5 +181,118 @@ describe("the email is what makes the identity claimable", () => {
     it("refuses something that is not an email", async () => {
         const res = await addWithEmail("Sai", "khong-phai-email");
         expect(res.statusCode).toBe(400);
+    });
+});
+
+const edit = (userId: string, body: unknown) =>
+    app.inject({ method: "PATCH", url: `/portal/tournaments/${tournamentId}/players/${userId}`, headers: auth(ownerCookie), payload: body as object });
+
+const remove = (userId: string) =>
+    app.inject({ method: "DELETE", url: `/portal/tournaments/${tournamentId}/players/${userId}`, headers: auth(ownerCookie) });
+
+describe("editing a contestant", () => {
+    it("renames them, and the roster shows the new name", async () => {
+        const { userId } = (await add("Nghĩa")).json() as { userId: string };
+        const res = await edit(userId, { displayName: "  Nghĩa Vũ  " });
+        expect(res.statusCode).toBe(200);
+        expect((res.json() as { displayName: string }).displayName).toBe("Nghĩa Vũ");
+    });
+
+    it("attaches an address later — the point of the whole exercise", async () => {
+        const { userId } = (await add("Oanh")).json() as { userId: string };
+        const res = await edit(userId, { email: "Oanh@Example.Test" });
+        expect(res.statusCode).toBe(200);
+        expect((res.json() as { email: string | null }).email).toBe("oanh@example.test");
+    });
+
+    it("detaches the address back to a show-floor identity", async () => {
+        const { userId } = (await addWithEmail("Phúc", "phuc@example.test")).json() as { userId: string };
+        const res = await edit(userId, { email: null });
+        expect(res.statusCode).toBe(200);
+        expect((res.json() as { email: string | null }).email).toBeNull();
+    });
+
+    it("refuses a name another contestant already has", async () => {
+        await add("Quyên");
+        const { userId } = (await add("Rạng")).json() as { userId: string };
+        const res = await edit(userId, { displayName: "quyên" });
+        expect(res.statusCode).toBe(409);
+    });
+
+    it("refuses an address that belongs to someone else, naming them", async () => {
+        await addWithEmail("Sơn", "son@example.test");
+        const { userId } = (await add("Tâm")).json() as { userId: string };
+        const res = await edit(userId, { email: "son@example.test" });
+        expect(res.statusCode).toBe(409);
+        expect((res.json() as { message: string }).message).toContain("already belongs to Sơn");
+    });
+
+    it("refuses a user who is not on this roster", async () => {
+        const res = await edit("00000000-0000-4000-8000-000000000000", { displayName: "X" });
+        expect(res.statusCode).toBe(403);
+    });
+});
+
+describe("taking a contestant off the roster", () => {
+    it("removes somebody who never played", async () => {
+        const { userId } = (await add("Uyên")).json() as { userId: string };
+        const res = await remove(userId);
+        expect(res.statusCode).toBe(200);
+
+        const roster = await app.inject({ method: "GET", url: `/portal/tournaments/${tournamentId}/players`, headers: auth(ownerCookie) });
+        const ids = (roster.json().items as Array<{ userId: string }>).map((row) => row.userId);
+        expect(ids).not.toContain(userId);
+    });
+
+    it("refuses the second time — they are not on the roster any more", async () => {
+        const { userId } = (await add("Vinh")).json() as { userId: string };
+        await remove(userId);
+        expect((await remove(userId)).statusCode).toBe(403);
+    });
+});
+
+describe("the guards that keep a record from vanishing", () => {
+    /** A finished-ish match of this tournament, with the contestant either seated or stat-ed. */
+    const aMatch = async (seats: string[]) => {
+        const [match] = await db
+            .insert(matches)
+            .values({
+                tournamentId,
+                stageId: "s1",
+                scheduledAt: new Date(),
+                label: "Guard match",
+                status: "UPCOMING",
+                players: seats.map((userId, index) => ({ kind: "user" as const, userId, seed: index + 1 })),
+                roundConfigs: {},
+                questions: []
+            })
+            .returning({ id: matches.id });
+        return match!.id;
+    };
+
+    it("refuses to remove a contestant who still holds a seat", async () => {
+        const { userId } = (await add("Yến")).json() as { userId: string };
+        await aMatch([userId]);
+
+        const res = await remove(userId);
+        expect(res.statusCode).toBe(409);
+        expect((res.json() as { message: string }).message).toContain("still holds a seat");
+    });
+
+    it("refuses to remove a contestant who has played (stats on the record)", async () => {
+        const { userId } = (await add("Zũ")).json() as { userId: string };
+        const matchId = await aMatch([]);
+        // the table's grain is per QUESTION (a check constraint enforces it)
+        await db.insert(matchStats).values({
+            matchId,
+            tournamentId,
+            roundId: "khoi-dong",
+            questionId: randomUUID(),
+            userId
+        });
+
+        const res = await remove(userId);
+        expect(res.statusCode).toBe(409);
+        expect((res.json() as { message: string }).message).toContain("results are on the record");
     });
 });

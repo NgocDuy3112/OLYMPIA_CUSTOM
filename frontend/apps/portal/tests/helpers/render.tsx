@@ -31,7 +31,18 @@ export function stubFetch(routes: Record<string, StubRoute>) {
     return mock
 }
 
-export function renderWithProviders(ui: ReactElement) {
+/**
+ * Render under a query client, optionally stubbing the transport too.
+ *
+ * Passing `routes` keeps a component test to one line: the fake backend and the
+ * provider are the same setup, and the mock comes back so a test can read what was
+ * actually sent.
+ */
+export function renderWithProviders(
+    ui: ReactElement,
+    options: { routes?: Record<string, StubRoute> } = {}
+) {
+    const fetchMock = options.routes ? stubFetch(options.routes) : undefined
     const client = new QueryClient({
         defaultOptions: {
             queries: { retry: false },
@@ -39,5 +50,5 @@ export function renderWithProviders(ui: ReactElement) {
         },
     })
 
-    return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>)
+    return { fetchMock, ...render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>) }
 }

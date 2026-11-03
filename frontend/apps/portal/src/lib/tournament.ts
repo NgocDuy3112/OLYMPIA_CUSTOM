@@ -273,6 +273,67 @@ export function useGroups(tournamentId: string) {
  * creates the identity a seat points at. The backend rejects a duplicate name,
  * because seats, rail cards and verdicts are read by name on the projector.
  */
+/** A contestant as the players tab lists them: name, address (or none), group. */
+export interface ContestantRow {
+    userId: string
+    displayName: string
+    /** null for a show-floor identity (a placeholder address) — they cannot sign in */
+    email: string | null
+    group: "A" | "B" | null
+    enrolledAt: string
+}
+
+/** The roster, for the players tab. */
+export function useContestants(tournamentId: string) {
+    return useQuery({
+        queryKey: ["enrolled", tournamentId],
+        queryFn: () => api<{ items: ContestantRow[] }>(`/portal/tournaments/${tournamentId}/players`),
+        enabled: Boolean(tournamentId),
+    })
+}
+
+/**
+ * Edit a contestant. The address is the interesting half: adding it later is what
+ * lets their own Google sign-in attach to this same row, history intact.
+ */
+export function useUpdateContestant(tournamentId: string) {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: (edit: { userId: string; displayName?: string; email?: string | null }) =>
+            api<{ userId: string; displayName: string; email: string | null }>(
+                `/portal/tournaments/${tournamentId}/players/${edit.userId}`,
+                {
+                    method: "PATCH",
+                    body: JSON.stringify({
+                        ...(edit.displayName !== undefined ? { displayName: edit.displayName } : {}),
+                        ...(edit.email !== undefined ? { email: edit.email } : {}),
+                    }),
+                }
+            ),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ["enrolled", tournamentId] })
+            void queryClient.invalidateQueries({ queryKey: ["groups", tournamentId] })
+        },
+    })
+}
+
+/** Off the roster. The server refuses once they have played, or still hold a seat. */
+export function useRemoveContestant(tournamentId: string) {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: (userId: string) =>
+            api<{ removed: string }>(`/portal/tournaments/${tournamentId}/players/${userId}`, {
+                method: "DELETE",
+            }),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ["enrolled", tournamentId] })
+            void queryClient.invalidateQueries({ queryKey: ["groups", tournamentId] })
+        },
+    })
+}
+
 export function useCreateContestant(tournamentId: string) {
     const queryClient = useQueryClient()
 

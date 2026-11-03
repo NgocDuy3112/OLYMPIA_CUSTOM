@@ -1,12 +1,8 @@
-import { useState } from "react"
-import { UserPlus } from "lucide-react"
-import { ApiError } from "@shared/lib/api"
 import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
-import { Input } from "@shared/ui/input"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
-import { useAssignGroup, useCreateContestant, useEnrollContestant, useGroups, type GroupRow } from "@/lib/tournament"
+import { useAssignGroup, useGroups, type GroupRow } from "@/lib/tournament"
 
 // The AOC group stage — Nhóm A / Nhóm B.
 //
@@ -27,13 +23,7 @@ const other = (group: "A" | "B"): "A" | "B" => (group === "A" ? "B" : "A")
 export function GroupsTab({ tournamentId }: { tournamentId: string }) {
     const groups = useGroups(tournamentId)
     const assign = useAssignGroup(tournamentId)
-    // The roster's other half: a contestant has to EXIST before the draw can
-    // place them. Players never sign in (the PIN claim mints their session), so
-    // the operator types a name and the console makes the identity.
-    const create = useCreateContestant(tournamentId)
-    const enroll = useEnrollContestant(tournamentId)
-    const [name, setName] = useState("")
-    const [email, setEmail] = useState("")
+
 
     if (groups.isPending) return <p className="text-sm text-muted-foreground">Loading the group stage…</p>
     if (groups.isError) return <p role="alert" className="text-sm text-destructive">{groups.error.message}</p>
@@ -42,31 +32,9 @@ export function GroupsTab({ tournamentId }: { tournamentId: string }) {
     const drawn = blocks.reduce((total, block) => total + block.rows.length, 0)
     const busy = assign.isPending
     const place = (userId: string, group: "A" | "B" | null) => assign.mutate({ userId, group })
+    // The roster lives in its own tab now: this surface only DRAWS (one concern,
+    // one screen). `drawn + unassigned` is the whole roster it can see.
     const enrolled = drawn + unassigned.length
-
-    const addContestant = (event: React.FormEvent) => {
-        event.preventDefault()
-        const trimmed = name.trim()
-        if (!trimmed || create.isPending) return
-        const address = email.trim()
-        create.mutate(
-            address ? { displayName: trimmed, email: address } : { displayName: trimmed },
-            {
-                onSuccess: () => {
-                    setName("")
-                    setEmail("")
-                },
-            }
-        )
-    }
-
-    // "That email is already somebody" answers with their identity: offer to enroll
-    // THAT account rather than making a second row for the same person (which is the
-    // same stats-splitting bug wearing a different hat).
-    const takenEmail =
-        create.error instanceof ApiError && create.error.status === 409 && create.error.details?.length === 2
-            ? { userId: create.error.details[0], displayName: create.error.details[1] }
-            : null
 
     return (
         <div className="flex flex-col gap-4">
@@ -138,56 +106,14 @@ export function GroupsTab({ tournamentId }: { tournamentId: string }) {
                     <CardTitle className="text-base">Not drawn</CardTitle>
                     <CardDescription>
                         {enrolled === 0
-                            ? "No contestants yet — add one to start the roster."
+                            ? "No contestants yet — add them in the Thí sinh tab, then draw them here."
                             : unassigned.length === 0
                                 ? `Every enrolled contestant has a group (${enrolled}).`
                                 : `${unassigned.length} enrolled contestant${unassigned.length === 1 ? "" : "s"} waiting for the draw.`}
                     </CardDescription>
-                    <CardAction>
-                        <form onSubmit={addContestant} className="flex items-center gap-2">
-                            <Input
-                                value={name}
-                                onChange={(event) => setName(event.target.value)}
-                                placeholder="Contestant name"
-                                maxLength={100}
-                                aria-label="Contestant name"
-                                className="h-8 w-40"
-                            />
-                            <Input
-                                value={email}
-                                onChange={(event) => setEmail(event.target.value)}
-                                placeholder="Email (optional)"
-                                type="email"
-                                maxLength={255}
-                                aria-label="Contestant email"
-                                title="Điền email để thí sinh giữ được lịch sử khi tự đăng nhập Google. Bỏ trống: chỉ chơi tại chỗ."
-                                className="h-8 w-44"
-                            />
-                            <Button size="sm" type="submit" disabled={create.isPending || name.trim().length === 0}>
-                                <UserPlus className="size-3.5" />
-                                {create.isPending ? "Adding…" : "Add"}
-                            </Button>
-                        </form>
-                    </CardAction>
+
                 </CardHeader>
                 <CardContent>
-                    {takenEmail ? (
-                        <div className="flex flex-wrap items-center gap-2 pb-2 text-sm">
-                            <span role="alert" className="text-destructive">
-                                {takenEmail.displayName} already has an account — enroll them instead?
-                            </span>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                disabled={enroll.isPending}
-                                onClick={() => enroll.mutate([takenEmail.userId])}
-                            >
-                                {enroll.isPending ? "Enrolling…" : `Enroll ${takenEmail.displayName}`}
-                            </Button>
-                        </div>
-                    ) : create.isError ? (
-                        <p role="alert" className="pb-2 text-sm text-destructive">{create.error.message}</p>
-                    ) : null}
                     {unassigned.length === 0 ? null : (
                         <ul className="flex flex-col divide-y">
                             {unassigned.map((row) => (
