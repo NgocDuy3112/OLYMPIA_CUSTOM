@@ -110,9 +110,10 @@ describe("the console's phase machine — which screen a phase draws", () => {
         expect(await screen.findByRole("button", { name: "Về sảnh" })).toBeTruthy()
     })
 
-    it("says the match is not live when the read fails and the lobby answers", async () => {
+    it("shows the waiting room when the read fails and the lobby answers", async () => {
         draw({ [LIVE]: { body: { message: "Trận chưa mở" }, status: 500 } })
-        expect(await screen.findByText(/Trận chưa LIVE/)).toBeTruthy()
+        // the room itself is the signal: its rounds navigator is the way in
+        expect(await screen.findByRole("button", { name: /Khởi động · Riêng/ })).toBeInTheDocument()
     })
 
     it("shows the error phase when the read fails and no lobby answers either", async () => {

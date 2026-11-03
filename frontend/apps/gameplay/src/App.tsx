@@ -5,6 +5,7 @@ import { AppShell } from "@/components/layout/AppShell"
 import { SchedulePage } from "@/pages/SchedulePage"
 import { StandingsPage } from "@/pages/StandingsPage"
 import { NotFoundPage } from "@/pages/NotFoundPage"
+import { PrivacyPage } from "@/pages/PrivacyPage"
 import { JoinPage } from "@/pages/JoinPage"
 import { PlayerShell } from "@/components/player-shell"
 import { CameraPanel } from "@/components/live/CameraPanel"
@@ -163,6 +164,7 @@ function App() {
                         <Route path="matches/:id" element={<MatchRoute />} />
                     </Route>
                     <Route path="/standings" element={<CurrentTournamentRedirect path={(slug) => `/s/${slug}/standings`} />} />
+                    <Route path="/privacy" element={<PrivacyPage />} />
                     <Route path="*" element={<NotFoundPage />} />
                 </Route>
 

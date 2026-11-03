@@ -91,7 +91,7 @@ describe("the player deck's phase machine", () => {
             [LOBBY]: lobby({ status: "UPCOMING" }),
         })
         // the hint is the only thing telling a player this wait is not their fault
-        expect(await screen.findByText(/Chờ điều hành mở trận/)).toBeTruthy()
+        expect(await screen.findByText(/Trận đấu sắp sửa diễn ra/)).toBeTruthy()
     })
 
     it("gates a dead session to the PIN card (401) — with the field in place", async () => {
@@ -114,12 +114,12 @@ describe("the player deck's phase machine", () => {
 
     it("sends an ENDED view back to the lobby", async () => {
         draw({ [ME]: me, [LIVE]: view({ stage: "ended" }), [LOBBY]: lobby() })
-        expect(await screen.findByText(/Vòng đã kết thúc/)).toBeTruthy()
+        expect(await screen.findByText(/Trận đấu đã kết thúc/)).toBeTruthy()
         expect(screen.queryByRole("button", { name: "Bấm chuông" })).toBeNull()
     })
 
     it("sends an unknown round to the lobby, not to a dead screen", async () => {
         draw({ [ME]: me, [LIVE]: view({ roundId: "vong-moi" }), [LOBBY]: lobby() })
-        expect(await screen.findByText(/chưa có màn hình thí sinh/)).toBeTruthy()
+        expect(await screen.findByText(/Vòng thi không tồn tại/)).toBeTruthy()
     })
 })

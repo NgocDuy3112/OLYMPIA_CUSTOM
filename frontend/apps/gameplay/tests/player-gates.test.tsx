@@ -80,7 +80,7 @@ describe("PlayerGateScreen — the wrong seat (403)", () => {
 describe("PlayerGateScreen — the match is not LIVE (409)", () => {
     it("waits in the lobby when it answered", () => {
         draw("not-live", { lobby: { data: lobbyData } as unknown as PlayerModel["lobby"] })
-        expect(screen.getByText(/Chờ điều hành mở trận/)).toBeTruthy()
+        expect(screen.getByText(/Trận đấu sắp sửa diễn ra/)).toBeTruthy()
     })
 
     it("falls back to a gate with a retry while the lobby has not answered", () => {

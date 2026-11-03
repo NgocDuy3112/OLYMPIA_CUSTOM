@@ -95,6 +95,12 @@ export function NavBar() {
                             ))}
                         </DropdownMenuContent>
                     </DropdownMenu>
+                    <Link
+                        to="/privacy"
+                        className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                    >
+                        Quyền riêng tư
+                    </Link>
                 </nav>
                 {signedOut ? (
                     // The player's door is the PIN: an operator creates the

@@ -89,6 +89,12 @@ export function CameraPanel() {
                 </span>
             </div>
 
+            <p className="max-w-56 font-sans text-[0.7rem] leading-snug text-muted-foreground">
+                Hình và tiếng chỉ phát trong phòng của trận này.{" "}
+                <a href="/privacy" className="underline underline-offset-2 hover:text-foreground">
+                    Chính sách quyền riêng tư
+                </a>
+            </p>
             {mediaError && (
                 <p className="mt-1.5 border-t border-border pt-1.5 text-xs leading-snug text-destructive">
                     {mediaError}

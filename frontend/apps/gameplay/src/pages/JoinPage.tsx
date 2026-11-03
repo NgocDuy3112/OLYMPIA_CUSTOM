@@ -1,4 +1,4 @@
-import { useSearchParams } from "react-router-dom"
+import { Link, useSearchParams } from "react-router-dom"
 import { StageShell } from "@shared/deck/stage-shell"
 import { Card, CardContent } from "@shared/ui/card"
 import { PinDoor } from "@/components/pin-door"
@@ -49,6 +49,14 @@ export function JoinPage() {
                         </div>
 
                         <PinDoor next={next} />
+
+                        <p className="text-center font-sans text-xs leading-relaxed text-muted-foreground">
+                            Khi vào trận, trình duyệt sẽ hỏi quyền camera và micro. Hình và tiếng chỉ
+                            phát cho ban điều hành, các thí sinh cùng trận và khán giả của giải.{" "}
+                            <Link to="/privacy" className="underline underline-offset-2 hover:text-foreground">
+                                Chính sách quyền riêng tư
+                            </Link>
+                        </p>
                     </CardContent>
                 </Card>
             </div>

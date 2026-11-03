@@ -34,29 +34,27 @@ describe("gateOf — the status codes are answers", () => {
 })
 
 describe("lobbyHintOf — why the lobby is showing", () => {
-    it("tells the player to call the operator when the round has no player screen", () => {
-        const hint = lobbyHintOf("khong-ton-tai", "phase1")
-        expect(hint).toContain("ban điều hành")
+    it("says the round does not exist when it has no player screen", () => {
+        expect(lobbyHintOf("khong-ton-tai", "phase1")).toBe("Vòng thi không tồn tại.")
     })
 
     it("uses the same hint for an unknown STAGE of a known round", () => {
-        expect(lobbyHintOf("khoi-dong", "unknown")).toContain("ban điều hành")
+        expect(lobbyHintOf("khoi-dong", "unknown")).toBe("Vòng thi không tồn tại.")
     })
 
-    it("says the round ended, and that the console moves on", () => {
-        const hint = lobbyHintOf("ve-dich", "ended")
-        expect(hint).toContain("kết thúc")
-        expect(hint).not.toContain("ban điều hành")
+    it("says the round ended", () => {
+        expect(lobbyHintOf("ve-dich", "ended")).toBe("Trận đấu đã kết thúc.")
     })
 
-    it("says the round has not started yet on any running stage", () => {
-        expect(lobbyHintOf("khoi-dong", "phase1")).toContain("bắt đầu")
-        expect(lobbyHintOf("giai-ma", "phase2")).toContain("bắt đầu")
+    it("says the round is coming on any running stage", () => {
+        for (const stage of ["phase1", "phase2"]) {
+            expect(lobbyHintOf("khoi-dong", stage)).toBe("Trận đấu sẽ tiếp tục sau một ít thời gian")
+        }
     })
 
     it("keeps the not-LIVE hint separate from the waiting hint", () => {
         // two different waits: one is the MATCH, one is the ROUND
-        expect(NOT_LIVE_HINT).toContain("mở trận")
+        expect(NOT_LIVE_HINT).toBe("Trận đấu sắp sửa diễn ra.")
         expect(lobbyHintOf("khoi-dong", "phase1")).not.toBe(NOT_LIVE_HINT)
     })
 })
