@@ -14,6 +14,24 @@ export interface TournamentRound {
 // AOC group stage is a ROSTER property (`tournament_players.group`), not a format one.
 export interface TournamentFormat {
     competitorsPerMatch: number
+    /**
+     * Every seat count a match of this tournament may hold (AOC: 3 or 4 — the
+     * team-point scale resolves by the real count). Absent → the fixed
+     * `competitorsPerMatch`.
+     */
+    allowedCompetitorCounts?: number[]
+}
+
+/** Every seat count a match may hold here; the fixed size when the format says nothing. */
+export function allowedSeatsOf(format: TournamentFormat): number[] {
+    const counts = format.allowedCompetitorCounts ?? []
+    return counts.length > 0 ? counts : [format.competitorsPerMatch]
+}
+
+/** "3 or 4" — the phrase the copy uses, so it is never written twice. */
+export function seatsPhrase(counts: number[]): string {
+    if (counts.length <= 1) return String(counts[0] ?? 0)
+    return `${counts.slice(0, -1).join(", ")} or ${counts.at(-1)}`
 }
 
 // ── The tournament ────────────────────────────────────────────────────────────────

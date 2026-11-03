@@ -18,11 +18,11 @@ const CREATE_URL = `POST /portal/tournaments/${TOURNAMENT}/players/new`
 const EDIT_URL = (userId: string) => `PATCH /portal/tournaments/${TOURNAMENT}/players/${userId}`
 const REMOVE_URL = (userId: string) => `DELETE /portal/tournaments/${TOURNAMENT}/players/${userId}`
 
-const row = (userId: string, displayName: string, email: string | null = null) => ({
+const row = (userId: string, displayName: string, email: string | null = null, group: "A" | "B" | null = null) => ({
     userId,
     displayName,
     email,
-    group: null,
+    group,
     enrolledAt: "2026-11-03T00:00:00.000Z",
 })
 
@@ -216,5 +216,22 @@ describe("taking someone off the roster", () => {
 
         await waitFor(() => expect(callOf(fetchMock!, REMOVE_URL("u1"))).toBeTruthy())
         expect(callOf(fetchMock!, REMOVE_URL("u1"))![1]?.method).toBe("DELETE")
+    })
+})
+
+describe("the group a contestant banks for", () => {
+    it("shows Nhóm A / Nhóm B in its own column", async () => {
+        draw({}, [row("u1", "An", null, "A"), row("u2", "Bình", "binh@example.test", "B")])
+        await screen.findByText("An")
+
+        expect(screen.getByText("Nhóm")).toBeInTheDocument()
+        expect(screen.getByText("Nhóm A")).toBeInTheDocument()
+        expect(screen.getByText("Nhóm B")).toBeInTheDocument()
+    })
+
+    it("says chưa xếp for a contestant still waiting for the draw", async () => {
+        draw({}, [row("u1", "An")])
+        await screen.findByText("An")
+        expect(screen.getByText("chưa xếp")).toBeInTheDocument()
     })
 })

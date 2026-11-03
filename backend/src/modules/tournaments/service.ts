@@ -93,7 +93,10 @@ export async function createTournament(
             // round list is not a valid state any more: the rulebook is not
             // something an operator fills in, so nothing would ever fill it.
             rounds: input.rounds && input.rounds.length > 0 ? input.rounds : AOC_ROUNDS,
-            format: input.format ?? { competitorsPerMatch: 4 },
+            // AOC: a group match holds THREE or FOUR players (the team-point scale
+            // resolves by the real count at match end). A fixed 4 made the operator's
+            // only option the one the show does not always use.
+            format: input.format ?? { competitorsPerMatch: 4, allowedCompetitorCounts: [3, 4] },
             roundRules: input.roundRules ?? null,
             stages: input.stages ?? [],
             current: input.current ?? false

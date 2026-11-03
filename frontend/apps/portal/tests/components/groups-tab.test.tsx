@@ -63,34 +63,32 @@ describe("GroupsTab — the derived tables", () => {
 
         await screen.findByText("An")
         // Nhóm A holds 2 of 4; Nhóm B holds 0 of 4 → 6 placeholder rows, each with
-        // three em-dashes now (name · Điểm nhóm · Thành tích trung bình).
+        // three em-dashes now (name · Điểm nhóm · Thành tích TB).
         const emptyRows = screen
             .getAllByRole("row")
             .filter((row) => [...row.querySelectorAll("td")].filter((td) => (td.textContent || "").trim() === "—").length === 3)
         expect(emptyRows).toHaveLength(6)
-        // No cap is implied: the count is just how many are drawn.
-        expect(screen.getByText(/^2 seats · thứ hạng ở trận vòng bảng/)).toBeInTheDocument()
-        expect(screen.getByText(/^0 seats · thứ hạng ở trận vòng bảng/)).toBeInTheDocument()
+        // No cap is implied: the frame is just as tall as the fullest group might be.
+        expect(screen.getAllByText("Tổng điểm nhóm")).toHaveLength(2)
     })
 
-    it("says who is still to be drawn, and marks the frame when nobody is", async () => {
+    it("lists who is still to be drawn, with a button per group", async () => {
         stubFetch({ [GROUPS_URL]: { body: tables() } })
         render()
 
+        // the undrawn card is the draw's only surface now (the header caption is gone)
         expect(await screen.findByText("Cường")).toBeInTheDocument()
-        expect(screen.getByText(/1 still to place/)).toBeInTheDocument()
-        // something IS drawn, so it is not a bare frame
-        expect(screen.queryByText("Frame only")).toBeNull()
+        expect(screen.getAllByRole("button", { name: "Nhóm A" }).length).toBeGreaterThan(0)
+        expect(screen.getAllByRole("button", { name: "Nhóm B" }).length).toBeGreaterThan(0)
     })
 
-    it("shows the bare frame when the roster has not been drawn at all", async () => {
+    it("points at the roster when nobody is enrolled at all", async () => {
         stubFetch({ [GROUPS_URL]: { body: tables({ a: [], b: [], unassigned: [], aPoints: 0 }) } })
         render()
 
-        expect(await screen.findByText("Frame only")).toBeInTheDocument()
-        expect(screen.getByText(/filled in at the draw/)).toBeInTheDocument()
         // an EMPTY ROSTER is not "everyone is drawn": say where contestants are added
-        expect(screen.getByText(/add them in the Thí sinh tab/)).toBeInTheDocument()
+        expect(await screen.findByText(/add them in the Thí sinh tab/)).toBeInTheDocument()
+        expect(screen.getAllByText("Tổng điểm nhóm")).toHaveLength(2)
     })
 
     it("says every contestant is drawn when the roster is full and placed", async () => {
@@ -171,13 +169,13 @@ describe("the two numbers on a group row", () => {
         render()
 
         // two headers, two different numbers: rank paid the group, average per match
-        expect((await screen.findAllByText("Thành tích trung bình")).length).toBe(2)
+        expect((await screen.findAllByText("Thành tích TB")).length).toBe(2)
         expect(screen.getAllByText("Điểm nhóm").length).toBe(2)
 
         const row = screen.getByText("An").closest("tr")!
         const cells = [...row.querySelectorAll("td")].map((td) => (td.textContent || "").trim())
         expect(cells[2]).toBe("3")      // Điểm nhóm
-        expect(cells[3]).toBe("12.5")   // Thành tích trung bình
+        expect(cells[3]).toBe("12.5")   // Thành tích TB
     })
 
     it("shows — in that column when they have played nothing", async () => {

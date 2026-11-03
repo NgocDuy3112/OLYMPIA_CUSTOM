@@ -3,6 +3,7 @@ import { Badge } from "@shared/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/ui/tabs"
 import { Page, PageHeader } from "@/components/page"
 import { useMatches, useTournament } from "@/lib/tournament"
+import { allowedSeatsOf, seatsPhrase } from "@/lib/tournaments"
 import { MatchesTab } from "@/components/matches-tab"
 import { StagesTab } from "@/components/stages-tab"
 import { StandingsTab } from "@/components/standings-tab"
@@ -39,7 +40,9 @@ export function TournamentDetailPage() {
             <PageHeader
                 title={s.name}
                 description={
-                    `${s.rounds.length} rounds · matches of ${s.format.competitorsPerMatch}`
+                    // AOC: a match holds 3 or 4, so the header says the range — the
+                    // fixed `competitorsPerMatch` is only the default the dialog opens on.
+                    `${s.rounds.length} rounds · matches of ${seatsPhrase(allowedSeatsOf(s.format))}`
                 }
                 actions={
                     <div className="flex gap-2">

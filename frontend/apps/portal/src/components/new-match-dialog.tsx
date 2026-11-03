@@ -7,6 +7,7 @@ import {
 } from "@shared/ui/dialog"
 import { Input } from "@shared/ui/input"
 import { api } from "@shared/lib/api"
+import { seatsPhrase } from "@/lib/tournaments"
 import { useCreateMatch, useEnrolled } from "@/lib/tournament"
 import type { AssemblyEntry, TournamentDetail } from "@/lib/tournament"
 
@@ -44,12 +45,16 @@ export function NewMatchDialog({
     tournamentId,
     tournament,
     seats,
+    allowedSeats,
     open,
     onOpenChange,
 }: {
     tournamentId: string
     tournament: TournamentDetail
+    /** the default seat count (the format's `competitorsPerMatch`) */
     seats: number
+    /** every count this tournament allows — AOC: 3 or 4, per match */
+    allowedSeats: number[]
     open: boolean
     onOpenChange: (open: boolean) => void
 }) {
@@ -60,6 +65,9 @@ export function NewMatchDialog({
 
     const [label, setLabel] = useState("")
     const [stageId, setStageId] = useState(stages[0]?.id ?? "")
+    // A group match holds 3 or 4 players and the team-point scale resolves by the
+    // real count, so the count is a choice per match — not a property of the form.
+    const [seatCount, setSeatCount] = useState(seats)
     const [picked, setPicked] = useState<string[]>(Array.from({ length: seats }, () => ""))
     const [chosen, setChosen] = useState<Record<string, string[]>>({})
     const [search, setSearch] = useState("")
@@ -103,14 +111,20 @@ export function NewMatchDialog({
     const players = enrolled.data?.items ?? []
     const chosenPlayers = picked.filter(Boolean)
 
+    /** Change the seat count; the seats already chosen are kept, in order. */
+    const reseat = (count: number) => {
+        setSeatCount(count)
+        setPicked((current) => Array.from({ length: count }, (_, index) => current[index] ?? ""))
+    }
+
     // One visible reason at a time — the disabled Create button states it here.
     const reason =
         label.trim().length === 0
             ? "Give the match a label"
             : stages.length === 0 || stageId.length === 0
               ? "Choose a stage"
-              : chosenPlayers.length !== seats || new Set(chosenPlayers).size !== seats
-                ? `Pick ${seats} distinct players`
+              : chosenPlayers.length !== seatCount || new Set(chosenPlayers).size !== seatCount
+                ? `Pick ${seatCount} distinct players`
                 : !questionsComplete
                   ? `Questions: ${questionsPicked}/${questionsNeeded} picked`
                   : null
@@ -167,7 +181,8 @@ export function NewMatchDialog({
                     <DialogHeader>
                         <DialogTitle>New match</DialogTitle>
                         <DialogDescription>
-                            Pick {seats} players, then the questions each turn&apos;s rules ask for.
+                            Pick {allowedSeats.length > 1 ? seatsPhrase(allowedSeats) : seatCount} players,
+                            then the questions each turn&apos;s rules ask for.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -202,6 +217,25 @@ export function NewMatchDialog({
                                 )}
                             </label>
 
+                            {/* A group match holds 3 or 4 — the count is a property of
+                                THIS match, decided now (team points resolve by it). */}
+                            {allowedSeats.length > 1 ? (
+                                <div className="flex items-center gap-2 text-sm">
+                                    <span className="text-muted-foreground">Seats</span>
+                                    {allowedSeats.map((count) => (
+                                        <Button
+                                            key={count}
+                                            type="button"
+                                            size="sm"
+                                            variant={seatCount === count ? "default" : "outline"}
+                                            onClick={() => reseat(count)}
+                                        >
+                                            {count}
+                                        </Button>
+                                    ))}
+                                </div>
+                            ) : null}
+
                             <div className="flex flex-col gap-2">
                                 {picked.map((value, seat) => (
                                     <select
@@ -223,7 +257,10 @@ export function NewMatchDialog({
                                                 value={player.userId}
                                                 disabled={picked.includes(player.userId) && picked[seat] !== player.userId}
                                             >
+                                                {/* the group is what a seat's placement banks for, so
+                                                    the operator picking seats must see it */}
                                                 {player.displayName}
+                                                {player.group ? ` · Nhóm ${player.group}` : " · chưa xếp nhóm"}
                                             </option>
                                         ))}
                                     </select>

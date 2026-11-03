@@ -1,21 +1,9 @@
-import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
 import { useAssignGroup, useGroups, type GroupRow } from "@/lib/tournament"
 
-// The AOC group stage — Nhóm A / Nhóm B.
-//
-// The table is DERIVED: the server builds it from the roster's groups plus the
-// phase matches' frozen results (`engine/scoring/group-stage.ts`), so nothing
-// here is an editable score. The one write is the DRAW — placing a contestant in
-// a group — which is what turns the empty frame into a filled table.
 
-/**
- * How many placeholder seats the frame draws while a Nhóm is still empty. NOT a
- * cap: a group holds whatever is drawn into it (only MATCHES are limited to 3 or
- * 4 contestants). The skeleton just keeps the two cards the same height.
- */
 const FRAME_SEATS = 4
 
 const other = (group: "A" | "B"): "A" | "B" => (group === "A" ? "B" : "A")
@@ -32,20 +20,10 @@ export function GroupsTab({ tournamentId }: { tournamentId: string }) {
     const drawn = blocks.reduce((total, block) => total + block.rows.length, 0)
     const busy = assign.isPending
     const place = (userId: string, group: "A" | "B" | null) => assign.mutate({ userId, group })
-    // The roster lives in its own tab now: this surface only DRAWS (one concern,
-    // one screen). `drawn + unassigned` is the whole roster it can see.
     const enrolled = drawn + unassigned.length
 
     return (
         <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-2">
-                {drawn === 0 ? <Badge variant="outline">Frame only</Badge> : null}
-                <p className="text-sm text-muted-foreground">
-                    {drawn === 0
-                        ? "The groups are drawn here; contestants are filled in at the draw by the operator."
-                        : `${drawn} drawn · ${unassigned.length} still to place. Điểm nhóm: thứ hạng ở trận vòng bảng đem về nhóm. Thành tích trung bình: điểm mỗi trận vòng bảng.`}
-                </p>
-            </div>
 
             {assign.isError ? (
                 <p role="alert" className="text-sm text-destructive">{assign.error.message}</p>
@@ -56,9 +34,6 @@ export function GroupsTab({ tournamentId }: { tournamentId: string }) {
                     <Card key={block.id}>
                         <CardHeader>
                             <CardTitle className="text-base">Nhóm {block.id}</CardTitle>
-                            <CardDescription>
-                                {block.rows.length} seats · thứ hạng ở trận vòng bảng đem điểm về nhóm
-                            </CardDescription>
                             <CardAction>
                                 <span className="text-sm text-muted-foreground">
                                     Tổng điểm nhóm{" "}
@@ -74,7 +49,7 @@ export function GroupsTab({ tournamentId }: { tournamentId: string }) {
                                         <TableHead>Contestant</TableHead>
                                         <TableHead className="text-right">Điểm nhóm</TableHead>
                                         <TableHead className="w-32 whitespace-normal text-right">
-                                            Thành tích trung bình
+                                            Thành tích TB
                                         </TableHead>
                                         <TableHead className="w-20" />
                                     </TableRow>
@@ -146,7 +121,7 @@ export function GroupsTab({ tournamentId }: { tournamentId: string }) {
 
 /**
  * One drawn contestant: what they banked for the group (Điểm nhóm — the placement
- * scale), their average score per group match (Thành tích trung bình), and the way
+ * scale), their average score per group match (Thành tích TB), and the way
  * to the other group. Two different numbers, two columns: the first is what their
  * RANK paid the group, the second is how well they actually played.
  */
@@ -169,7 +144,7 @@ function GroupMemberRow({ row, seat, group, disabled, onMove }: {
             <TableCell className="text-right tabular-nums">{row.bankedPoints}</TableCell>
             <TableCell
                 className="text-right tabular-nums"
-                title="Thành tích trung bình: điểm mỗi trận vòng bảng (phase 1 không xuống dưới 0)"
+                title="Thành tích TB: điểm mỗi trận vòng bảng (phase 1 không xuống dưới 0)"
             >
                 {row.averages.all === null ? "—" : row.averages.all.toFixed(1)}
             </TableCell>

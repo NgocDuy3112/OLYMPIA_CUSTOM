@@ -112,13 +112,11 @@ export function useUpdateTournament(tournamentId: string) {
 
 // ── The roster ────────────────────────────────────────────────────────────────
 
+/** The roster — the same rows the players tab lists, group included. */
 export function useEnrolled(tournamentId: string) {
     return useQuery({
         queryKey: ["enrolled", tournamentId],
-        queryFn: () =>
-            api<{ items: Array<{ userId: string; displayName: string }> }>(
-                `/portal/tournaments/${tournamentId}/players`
-            ),
+        queryFn: () => api<{ items: ContestantRow[] }>(`/portal/tournaments/${tournamentId}/players`),
         enabled: Boolean(tournamentId),
     })
 }

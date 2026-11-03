@@ -102,6 +102,7 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="pl-6">Contestant</TableHead>
+                                <TableHead className="w-28">Nhóm</TableHead>
                                 <TableHead>Account</TableHead>
                                 <TableHead className="w-56 pr-6 text-right">Actions</TableHead>
                             </TableRow>
@@ -110,6 +111,18 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
                             {rows.map((row) => (
                                 <TableRow key={row.userId}>
                                     <TableCell className="pl-6 font-medium">{row.displayName}</TableCell>
+                                    <TableCell>
+                                        {row.group ? (
+                                            <span className="text-sm">Nhóm {row.group}</span>
+                                        ) : (
+                                            <span
+                                                className="text-sm text-muted-foreground"
+                                                title="Chưa xếp nhóm — kéo vào Nhóm A/B ở tab Groups."
+                                            >
+                                                chưa xếp
+                                            </span>
+                                        )}
+                                    </TableCell>
                                     <TableCell>
                                         {row.email ? (
                                             <span className="text-sm">{row.email}</span>

@@ -3,6 +3,7 @@ import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
+import { allowedSeatsOf, seatsPhrase } from "@/lib/tournaments"
 import { useEnrolled, useMatches, type TournamentDetail } from "@/lib/tournament"
 import { NewMatchDialog } from "./new-match-dialog"
 
@@ -22,6 +23,8 @@ export function MatchesTab({
 }) {
     const matches = useMatches(tournamentId)
     const enrolled = useEnrolled(tournamentId)
+    // AOC: 3 or 4 seats per match — the format decides, the dialog offers.
+    const allowedSeats = allowedSeatsOf(tournament.format)
 
     const [creating, setCreating] = useState(false)
     // A match is played deck-first: Control opens the full-screen StageShell route
@@ -56,7 +59,7 @@ export function MatchesTab({
                 <CardContent className="p-0">
                     {data.items.length === 0 ? (
                         <p className="px-6 pb-6 text-sm text-muted-foreground">
-                            A match seats {seats} players.
+                            A match seats {seatsPhrase(allowedSeats)} players.
                         </p>
                     ) : (
                         <Table>
@@ -125,6 +128,7 @@ export function MatchesTab({
                     tournamentId={tournamentId}
                     tournament={tournament}
                     seats={seats}
+                    allowedSeats={allowedSeats}
                     open
                     onOpenChange={(open) => { if (!open) setCreating(false) }}
                 />

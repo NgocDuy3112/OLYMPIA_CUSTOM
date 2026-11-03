@@ -50,6 +50,13 @@
       "when": 1793685000000,
       "tag": "0006_aoc_rounds_by_default",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793689500000,
+      "tag": "0007_seats_three_or_four",
+      "breakpoints": true
     }
   ]
 }
