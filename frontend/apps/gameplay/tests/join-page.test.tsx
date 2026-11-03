@@ -45,7 +45,8 @@ function draw(routes: Record<string, { body: unknown; status?: number }>) {
 }
 
 const codeField = () => screen.getByLabelText("Mã vào trận")
-const joinButton = () => screen.getByRole("button", { name: /^Vào$/ })
+/** The OTP input is a single field: typing into it advances the slots. */
+const typeCode = async (text: string) => userEvent.type(codeField(), text)
 
 afterEach(cleanup)
 
@@ -60,59 +61,64 @@ describe("the PIN door lives inside the deck's frame", () => {
     })
 })
 
-describe("entering a code", () => {
-    it("keeps the button disabled until six characters are in", async () => {
+describe("entering a code — no submit step", () => {
+    it("offers no submit button at all: the sixth character is the trigger", () => {
         draw({})
-        expect(joinButton()).toBeDisabled()
-        await userEvent.type(codeField(), "FIX12")
-        expect(joinButton()).toBeDisabled()
-        await userEvent.type(codeField(), "3")
-        await waitFor(() => expect(joinButton()).toBeEnabled())
+        expect(codeField()).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: /^Vào/ })).toBeNull()
     })
 
-    it("upper-cases what the player types", async () => {
-        draw({ [LOOKUP]: { body: { matchId: "m1", slug: "cup", label: "Chung kết", status: "LIVE", seats } } })
-        await userEvent.type(codeField(), "fix123")
-        expect((codeField() as HTMLInputElement).value).toBe("FIX123")
+    it("looks the code up by itself once six characters are in", async () => {
+        const { calls } = draw({
+            [LOOKUP]: { body: { matchId: "m1", slug: "cup", label: "Chung kết", status: "LIVE", seats } },
+        })
+        await typeCode("FIX12")
+        // five characters is not a code: nothing has been asked
+        expect(calls).toHaveLength(0)
+        await typeCode("3")
+        expect(await screen.findByText("Bạn là ai?")).toBeInTheDocument()
+        expect(calls.at(-1)).toEqual({ key: LOOKUP, body: { code: "FIX123" } })
     })
 
-    it("asks the backend and shows the seats, then claims the one you tap", async () => {
+    it("upper-cases the code before asking (the server compares upper case)", async () => {
         const { calls } = draw({
             [LOOKUP]: { body: { matchId: "m1", slug: "cup", label: "Chung kết", status: "LIVE", seats } },
             [CLAIM]: { body: { matchId: "m1", slug: "cup" } },
         })
+        await userEvent.type(codeField(), "fix123")
+        expect(await screen.findByRole("button", { name: "An" })).toBeInTheDocument()
+        expect(calls.at(-1)).toEqual({ key: LOOKUP, body: { code: "FIX123" } })
+    })
 
-        await userEvent.type(codeField(), "FIX123")
-        await userEvent.click(joinButton())
-
-        expect(await screen.findByText("Bạn là ai?")).toBeInTheDocument()
-        expect(screen.getByText(/Chung kết/)).toBeInTheDocument()
+    it("tapping a name IS entering — the claim names the deck's route", async () => {
+        const { calls } = draw({
+            [LOOKUP]: { body: { matchId: "m1", slug: "cup", label: "Chung kết", status: "LIVE", seats } },
+            [CLAIM]: { body: { matchId: "m1", slug: "cup" } },
+        })
+        await typeCode("FIX123")
+        expect(await screen.findByText(/Chung kết/)).toBeInTheDocument()
         expect(screen.getByText(/đang diễn ra/)).toBeInTheDocument()
-        expect(calls.at(-1)?.body).toEqual({ code: "FIX123" })
 
         await userEvent.click(screen.getByRole("button", { name: "Bình" }))
-        // the claim names the deck's route — the player lands there, not on a menu
         expect(await screen.findByText("deck here")).toBeInTheDocument()
         expect(calls.at(-1)).toEqual({ key: CLAIM, body: { code: "FIX123", userId: "u2" } })
     })
 
-    it("locks the field once the seats are shown (the code is answered)", async () => {
+    it("clears the seats when the code is edited again", async () => {
         draw({ [LOOKUP]: { body: { matchId: "m1", slug: "cup", label: "Chung kết", status: "LIVE", seats } } })
-        await userEvent.type(codeField(), "FIX123")
-        await userEvent.click(joinButton())
+        await typeCode("FIX123")
         await screen.findByText("Bạn là ai?")
-        expect(codeField()).toBeDisabled()
         await userEvent.click(screen.getByRole("button", { name: "Nhập mã khác" }))
-        await waitFor(() => expect(codeField()).toBeEnabled())
+        // the seats belonged to that code, not to the screen
+        await waitFor(() => expect(screen.queryByText("Bạn là ai?")).toBeNull())
     })
 })
 
 describe("refusals", () => {
     it("says the code is wrong (404) without blaming the player", async () => {
         draw({ [LOOKUP]: { body: { message: "not found" }, status: 404 } })
-        await userEvent.type(codeField(), "ZZZZZZ")
-        await userEvent.click(joinButton())
-        expect(await screen.findByRole("alert")).toHaveTextContent(/Mã không đúng/)
+        await typeCode("ZZZZZZ")
+        expect(await screen.findByText(/Mã không đúng/)).toBeInTheDocument()
     })
 
     it("says the seat is not theirs (403) instead of failing silently", async () => {
@@ -120,16 +126,14 @@ describe("refusals", () => {
             [LOOKUP]: { body: { matchId: "m1", slug: "cup", label: "Chung kết", status: "LIVE", seats } },
             [CLAIM]: { body: { message: "no" }, status: 403 },
         })
-        await userEvent.type(codeField(), "FIX123")
-        await userEvent.click(joinButton())
+        await typeCode("FIX123")
         await userEvent.click(await screen.findByRole("button", { name: "An" }))
         expect(await screen.findByRole("alert")).toHaveTextContent(/Ghế này không thuộc về bạn/)
     })
 
     it("says when the match has no seats yet", async () => {
         draw({ [LOOKUP]: { body: { matchId: "m1", slug: "cup", label: "Chung kết", status: "UPCOMING", seats: [] } } })
-        await userEvent.type(codeField(), "FIX123")
-        await userEvent.click(joinButton())
+        await typeCode("FIX123")
         expect(await screen.findByText(/chưa có ghế/)).toBeInTheDocument()
     })
 })
