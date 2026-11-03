@@ -110,7 +110,12 @@ describe("entering a code — no submit step", () => {
 
         await userEvent.click(screen.getByRole("button", { name: "Bình" }))
         expect(await screen.findByText("deck here")).toBeInTheDocument()
-        expect(calls.at(-1)).toEqual({ key: CLAIM, body: { code: "FIX123", userId: "u2" } })
+        // the claim carries the seat; the session change then invalidates queries,
+        // so the last call is a refetch — look the claim up, not "the last one"
+        expect(calls.find((call) => call.key === CLAIM)).toEqual({
+            key: CLAIM,
+            body: { code: "FIX123", userId: "u2" },
+        })
     })
 
     it("clears the seats when the code is edited again", async () => {

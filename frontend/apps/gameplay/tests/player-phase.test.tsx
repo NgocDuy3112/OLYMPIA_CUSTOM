@@ -14,6 +14,7 @@ const M = "m1"
 const ME = "GET /gameplay/auth/me"
 const LIVE = `GET /gameplay/matches/${M}/live`
 const LOBBY = `GET /gameplay/matches/${M}/lobby`
+const METHODS = "GET /gameplay/auth/methods"
 
 interface StubRoute { body: unknown; status?: number }
 
@@ -93,13 +94,16 @@ describe("the player deck's phase machine", () => {
         expect(await screen.findByText(/Chờ điều hành mở trận/)).toBeTruthy()
     })
 
-    it("gates a dead session to the PIN card (401)", async () => {
+    it("gates a dead session to the PIN card (401) — with the field in place", async () => {
         draw({
             [ME]: stub({ body: { message: "Hết phiên" }, status: 401 }),
             [LIVE]: stub({ body: { message: "Hết phiên" }, status: 401 }),
+            // the gate's PIN door asks what the deployment offers
+            [METHODS]: stub({ body: { pin: true, google: false } }),
         })
         expect(await screen.findByText("Chưa vào trận")).toBeTruthy()
-        expect(screen.getByRole("link", { name: "Nhập lại mã PIN" }).getAttribute("href")).toBe("/join")
+        // the player does not leave the show to re-enter: the code goes here
+        expect(await screen.findByLabelText("Mã vào trận")).toBeTruthy()
     })
 
     it("draws the round screen from a live view", async () => {
