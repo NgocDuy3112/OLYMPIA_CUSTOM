@@ -11,6 +11,10 @@
 //   · the answers rail adds the bottom lines (answer text + value, and the
 //     verdict — which the caller resolves, because staged overrides outrank the
 //     submitted one).
+// Presence is NOT drawn here: a camera (or its absence) on the card says whether
+// somebody is there, and a second green dot for the same fact was one signal too
+// many.
+//
 //   · the purple card marks the LIVE ANSWERER: ve-dich's buzz winner or the one
 //     who won a Khởi động race.
 //   · an open oral run rings that player for the whole run (phase 1 only).
@@ -43,8 +47,6 @@ export interface RailCardsInput {
     target: string | null
     /** giai-ma's multi-select for the CURRENT question */
     selectedIds: ReadonlySet<string>
-    /** the hub's connected user ids */
-    connected: readonly string[]
     /** the player's live camera, by user id (Room identity === card id) */
     videoOf: (id: string) => RemoteVideoTrack | null
     /** the card's verdict — staged override first, else the submitted row */
@@ -120,7 +122,6 @@ export function railCardsOf(input: RailCardsInput): CardData[] {
             name: seat.displayName,
             points: seat.points,
             ring: ringOf(seat.id, input),
-            connected: input.connected.includes(seat.id),
             // identity === user id → the player's camera joins by plain equality
             video: input.videoOf(seat.id),
         }

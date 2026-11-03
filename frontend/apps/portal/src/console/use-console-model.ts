@@ -220,7 +220,6 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         resolvingId,
         target,
         selectedIds,
-        connected: v.connected ?? [],
         videoOf: (id) => peers.get(id)?.video ?? null,
         verdictOf,
         giaiMa: consoleGiaiMa,

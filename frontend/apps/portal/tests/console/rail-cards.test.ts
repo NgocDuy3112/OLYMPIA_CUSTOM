@@ -33,7 +33,6 @@ function input(over: Partial<RailCardsInput> = {}): RailCardsInput {
         resolvingId: null,
         target: null,
         selectedIds: new Set<string>(),
-        connected: [],
         videoOf: () => null,
         verdictOf: () => null,
         giaiMa: null,
@@ -55,12 +54,6 @@ describe("railCardsOf — one card per score row", () => {
         expect(cards.map((c) => c.id)).toEqual(["u1", "u2"])
         expect(cards.map((c) => c.name)).toEqual(["An", "Bình"])
         expect(cards.map((c) => c.points)).toEqual([10, 20])
-    })
-
-    it("marks only the connected ids", () => {
-        const cards = railCardsOf(input({ connected: ["u2"] }))
-        expect(cards.find((c) => c.id === "u1")?.connected).toBe(false)
-        expect(cards.find((c) => c.id === "u2")?.connected).toBe(true)
     })
 
     it("attaches the camera the transport hands out, per id", () => {

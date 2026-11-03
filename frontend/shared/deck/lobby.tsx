@@ -33,11 +33,6 @@ export function Lobby({
         canStart: boolean
         busy?: boolean
         onStart: (roundId: string, phase?: 1 | 2) => void
-        /**
-         * Pressing a round ALSO opens the match (the operator's control room).
-         * Without it the buttons wait for a LIVE match — which is right for a
-         * player, who can never start anything.
-         */
         opensMatch?: boolean
     }
     /** One muted line under the cards (waiting reason). */
@@ -61,7 +56,8 @@ export function Lobby({
             <div className="mt-[3.2cqw] flex flex-wrap items-stretch justify-center gap-[1.2cqw]">
                 {data.table.map((row) => {
                     const mine = Boolean(meId) && row.id === meId
-                    const connected = data.connected.includes(row.id)
+                    // No "connected" dot: the camera answers the same question
+                    // better — a face on screen IS the player being there.
                     const video = row.video ?? (mine && selfCam?.camOn ? selfCam.video : null)
                     return (
                         <div
@@ -76,12 +72,6 @@ export function Lobby({
                                 >
                                     {row.displayName.replace(/[^A-Za-zÀ-ỹ0-9]/g, "").slice(0, 2).toUpperCase() || "??"}
                                     {video && <LobbyVideo track={video} />}
-                                    <span
-                                        className={`absolute right-[0.3cqw] top-[0.4cqw] size-[1.2cqw] rounded-full ring-2 ring-card ${connected
-                                                ? "bg-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.25)]"
-                                                : "bg-muted-foreground/40"
-                                            }`}
-                                    />
                                 </div>
                                 <div className="flex min-w-0 flex-1 flex-col justify-start gap-[0.3cqw] pt-[0.2cqw] text-center">
                                     <span className="truncate font-display font-semibold leading-none text-foreground" style={{ fontSize: pt(16) }}>

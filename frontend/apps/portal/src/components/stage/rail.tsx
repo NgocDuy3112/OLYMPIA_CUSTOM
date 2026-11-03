@@ -1,5 +1,5 @@
 // The the console's rail — the contestant cards as the OPERATOR sees them: the live
-// camera from the match Room, who is connected, this round's badge/value, and
+// camera from the match Room, this round's badge/value, and
 // the console's staged verdict. It is NOT the player's rail (a player sees "BẠN" and
 // their own verdict): same frame, different card, so neither grows flags.
 import { useEffect, useRef } from "react"
@@ -18,8 +18,6 @@ export interface CardData {
     badge?: { text: string; tone: "primary" | "amber" | "emerald" }  // keyword / power pill
     ring?: "selected" | "active"
     dimmed?: boolean       // giai-ma eliminated
-    /** has a live player socket right now (the hub's connected list) */
-    connected?: boolean
     /** the player's live camera — Room identity === card id, so a plain map
      *  lookup by `id` feeds this slot; absent → the initials show */
     video?: RemoteVideoTrack | null
@@ -99,14 +97,6 @@ export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answe
                                 {initialsOf(c.name)}
                             </div>
                             {c.video && <CardVideo track={c.video} />}
-                            {/* connected dot — green = at a device, gray = gone/idle */}
-                            <span
-                                className={`absolute right-[0.3cqw] top-[0.4cqw] size-[1.2cqw] rounded-full ring-2 ring-card ${
-                                    c.connected
-                                        ? "bg-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.25)]"
-                                        : "bg-muted-foreground/40"
-                                }`}
-                            />
                         </div>
                         <div className="flex min-w-0 flex-1 flex-col justify-start gap-[0.3cqw] pt-[0.2cqw] text-center">
                             <span className="truncate font-display font-medium leading-none text-foreground" style={{ fontSize: pt(12) }}>

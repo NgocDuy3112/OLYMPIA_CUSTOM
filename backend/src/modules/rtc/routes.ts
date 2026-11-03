@@ -70,7 +70,11 @@ export async function rtcRoutes(app: FastifyInstance) {
     ) => {
         const rtc = config();
         if (!rtc) throw app.httpErrors.serviceUnavailable("rtc is not configured");
-        if (match.status !== "LIVE") throw app.httpErrors.conflict("match is not LIVE");
+        // NO status gate. The room is per-match and only seated players (and staff)
+        // can mint a token for it, so opening it before LIVE costs nothing and buys
+        // the thing an operator actually needs: every camera lit up in the WAITING
+        // ROOM, checked before the show starts — instead of a grid of initials and a
+        // permission dialog at the moment a round begins.
         const token = await mintRtcToken(rtc, { room: match.id, role, ...opts });
         return { room: match.id, ...token };
     };

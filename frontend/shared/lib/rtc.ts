@@ -348,6 +348,29 @@ export function useSelfCam(): SelfBroadcast | null {
 }
 
 /**
+ * Ask for camera and mic ONCE, then release the tracks.
+ *
+ * Nothing is published — the grant is the point: the browser dialog then appears
+ * while the player is still waiting, instead of at the moment a round starts.
+ * Video and audio are asked SEPARATELY on purpose: a refused microphone must not
+ * hide a camera that works. Returns the first refusal, in the app's words.
+ */
+export async function probeMediaPermission(devices: {
+    getUserMedia: (constraints: MediaStreamConstraints) => Promise<MediaStream>
+}): Promise<string | null> {
+    let refusal: string | null = null;
+    for (const kind of ["video", "audio"] as const) {
+        try {
+            const stream = await devices.getUserMedia({ [kind]: true });
+            for (const track of stream.getTracks()) track.stop();
+        } catch (e) {
+            refusal = refusal ?? mediaErrorOf(e);
+        }
+    }
+    return refusal;
+}
+
+/**
  * The provider-side hook: one publish-only room (autoSubscribe: false — this
  * player never plays anyone back) + camera/mic lifecycle. Runs wherever the
  * match route renders; a refused token (409 not LIVE, 403 not seated…) just
@@ -368,6 +391,29 @@ export function useSelfBroadcast(matchId: string): SelfBroadcast {
     // Which room already had its devices enabled — a reconnect of the SAME
     // room must not re-enable a camera the player deliberately turned off.
     const enabledFor = useRef<Room | null>(null);
+    // The permission probe runs ONCE per match, before any room exists.
+    const probed = useRef(false);
+
+    /**
+     * ASK ON ARRIVAL, PUBLISH AT LIVE.
+     *
+     * Publishing needs a token, and a player's token is refused (409) until the
+     * match is LIVE — so the permission dialog used to appear at the worst possible
+     * moment: mid-show, just as the round starts. The seats' camera can be granted
+     * while the player is still waiting, so the probe runs once on arrival and the
+     * tracks are released immediately (nothing is published; only the grant is
+     * kept). Video and audio are asked SEPARATELY: a refused mic must not hide a
+     * camera that is fine.
+     */
+    useEffect(() => {
+        if (probed.current || !matchId) return;
+        probed.current = true;
+        const devices = typeof navigator === "undefined" ? undefined : navigator.mediaDevices;
+        if (!devices?.getUserMedia) return; // insecure context: nothing to ask
+        void probeMediaPermission(devices).then((refusal) => {
+            if (refusal) setMediaError((prev) => prev ?? refusal);
+        });
+    }, [matchId]);
 
     useEffect(() => {
         if (status !== "connected" || !room || enabledFor.current === room) return;

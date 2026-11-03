@@ -55,7 +55,10 @@ export function useConsoleTransport(tournamentId: string, matchId: string): Cons
     const questions = v?.questions ?? []
 
     const rtc = useRtcRoom({
-        enabled: Boolean(v),
+        // ON from the moment the surface exists: the room is per-match and the
+        // token no longer waits for LIVE, so the operator sees every camera in the
+        // WAITING room — which is when a camera is worth checking.
+        enabled: true,
         autoSubscribe: true,
         // The spectator has no portal session — its door is the public viewer
         // token (video only: Discord carries the show's audio).
