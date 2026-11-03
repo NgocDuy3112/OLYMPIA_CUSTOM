@@ -88,15 +88,16 @@ describe("GET /gameplay/auth/me", () => {
 
 
 describe("GET /gameplay/auth/google — the sign-in entry", () => {
-    it("503 with a readable message when OIDC is not configured (not a bare 500)", async () => {
-        // No GOOGLE_OIDC_* in the test environment — the configuration problem
-        // is a service condition; the player gets an explanation.
+    it("sends the browser to the PIN door when OIDC is not configured", async () => {
+        // No GOOGLE_OIDC_* in the test environment. This route is opened by a
+        // BROWSER (it is an <a href>), so a 503 JSON body was a wall of braces;
+        // the door that always works is /join, with the reason attached.
         const res = await app.inject({
             method: "GET",
             url: "/gameplay/auth/google?next=/s/x"
         });
-        expect(res.statusCode).toBe(503);
-        expect(res.json().message).toContain("Google OIDC is not configured");
+        expect(res.statusCode).toBe(302);
+        expect(res.headers.location).toBe("/join?notice=google-off");
     });
 });
 
@@ -128,5 +129,38 @@ describe("POST /gameplay/auth/logout", () => {
         const setCookie = res.headers["set-cookie"];
         const all = Array.isArray(setCookie) ? setCookie.join(";") : String(setCookie ?? "");
         expect(all).not.toContain("portal_session=");
+    });
+});
+
+describe("the sign-in a PLAYER is offered", () => {
+    // An operator creates the identities and a PIN claim mints the session, so the
+    // PIN is always a door; Google is the optional one. A deployment without Google
+    // must not hand a browser a JSON error — the route is a LINK.
+    it("reports which methods exist", async () => {
+        const res = await app.inject({ method: "GET", url: "/gameplay/auth/methods" });
+        expect(res.statusCode).toBe(200);
+        expect(res.json()).toEqual({ pin: true, google: expect.any(Boolean) });
+    });
+
+    it("sends a Google link to the PIN door when Google is not configured", async () => {
+        const res = await app.inject({
+            method: "GET",
+            url: "/gameplay/auth/google?next=%2Fs%2Fcup",
+        });
+        // two honest answers, depending on the deployment running these tests
+        if (res.statusCode === 302) {
+            expect(res.headers.location).toBe("/join?notice=google-off");
+        } else {
+            expect(res.statusCode).toBe(302);
+        }
+    });
+
+    it("never answers a browser navigation with a bare 5xx body", async () => {
+        const res = await app.inject({
+            method: "GET",
+            url: "/gameplay/auth/google",
+            headers: { accept: "text/html" },
+        });
+        expect(res.statusCode).toBeLessThan(500);
     });
 });

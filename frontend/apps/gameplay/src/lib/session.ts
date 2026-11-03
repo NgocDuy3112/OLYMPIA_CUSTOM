@@ -28,9 +28,29 @@ export function isUnauthorized(error: unknown): boolean {
     return error instanceof ApiError && error.status === 401
 }
 
-// The whole login flow is one link: Google, then ?next= brings the player back.
+/**
+ * Google's door, for a player who HAS a Google account and wants to keep their
+ * history. The PIN is the real one — an operator creates the identities, so a
+ * player never has to sign in at all (`/join`).
+ */
 export function loginLink(next: string): string {
     return `/gameplay/auth/google?next=${encodeURIComponent(next)}`
+}
+
+/** What this deployment lets a player sign in with. Google is optional. */
+export interface AuthMethods {
+    pin: boolean
+    google: boolean
+}
+
+export function useAuthMethods() {
+    return useQuery({
+        queryKey: ["auth-methods"],
+        queryFn: () => api<AuthMethods>("/gameplay/auth/methods"),
+        // Deployment config, not player state: it cannot change mid-session.
+        staleTime: 30 * 60_000,
+        retry: false,
+    })
 }
 
 export function useLogout() {

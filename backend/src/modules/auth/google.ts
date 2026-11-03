@@ -179,18 +179,37 @@ async function findOrCreatePlayer(claims: GoogleClaims) {
 }
 
 
+/** Is Google set up on this deployment? (The sign-in route is useless without it.) */
+export function googleConfigured(): boolean {
+    try {
+        googleEnv();
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 export async function googleAuthRoutes(app: FastifyInstance) {
     const perIp = { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } };
+
+    // What a PLAYER may sign in with. The PIN is always the door (an operator
+    // creates the identities); Google is the optional one — the join page only
+    // offers it when this says so, so it can never render a dead button.
+    app.get("/gameplay/auth/methods", perIp, async () => ({
+        pin: true,
+        google: googleConfigured(),
+    }));
 
     app.get("/gameplay/auth/google", perIp, async (request, reply) => {
         let config;
         try {
             config = await getConfig();
         } catch (error) {
-            // Unconfigured OIDC is a service condition, not a crash — the sign-in
-            // button must not show players a bare 500.
+            // Unconfigured OIDC is a service condition, not a crash. This route is
+            // opened by a BROWSER (it is a link), so answering with a 503 JSON blob
+            // showed players a wall of braces. Send them to the door that works.
             if (error instanceof SignInError) {
-                throw reply.server.httpErrors.serviceUnavailable(error.message);
+                return reply.redirect("/join?notice=google-off");
             }
             throw error;
         }

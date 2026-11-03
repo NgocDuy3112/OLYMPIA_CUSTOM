@@ -1,4 +1,4 @@
-import { NavLink, useLocation, useNavigate } from "react-router-dom"
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom"
 import { ChevronDown, LogOut } from "lucide-react"
 import { cn } from "cn"
 import { Button, buttonVariants } from "@shared/ui/button"
@@ -9,7 +9,7 @@ import {
     DropdownMenuTrigger,
 } from "@shared/ui/dropdown-menu"
 import { useTournamentList } from "@/lib/api"
-import { isUnauthorized, loginLink, useLogout, useMe } from "@/lib/session"
+import { isUnauthorized, useLogout, useMe } from "@/lib/session"
 
 
 const links = [
@@ -97,15 +97,19 @@ export function NavBar() {
                     </DropdownMenu>
                 </nav>
                 {signedOut ? (
-                    <a
-                        href={loginLink(pathname)}
+                    // The player's door is the PIN: an operator creates the
+                    // identities and a seat claim mints the session, so nobody has
+                    // to sign in to play. Google stays reachable from /join for the
+                    // players who want their own account (`?next=` remembered here).
+                    <Link
+                        to={`/join?next=${encodeURIComponent(pathname)}`}
                         className={cn(
                             buttonVariants({ variant: "default", size: "lg" }),
                             "ml-auto"
                         )}
                     >
-                        Đăng nhập
-                    </a>
+                        Vào trận
+                    </Link>
                 ) : me.data ? (
                     <div className="ml-auto flex items-center gap-2">
                         <span className="max-w-40 truncate text-sm text-muted-foreground">

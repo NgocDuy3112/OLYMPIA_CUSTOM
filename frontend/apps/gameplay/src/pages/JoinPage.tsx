@@ -1,11 +1,12 @@
 import { useRef, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { StageShell } from "@shared/deck/stage-shell"
 import { Button } from "@shared/ui/button"
 import { Card, CardContent } from "@shared/ui/card"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@shared/ui/field"
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@shared/ui/input-otp"
 import { api, ApiError } from "@shared/lib/api"
+import { loginLink, useAuthMethods } from "@/lib/session"
 
 /**
  * /join — the player's door (IN THE GAMEPLAY APP — players never enter the
@@ -51,6 +52,14 @@ const statusText = (status: LookupResult["status"]) =>
 
 export function JoinPage() {
     const navigate = useNavigate()
+    const [params] = useSearchParams()
+    // The backend sends a stale Google link here with a reason; `/join` is the door
+    // that always works.
+    const notice = params.get("notice")
+    const next = params.get("next") ?? "/"
+    // Offered only when the deployment actually configured Google, so this page can
+    // never render a button that dead-ends.
+    const methods = useAuthMethods()
     const [code, setCode] = useState("")
     const [lookup, setLookup] = useState<LookupResult | null>(null)
     const [claiming, setClaiming] = useState(false)
@@ -128,6 +137,11 @@ export function JoinPage() {
                             <p className="font-sans text-sm text-muted-foreground">
                                 Nhập mã 6 ký tự ban điều hành đọc, rồi chọn tên của bạn.
                             </p>
+                            {notice === "google-off" ? (
+                                <p className="mt-1 font-sans text-sm text-amber-700">
+                                    Đăng nhập Google chưa được cấu hình — dùng mã PIN của ban điều hành.
+                                </p>
+                            ) : null}
                         </div>
 
                         <Field data-invalid={error !== null || undefined}>
@@ -194,6 +208,14 @@ export function JoinPage() {
                                     Nhập mã khác
                                 </Button>
                             </Field>
+                        ) : null}
+                        {methods.data?.google ? (
+                            <Link
+                                to={loginLink(next)}
+                                className="mx-auto font-sans text-sm text-muted-foreground underline-offset-4 hover:underline"
+                            >
+                                hoặc đăng nhập bằng Google
+                            </Link>
                         ) : null}
                     </CardContent>
                 </Card>
