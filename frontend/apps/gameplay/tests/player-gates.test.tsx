@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { PlayerGateScreen } from "@/components/player-gates"
 import type { PlayerGate } from "@/lib/player-gate"
 import type { PlayerModel } from "@/hooks/use-player-model"
-import type { LobbyData } from "@shared/deck/lobby"
+import type { LobbyData } from "@shared/deck/types"
 
 // The four screens a player can be stuck behind. They render inside the deck's
 // canvas, so each one must stand alone: no provider, no socket, no camera — the
