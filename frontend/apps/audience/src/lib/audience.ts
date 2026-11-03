@@ -15,7 +15,7 @@ interface AudienceRead extends Omit<PlayerView, "me"> {
     roundEnded: boolean
 }
 
-export const audienceKey = (tournamentId: string, matchId: string) =>
+const audienceKey = (tournamentId: string, matchId: string) =>
     ["audience", tournamentId, matchId] as const
 
 export function useAudienceLive(tournamentId: string, matchId: string) {

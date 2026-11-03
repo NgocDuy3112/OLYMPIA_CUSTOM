@@ -12,7 +12,7 @@ import type { RoundModule } from "./types"
 // playerScreenOf (lib/live) still decides LOBBY vs screen; this registry
 // draws the screen itself. The future OBS overlay reuses both.
 
-export const ROUNDS: Record<string, RoundModule> = {
+const ROUNDS: Record<string, RoundModule> = {
     "khoi-dong": khoiDongAOC,
     "giai-ma": giaiMaAOC,
     "but-pha": butPhaAOC,

@@ -203,8 +203,6 @@ export const ScoreAdjustActionSchema = Type.Object({
     delta: Type.Integer({ minimum: -9999, maximum: 9999 }),
     reason: Type.String({ minLength: 1, maxLength: 200 })
 });
-export type ScoreAdjustAction = Static<typeof ScoreAdjustActionSchema>;
-
 // What a client may send: every controller action, but no server-built answer action.
 // Exception: ve-dich.declarePower — the console declares powers for the player
 // whose turn it is (the show deck is the operator's), so the door is open for it

@@ -56,4 +56,3 @@ export function JoinPage() {
     )
 }
 
-export default JoinPage

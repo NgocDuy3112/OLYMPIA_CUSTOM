@@ -3,7 +3,7 @@ import { api, ApiError } from "@shared/lib/api"
 
 export const ME_QUERY_KEY = ["me"] as const
 
-export interface SessionUser {
+interface SessionUser {
     id: string
     username: string | null
     displayName: string

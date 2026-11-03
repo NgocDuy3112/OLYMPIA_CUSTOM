@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render } from "@testing-library/react"
 import { vi } from "vitest"
 
-export interface StubRoute {
+interface StubRoute {
     body: unknown
     status?: number
 }

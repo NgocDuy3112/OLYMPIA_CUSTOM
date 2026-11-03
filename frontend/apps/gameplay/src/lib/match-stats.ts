@@ -12,7 +12,7 @@ export interface RoundRow {
     gap: number
 }
 
-export interface MatchStatistics {
+interface MatchStatistics {
     /** Rounds in tournament order, kept only when someone scored in them. */
     rounds: RoundRow[]
     totalPoints: number

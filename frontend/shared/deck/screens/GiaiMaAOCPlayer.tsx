@@ -6,7 +6,7 @@ import type { AnswerValue } from "../types"
 // Giải mã (S3): keyword banner, the count-driven hint tile grid, the lower
 // question card, and a band that is either the hint answer box or the keyword
 // box. Pure: every value comes from the orchestrator, narrowed here.
-export type GiaiMaPlayerCtx = PlayerCore & {
+type GiaiMaPlayerCtx = PlayerCore & {
     remaining: number
     answerBusy: boolean
     submitAnswer: (questionId: string, value: AnswerValue) => void

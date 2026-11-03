@@ -29,7 +29,7 @@ import { api, ApiError } from "./api";
 
 // ── Tokens ───────────────────────────────────────────────────────────────────
 
-export interface RtcToken {
+interface RtcToken {
     /** What to dial — the backend's LIVEKIT_URL. */
     url: string;
     token: string;
@@ -42,7 +42,7 @@ export interface RtcToken {
 }
 
 /** Seated player: canPublish (+ subscribe granted for a future "see opponents"). */
-export function fetchPlayerRtcToken(matchId: string): Promise<RtcToken> {
+function fetchPlayerRtcToken(matchId: string): Promise<RtcToken> {
     return api<RtcToken>(`/gameplay/matches/${matchId}/rtc/token`, { method: "POST" });
 }
 
@@ -55,19 +55,15 @@ export function fetchOperatorRtcToken(tournamentId: string, matchId: string): Pr
 }
 
 /** Public spectator link: subscribe-only, random hidden identity per viewer. */
-export function fetchViewerRtcToken(matchId: string): Promise<RtcToken> {
-    return api<RtcToken>(`/gameplay/matches/${matchId}/rtc/viewer-token`, { method: "POST" });
-}
-
 // ── The identity → tracks map (pure) ─────────────────────────────────────────
 
-export interface RtcPeerTracks {
+interface RtcPeerTracks {
     video?: RemoteVideoTrack;
     audio?: RemoteAudioTrack;
 }
 
 /** Keyed by participant identity (the user id for players). */
-export type RtcPeerTracksMap = ReadonlyMap<string, RtcPeerTracks>;
+type RtcPeerTracksMap = ReadonlyMap<string, RtcPeerTracks>;
 
 // ── Connection lifecycle ─────────────────────────────────────────────────────
 
@@ -79,13 +75,13 @@ export type RtcStatus =
     | "disconnected"  // terminal (or kicked: DUPLICATE_IDENTITY, room deleted…)
     | "failed";       // token fetch or initial connect refused
 
-export interface RtcRoomError {
+interface RtcRoomError {
     message: string;
     /** HTTP status when the refusal came from OUR token endpoint (ApiError). */
     status?: number;
 }
 
-export interface RtcRoomHandle {
+interface RtcRoomHandle {
     room: Room | null;
     status: RtcStatus;
     /** The refusal — `status` lets a caller hide on "not LIVE yet" and shout on real failures. */
@@ -314,7 +310,7 @@ export function useRtcPeerTracks(room: Room | null): RtcPeerTracksMap {
 // ── THIS player's own broadcast (publish side) ───────────────────────────────
 
 /** Browser media failures in the app's voice; anything else passes through. */
-export function mediaErrorOf(e: unknown): string {
+function mediaErrorOf(e: unknown): string {
     if (e instanceof DOMException) {
         if (e.name === "NotAllowedError" || e.name === "SecurityError") {
             return "Trình duyệt chặn quyền camera/mic — cho phép quyền cho trang này rồi thử lại.";
@@ -331,7 +327,7 @@ export function mediaErrorOf(e: unknown): string {
  * (CameraPanel) and the player's own Rail card render from. `video` is a
  * LOCAL track: the Rail attaches it directly, no subscribe involved.
  */
-export interface SelfBroadcast {
+interface SelfBroadcast {
     status: RtcStatus;
     error: RtcRoomError | null;
     /** device/permission failure, in the app's words (see mediaErrorOf). */

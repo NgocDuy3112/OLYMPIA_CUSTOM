@@ -10,9 +10,9 @@ const MAX_BACKOFF_MS = 30_000
 
 // Backend close codes that reconnecting will never fix:
 // 4401 SESSION_ENDED (revoked session), 4403 NOT_SEATED (not in this match).
-export const STOP_CODES = new Set([4401, 4403])
+const STOP_CODES = new Set([4401, 4403])
 
-export function wsBase(): string {
+function wsBase(): string {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
     return `${protocol}//${window.location.host}`
 }

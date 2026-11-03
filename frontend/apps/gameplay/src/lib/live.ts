@@ -6,13 +6,13 @@ import { useSocketStream } from "@shared/lib/ws"
 
 // An API refusal, shaped for the gate screens: each status is a screen, never
 // a crash. A non-API error becomes status 0 so it lands in the "say why" branch.
-export interface ViewFailure {
+interface ViewFailure {
     status: number
     code?: string
     message?: string
 }
 
-export function failureOf(error: unknown): ViewFailure | null {
+function failureOf(error: unknown): ViewFailure | null {
     if (!error) return null
     if (error instanceof ApiError) {
         return { status: error.status, code: error.code, message: error.message }
@@ -123,9 +123,9 @@ interface StreamFrame {
 
 // ── the query + push ─────────────────────────────────────────────────────────
 
-export const liveKey = (matchId: string) => ["live", matchId] as const
+const liveKey = (matchId: string) => ["live", matchId] as const
 
-export interface UseLiveMatch {
+interface UseLiveMatch {
     /** The last known view — a pushed snapshot replaces the GET's paint. */
     view: LiveView | undefined
     /** ApiError → the gate screen reads it (401 / 403 / 409 are answers). */
@@ -187,7 +187,7 @@ export { playerScreenOf, type PlayerScreen } from "@shared/deck/dispatch"
 
 // ── the lobby ───────────────────────────────────────────────────────────────────
 
-export const lobbyKey = (matchId: string) => ["lobby", matchId] as const
+const lobbyKey = (matchId: string) => ["lobby", matchId] as const
 
 /**
  * The player's lobby read — asked WHILE WAITING: /live 409s until the match is

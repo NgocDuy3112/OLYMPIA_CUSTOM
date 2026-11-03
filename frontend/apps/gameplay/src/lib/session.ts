@@ -3,7 +3,7 @@ import { api, ApiError } from "@shared/lib/api"
 
 export const ME_QUERY_KEY = ["me"] as const
 
-export interface SessionUser {
+interface SessionUser {
     id: string
     username: string | null
     displayName: string
@@ -38,7 +38,7 @@ export function loginLink(next: string): string {
 }
 
 /** What this deployment lets a player sign in with. Google is optional. */
-export interface AuthMethods {
+interface AuthMethods {
     pin: boolean
     google: boolean
 }

@@ -21,7 +21,7 @@ export interface ReadinessInput {
     transportRefused: boolean
 }
 
-export interface Readiness {
+interface Readiness {
     /** a round screen may draw (known round, not waiting, not navigated away) */
     roundScreenReady: boolean
     /** the lobby must be asked for — it answers both "not live" and "between rounds" */

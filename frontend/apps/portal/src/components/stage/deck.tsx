@@ -10,19 +10,14 @@
 // module.
 export {
     Badges,
-    Band,
     CardHeader,
     KeywordLengthBanner,
     MainCard,
     Progress,
-    QuestionBlock,
     QuestionFrame,
     StageLayout,
-    Status,
-    Strip,
     Timer,
     VeDichStripCells,
-    type StripItem,
 } from "@shared/deck/stage"
 
 export { Rail, type CardData } from "./rail"

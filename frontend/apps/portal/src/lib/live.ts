@@ -130,7 +130,7 @@ export interface LobbyData {
     connected: string[]
 }
 
-export const lobbyKey = (tournamentId: string, matchId: string) =>
+const lobbyKey = (tournamentId: string, matchId: string) =>
     ["lobby", tournamentId, matchId] as const
 
 /** The the console's lobby read: polled like /live (presence moves without a round change). */
@@ -156,7 +156,7 @@ export interface QuestionAnswerRow {
 
 // ── the reads / writes ───────────────────────────────────────────────────────
 
-export const liveKey = (tournamentId: string, matchId: string) =>
+const liveKey = (tournamentId: string, matchId: string) =>
     ["live", tournamentId, matchId] as const
 
 // The stream's frames — the subset this client reads. `console` carries the

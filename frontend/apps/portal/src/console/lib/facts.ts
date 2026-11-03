@@ -12,7 +12,7 @@ import type { ConsolePlans } from "../model/use-console-plans"
 import type { ConsoleTransport } from "../model/use-console-transport"
 import type { ConsoleWatch } from "../model/use-console-watch"
 
-export interface ConsoleFactsParts {
+interface ConsoleFactsParts {
     transport: ConsoleTransport
     /** the round screen's cards (console/lib/rail-cards) */
     baseCards: CardData[]

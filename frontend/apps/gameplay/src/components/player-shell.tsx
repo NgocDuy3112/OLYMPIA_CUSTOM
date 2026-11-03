@@ -63,4 +63,3 @@ export function PlayerShell({ matchId }: { matchId: string }) {
     return <StageShell>{body}</StageShell>
 }
 
-export default PlayerShell

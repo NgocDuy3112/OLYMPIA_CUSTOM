@@ -146,14 +146,6 @@ export function closeBuzzPhase(state: KhoiDongState): KhoiDongState {
     return { ...state, phase2: closePhase2(requirePhase2(state)) };
 }
 
-export function phase2PointsOf(state: KhoiDongState, playerId: string): number {
-    return state.phase2 === null ? 0 : phase2Points(state.phase2, playerId);
-}
-
-export function phase2IsComplete(state: KhoiDongState): boolean {
-    return state.phase2 === null ? false : phase2Complete(state.phase2);
-}
-
 export { isPhase2WindowOpen, mayBuzzPhase2 };
 
 export function endKhoiDong(state: KhoiDongState): KhoiDongState {

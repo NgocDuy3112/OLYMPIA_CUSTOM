@@ -103,4 +103,3 @@ export function CameraPanel() {
     );
 }
 
-export default CameraPanel;

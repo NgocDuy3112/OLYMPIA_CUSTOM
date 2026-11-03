@@ -33,7 +33,7 @@ export interface ConsolePlans {
     onStart: (roundId: string, phase?: 1 | 2) => void
 }
 
-export interface ConsolePlansInput {
+interface ConsolePlansInput {
     /** roundId, stage, open questions, byId, seats, questions, send/sendChain */
     transport: ConsoleTransport
     /** the anchor question's answers + the staged verdicts */

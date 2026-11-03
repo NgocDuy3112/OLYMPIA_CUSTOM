@@ -41,7 +41,7 @@ export interface ConsoleJudging extends JudgingIds {
     toggleSelect: (userId: string) => void
 }
 
-export interface JudgingScopeInput {
+interface JudgingScopeInput {
     tournamentId: string
     matchId: string
     roundId: string

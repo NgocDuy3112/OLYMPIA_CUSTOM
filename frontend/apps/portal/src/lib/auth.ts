@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { api, ApiError } from "@shared/lib/api"
 import { ME_QUERY_KEY } from "@/lib/session"
 
-export interface LoginStart {
+interface LoginStart {
     state: "mfa" | "enroll"
     pendingToken: string
     otpauthUri?: string
@@ -34,7 +34,7 @@ export function useVerifyMfa() {
     })
 }
 
-export type MfaFailure = "expired" | "reused" | "rate-limited" | "other"
+type MfaFailure = "expired" | "reused" | "rate-limited" | "other"
 
 
 export function classifyMfaFailure(error: unknown): MfaFailure {
@@ -53,14 +53,3 @@ export function loginErrorMessage(error: unknown): string {
     return "Something went wrong. Please try again."
 }
 
-export function useLogout() {
-    const queryClient = useQueryClient()
-
-    return useMutation({
-        mutationFn: () => api<{ ok: true }>("/portal/auth/logout", { method: "POST" }),
-
-        onSuccess: () => {
-            queryClient.removeQueries({ queryKey: ME_QUERY_KEY })
-        },
-    })
-}

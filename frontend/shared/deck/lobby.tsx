@@ -164,4 +164,3 @@ export function Lobby({
     )
 }
 
-export default Lobby

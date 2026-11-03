@@ -12,7 +12,7 @@
 // Colour alone is not the only cue: wrong cards fade, the winner's outline is
 // dashed, so the states survive a colour-blind viewer and a projector.
 
-export type RailCardState = "waiting" | "correct" | "wrong" | "buzzing"
+type RailCardState = "waiting" | "correct" | "wrong" | "buzzing"
 
 /** Ring/outline tokens that must compose: selection is drawn ON TOP of state. */
 const STATE: Record<RailCardState, string> = {

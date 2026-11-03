@@ -8,7 +8,7 @@ import type { VeDichCommand } from "../types"
 // ARE the picker. The board is the show's — 6×20, 6×30, 4×40, 4×50 — rows are
 // the bands and the higher bands are wider (span 3 of 12), so the grid stays
 // balanced without any category columns.
-export type VeDichPickPlayerCtx = PlayerCore & {
+type VeDichPickPlayerCtx = PlayerCore & {
     pickedCells: string[]
     setPickedCells: (update: (current: string[]) => string[]) => void
     cmdBusy: boolean

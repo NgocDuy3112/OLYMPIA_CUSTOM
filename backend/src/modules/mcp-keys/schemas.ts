@@ -10,8 +10,6 @@ export const McpScope = Type.Union([
     Type.Literal("WRITE"),
     Type.Literal("ANNOUNCE")
 ]);
-export type McpScopeValue = Static<typeof McpScope>;
-
 export const CreateMcpKeyInput = Type.Object({
     label: Type.String({ minLength: 1, maxLength: 100 }),
     scopes: Type.Optional(Type.Array(McpScope, { minItems: 1 })),

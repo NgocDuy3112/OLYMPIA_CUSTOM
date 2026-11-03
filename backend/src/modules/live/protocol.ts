@@ -139,24 +139,12 @@ export function errorMessage(
 }
 
 // Codes a client may see, so the frontend can switch on them without guessing.
-export const PROTOCOL_ERROR_CODES = [
-    "BAD_MESSAGE",     // not JSON, wrong version, or an unknown/malformed command
-    "UNKNOWN_MESSAGE", // a valid command the server does not act on (reserved; none today)
-    "UNAVAILABLE",     // the match is not live, or there is no round
-    "NOT_SEATED", "NOT_LIVE", "NOT_STARTED", "NO_ROUND", "BAD_VALUE",
-    "NO_WINDOW", "WINDOW_CLOSED", "LOCKED", "NOT_IN_MATCH", "NOT_OPEN",
-    "NO_QUESTION", "NO_CLOCK", "ENDED", "PHASE_CLOSED", "NOT_IN_PHASE",
-    "NO_KEYWORD", "NOT_KEYWORD", "ALREADY_SUBMITTED", "INTERNAL"
-] as const;
-
 // WebSocket close codes a client must handle. 4xxx is the application range; 1000/1006
 // are the browser's own normal/unclean codes.
 export const CLOSE_CODES = {
     SESSION_ENDED: 4401,   // the session was revoked or the account disabled mid-connection
     NOT_SEATED: 4403       // the caller is not a player in this match
 } as const;
-
-export type ServerCloseCode = (typeof CLOSE_CODES)[keyof typeof CLOSE_CODES];
 
 // Read a requestId off a message that failed validation, so the error can still be matched.
 export function requestIdOf(raw: unknown): string | undefined {

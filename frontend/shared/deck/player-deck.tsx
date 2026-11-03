@@ -17,14 +17,13 @@ export {
     MainCard,
     Progress,
     StageLayout,
-    Status,
     Timer,
     VerdictIcon,
 } from "./primitives"
 
-export { KeywordLengthBanner, QuestionBlock, QuestionFrame } from "./question"
+export { KeywordLengthBanner, QuestionFrame } from "./question"
 
-export { Band, Strip, VeDichStripCells, type StripItem } from "./strip"
+export { VeDichStripCells } from "./strip"
 
 export { Rail } from "./rail"
 

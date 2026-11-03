@@ -6,7 +6,7 @@
 import { useState } from "react"
 import type { LiveAction } from "@/lib/live-actions"
 
-export interface ConsoleAdjust {
+interface ConsoleAdjust {
     /** the player the dialog is open for (null: closed) */
     adjustFor: string | null
     openAdjust: (userId: string) => void

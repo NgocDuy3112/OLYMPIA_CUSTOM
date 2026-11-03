@@ -236,10 +236,3 @@ export async function deleteTournament(tournamentId: string): Promise<Tournament
 
 
 // The staff of a tournament: its owner, and the admins.
-export async function tournamentStaff(tournamentId: string): Promise<string[]> {
-    const [row] = await db.select({ ownerId: tournaments.ownerId })
-        .from(tournaments)
-        .where(and(eq(tournaments.id, tournamentId), isNull(tournaments.deletedAt)))
-        .limit(1);
-    return row ? [row.ownerId] : [];
-}

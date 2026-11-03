@@ -12,15 +12,13 @@
 export {
     Badges,
     CardHeader,
-    Gate,
     MainCard,
     Progress,
     StageLayout,
     Status,
     Timer,
-    VerdictIcon,
-} from "./primitives"
+    } from "./primitives"
 
 export { KeywordLengthBanner, QuestionBlock, QuestionFrame } from "./question"
 
-export { Band, Strip, VeDichStripCells, type StripItem } from "./strip"
+export { Strip, VeDichStripCells, type StripItem } from "./strip"

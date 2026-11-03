@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api } from "@shared/lib/api"
 import type { Tournament, TournamentRound } from "@/lib/tournaments"
 
-export interface TurnConfig {
+interface TurnConfig {
     id: string
     mode: "oral" | "text"
     delivery: "sequential" | "batch" | "pick"
@@ -14,7 +14,7 @@ export interface TurnConfig {
     questionCount?: number
 }
 
-export type ScoringRule =
+type ScoringRule =
     | { template: "constant"; points: number }
     | {
         template: "keyword_derived"
@@ -73,7 +73,7 @@ export interface MatchSummary {
 
 // A row of the tournament's standings. The place is how far the player got, not a sum of
 // points; the points are a statistic.
-export interface StandingRow {
+interface StandingRow {
     userId: string
     displayName: string
     place: number | null
@@ -247,7 +247,7 @@ export interface GroupRow {
     averages: { phase1: number | null; phase2: number | null; all: number | null }
 }
 
-export interface GroupTables {
+interface GroupTables {
     /** The two groups, in label order; rows are rank-ordered by the engine. */
     groups: Array<{ id: "A" | "B"; teamPoints: number; rows: GroupRow[] }>
     /** Enrolled contestants with no group yet — the operator still has to draw them. */
@@ -359,22 +359,6 @@ export function useCreateContestant(tournamentId: string) {
  * Enroll an account that already exists (the "this email is already somebody"
  * answer): the person keeps their own row, and every stat they ever earned.
  */
-export function useEnrollContestant(tournamentId: string) {
-    const queryClient = useQueryClient()
-
-    return useMutation({
-        mutationFn: (userIds: string[]) =>
-            api<{ enrolled: number }>(`/portal/tournaments/${tournamentId}/players`, {
-                method: "POST",
-                body: JSON.stringify({ userIds }),
-            }),
-        onSuccess: () => {
-            void queryClient.invalidateQueries({ queryKey: ["groups", tournamentId] })
-            void queryClient.invalidateQueries({ queryKey: ["enrolled", tournamentId] })
-        },
-    })
-}
-
 /** The DRAW: place a contestant in Nhóm A / Nhóm B, or clear it with null. */
 export function useAssignGroup(tournamentId: string) {
     const queryClient = useQueryClient()
@@ -395,22 +379,5 @@ export function useAssignGroup(tournamentId: string) {
 
 // ── The questions ────────────────────────────────────────────────────────────
 
-export interface BankQuestion {
-    id: string
-    kind: "CHOICE" | "TEXT" | "KEYWORD" | "HINT"
-    questionText: string
-    status: string
-}
 
 // The bank's published TEXT questions — what the turn's question may be.
-export function useQuestionSearch(search: string, enabled: boolean) {
-    return useQuery({
-        queryKey: ["bank-questions", search],
-        queryFn: () =>
-            api<{ items: BankQuestion[]; total: number }>(
-                `/portal/questions?status=PUBLISHED&kind=TEXT&limit=20&search=${encodeURIComponent(search)}`
-            ),
-        enabled,
-        staleTime: 30_000,
-    })
-}

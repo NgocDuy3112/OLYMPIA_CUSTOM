@@ -11,7 +11,7 @@ import type { RemoteVideoTrack } from "livekit-client"
 import type { LobbyData } from "@/lib/live"
 import { expandRoundEntries } from "../navigator-plan"
 
-export interface LobbyViewInput {
+interface LobbyViewInput {
     lobby: LobbyData
     /** which phase this surface is standing in (null before any round) */
     stagePhase: 1 | 2 | null

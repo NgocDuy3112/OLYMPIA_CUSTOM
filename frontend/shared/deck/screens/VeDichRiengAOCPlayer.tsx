@@ -10,7 +10,7 @@ import type { AnswerValue, VeDichCommand } from "../types"
 // Về đích — câu hỏi mở, phase 2 (S8): the personal round — everyone sees the
 // question; the answer is oral, the buzz window is the typed part, and powers
 // are declared here. Pure: every value comes from the orchestrator, narrowed.
-export type VeDichRiengPlayerCtx = PlayerCore & {
+type VeDichRiengPlayerCtx = PlayerCore & {
     remaining: number
     answerBusy: boolean
     submitAnswer: (questionId: string, value: AnswerValue) => void

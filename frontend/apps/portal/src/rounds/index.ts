@@ -3,7 +3,7 @@ import { giaiMaAOC } from "./giai-ma/logic"
 import { khoiDongAOC } from "./khoi-dong/logic"
 import { veDichAOC } from "./ve-dich/logic"
 import type { RoundAction, RoundModule, RoundPlanInput } from "./types"
-export type { HetLuotFacts, RoundAction, RoundModule, RoundPlanInput, ScreenCore } from "./types"
+export type { RoundModule } from "./types"
 
 // ── the controller's round registry ─────────────────────────────────────────
 // One entry per RULESET (see types.ts): the live view's roundId picks the
@@ -12,7 +12,7 @@ export type { HetLuotFacts, RoundAction, RoundModule, RoundPlanInput, ScreenCore
 //
 // Deleting a module's folder and entry removes its rules from the console.
 
-export const ROUNDS: Record<string, RoundModule> = {
+const ROUNDS: Record<string, RoundModule> = {
     "khoi-dong": khoiDongAOC,
     "giai-ma": giaiMaAOC,
     "but-pha": butPhaAOC,

@@ -12,12 +12,6 @@
 // Everything here is a total function of its input: no I/O, so the rules are unit
 // testable on their own.
 
-export interface RankedPlayer {
-    userId: string;
-    rank: number;      // 1 = the best
-    score: number;
-}
-
 // ── Splitting: the tier draw ─────────────────────────────────────────────────
 
 // The ranking cut into contiguous blocks: the tiers.
@@ -142,10 +136,6 @@ export function ladderNext(round: LadderRound, toFinale: string[] = []): LadderS
 }
 
 // The finale: the ladder winners, in the order they arrived.
-export function finaleOrder(toFinale: string[]): string[] {
-    return [...toFinale];
-}
-
 // The violations of the ladder rule: a match whose seats are not the ones the ladder
 // rule puts there.
 export function ladderViolations(

@@ -12,7 +12,7 @@ import type { PlayerCtx, PlayerView } from "@shared/deck/types"
 import type { AnswerValue, LivePlayerCommand } from "@/lib/live"
 import type { S2Question } from "./s2"
 
-export interface PlayerCtxParts {
+interface PlayerCtxParts {
     v: PlayerView
     stage: string
     /** ms left on the first open question */
@@ -34,7 +34,7 @@ export interface PlayerCtxParts {
 }
 
 /** A seat's display name, or the neutral fallback the deck shows before a read. */
-export function nameOfIn(view: PlayerView, id: string): string {
+function nameOfIn(view: PlayerView, id: string): string {
     return view.table.find((row) => row.id === id)?.displayName ?? "Thí sinh"
 }
 

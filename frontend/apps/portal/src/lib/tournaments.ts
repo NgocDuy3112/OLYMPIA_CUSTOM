@@ -54,7 +54,7 @@ export interface Tournament {
 
 export const SEASONS_PAGE_SIZE = 20
 
-export interface TournamentFilters {
+interface TournamentFilters {
     search?: string
     limit?: number
     offset?: number
@@ -79,7 +79,7 @@ export function useTournaments({
     })
 }
 
-export interface TournamentCreate {
+interface TournamentCreate {
     name: string
     visibility?: "PUBLIC" | "PRIVATE"
     current?: boolean

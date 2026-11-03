@@ -21,7 +21,7 @@ export interface ConsoleCommits {
     commitKeyword: () => void
 }
 
-export interface CommitInput {
+interface CommitInput {
     roundId: string
     /** the anchor question's answers */
     rows: QuestionAnswerRow[]

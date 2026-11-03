@@ -16,4 +16,3 @@ export const OralMode = Type.Literal("oral");
 export const TextMode = Type.Literal("text");
 export const UserKind = Type.Literal("user");
 
-export type Verdict = Static<typeof VerdictSchema>;

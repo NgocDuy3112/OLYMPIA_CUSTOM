@@ -5,7 +5,7 @@ import { type CSSProperties } from "react"
 // (@shared/deck/stage) and both surfaces' screens share. Layout is flex/grid —
 // these are the few numbers left: text sizing, radii, padding, round labels.
 
-export const CANVAS_W = 13.3333
+const CANVAS_W = 13.3333
 const PT_SCALE = 0.75
 /** Points → container-width units, so text scales with the projection. */
 export const pt = (v: number) => `${+(((v * PT_SCALE) / 72 / CANVAS_W) * 100).toFixed(3)}cqw`

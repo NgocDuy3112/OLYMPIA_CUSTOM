@@ -23,7 +23,7 @@ export interface TournamentFormat {
 }
 
 // The list route: enough to pick a tournament.
-export interface TournamentSummary {
+interface TournamentSummary {
     id: string
     slug: string
     name: string
@@ -81,7 +81,7 @@ export interface StandingRow {
     slot: number | null
 }
 
-export interface Page<T> {
+interface Page<T> {
     items: T[]
     total: number
     limit: number
@@ -89,7 +89,7 @@ export interface Page<T> {
 }
 
 
-export const SCHEDULE_LIMIT = "100"
+const SCHEDULE_LIMIT = "100"
 
 export function useTournamentList() {
     return useQuery({

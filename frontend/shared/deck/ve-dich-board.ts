@@ -35,7 +35,7 @@ const bandOf = (value: number): BandSpec => VE_BOARD.find((band) => band.value =
     span: 2                                   // an unforeseen value still draws
 }
 
-export interface BoardRow<T> {
+interface BoardRow<T> {
     value: number
     /** Columns each cell of this row spans. */
     span: number

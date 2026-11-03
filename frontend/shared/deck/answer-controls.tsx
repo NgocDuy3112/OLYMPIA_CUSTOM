@@ -171,7 +171,7 @@ const STAR_BTN = "border border-amber-300 bg-amber-50 text-amber-700 hover:bg-am
 const ASSIGN_BTN = "border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
 
 /** The powers a round can offer — the round itself decides which are in play. */
-export type PowerName = "STAR" | "ASSIGN"
+type PowerName = "STAR" | "ASSIGN"
 
 /**
  * The declarations — public and one-shot, so they sit FIRST in the band, before

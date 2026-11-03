@@ -6,7 +6,7 @@ import { stripCellsOf } from "../ve-dich-board"
 // Về đích — câu hỏi mở, phase 1 (S7): the shared round — the typed form for the
 // answerer, the public power declaration for everyone. Pure: every value comes
 // from the orchestrator, narrowed here.
-export type VeDichChungPlayerCtx = PlayerCore & {
+type VeDichChungPlayerCtx = PlayerCore & {
     remaining: number
     answerBusy: boolean
     submitAnswer: (questionId: string, value: AnswerValue) => void

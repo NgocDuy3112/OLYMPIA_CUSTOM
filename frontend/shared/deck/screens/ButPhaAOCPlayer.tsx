@@ -5,7 +5,7 @@ import type { AnswerValue } from "../types"
 
 // Bứt phá (S4): sequential typed questions, one open at a time. Pure: every
 // value comes from the orchestrator, narrowed to what this screen reads.
-export type ButPhaPlayerCtx = PlayerCore & {
+type ButPhaPlayerCtx = PlayerCore & {
     remaining: number
     answerBusy: boolean
     submitAnswer: (questionId: string, value: AnswerValue) => void

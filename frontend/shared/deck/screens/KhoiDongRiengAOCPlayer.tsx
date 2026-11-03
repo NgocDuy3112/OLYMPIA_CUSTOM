@@ -4,7 +4,7 @@ import { STRIP_R, pt } from "../geometry"
 // Khởi động — lượt cá nhân (S1): the oral run projected to everyone. Nobody
 // types — the band carries the run status + budget bar. Pure: every value comes
 // from the orchestrator, narrowed to what this screen reads.
-export type KhoiDongRiengPlayerCtx = PlayerCore
+type KhoiDongRiengPlayerCtx = PlayerCore
 
 /** The run's status pill: mine (primary), someone else's (muted), nobody's yet. */
 function runLabel(mine: boolean, playerName: string | null): string {

@@ -11,7 +11,7 @@ import type { PlayerView } from "../types"
 //   attempt 2, correct → +5         | wrong → the question dies
 //
 // Pure: every value comes from the orchestrator, narrowed to what this screen reads.
-export type KhoiDongChungPlayerCtx = PlayerCore & {
+type KhoiDongChungPlayerCtx = PlayerCore & {
     remaining: number
     /** the question in play (one at a time now, not a batch) */
     s2Q: PlayerView["open"][number] | undefined

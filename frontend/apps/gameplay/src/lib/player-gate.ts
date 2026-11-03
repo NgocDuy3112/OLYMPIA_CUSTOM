@@ -15,7 +15,7 @@ export type PlayerGate =
     /** no view yet and no answer — the first read has not landed */
     | "loading"
 
-export interface GateInput {
+interface GateInput {
     /** the live read's HTTP status, when it answered with one */
     failureStatus: number | undefined
     /** has a view painted? */

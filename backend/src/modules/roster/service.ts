@@ -310,19 +310,3 @@ export async function assignGroup(
 }
 
 // The players of a match, in seat order.
-export async function requireEnrolled(
-    tournamentId: string,
-    userIds: string[]
-): Promise<string[]> {
-    const roster = await listEnrolled(tournamentId);
-    const known = new Set(roster.map((row) => row.userId));
-    const missing = userIds.filter((id) => !known.has(id));
-    if (missing.length > 0) {
-        throw new TournamentError(
-            "NOT_ENROLLED",
-            "these players are not enrolled in this tournament",
-            missing
-        );
-    }
-    return userIds;
-}

@@ -29,7 +29,7 @@ import { lobbyViewOf } from "./lib/lobby-view"
 import { consoleFactsOf } from "./lib/facts"
 import { readinessOf } from "./lib/phase"
 
-export type ConsoleModel = {
+type ConsoleModel = {
     /** The score-adjust dialog: which player, and the callbacks the host wires. */
     adjustFor: string | null
     openAdjust: (userId: string) => void

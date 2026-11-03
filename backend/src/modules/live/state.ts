@@ -27,8 +27,6 @@ export const GiaiMaStateSchema = Type.Object({
     openHintAt: Type.Union([Type.String(), Type.Null()])
 });
 
-export type GiaiMaStateJson = Static<typeof GiaiMaStateSchema>;
-
 export class LiveStateError extends Error {
     constructor(message: string, public readonly details: string[] = []) {
         super(message);

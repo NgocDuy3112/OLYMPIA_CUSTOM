@@ -161,11 +161,6 @@ export interface LobbyData {
 export type PlayerCore = Pick<PlayerCtx, "v" | "stage" | "open" | "myId" | "flash" | "nameOf">
 
 /** The projection a round's logic module hands its screens (see PlayerCore). */
-export function playerCore(ctx: PlayerCtx): PlayerCore {
-    const { v, stage, open, myId, flash, nameOf } = ctx
-    return { v, stage, open, myId, flash, nameOf }
-}
-
 /**
  * Everything the player deck KNOWS — gathered ONCE by the orchestrator
  * (gameplay/lib/live + components/player-shell). Screens never see it whole:
