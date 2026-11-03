@@ -17,13 +17,13 @@ import { assertVerdictCoverage, type AnswerDraft, type Transition } from "./appl
 
 // Context the action needs but the engine state cannot supply.
 export interface GiaiMaContext {
-    actorId: string;                          // the MC, recorded on events
+    actorId: string;                          // the console, recorded on events
     roundId: string;                          // e.g. "giai-ma"
     // The rulebook's rules for this round, resolved from the match's config.
     rules: GiaiMaRules;
     hintTurnId: string;                       // the opened hint's turnId (resolved server-side)
     // The open hint's draft rows, read inside the transaction — resolveHint's
-    // coverage check: every submitted answer must appear in the MC's verdicts.
+    // coverage check: every submitted answer must appear in the console's verdicts.
     answerDrafts: AnswerDraft[];
     now: string;                              // ISO time, for opening a window
 }
@@ -57,7 +57,7 @@ export function applyGiaiMaAction(
             return { state: closeHintWindow(state), facts: [] };
 
         case "giai-ma.resolveHint": {
-            // Coverage: every submitted answer must carry an explicit MC verdict —
+            // Coverage: every submitted answer must carry an explicit console verdict —
             // no row may be silently skipped ("no auto verdict" is enforced here).
             // Both directions of the commit contract: a verdict for a non-submitter
             // → NO_ANSWER; a waiting draft without a verdict → UNJUDGED_ANSWERS.
@@ -82,7 +82,7 @@ export function applyGiaiMaAction(
 
         case "giai-ma.submitKeyword": {
             // The player's submission: lock participation + store the typed text as a
-            // draft. NO verdict, NO points — the MC judges via judgeKeyword.
+            // draft. NO verdict, NO points — the console judges via judgeKeyword.
             const next = lockKeyword(state, action.playerId);
             const facts: LiveFact[] = [{
                 type: "draft",
@@ -95,7 +95,7 @@ export function applyGiaiMaAction(
         }
 
         case "giai-ma.judgeKeyword": {
-            // The MC's verdict on an existing draft. JudgeFact UPDATES the row the
+            // The the console's verdict on an existing draft. JudgeFact UPDATES the row the
             // submission created — it can never invent a submission (NO_ANSWER if
             // no draft row exists).
             const next = judgeKeyword(state, action.playerId, action.correct);

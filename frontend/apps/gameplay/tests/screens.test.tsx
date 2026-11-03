@@ -2,27 +2,27 @@
 import { render } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import type { PlayerCtx, PlayerView } from "@shared/deck/types"
-import { GiaiMaAOCPlayer } from "@/rounds/giai-ma/GiaiMaAOCPlayer"
-import { ButPhaAOCPlayer } from "@/rounds/but-pha/ButPhaAOCPlayer"
-import { KhoiDongChungAOCPlayer } from "@/rounds/khoi-dong/KhoiDongChungAOCPlayer"
-import { KhoiDongRiengAOCPlayer } from "@/rounds/khoi-dong/KhoiDongRiengAOCPlayer"
-import { VeDichChungAOCPlayer } from "@/rounds/ve-dich/VeDichChungAOCPlayer"
-import { VeDichPickAOCPlayer } from "@/rounds/ve-dich/VeDichPickAOCPlayer"
-import { VeDichRiengAOCPlayer } from "@/rounds/ve-dich/VeDichRiengAOCPlayer"
+import { GiaiMaAOCPlayer } from "@shared/deck/screens/GiaiMaAOCPlayer"
+import { ButPhaAOCPlayer } from "@shared/deck/screens/ButPhaAOCPlayer"
+import { KhoiDongChungAOCPlayer } from "@shared/deck/screens/KhoiDongChungAOCPlayer"
+import { KhoiDongRiengAOCPlayer } from "@shared/deck/screens/KhoiDongRiengAOCPlayer"
+import { VeDichChungAOCPlayer } from "@shared/deck/screens/VeDichChungAOCPlayer"
+import { VeDichPickAOCPlayer } from "@shared/deck/screens/VeDichPickAOCPlayer"
+import { VeDichRiengAOCPlayer } from "@shared/deck/screens/VeDichRiengAOCPlayer"
 
 // A smoke test per player screen: the deck is PURE (ctx in, JSX out), so each
 // screen must render from a plain fixture with no provider, no socket and no
 // camera. This is what catches the refactor class of bug — a screen that starts
 // depending on something the orchestrator no longer hands it.
 
-const question = (id: string, kind: "MC" | "TEXT" | "KEYWORD" = "TEXT") => ({
+const question = (id: string, kind: "CHOICE" | "TEXT" | "KEYWORD" = "TEXT") => ({
     questionId: id,
     kind,
     position: 1,
     questionText: `Câu hỏi ${id}`,
     media: null,
     timeLimit: 30,
-    payload: kind === "MC" ? { options: [{ id: "a", text: "A" }, { id: "b", text: "B" }] } : {},
+    payload: kind === "CHOICE" ? { options: [{ id: "a", text: "A" }, { id: "b", text: "B" }] } : {},
 })
 
 const board = [
@@ -81,7 +81,7 @@ const openQ = {
     deadlineAt: null,
     question: {
         questionId: "q1",
-        kind: "MC" as const,
+        kind: "CHOICE" as const,
         position: 1,
         questionText: "Câu hỏi mở",
         media: null,

@@ -1,4 +1,4 @@
-import { GiaiMaAOCPlayer } from "./GiaiMaAOCPlayer"
+import { GiaiMaAOCPlayer } from "@shared/deck/screens/GiaiMaAOCPlayer"
 import type { RoundModule } from "../types"
 
 // Giải mã — the AOC ruleset: hint windows + one typed keyword; the band is

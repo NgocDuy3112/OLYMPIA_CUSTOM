@@ -1,7 +1,7 @@
 import type { QuestionPayload } from "../../game/contracts/index.js";
 import { QuestionError } from "./errors.js";
 
-export type QuestionKindValue = "MC" | "TEXT" | "KEYWORD" | "HINT";
+export type QuestionKindValue = "CHOICE" | "TEXT" | "KEYWORD" | "HINT";
 
 function fail(message: string, details: string[] = []): never {
     throw new QuestionError("VALIDATION", message, details);
@@ -10,19 +10,19 @@ function fail(message: string, details: string[] = []): never {
 export function assertPayloadForKind(kind: QuestionKindValue, payload: QuestionPayload): void {
     const p = payload as Record<string, unknown>;
 
-    if (kind === "MC") {
+    if (kind === "CHOICE") {
         if (!Array.isArray(p.options) || !Array.isArray(p.correctSet)) {
-            fail("MC questions require payload.options and payload.correctSet");
+            fail("console questions require payload.options and payload.correctSet");
         }
 
         const options = p.options as Array<{ id: string }>;
         const correctSet = p.correctSet as string[];
 
-        if (options.length === 0) fail("MC questions require at least one option");
-        if (correctSet.length === 0) fail("MC questions require a non-empty correctSet");
+        if (options.length === 0) fail("console questions require at least one option");
+        if (correctSet.length === 0) fail("console questions require a non-empty correctSet");
 
         const ids = options.map((option) => option.id);
-        if (new Set(ids).size !== ids.length) fail("MC option ids must be unique");
+        if (new Set(ids).size !== ids.length) fail("console option ids must be unique");
 
         const unknown = correctSet.filter((id) => !ids.includes(id));
         if (unknown.length > 0) {

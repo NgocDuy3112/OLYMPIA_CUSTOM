@@ -16,7 +16,7 @@ export interface AnswerFact {
     autoMatched: boolean;
 }
 
-// A player's submission stored as a DRAFT — no verdict yet, awaiting the MC.
+// A player's submission stored as a DRAFT — no verdict yet, awaiting the console.
 // Written in the SAME transaction as the round state it accompanies (a keyword
 // locks the player), so a submission and its lock can never disagree.
 export interface DraftFact {

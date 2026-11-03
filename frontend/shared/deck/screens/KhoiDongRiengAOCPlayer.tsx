@@ -1,5 +1,5 @@
-import { PlayerStage, Progress, QuestionFrame, Rail, Timer, type PlayerCore } from "@shared/deck/player-deck"
-import { STRIP_R, pt } from "@shared/deck/geometry"
+import { PlayerStage, Progress, QuestionFrame, Rail, Timer, type PlayerCore } from "../player-deck"
+import { STRIP_R, pt } from "../geometry"
 
 // Khởi động — lượt cá nhân (S1): the oral run projected to everyone. Nobody
 // types — the band carries the run status + budget bar. Pure: every value comes
@@ -10,7 +10,7 @@ export type KhoiDongRiengPlayerCtx = PlayerCore
 function runLabel(mine: boolean, playerName: string | null): string {
     if (mine) return "ĐẾN LƯỢT BẠN — trả lời miệng"
     if (playerName) return `Đang thi: ${playerName}`
-    return "MC đang gọi thí sinh…"
+    return "Điều hành đang gọi thí sinh…"
 }
 
 export function KhoiDongRiengAOCPlayer({ ctx }: { ctx: KhoiDongRiengPlayerCtx }) {

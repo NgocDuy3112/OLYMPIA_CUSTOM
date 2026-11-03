@@ -1,7 +1,7 @@
 import { formatRemaining } from "@shared/lib/clock"
-import { AnswerBand, PlayerStage, QuestionFrame, Rail, Timer, VeDichStripCells, type PlayerCore } from "@shared/deck/player-deck"
-import type { AnswerValue } from "@shared/deck/types"
-import { stripCellsOf } from "@shared/deck/ve-dich-board"
+import { AnswerBand, PlayerStage, QuestionFrame, Rail, Timer, VeDichStripCells, type PlayerCore } from "../player-deck"
+import type { AnswerValue } from "../types"
+import { stripCellsOf } from "../ve-dich-board"
 
 // Về đích — câu hỏi mở, phase 1 (S7): the shared round — the typed form for the
 // answerer, the public power declaration for everyone. Pure: every value comes

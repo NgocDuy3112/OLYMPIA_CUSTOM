@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest"
-import { hintPool, mergedVerdicts, startActionPayload, type ConsoleQuestion, type GiaiMaMc, type QuestionAnswerRow } from "@/lib/live"
+import { hintPool, mergedVerdicts, type ConsoleQuestion, type GiaiMaConsole, type QuestionAnswerRow } from "@/lib/live"
 
-// The console's pure decisions: which hints remain, what start must carry,
-// and which verdicts a finalize sends (engine draft, MC overwrite wins).
+// The console's pure decisions: which hints remain and which verdicts a
+// finalize sends (engine draft, MC overwrite wins). The start action's own
+// table lives in tests/lib/live-actions.test.ts.
 
 const question = (over: Partial<ConsoleQuestion>): ConsoleQuestion => ({
     _id: "q",
-    kind: "MC",
+    kind: "CHOICE",
     roundId: "giai-ma",
     turnId: "hints",
     position: 0,
@@ -17,7 +18,7 @@ const question = (over: Partial<ConsoleQuestion>): ConsoleQuestion => ({
     ...over,
 })
 
-const giaiMaMc = (over: Partial<GiaiMaMc> = {}): GiaiMaMc => ({
+const giaiMaMc = (over: Partial<GiaiMaConsole> = {}): GiaiMaConsole => ({
     hintsRemaining: [],
     hintsPicked: [],
     openHintId: null,
@@ -69,28 +70,6 @@ describe("hintPool", () => {
 })
 
 
-describe("startActionPayload", () => {
-    it("giai-ma carries the field and the hint order (keyword excluded, position-sorted)", () => {
-        const questions = [
-            question({ _id: "b", position: 2 }),
-            question({ _id: "a", position: 1 }),
-            question({ _id: "kw", kind: "KEYWORD", turnId: "keyword", position: 0 }),
-            question({ _id: "other", roundId: "but-pha", position: 0 }),
-        ]
-        expect(startActionPayload("giai-ma", ["p1", "p2"], questions)).toEqual({
-            playerIds: ["p1", "p2"],
-            hintIds: ["a", "b"],
-        })
-    })
-
-    it("every other round starts bare", () => {
-        expect(startActionPayload("khoi-dong", ["p1"], [question({})])).toEqual({})
-        expect(startActionPayload("but-pha", ["p1"], [question({})])).toEqual({})
-        expect(startActionPayload("ve-dich", ["p1"], [question({})])).toEqual({})
-    })
-})
-
-
 describe("mergedVerdicts", () => {
     it("sends ONLY the explicitly staged rows — nothing defaults", () => {
         const rows = [
@@ -101,7 +80,7 @@ describe("mergedVerdicts", () => {
         // only p2 was staged → the others are ABSENT: the backend refuses this
         // incomplete set (UNJUDGED_ANSWERS) instead of silently judging it
         expect(mergedVerdicts("q9", rows, { "q9:p2": true })).toEqual([
-            { playerId: "p2", correct: true }    // exactly what the MC clicked
+            { playerId: "p2", correct: true }    // exactly what the console clicked
         ])
         expect(mergedVerdicts("q9", rows, {})).toEqual([])
     })

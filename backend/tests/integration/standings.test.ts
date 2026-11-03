@@ -22,7 +22,7 @@ const tournamentUrl = (suffix: string) =>
 
 const roundRules: Record<string, RoundConfig> = {
     "ve-dich": {
-        allowedKinds: ["MC"],
+        allowedKinds: ["CHOICE"],
         scoring: { template: "constant", points: 10 },
         turns: [{ id: "phase1", mode: "text", delivery: "batch", questionCount: 4 }]
     }
@@ -99,7 +99,7 @@ beforeAll(async () => {
 
     await db.insert(questionBank).values(
         Array.from({ length: 8 }, (_, i) => ({
-            kind: "MC" as const,
+            kind: "CHOICE" as const,
             questionText: `Q${i}`,
             
             payload: { options: [{ id: "a", text: "A" }, { id: "b", text: "B" }], correctSet: ["a"] },

@@ -1,0 +1,100 @@
+# Production-shaped stack: the same postgres + backend, plus the three static
+# hosts behind one reverse proxy. Local dev does NOT use this file — it runs the
+# Vite servers with prefix proxies (see README). This exists so the shape of a
+# deploy is reviewable and reproducible:
+#
+#   podman compose -f docker-compose.prod.yaml up -d --build
+#
+# Required in the environment (or configs/.env):
+#   POSTGRES_*            as in docker-compose.yaml
+#   ACME_EMAIL            the Let's Encrypt account
+#   BACKEND_UPSTREAM      default backend:3000 (inside the compose network)
+#   CORS_ORIGINS          optional: only for NON same-origin clients (see app.ts)
+services:
+  postgres:
+    container_name: oc-postgresql-18
+    image: docker.io/library/postgres:18-trixie
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ./data/oc-postgresql:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    container_name: oc-backend
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file:
+      - ./configs/.env
+    environment:
+      # Inside the compose network Postgres is `postgres`, never localhost.
+      POSTGRES_HOST: postgres
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ── the three hosts' bundles ───────────────────────────────────────────────
+  # Each stage runs `vite build` and ships the static output; the proxy serves it
+  # and forwards that host's API prefixes to `backend`.
+  portal:
+    container_name: oc-portal
+    build:
+      context: ./frontend
+      dockerfile: deploy/portal.Dockerfile
+    restart: unless-stopped
+    expose: ["80"]
+
+  gameplay:
+    container_name: oc-gameplay
+    build:
+      context: ./frontend
+      dockerfile: deploy/gameplay.Dockerfile
+    restart: unless-stopped
+    expose: ["80"]
+
+  # The audience host. Until apps/audience exists this stage serves the portal
+  # bundle's PUBLIC routes only (the spectate page); swap the Dockerfile target
+  # when the dedicated app lands.
+  audience:
+    container_name: oc-audience
+    build:
+      context: ./frontend
+      dockerfile: deploy/audience.Dockerfile
+    restart: unless-stopped
+    expose: ["80"]
+
+  proxy:
+    container_name: oc-proxy
+    image: docker.io/library/caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - portal
+      - gameplay
+      - audience
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:-ops@olympia-custom.io.vn}
+      BACKEND_UPSTREAM: ${BACKEND_UPSTREAM:-backend:3000}
+      PORTAL_APP: ${PORTAL_APP:-portal:80}
+      GAMEPLAY_APP: ${GAMEPLAY_APP:-gameplay:80}
+      AUDIENCE_APP: ${AUDIENCE_APP:-audience:80}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - oc-caddy-data:/data
+      - oc-caddy-config:/config
+
+volumes:
+  oc-caddy-data:
+  oc-caddy-config:

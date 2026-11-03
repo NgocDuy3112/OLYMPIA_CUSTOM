@@ -28,9 +28,9 @@ import { recordBuzz } from "../../game/engine/turns/khoi-dong-round.js";
 
 export type Suggestion = "CORRECT" | "INCORRECT";
 
-// What every submission ack returns: "received, awaiting the MC's verdict".
+// What every submission ack returns: "received, awaiting the console's verdict".
 // Nothing about correctness crosses the wire — the auto-matcher's opinion stays
-// server-side in the draft (drafts.auto) for the MC to review; the player waits
+// server-side in the draft (drafts.auto) for the console to review; the player waits
 // for the verdict the console pushes after judging.
 export type AnswerResult = { drafted: true };
 
@@ -111,7 +111,7 @@ export async function submitAnswer(ctx: SubmitContext): Promise<AnswerResult> {
         if (!question) throw new SubmitError(400, "NOT_IN_MATCH", "question is not part of this match");
 
         // A hint answer is a DRAFT: the auto-matcher's opinion is stored for the
-        // MC, the reveal resolves it (giai-ma.resolveHint judges every row).
+        // console, the reveal resolves it (giai-ma.resolveHint judges every row).
         // Revision while the window is open: last answer wins (writeDraft default).
         const suggestion: Suggestion = autoMatch(question.kind as QuestionKind, question.payload, value)
             ? "CORRECT" : "INCORRECT";
@@ -215,7 +215,7 @@ export async function submitAnswer(ctx: SubmitContext): Promise<AnswerResult> {
 
 // The giai-ma keyword. Unlike a hint answer this changes round state: the player is
 // locked out of hints. The typed text is stored as a DRAFT — no verdict, no points
-// until the MC judges (giai-ma.judgeKeyword).
+// until the console judges (giai-ma.judgeKeyword).
 export async function submitKeyword(ctx: SubmitContext): Promise<AnswerResult> {
     const value = parseValue(ctx.value);
     if (!("text" in value)) throw new SubmitError(400, "BAD_VALUE", "a keyword answer must be text");

@@ -28,13 +28,13 @@ describe("vé-đích cells", () => {
         }
     })
 
-    it("a free cell is plain on the MC's grid — only the player's picker is clickable", () => {
+    it("a free cell is plain on the console's grid — only the player's picker is clickable", () => {
         expect(mcCellClass("free", false)).not.toContain("cursor")
         expect(playerCellClass({ where: "free", chosen: false, actionable: true })).toContain("cursor-pointer")
         expect(playerCellClass({ where: "free", chosen: false, actionable: false })).toContain("cursor-default")
     })
 
-    it("the MC fades a free cell the turn may not pick", () => {
+    it("the console fades a free cell the turn may not pick", () => {
         expect(mcCellClass("free", true)).toContain("opacity-50")
         expect(mcCellClass("free", false)).not.toContain("opacity-50")
         // A non-free state never gets the "pickable now" treatment.

@@ -236,7 +236,17 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
 
     it("STAR (wrong) costs -100% of face value", async () => {
         expect((await act({ kind: "ve-dich.openQuestion", questionId: qid.get("TNSS-40") })).statusCode).toBe(200);
-        expect((await command(playerCookies[1], { type: "power", power: "STAR" })).statusCode).toBe(200);
+        // The CONSOLE declares for the turn player — the show deck is the
+        // operator's door. Regression: this kind was missing from
+        // LiveActionSchema, so every console declare used to 400 at the route
+        // before reaching the engine. (The player's own `power` command stays
+        // covered by the ASSIGN test below.)
+        const declared = await act({
+            kind: "ve-dich.declarePower",
+            playerId: playerIds[1],          // the turn player — the engine still checks NOT_YOUR_TURN
+            power: "STAR"
+        });
+        expect(declared.statusCode).toBe(200);
         expect((await act({ kind: "ve-dich.closeCurrentAnswer" })).statusCode).toBe(200);
 
         const resolved = await act({ kind: "ve-dich.resolve", answerer: false });

@@ -1,4 +1,4 @@
-// The player's typed controls: the answer box (MC options or a text field), the
+// The player's typed controls: the answer box (choice options or a text field), the
 // keyword box, and the vé-đích power declarations. All three share one idea —
 // a local draft scoped to the subject it was typed for, so a new question reads
 // as empty without an effect clearing it.
@@ -27,7 +27,7 @@ const submitClass = (ready: boolean): string =>
     `${SUBMIT} ${ready ? "cursor-pointer" : "cursor-default opacity-50"}`
 
 /**
- * The answer control: MC options land as a strip-width row, text answers take
+ * The answer control: choice options land as a strip-width row, text answers take
  * the full band — the player's typed side of the ActionBar.
  */
 export function AnswerBand({ question, answerState, verdict, disabled, busy, error, onSubmit }: {
@@ -57,7 +57,7 @@ export function AnswerBand({ question, answerState, verdict, disabled, busy, err
     }
 
     const options = question.payload.options ?? []
-    const isMc = question.kind === "MC" && options.length > 0
+    const isMc = question.kind === "CHOICE" && options.length > 0
 
     if (isMc) {
         return (
@@ -127,7 +127,7 @@ export function KeywordBox({ busy, onSubmit }: { busy: boolean; onSubmit: (text:
     // `locked` flips true on submit: the box confirms locally until the pushed
     // view carries keywordLocked (the server is the truth either way).
     if (draft.locked) {
-        return <span className="inline-flex items-center gap-[0.5cqw] font-sans font-semibold text-emerald-600" style={{ fontSize: pt(12) }}>Đã nộp từ khóa — chờ MC chốt</span>
+        return <span className="inline-flex items-center gap-[0.5cqw] font-sans font-semibold text-emerald-600" style={{ fontSize: pt(12) }}>Đã nộp từ khóa — chờ điều hành chốt</span>
     }
     const commit = () => {
         if (!draft.text.trim() || busy) return

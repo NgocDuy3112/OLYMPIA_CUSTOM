@@ -1,11 +1,11 @@
 import { Hand } from "lucide-react"
 import { formatRemaining } from "@shared/lib/clock"
-import { AnswerBand, PlayerStage, PowerButtons, QuestionFrame, Rail, Timer, VeDichStripCells, type PlayerCore } from "@shared/deck/player-deck"
-import { STRIP_R, pt } from "@shared/deck/geometry"
-import { stripCellsOf } from "@shared/deck/ve-dich-board"
+import { AnswerBand, PlayerStage, PowerButtons, QuestionFrame, Rail, Timer, VeDichStripCells, type PlayerCore } from "../player-deck"
+import { STRIP_R, pt } from "../geometry"
+import { stripCellsOf } from "../ve-dich-board"
 import { formatBuzzMs } from "@shared/lib/clock"
-import { COPY } from "@shared/deck/copy"
-import type { AnswerValue, VeDichCommand } from "@shared/deck/types"
+import { COPY } from "../copy"
+import type { AnswerValue, VeDichCommand } from "../types"
 
 // Về đích — câu hỏi mở, phase 2 (S8): the personal round — everyone sees the
 // question; the answer is oral, the buzz window is the typed part, and powers
@@ -21,7 +21,7 @@ export type VeDichRiengPlayerCtx = PlayerCore & {
 /** What the band says when this player has nothing to press. */
 function spectatorLine(ctx: VeDichRiengPlayerCtx): string {
     const me = ctx.v.me
-    if (me.isAnswerer) return "Bạn trả lời miệng trước MC"
+    if (me.isAnswerer) return "Bạn trả lời miệng trước ban điều hành"
     if (me.buzzer === ctx.myId && me.buzzerMs !== null && me.buzzerMs !== undefined) {
         return `Bạn bấm chuông nhanh nhất (${formatBuzzMs(me.buzzerMs)}) — trả lời đi!`
     }

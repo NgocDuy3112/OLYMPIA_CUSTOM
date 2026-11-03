@@ -135,7 +135,7 @@ describe("khoi-dong phase 2 — the buzz race", () => {
         const s = judgePhase2(buzzPhase2(open(), "a", at(1)), false);
         expect(s.current?.attempt).toBe(2);
         expect(s.current?.excluded).toEqual(["a"]);
-        expect(s.current?.openedAt).toBeNull();          // the MC opens window 2
+        expect(s.current?.openedAt).toBeNull();          // the console opens window 2
         expect(mayBuzzPhase2(s, "a")).toBe(false);
         expect(mayBuzzPhase2(s, "b")).toBe(false);       // no window yet
     });
@@ -161,7 +161,7 @@ describe("khoi-dong phase 2 — the buzz race", () => {
         expect(s.index).toBe(1);
     });
 
-    it("nobody buzzing: the MC moves on, nothing is scored", () => {
+    it("nobody buzzing: the console moves on, nothing is scored", () => {
         const s = nextPhase2Question(open());
         expect(phase2Points(s, "a")).toBe(0);
         expect(s.index).toBe(1);

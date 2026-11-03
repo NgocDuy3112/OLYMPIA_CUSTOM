@@ -42,9 +42,9 @@ describe("mintRtcToken", () => {
     });
 
     it("operator: subscribes but cannot publish, and stays out of the list", async () => {
-        const { claims } = await minted({ room: "match-42", role: "operator", userId: "mc-1" });
+        const { claims } = await minted({ room: "match-42", role: "operator", userId: "console-1" });
 
-        expect(claims.sub).toBe("mc-1");
+        expect(claims.sub).toBe("console-1");
         expect(claims.video).toMatchObject({
             roomJoin: true,
             canPublish: false,

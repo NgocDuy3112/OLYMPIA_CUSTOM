@@ -36,7 +36,7 @@ function liveView(over: Partial<LiveResponse> = {}): LiveResponse {
         } as LiveResponse["projection"],
         roundEnded: false,
         connected: [],
-        mc: {
+        console: {
             stage: "phase2",
             ended: false,
             phase2Begun: true,
@@ -128,7 +128,7 @@ describe("useConsoleModel — the deck and the waiting room", () => {
 
         // The controller reads these through the round module; the model's job is
         // to hand the console's own read over untouched.
-        const mc = deckOf(result.current).v.mc as Record<string, unknown> | null
+        const mc = deckOf(result.current).v.console as Record<string, unknown> | null
         expect(mc).toMatchObject({
             questionIndex: 2,
             questionCount: 12,

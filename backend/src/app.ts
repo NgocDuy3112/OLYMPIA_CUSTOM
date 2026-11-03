@@ -29,11 +29,30 @@ import { mcpKeyRoutes } from "./modules/mcp-keys/routes.js";
 import { mcpRoutes } from "./modules/mcp/index.js";
 import { rtcRoutes } from "./modules/rtc/routes.js";
 
-const ALLOWED_ORIGINS = [
+/**
+ * Who may call this API cross-origin. In production each app is PATH-proxied on
+ * its own host (portal.aoc… /portal/*, gameplay.aoc… /gameplay/*, aoc… /public/*),
+ * so every browser request is same-origin and CORS never runs. This list exists
+ * for the cases that are NOT same-origin: the Vite dev servers, a preview build,
+ * and any split-origin experiment. Override per environment with CORS_ORIGINS
+ * (comma-separated, exact origins — no wildcards: credentials are allowed).
+ */
+const DEFAULT_ALLOWED_ORIGINS = [
+    "http://localhost:5173",                 // portal (dev)
+    "http://localhost:5175",                 // gameplay (dev)
+    "https://aoc.olympia-custom.io.vn",
+    "https://portal.aoc.olympia-custom.io.vn",
+    "https://gameplay.aoc.olympia-custom.io.vn",
     "https://olympia-custom.io.vn",
-    "https://gameplay.olympia-custom.io.vn",
     "https://portal.olympia-custom.io.vn",
+    "https://gameplay.olympia-custom.io.vn",
 ];
+
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0) || [];
+const CORS_ORIGINS = ALLOWED_ORIGINS.length > 0 ? ALLOWED_ORIGINS : DEFAULT_ALLOWED_ORIGINS;
 
 export async function buildApp() {
     const app = Fastify({
@@ -47,7 +66,7 @@ export async function buildApp() {
     });
 
     await app.register(cors, {
-        origin: ALLOWED_ORIGINS,
+        origin: CORS_ORIGINS,
         credentials: true,
     });
 

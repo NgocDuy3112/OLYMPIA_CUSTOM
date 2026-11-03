@@ -1,4 +1,4 @@
-// The MC's action vocabulary as small plans, so no controller writes the same
+// The the console's action vocabulary as small plans, so no controller writes the same
 // three strip items by hand. Pure functions (no components): they belong to the
 // strip's meaning, not to a screen.
 //

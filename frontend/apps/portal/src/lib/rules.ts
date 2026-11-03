@@ -3,14 +3,14 @@ import type { RoundConfig, TournamentDetail } from "@/lib/tournament"
 // The shape of a round's rules, and how to read them. Pure helpers, shared by the
 // read surface and the edit dialog.
 
-const KINDS = ["MC", "TEXT", "KEYWORD", "HINT"] as const
+const KINDS = ["CHOICE", "TEXT", "KEYWORD", "HINT"] as const
 export type Kind = (typeof KINDS)[number]
 export const KINDS_LIST = KINDS
 
 // What a round needs at minimum: one turn that declares how many questions it eats.
 export function emptyConfig(): RoundConfig {
     return {
-        allowedKinds: ["MC"],
+        allowedKinds: ["CHOICE"],
         scoring: { template: "constant", points: 10 },
         turns: [{ id: "phase1", mode: "text", delivery: "batch", questionCount: 0 }],
     }

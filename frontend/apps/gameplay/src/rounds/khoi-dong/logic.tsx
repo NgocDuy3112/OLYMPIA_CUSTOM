@@ -1,5 +1,5 @@
-import { KhoiDongChungAOCPlayer } from "./KhoiDongChungAOCPlayer"
-import { KhoiDongRiengAOCPlayer } from "./KhoiDongRiengAOCPlayer"
+import { KhoiDongChungAOCPlayer } from "@shared/deck/screens/KhoiDongChungAOCPlayer"
+import { KhoiDongRiengAOCPlayer } from "@shared/deck/screens/KhoiDongRiengAOCPlayer"
 import type { RoundModule } from "../types"
 
 // Khởi động — the AOC ruleset: phase 1 projects one oral run to everybody,

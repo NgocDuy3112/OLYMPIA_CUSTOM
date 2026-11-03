@@ -1,7 +1,7 @@
-import { AnswerBand, Badges, CardHeader, KeywordBox, KeywordLengthBanner, MainCard, PlayerStage, Rail, Timer, VerdictIcon, type PlayerCore } from "@shared/deck/player-deck"
-import { DECK_PAD, STRIP_R, pt } from "@shared/deck/geometry"
-import { HINT_TILES, playerHintTileClass } from "@shared/deck/cells"
-import type { AnswerValue } from "@shared/deck/types"
+import { AnswerBand, Badges, CardHeader, KeywordBox, KeywordLengthBanner, MainCard, PlayerStage, Rail, Timer, VerdictIcon, type PlayerCore } from "../player-deck"
+import { DECK_PAD, STRIP_R, pt } from "../geometry"
+import { HINT_TILES, playerHintTileClass } from "../cells"
+import type { AnswerValue } from "../types"
 
 // Giải mã (S3): keyword banner, the count-driven hint tile grid, the lower
 // question card, and a band that is either the hint answer box or the keyword
@@ -49,7 +49,7 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
                         onSubmit={(text) => submitKeyword(keyword.questionId, text)}
                     />
                 ) : (
-                    <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>Chờ MC mở gợi ý.</span>
+                    <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>Chờ điều hành mở gợi ý.</span>
                 )
             }
             hint={hintWindow ? "cửa sổ hint đang mở" : `đã mở ${v.me.hintsRevealed ?? 0} gợi ý`}
@@ -78,7 +78,7 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
                 <p className="font-sans font-medium leading-snug text-foreground" style={{ fontSize: pt(14), ...DECK_PAD }}>
                     {hintWindow
                         ? hintWindow.question?.questionText ?? ""
-                        : keyword?.question?.questionText ?? "Chờ MC mở gợi ý"}
+                        : keyword?.question?.questionText ?? "Chờ điều hành mở gợi ý"}
                 </p>
             </MainCard>
         </PlayerStage>

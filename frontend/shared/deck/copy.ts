@@ -1,4 +1,4 @@
-// The deck's UI copy — every string that appears on BOTH surfaces (MC + player)
+// The deck's UI copy — every string that appears on BOTH surfaces (console + player)
 // or more than once within one surface. Wording fixes happen here, once: a
 // screen never spells a control twice, and a rename can't leave one deck saying
 // "Về sảnh" while the other still says "Thoát".
@@ -7,11 +7,11 @@
 // RULES, not of a control.
 
 export const COPY = {
-    /** The verdict pair — the MC's strip, the player's answer controls. */
+    /** The verdict pair — the console's strip, the player's answer controls. */
     correct: "Đúng",
     wrong: "Sai",
 
-    /** The MC strip's round controls. */
+    /** The console strip's round controls. */
     backToLobby: "Về sảnh",
     endTurn: "Hết lượt",
     startClock: "Tính giờ",
@@ -25,6 +25,6 @@ export const COPY = {
     powerAssign: "Chỉ định",
 
     /** Shared placeholders. */
-    waitingForMc: "Đang chờ MC…",
-    noQuestion: "Không tải được câu hỏi — hỏi lại MC.",
+    waitingForMc: "Đang chờ điều hành…",
+    noQuestion: "Không tải được câu hỏi — hỏi lại ban điều hành.",
 } as const

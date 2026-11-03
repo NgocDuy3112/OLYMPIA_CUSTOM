@@ -5,17 +5,17 @@ import type { ScreenCore } from "../types"
 
 /**
  * Tie-break — câu hỏi phụ, the fastest-finger decider. Structurally the
- * ve-dich · Rieng screen WITHOUT the question boxes: the MC reads the question
+ * ve-dich · Rieng screen WITHOUT the question boxes: the console reads the question
  * aloud, so only the clock and the strip remain.
  *
  * Tính giờ opens the 15 s buzz window: the countdown runs, every contestant
  * may buzz, and the fastest one locks the rest out — the clock stops and the
- * MC judges their oral answer (Đúng/Sai). Buzz points rank only.
+ * The console judges their oral answer (Đúng/Sai). Buzz points rank only.
  */
 export type TieBreakCtx = ScreenCore & {
     /** the 15 s window's seconds left; null when no window is running */
     remaining: number | null
-    mcTieBreak: TieBreakMc | null
+    consoleTieBreak: TieBreakConsole | null
     target: string | null
     setVerdict: (correct: boolean) => void
     setSelectedPlayer: (userId: string) => void
@@ -26,7 +26,7 @@ export type TieBreakCtx = ScreenCore & {
 }
 
 /** The console's tie-break facts, as the view pushes them. */
-export interface TieBreakMc {
+export interface TieBreakConsole {
     /** the window is running: buzz open for everyone still in */
     windowOpen: boolean
     /** whoever buzzed first this question — the one to judge */
@@ -38,10 +38,10 @@ export function TieBreakAOCController({ ctx }: { ctx: TieBreakCtx }) {
     const projection = v.projection
 
     // The question exists server-side (the window hangs off it) — we just do
-    // not draw it: the MC reads it aloud.
+    // not draw it: the console reads it aloud.
     const qid = projection.open[0]?.questionId ?? ""
-    const windowOpen = ctx.mcTieBreak?.windowOpen ?? false
-    const buzzerId = ctx.mcTieBreak?.buzzerId ?? null
+    const windowOpen = ctx.consoleTieBreak?.windowOpen ?? false
+    const buzzerId = ctx.consoleTieBreak?.buzzerId ?? null
     // A buzzer is waiting for the verdict; no buzzer (nobody rang in) → nothing
     // to judge, so the round may move on.
     const unjudged = buzzerId !== null && ctx.verdictOf(qid, buzzerId) === null

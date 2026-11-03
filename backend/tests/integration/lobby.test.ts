@@ -7,7 +7,7 @@ import { matches, tournaments, users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 
 // The LOBBY endpoints — the waiting screen both shells render:
-//   portal   GET /portal/tournaments/:tid/matches/:mid/lobby   (the MC)
+//   portal   GET /portal/tournaments/:tid/matches/:mid/lobby   (the console)
 //   gameplay GET /gameplay/matches/:mid/lobby                  (a seated player)
 // Same payload (lobbyOf); only the gate differs. Proves identity, rounds in
 // tournament order, the seats' totals, presence, and that the gates hold.
@@ -80,7 +80,7 @@ afterAll(async () => {
     await app.close();
 });
 
-describe("the MC's lobby (portal)", () => {
+describe("the console's lobby (portal)", () => {
     it("answers before the match is LIVE — identity, declared round order, seats", async () => {
         const res = await app.inject({ method: "GET", url: mcLobbyUrl(), headers: auth(ownerCookie) });
         expect(res.statusCode).toBe(200);

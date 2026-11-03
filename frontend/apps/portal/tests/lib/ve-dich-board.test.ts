@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import { VE_BOARD, VE_GRID_COLUMNS, VE_VALUES, boardRows, stripCellsOf } from "@shared/deck/ve-dich-board"
 
 // The show board — 6×20, 6×30, 4×40, 4×50 — and the row/span arithmetic that
-// keeps it balanced. The MC's grid and the player's picker both go through
+// keeps it balanced. The the console's grid and the player's picker both go through
 // here, so a cell must land in the same row on both surfaces.
 
 interface Cell { questionId: string; value: number; where?: string }

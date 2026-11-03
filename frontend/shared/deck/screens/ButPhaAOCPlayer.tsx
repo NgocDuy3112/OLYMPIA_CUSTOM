@@ -1,7 +1,7 @@
 import { formatRemaining } from "@shared/lib/clock"
-import { AnswerBand, PlayerStage, Progress, QuestionFrame, Rail, Timer, type PlayerCore } from "@shared/deck/player-deck"
-import { pt } from "@shared/deck/geometry"
-import type { AnswerValue } from "@shared/deck/types"
+import { AnswerBand, PlayerStage, Progress, QuestionFrame, Rail, Timer, type PlayerCore } from "../player-deck"
+import { pt } from "../geometry"
+import type { AnswerValue } from "../types"
 
 // Bứt phá (S4): sequential typed questions, one open at a time. Pure: every
 // value comes from the orchestrator, narrowed to what this screen reads.
@@ -30,10 +30,10 @@ export function ButPhaAOCPlayer({ ctx }: { ctx: ButPhaPlayerCtx }) {
                         onSubmit={(value) => submitAnswer(openQ.questionId, value)}
                     />
                 ) : (
-                    <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>Chờ MC mở câu tiếp theo…</span>
+                    <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>Chờ điều hành mở câu tiếp theo…</span>
                 )
             }
-            hint={openQ ? `còn ${formatRemaining(remaining)}` : "chờ MC"}
+            hint={openQ ? `còn ${formatRemaining(remaining)}` : "chờ điều hành"}
             flash={flash}
         >
             <QuestionFrame

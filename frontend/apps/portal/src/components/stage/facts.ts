@@ -1,8 +1,9 @@
-// What the MC console KNOWS: the orchestrator gathers it ONCE (use-console-model)
+// What the console console KNOWS: the orchestrator gathers it ONCE (use-console-model)
 // and screens never see it whole. Each round module projects the narrow slice
 // its screens need (`rounds/<round>/logic` → `ScreenCore & { …extras }`), so a
 // screen's ctx type says exactly what it depends on.
 import type { ConsoleQuestion, LiveResponse, QuestionAnswerRow } from "@/lib/live"
+import type { LiveAction } from "@/lib/live-actions"
 import type { CardData } from "./rail"
 
 export interface ConsoleFacts {
@@ -33,7 +34,7 @@ export interface ConsoleFacts {
     /** stage an override verdict for the selected card (committed by Kết thúc). */
     setVerdict: (correct: boolean) => void
     /** version-guarded action senders. */
-    send: (action: Record<string, unknown>) => void
+    send: (action: LiveAction) => void
     /** turn-based (ve-dich): finish the current TURN — the open question, verdicts first. */
     hetLuot: () => void
     /** end the whole ROUND (turn-based: the turn itself is hetLuot's job). */
@@ -42,7 +43,7 @@ export interface ConsoleFacts {
     pickQuestion: () => void
     byId: (id: string) => ConsoleQuestion | null
     verdictOf: (questionId: string, userId: string) => "CORRECT" | "INCORRECT" | null
-    /** the MC's stopwatch (khoi-dong S1) — `watchMs` comes from the interval. */
+    /** the console's stopwatch (khoi-dong S1) — `watchMs` comes from the interval. */
     watchRunning: boolean
     watchMs: number
     toggleWatch: () => void

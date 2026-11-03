@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import type { ConsoleFacts } from "@/components/stage/deck"
-import type { LiveResponse, VeDichMc } from "@/lib/live"
+import type { LiveResponse, VeDichConsole } from "@/lib/live"
 import { roundModuleOf } from "@/rounds"
 
 /**
@@ -33,7 +33,7 @@ function facts(
             ...projection,
         },
         roundEnded: false,
-        mc: mc as LiveResponse["mc"],
+        console: mc as LiveResponse["console"],
     }
     return {
         v,
@@ -84,7 +84,7 @@ function renderRound(
 
 const openQ = { questionId: "q1", deadlineAt: null, question: null }
 
-const veDichMc = (over: Partial<VeDichMc> = {}): VeDichMc => ({
+const veDichMc = (over: Partial<VeDichConsole> = {}): VeDichConsole => ({
     phase: 1,
     turnPlayerId: "u1",
     openStage: "current",
@@ -117,7 +117,7 @@ describe("KhoiDongRieng — S1, the oral run", () => {
         expect(screen.queryByRole("button", { name: "Đúng" })).toBeNull()
         expect(screen.getByRole("button", { name: "Về sảnh" })).toBeInTheDocument()
 
-        // overBudget reads the MC's stopwatch: 6s watched into a 5s budget left
+        // overBudget reads the console's stopwatch: 6s watched into a 5s budget left
         rerender(mod.render(facts(
             { watchMs: 6_000 },
             { oral: { questionId: "q1", question: null, playerId: "u1", index: 2, total: 6, elapsedS: 40, budgetS: 45 } },
@@ -264,7 +264,7 @@ describe("VeDichRieng — the powers and the duel", () => {
     const BUTTON = { selector: "button" } as const
     const opened = { open: [openQ] }
 
-    it("the MC declares STAR for the player whose question it is", async () => {
+    it("the console declares STAR for the player whose question it is", async () => {
         const user = userEvent.setup()
         const f = renderRound("ve-dich", {}, opened, veDichMc({ phase: 2, turnPlayerId: "u1" }))
 
@@ -429,6 +429,6 @@ function expectButtonsInOrder(expected: string[]) {
     }
 }
 
-// score adjust's ± chip was removed from the controller's rail (MC's call) —
+// score adjust's ± chip was removed from the controller's rail (the console's call) —
 // the dialog/machinery stays dormant; no UI asserts it any more.
 

@@ -3,7 +3,7 @@
 //
 //   primitives.tsx       frame, card, header, badges, progress, timer, status, gate
 //   question.tsx         the question text, media well, and the whole card
-//   strip.tsx            the player's action band (+ the MC strip, shared)
+//   strip.tsx            the player's action band (+ the console strip, shared)
 //   rail.tsx             the contestant cards as THIS player sees them
 //   answer-controls.tsx  answer box, keyword box, power declarations
 //   screen.tsx           PlayerStage — the stack every round screen ends with

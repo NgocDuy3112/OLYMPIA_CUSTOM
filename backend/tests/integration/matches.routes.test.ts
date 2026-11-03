@@ -27,7 +27,7 @@ const validTournament = (name: string) => ({
 
 const roundConfigs = (overrides: Record<string, unknown> = {}) => ({
     r1: {
-        allowedKinds: ["MC", "TEXT", "KEYWORD"],
+        allowedKinds: ["CHOICE", "TEXT", "KEYWORD"],
         scoring: { template: "constant", points: 10 },
         turns: [{ id: "turn-1", mode: "oral", delivery: "sequential" }],
         ...overrides
@@ -40,7 +40,7 @@ const seats = () => [
 ];
 
 const mc = (text: string) => ({
-    kind: "MC",
+    kind: "CHOICE",
     questionText: text,
     domain: "THTH",
     payload: { options: [{ id: "A", text: "4" }, { id: "B", text: "5" }], correctSet: ["A"] }
@@ -271,7 +271,7 @@ describe("matches — assembly (explicit)", () => {
 
     it("400 when the kind is not allowed by the round config", async () => {
         const s = await makeTournament("m-kind");
-        const sourceId = await makeBankQuestion("an MC question");
+        const sourceId = await makeBankQuestion("an console question");
 
         const res = await createMatch(s.id, matchBody({
             roundConfigs: roundConfigs({ allowedKinds: ["TEXT"] }),

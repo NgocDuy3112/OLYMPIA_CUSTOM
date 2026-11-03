@@ -4,7 +4,7 @@ import { Value } from "@sinclair/typebox/value";
 import {
     HintKind,
     KeywordKind,
-    McKind,
+    ChoiceKind,
     MediaSchema,
     QuestionPayloadSchema,
     TextKind,
@@ -14,7 +14,7 @@ import { QuestionError } from "./errors.js";
 
 export const MAX_BATCH_SIZE = 500;
 
-export const QuestionKind = Type.Union([McKind, TextKind, KeywordKind, HintKind]);
+export const QuestionKind = Type.Union([ChoiceKind, TextKind, KeywordKind, HintKind]);
 
 export const QuestionStatus = Type.Union([
     Type.Literal("DRAFT"),
@@ -69,7 +69,7 @@ export type ListQuery = Static<typeof ListQuery>;
 
 // Eligible-for-assembly browse: scope comes from the URL (own + global bank).
 export const EligibleListQuery = Type.Object({
-    kinds: Type.Optional(Type.String({ pattern: "^(MC|TEXT|KEYWORD|HINT)(,(MC|TEXT|KEYWORD|HINT))*$" })),
+    kinds: Type.Optional(Type.String({ pattern: "^(console|TEXT|KEYWORD|HINT)(,(console|TEXT|KEYWORD|HINT))*$" })),
     search: Type.Optional(Type.String({ minLength: 1, maxLength: 200 })),
     limit: Type.Optional(Type.String({ pattern: "^\\d+$" })),
     offset: Type.Optional(Type.String({ pattern: "^\\d+$" }))

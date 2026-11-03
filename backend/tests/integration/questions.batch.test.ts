@@ -26,7 +26,7 @@ const validTournament = (name: string) => ({
 });
 
 const row = (text: string, tag = "THTH") => ({
-    kind: "MC",
+    kind: "CHOICE",
     questionText: text,
     tag,
     payload: { options: [{ id: "A", text: "4" }, { id: "B", text: "5" }], correctSet: ["A"] }
@@ -118,9 +118,9 @@ describe("batch import — dry run", () => {
                 row("ok"),
                 row("a free tag", "NOPE"),
                 row("ok too"),
-                { kind: "MC" },
+                { kind: "CHOICE" },
                 {
-                    kind: "MC", questionText: "dangling", 
+                    kind: "CHOICE", questionText: "dangling", 
                     payload: { options: [{ id: "A", text: "4" }], correctSet: ["Z"] }
                 }
             ]
@@ -167,7 +167,7 @@ describe("batch import — commit", () => {
 
         const res = await batchFlat({
             questions: [row("would be fine"), row("broken payload"), {
-                kind: "MC", questionText: "dangling", 
+                kind: "CHOICE", questionText: "dangling", 
                 payload: { options: [{ id: "A", text: "4" }], correctSet: ["Z"] }
             }]
         });

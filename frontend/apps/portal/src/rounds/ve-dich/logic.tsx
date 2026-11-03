@@ -1,5 +1,5 @@
 import type { ConsoleFacts } from "@/components/stage/deck"
-import type { VeDichMc } from "@/lib/live"
+import type { VeDichConsole } from "@/lib/live"
 import { VeDichChungAOCController, type VeDichChungCtx } from "./VeDichChungAOCController"
 import { VeDichPickAOCController, type VeDichPickCtx } from "./VeDichPickAOCController"
 import { VeDichRiengAOCController, type VeDichRiengCtx } from "./VeDichRiengAOCController"
@@ -16,7 +16,7 @@ function pickCtx(f: ConsoleFacts): VeDichPickCtx {
     return {
         ...screenCore(f),
         questions: f.v.questions,
-        mcVeDich: (f.v.mc ?? null) as VeDichMc | null,
+        consoleVeDich: (f.v.console ?? null) as VeDichConsole | null,
     }
 }
 
@@ -24,7 +24,7 @@ function chungCtx(f: ConsoleFacts): VeDichChungCtx {
     return {
         ...screenCore(f),
         remaining: f.remaining,
-        mcVeDich: (f.v.mc ?? null) as VeDichMc | null,
+        consoleVeDich: (f.v.console ?? null) as VeDichConsole | null,
         target: f.target,
         setVerdict: f.setVerdict,
         setSelectedPlayer: f.setSelectedPlayer,
@@ -46,15 +46,19 @@ export function hetLuotAction(facts: HetLuotFacts): RoundAction | null {
     if (facts.answererVerdict === null) return null
     if (facts.buzzerId !== null && facts.buzzerVerdict === null) return null
 
-    const action: RoundAction = { kind: "ve-dich.resolve", answerer: facts.answererVerdict === "CORRECT" }
-    if (facts.buzzerId !== null) action.buzzer = facts.buzzerVerdict === "CORRECT"
-    return action
+    // The buzzer's verdict rides along only when a buzzer exists — a plain
+    // resolve carries no `buzzer` key (the engine reads its absence as such).
+    return {
+        kind: "ve-dich.resolve",
+        answerer: facts.answererVerdict === "CORRECT",
+        ...(facts.buzzerId !== null ? { buzzer: facts.buzzerVerdict === "CORRECT" } : {}),
+    }
 }
 
 export const veDichAOC: RoundModule = {
     render: (f) => {
         if (f.v.projection.open.length === 0) return <VeDichPickAOCController ctx={pickCtx(f)} />
-        return (f.v.mc as VeDichMc | null)?.phase === 2
+        return (f.v.console as VeDichConsole | null)?.phase === 2
             ? <VeDichRiengAOCController ctx={riengCtx(f)} />
             : <VeDichChungAOCController ctx={chungCtx(f)} />
     },

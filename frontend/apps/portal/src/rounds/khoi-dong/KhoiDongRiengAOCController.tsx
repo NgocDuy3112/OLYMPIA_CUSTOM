@@ -4,11 +4,11 @@ import { ConsoleStage, Progress, QuestionFrame, Rail, Timer } from "@/components
 import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
 
 // Khởi động — lượt cá nhân (S1): one player's oral run, projected to the whole
-// room. Nobody types here — the MC's stopwatch drives Đúng/Sai. Pure: every
+// room. Nobody types here — the console's stopwatch drives Đúng/Sai. Pure: every
 // value comes from its narrow ctx — no hooks here.
 import type { ScreenCore } from "../types"
 
-/** Khởi động · lượt cá nhân: the oral run + the MC's stopwatch. */
+/** Khởi động · lượt cá nhân: the oral run + the console's stopwatch. */
 export type KhoiDongRiengCtx = ScreenCore & {
     watchRunning: boolean
     watchMs: number

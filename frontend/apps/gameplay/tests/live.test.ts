@@ -19,12 +19,12 @@ const openWindow = (questionId: string) => [
 ]
 
 describe("playerScreenOf — the lobby", () => {
-    it("a round the MC has not started is the lobby", () => {
+    it("a round the console has not started is the lobby", () => {
         expect(playerScreenOf(view({ stage: "pending" }))).toBe("lobby")
         expect(playerScreenOf(view({ roundId: "ve-dich", stage: "pending" }))).toBe("lobby")
     })
 
-    it("an ended round is the lobby — waiting for the MC to advance", () => {
+    it("an ended round is the lobby — waiting for the console to advance", () => {
         expect(playerScreenOf(view({ roundId: "giai-ma", stage: "ended" }))).toBe("lobby")
         expect(playerScreenOf(view({ roundId: "but-pha", stage: "ended" }))).toBe("lobby")
         expect(playerScreenOf(view({ roundId: "ve-dich", stage: "ended" }))).toBe("lobby")

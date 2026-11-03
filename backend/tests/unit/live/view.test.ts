@@ -117,7 +117,7 @@ describe("player view — khoi-dong", () => {
         expect(theirs.me.isMyRun).toBe(false);
     });
 
-    it("phase 2: nothing is open until the MC opens the window — then ONE question", () => {
+    it("phase 2: nothing is open until the console opens the window — then ONE question", () => {
         const state = beginPhase2(finishSetup(["p0", "p1"], P1, P2), P2);
         const waiting = buildPlayerView(base({ roundId: "khoi-dong", state }));
         expect(waiting.open).toEqual([]);
@@ -173,6 +173,35 @@ describe("player view — khoi-dong", () => {
         const view = buildPlayerView(base({ roundId: "khoi-dong", state: batch }));
         expect(view.stage).toBe("ended");
         expect(view.open).toEqual([]); // endKhoiDong closes phase 2 — nothing left to buzz
+    });
+});
+
+describe("player view — the public verdict board", () => {
+    const judged = [
+        { questionId: "q1", userId: "p0", verdict: "CORRECT" as const },
+        { questionId: "q1", userId: "p1", verdict: "INCORRECT" as const },
+        { questionId: "q1", userId: "p2", verdict: null }
+    ];
+
+    it("khởi động publishes the field's judged verdicts once the console has judged", () => {
+        const state = startKhoiDong(["p0", "p1"], ["a1", "a2", "a3", "a4", "a5", "a6"]);
+        const view = buildPlayerView(base({ roundId: "khoi-dong", state, judged }));
+        expect(view.publicVerdicts).toEqual([
+            { questionId: "q1", userId: "p0", verdict: "CORRECT" },
+            { questionId: "q1", userId: "p1", verdict: "INCORRECT" }
+        ]);
+    });
+
+    it("giai-ma keeps them private — hints and the keyword wait for the console", () => {
+        const state = startGiaiMa(["p0", "p1"], ["h1", "h2", "h3", "h4", "h5", "h6", "h7", "h8"]);
+        const view = buildPlayerView(base({ roundId: "giai-ma", state, judged }));
+        expect(view.publicVerdicts).toBeUndefined();
+    });
+
+    it("says nothing while nothing has been judged", () => {
+        const state = startKhoiDong(["p0", "p1"], ["a1", "a2", "a3", "a4", "a5", "a6"]);
+        const view = buildPlayerView(base({ roundId: "khoi-dong", state, judged: [] }));
+        expect(view.publicVerdicts).toBeUndefined();
     });
 });
 
@@ -291,7 +320,7 @@ describe("player view — ve-dich", () => {
 
 // ─── L1: what the live surface adds to the view (docs/live-surface.md) ───────
 
-const frozen = (ids: string[], kind: "MC" | "TEXT" = "MC"): MatchQuestion[] =>
+const frozen = (ids: string[], kind: "CHOICE" | "TEXT" = "CHOICE"): MatchQuestion[] =>
     ids.map((id, index) => ({
         _id: id,
         roundId: "r",
@@ -303,7 +332,7 @@ const frozen = (ids: string[], kind: "MC" | "TEXT" = "MC"): MatchQuestion[] =>
         media: null,
         timeLimit: null,
         
-        payload: kind === "MC"
+        payload: kind === "CHOICE"
             ? { options: [{ id: "a", text: "A" }, { id: "b", text: "B" }], correctSet: ["a"] }
             : { acceptedAnswers: ["x"] },
         sourceId: "src"

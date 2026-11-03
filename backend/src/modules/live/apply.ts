@@ -1,4 +1,4 @@
-// Apply one MC action to the live round state. Pure orchestration over an injected
+// Apply one console action to the live round state. Pure orchestration over an injected
 // store, so the version rule and the atomic write can be tested without Postgres.
 // In production the store is backed by a SELECT ... FOR UPDATE transaction.
 import { assertVersion, nextVersion } from "./conflict.js";
@@ -43,7 +43,7 @@ export interface AnswerDraft {
     judged: boolean;
 }
 
-// The commit contract for any MC verdict batch — both directions, never a
+// The commit contract for any console verdict batch — both directions, never a
 // silent default:
 //   • a verdict for a player who submitted nothing → NO_ANSWER
 //   • a waiting draft without a verdict → UNJUDGED_ANSWERS
@@ -84,7 +84,7 @@ export interface Action<S> {
 
 // A server-authoritative mutation that does NOT use the optimistic version: player
 // actions (e.g. a keyword submission) change the round state, and the client never
-// sends a version. The MC's next action with an older version will 409 and reload.
+// sends a version. The the console's next action with an older version will 409 and reload.
 export async function mutateLive<S>(
     store: LiveStore<S>,
     transition: (current: LiveRecord<S>, tx: LiveTx<S>) => Transition<S> | Promise<Transition<S>>

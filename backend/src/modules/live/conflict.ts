@@ -1,4 +1,4 @@
-// Optimistic concurrency for live MC actions. Pure: no DB.
+// Optimistic concurrency for live console actions. Pure: no DB.
 // An action carries the version it was based on. If the stored version has moved on,
 // the action is rejected (HTTP 409) and the console must reload before retrying.
 

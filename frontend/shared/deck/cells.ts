@@ -1,5 +1,5 @@
 // Cell + tile class tables. Every screen that draws a pickable board cell
-// (the vé-đích grid: MC and player) or a giải mã hint tile asks one of these
+// (the vé-đích grid: console and player) or a giải mã hint tile asks one of these
 // instead of carrying nested template literals — the states are a closed set,
 // so the classes are a table, not an if-chain in JSX.
 
@@ -10,7 +10,7 @@ export type CellWhere = "free" | "pending" | "open" | "taken" | "deferred"
 // board: the higher bands are wider, never taller.
 const CELL_SHAPE = "flex h-[4.43cqw] flex-col items-center justify-center rounded-lg shadow-sm"
 
-// The STATE look — identical on both surfaces: the MC's grid and the player's
+// The STATE look — identical on both surfaces: the console's grid and the player's
 // picker must read the same cell the same way.
 const CELL_STATE: Record<Exclude<CellWhere, "free">, string> = {
     pending: "bg-sky-50 text-sky-800 ring-2 ring-sky-500",
@@ -20,7 +20,7 @@ const CELL_STATE: Record<Exclude<CellWhere, "free">, string> = {
 }
 
 /**
- * The MC's grid: a status read-out — nothing is clickable here (the MC presses
+ * The the console's grid: a status read-out — nothing is clickable here (the console presses
  * Bắt đầu on the strip), so a free cell is plain card. `faded` marks a free
  * cell this turn may NOT pick (only the top band is open).
  */
@@ -64,7 +64,7 @@ const TILE = "flex aspect-[203/132] items-center justify-center rounded-2xl font
 
 export type HintTile = "free" | "open" | "used" | "absent"
 
-/** The MC's tiles: free → clickable, open → the live window, used → spent,
+/** The the console's tiles: free → clickable, open → the live window, used → spent,
  *  absent → this round has no hint here (inert, never a button). */
 export function hintTileClass(state: HintTile, interactive: boolean): string {
     if (state === "open") return `${TILE} bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2 ring-offset-background`

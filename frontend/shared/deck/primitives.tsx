@@ -1,6 +1,6 @@
 // The flow primitives every deck screen is built from — the frame, the card,
 // its header, the round badge, the progress squares, the clock, the verdict
-// icon, the status line and the gate. Shared by BOTH surfaces: the MC console
+// icon, the status line and the gate. Shared by BOTH surfaces: the console console
 // and the player deck draw the same furniture, only the controls below it
 // differ (Strip vs Band).
 //
@@ -46,7 +46,7 @@ export function CardHeader({ left, mid, right }: { left?: ReactNode; mid?: React
 
 // ── the round badge ──────────────────────────────────────────────────────────
 
-/** Round name (clickable → the rounds navigator on the MC's deck) + the mode line. */
+/** Round name (clickable → the rounds navigator on the console's deck) + the mode line. */
 export function Badges({ round, mode, size = 32, onRoundClick }: {
     round: string; mode?: string; size?: number; onRoundClick?: () => void
 }) {

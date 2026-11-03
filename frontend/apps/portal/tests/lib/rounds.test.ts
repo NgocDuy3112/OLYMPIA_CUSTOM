@@ -84,7 +84,7 @@ describe("endRoundPlanOf — what Kết thúc sends (one press ends the round)",
                 questionId: "b1",
                 verdicts: [
                     { playerId: "u1", correct: true },
-                    { playerId: "u2", correct: false }, // exactly what the MC staged — no defaults
+                    { playerId: "u2", correct: false }, // exactly what the console staged — no defaults
                 ],
             },
             { kind: "but-pha.endRound" },
@@ -151,7 +151,7 @@ describe("nextQuestionPlanOf — what Tính giờ sends (pick a NEW question)", 
         ])
 
         // nothing staged → no empty commit; closeQuestion's own UNJUDGED_ANSWERS
-        // guard refuses the advance (the MC must stage first)
+        // guard refuses the advance (the console must stage first)
         expect(nextQuestionPlanOf("but-pha", input({
             stage: "question",
             openIds: ["b1"],

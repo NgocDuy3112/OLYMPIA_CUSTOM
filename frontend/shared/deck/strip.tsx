@@ -1,10 +1,10 @@
-// The bottom row of the deck: the MC's action strip and the player's band.
+// The bottom row of the deck: the console's action strip and the player's band.
 // Both are flow rows (any count of controls, left to right) — the difference is
 // authority: the strip presses the engine, the band types/answers.
 import type { ReactNode } from "react"
 import { DECK_PAD, STRIP_R, pt } from "./geometry"
 
-// ── the MC's action strip ────────────────────────────────────────────────────
+// ── the console's action strip ────────────────────────────────────────────────────
 
 export type StripItem = { label: string; content?: ReactNode; onClick?: () => void; title?: string; muted?: boolean; empty?: boolean }
 
@@ -18,7 +18,7 @@ const stripSlotClass = (pressable: boolean, muted = false): string =>
         : `${STRIP_BTN} cursor-default bg-muted text-muted-foreground ring-1 ring-border ${muted ? "" : "tabular-nums"}`
 
 /**
- * The MC's button strip — a flow row: buttons land left to right, any count.
+ * The the console's button strip — a flow row: buttons land left to right, any count.
  * Items without onClick render as a (non-button) display slot, as in the deck.
  */
 export function Strip({ items }: { items: StripItem[] }) {

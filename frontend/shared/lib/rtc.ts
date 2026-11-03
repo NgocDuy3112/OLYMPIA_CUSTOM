@@ -1,5 +1,5 @@
 // The WebRTC layer shared by all three surfaces that show player webcams:
-// the player's CameraPanel (publish), the MC console's PlayerCard rail and the
+// the player's CameraPanel (publish), the console console's PlayerCard rail and the
 // public spectator page (both subscribe). One LiveKit room per match.
 //
 // Decisions this file encodes:
@@ -46,7 +46,7 @@ export function fetchPlayerRtcToken(matchId: string): Promise<RtcToken> {
     return api<RtcToken>(`/gameplay/matches/${matchId}/rtc/token`, { method: "POST" });
 }
 
-/** MC console: subscribe-only, hidden participant. */
+/** console: subscribe-only, hidden participant. */
 export function fetchOperatorRtcToken(tournamentId: string, matchId: string): Promise<RtcToken> {
     return api<RtcToken>(
         `/portal/tournaments/${tournamentId}/matches/${matchId}/rtc/token`,

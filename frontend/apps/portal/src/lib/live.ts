@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api } from "@shared/lib/api"
 import { useSocketStream } from "@shared/lib/ws"
-import { useApiPrefix } from "@/lib/surface"
+import type { LiveAction, Verdict } from "./live-actions"
 
-// The MC console's data layer: one polled read, one version-guarded action
+// The console's data layer: one polled read, one version-guarded action
 // writer, one drafts reader for judging — plus the pure helpers that decide
 // what the tools show (unit-tested in tests/lib/live.test.ts).
 
@@ -11,7 +11,7 @@ import { useApiPrefix } from "@/lib/surface"
 
 export interface ConsoleQuestion {
     _id: string
-    kind: "MC" | "TEXT" | "KEYWORD" | "HINT"
+    kind: "CHOICE" | "TEXT" | "KEYWORD" | "HINT"
     roundId: string
     turnId: string
     position: number
@@ -53,13 +53,13 @@ export interface Projection {
     board?: Array<{ questionId: string; value: number; where: "free" | "pending" | "open" | "taken" | "deferred" }>
 }
 
-export interface GiaiMaMc {
+export interface GiaiMaConsole {
     hintsRemaining: string[]
     hintsPicked: string[]
     openHintId: string | null
     players: Array<{ id: string; keywordLocked: boolean; eliminated: boolean }>
 }
-export interface VeDichMc {
+export interface VeDichConsole {
     phase: 1 | 2
     turnPlayerId: string | null
     openStage: "current" | "buzz" | null
@@ -72,7 +72,7 @@ export interface VeDichMc {
     assignedToId: string | null
     pendingQuestionId: string | null
 }
-export interface KhoiDongMc {
+export interface KhoiDongConsole {
     stage: "phase1" | "phase2"
     ended: boolean
     phase2Begun: boolean
@@ -83,7 +83,7 @@ export interface KhoiDongMc {
     attempt: 1 | 2 | null
     /** Is a buzz window running right now? */
     windowOpen: boolean
-    /** The fastest — the only player the MC may judge. */
+    /** The fastest — the only player the console may judge. */
     buzzerId: string | null
     /** How fast that buzz was, in ms (the race's stopwatch). */
     buzzerMs: number | null
@@ -100,7 +100,7 @@ export interface LiveResponse {
     roundEnded: boolean
     /** User ids with a live player socket right now — the rail's connected dots. */
     connected?: string[]
-    mc: Record<string, unknown> | null
+    console: Record<string, unknown> | null
 }
 
 // ── the lobby (both surfaces wait on this) ───────────────────────────────────
@@ -133,13 +133,12 @@ export interface LobbyData {
 export const lobbyKey = (tournamentId: string, matchId: string) =>
     ["lobby", tournamentId, matchId] as const
 
-/** The MC's lobby read: polled like /live (presence moves without a round change). */
+/** The the console's lobby read: polled like /live (presence moves without a round change). */
 export function useLobby(tournamentId: string, matchId: string, enabled: boolean) {
-    const prefix = useApiPrefix()
     return useQuery({
         queryKey: lobbyKey(tournamentId, matchId),
         queryFn: () =>
-            api<LobbyData>(`${prefix}/tournaments/${tournamentId}/matches/${matchId}/lobby`),
+            api<LobbyData>(`/portal/tournaments/${tournamentId}/matches/${matchId}/lobby`),
         enabled: enabled && Boolean(tournamentId && matchId),
         refetchInterval: 3_000,
         retry: false,
@@ -173,12 +172,11 @@ interface ConsoleStreamFrame {
 // (it also refreshes `connected`, which a push alone cannot announce).
 // 404 (no round yet) and 409 are answers, not crashes — no retry storm.
 export function useLive(tournamentId: string, matchId: string, onFrame?: (at: string) => void) {
-    const prefix = useApiPrefix()
     const queryClient = useQueryClient()
     const query = useQuery({
         queryKey: liveKey(tournamentId, matchId),
         queryFn: () =>
-            api<LiveResponse>(`${prefix}/tournaments/${tournamentId}/matches/${matchId}/live`),
+            api<LiveResponse>(`/portal/tournaments/${tournamentId}/matches/${matchId}/live`),
         enabled: Boolean(tournamentId && matchId),
         refetchInterval: 3_000,
         staleTime: 0,
@@ -186,7 +184,7 @@ export function useLive(tournamentId: string, matchId: string, onFrame?: (at: st
     })
 
     useSocketStream(
-        `${prefix}/tournaments/${tournamentId}/matches/${matchId}/live/stream`,
+        `/portal/tournaments/${tournamentId}/matches/${matchId}/live/stream`,
         Boolean(tournamentId && matchId),
         (message) => {
             const frame = message as ConsoleStreamFrame | null
@@ -219,12 +217,11 @@ export function useLive(tournamentId: string, matchId: string, onFrame?: (at: st
 // reject, don't queue.
 export function useLiveAction(tournamentId: string, matchId: string) {
     const queryClient = useQueryClient()
-    const prefix = useApiPrefix()
 
     return useMutation({
-        mutationFn: (input: { expectedVersion: number; action: Record<string, unknown> }) =>
+        mutationFn: (input: { expectedVersion: number; action: LiveAction }) =>
             api<{ version?: number }>(
-                `${prefix}/tournaments/${tournamentId}/matches/${matchId}/live/actions`,
+                `/portal/tournaments/${tournamentId}/matches/${matchId}/live/actions`,
                 { method: "POST", body: JSON.stringify(input) }
             ),
         onSuccess: () => {
@@ -244,16 +241,15 @@ export function useLiveAction(tournamentId: string, matchId: string) {
 // Polling is the ONLY signal here: a player's submission bumps no live version
 // (answers live outside the round state), pushes no frame, and crosses no
 // console-side mutation — window-focus refetch is globally off too. Without
-// this interval the MC's Đúng stays dead until a reload (smoke-tested).
+// this interval the console's Đúng stays dead until a reload (smoke-tested).
 export function useQuestionAnswers(tournamentId: string, matchId: string, questionId: string | null) {
-    const prefix = useApiPrefix()
     return useQuery({
         queryKey: ["question-answers", matchId, questionId],
         // The route wraps: { items: [...] } — unwrap here or `rows.find` gets an
         // object and the console unmounts (blank stage page).
         queryFn: () =>
             api<{ items: QuestionAnswerRow[] }>(
-                `${prefix}/tournaments/${tournamentId}/matches/${matchId}/live/answers?questionId=${questionId}`
+                `/portal/tournaments/${tournamentId}/matches/${matchId}/live/answers?questionId=${questionId}`
             ).then((body) => body.items),
         enabled: Boolean(questionId),
         // Same cadence as the lobby — only while a question is open (enabled).
@@ -264,10 +260,10 @@ export function useQuestionAnswers(tournamentId: string, matchId: string, questi
 
 // ── pure decisions (tested) ──────────────────────────────────────────────────
 
-// The hints the MC may still open: everything not yet consumed, the currently
+// The hints the console may still open: everything not yet consumed, the currently
 // open window excluded (it gets its own panel), text resolved from the frozen set.
 export function hintPool(
-    mc: GiaiMaMc | null,
+    mc: GiaiMaConsole | null,
     questions: ConsoleQuestion[]
 ): Array<{ questionId: string; text: string }> {
     if (!mc) return []
@@ -277,7 +273,7 @@ export function hintPool(
         .map((id) => ({ questionId: id, text: byId.get(id)?.questionText ?? id }))
 }
 
-// The verdicts to SEND with a finalize: ONLY the rows the MC explicitly staged —
+// The verdicts to SEND with a finalize: ONLY the rows the console explicitly staged —
 // there is no default. An un-staged submitted answer makes the set incomplete and
 // the backend refuses it (UNJUDGED_ANSWERS → the flash shows the message), so an
 // answer can never be silently judged. Judged rows are already final and are not
@@ -286,25 +282,9 @@ export function mergedVerdicts(
     questionId: string,
     rows: QuestionAnswerRow[],
     overrides: Record<string, boolean>
-): Array<{ playerId: string; correct: boolean }> {
+): Verdict[] {
     return rows.flatMap((row) => {
         const correct = overrides[`${questionId}:${row.userId}`]
         return correct === undefined ? [] : [{ playerId: row.userId, correct }]
     })
-}
-
-// The `start` action's payloads differ per round: giai-ma needs the field and the
-// hint order resolved server-side style (from the frozen set, keyword excluded);
-// every other round starts bare.
-export function startActionPayload(
-    roundId: string,
-    playerIds: string[],
-    questions: ConsoleQuestion[]
-): Record<string, unknown> {
-    if (roundId !== "giai-ma") return {}
-    const hintIds = questions
-        .filter((q) => q.roundId === roundId && q.kind !== "KEYWORD")
-        .sort((a, b) => a.position - b.position)
-        .map((q) => q._id)
-    return { playerIds, hintIds }
 }

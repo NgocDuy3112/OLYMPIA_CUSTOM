@@ -15,6 +15,23 @@ Currently, this app is currently in progress for v2.0; a completely new UI, back
 | argon2 | https://github.com/ranisalt/node-argon2 |
 | otplib | https://github.com/yeojz/otplib |
 
+## Hosts (production shape)
+
+Three hostnames, one backend, every API call same-origin:
+
+| Host | Serves | Proxies |
+|---|---|---|
+| `portal.aoc.olympia-custom.io.vn` | console / admin | `/portal/*` |
+| `gameplay.aoc.olympia-custom.io.vn` | player deck | `/gameplay/*` |
+| `aoc.olympia-custom.io.vn` | audience app ("Khán giả cùng leo núi") | `/spectate/*`, `/public/*` |
+
+Cookies stay **host-only** (`portal_session` / `gameplay_session`), so a player
+on `gameplay.*` cannot even present an admin cookie. The full shape — Caddyfile,
+the three static images, the env matrix, TLS — lives in [`deploy/`](deploy/README.md);
+run it with `podman compose -f docker-compose.prod.yaml up -d --build`.
+
+Local development is unchanged (Vite servers with prefix proxies, below).
+
 ## Run with Podman
 
 The stack runs in containers — **postgres + backend** — while the frontend runs on the

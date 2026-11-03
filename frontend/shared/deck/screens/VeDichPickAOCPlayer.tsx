@@ -1,8 +1,8 @@
-import { Badges, CardHeader, MainCard, PlayerStage, Rail, type PlayerCore } from "@shared/deck/player-deck"
-import { DECK_PAD, STRIP_R, pt } from "@shared/deck/geometry"
-import { playerCellClass, type CellWhere } from "@shared/deck/cells"
-import { VE_GRID_COLUMNS, boardRows } from "@shared/deck/ve-dich-board"
-import type { VeDichCommand } from "@shared/deck/types"
+import { Badges, CardHeader, MainCard, PlayerStage, Rail, type PlayerCore } from "../player-deck"
+import { DECK_PAD, STRIP_R, pt } from "../geometry"
+import { playerCellClass, type CellWhere } from "../cells"
+import { VE_GRID_COLUMNS, boardRows } from "../ve-dich-board"
+import type { VeDichCommand } from "../types"
 
 // Về đích — bảng chọn câu (S6 = phase 1 chọn 1 · S5 = phase 2 bốc 3): the cells
 // ARE the picker. The board is the show's — 6×20, 6×30, 4×40, 4×50 — rows are
@@ -32,7 +32,7 @@ function cellTitle(where: CellWhere, picking: boolean, actionable: boolean): str
 /** The band's status line, keyed by turn state. */
 function turnLabel(v: { pendingPicks?: string[]; isMyTurn?: boolean }, picked: number, phase2: boolean, need: number): string {
     if (v.isMyTurn !== true) return "Đến lượt thí sinh khác"
-    if ((v.pendingPicks ?? []).length > 0) return `Đã chốt ${v.pendingPicks?.length} câu — chờ MC mở`
+    if ((v.pendingPicks ?? []).length > 0) return `Đã chốt ${v.pendingPicks?.length} câu — chờ điều hành mở`
     if (picked > 0) return `Đã chọn ${picked}/${need}`
     return phase2 ? `Chọn ${need} câu trên bảng` : "Chọn một câu trên bảng"
 }
@@ -68,7 +68,7 @@ export function VeDichPickAOCPlayer({ ctx }: { ctx: VeDichPickPlayerCtx }) {
                 <>
                     <span className="flex h-[3.3cqw] items-center rounded-lg bg-muted px-[1.2cqw] font-sans font-semibold text-foreground ring-1 ring-border" style={{ fontSize: pt(12), borderRadius: STRIP_R }}>
                         {!picking && pending.size > 0
-                            ? `Đã chốt ${pending.size} câu — chờ MC mở`
+                            ? `Đã chốt ${pending.size} câu — chờ điều hành mở`
                             : turnLabel(v.me, pickedCells.length, phase2, need)}
                     </span>
                     <button

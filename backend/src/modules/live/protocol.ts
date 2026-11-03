@@ -92,7 +92,8 @@ export interface ConsoleView {
     projection: Omit<PlayerView, "me">;
     roundEnded: boolean;
     connected: string[];
-    mc: Record<string, unknown> | null;
+    /** The console's own facts (never a player's): powers, buzzers, race state. */
+    console: Record<string, unknown> | null;
 }
 
 export type ServerMessage =

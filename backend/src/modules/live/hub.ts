@@ -46,7 +46,7 @@ export function subscriberCount(matchId: string): number {
     return byMatch.get(matchId)?.size ?? 0;
 }
 
-/** The user ids with a live socket right now — the MC's "connected" dots. */
+/** The user ids with a live socket right now — the console's "connected" dots. */
 export function connectedUsers(matchId: string): string[] {
     const set = byMatch.get(matchId);
     if (!set) return [];

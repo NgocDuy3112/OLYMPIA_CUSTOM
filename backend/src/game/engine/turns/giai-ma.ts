@@ -1,4 +1,4 @@
-// giai-ma: MC-chosen hints (shared pool) and keyword submissions.
+// giai-ma: console-chosen hints (shared pool) and keyword submissions.
 // Hint identity IS the MatchQuestion _id, so facts attach to a question row directly.
 import { keywordValue } from "../scoring/giai-ma.js";
 import { GIAI_MA_DEFAULTS, type GiaiMaRules } from "../rules.js";
@@ -6,7 +6,7 @@ import { fail } from "./errors.js";
 
 export type Stage = "hints" | "ended";
 
-// The answer window after the MC opens a hint.
+// The answer window after the console opens a hint.
 export interface GiaiMaPlayer {
     id: string;
     hintsRevealed: number;      // count of this player's correct hint answers
@@ -22,7 +22,7 @@ export interface GiaiMaState {
     stage: Stage;
     players: GiaiMaPlayer[];
     hintIds: string[];          // all hint question ids, in display order
-    picked: string[];           // hint ids the MC has picked, in pick order
+    picked: string[];           // hint ids the console has picked, in pick order
     openHint: string | null;    // the hint whose answer window is open, or null
     openHintAt: string | null;  // ISO time the window opened
 }
@@ -62,7 +62,7 @@ export function keywordValueFor(state: GiaiMaState, playerId: string): number {
     return keywordValue(player.hintsRevealed, state.rules);
 }
 
-// The MC opens the answer window for one hint. Only one window may be open at a time.
+// The the console opens the answer window for one hint. Only one window may be open at a time.
 export function openHint(state: GiaiMaState, hintId: string, openedAt: string): GiaiMaState {
     if (state.stage !== "hints") fail("WRONG_STAGE", "hints are over");
     if (state.openHint !== null) fail("WINDOW_OPEN", `hint ${state.openHint} is already open`);
@@ -87,13 +87,13 @@ export function canPlayerAnswer(state: GiaiMaState, playerId: string, nowIso: st
     return player !== undefined && !player.keywordLocked && !player.eliminated;
 }
 
-// The MC closes the window without resolving it. The hint stays available.
+// The the console closes the window without resolving it. The hint stays available.
 export function closeHintWindow(state: GiaiMaState): GiaiMaState {
     if (state.openHint === null) fail("NO_OPEN_HINT", "no hint window is open");
     return { ...state, openHint: null, openHintAt: null };
 }
 
-// The MC resolves the open hint. Every player who answered correctly is revealed the
+// The console resolves the open hint. Every player who answered correctly is revealed the
 // hint; a player with no answer, or a wrong one, gets nothing. The hint is consumed
 // either way, and the window closes.
 export function resolveOpenHint(
@@ -121,13 +121,13 @@ export function resolveOpenHint(
 // Keyword submission, allowed any time during the hint phase: it LOCKS the
 // player's participation — they stop picking and answering hints from now on —
 // and decides NOTHING else. The typed text lives in the answers ledger as a
-// draft; the MC judges it later with judgeKeyword. The rules' "value at the
+// draft; the console judges it later with judgeKeyword. The rules' "value at the
 // moment they submit" is preserved by the lock itself: a locked player can no
 // longer gain reveals, so hintsRevealed is frozen and judging later computes
 // the exact value that was on the table at submit.
 //
 // The round's stage is deliberately NOT flipped here: with a verdict pending
-// the round is not over — the MC judges and ends it (endGiaiMa). Auto-ending
+// the round is not over — the console judges and ends it (endGiaiMa). Auto-ending
 // at the last submission would also strand any hint window open at that moment
 // (resolveOpenHint refuses a stage that is already "ended"), leaving its
 // answers unjudgeable.
@@ -143,11 +143,11 @@ export function lockKeyword(state: GiaiMaState, playerId: string): GiaiMaState {
     return { ...state, players };
 }
 
-// The MC's verdict on a locked keyword. Correct: earns the value frozen at
+// The the console's verdict on a locked keyword. Correct: earns the value frozen at
 // submit (hintsRevealed cannot have moved — the lock froze it). Wrong: 0 and
 // eliminated. Allowed in either stage — the judgment may land after the round's
-// content has ended (all hints used, or everyone submitted and the MC moved on).
-// Re-judging is allowed: the MC may correct a verdict before the match freezes.
+// content has ended (all hints used, or everyone submitted and the console moved on).
+// Re-judging is allowed: the console may correct a verdict before the match freezes.
 export function judgeKeyword(state: GiaiMaState, playerId: string, correct: boolean): GiaiMaState {
     const player = state.players.find((p) => p.id === playerId);
     if (!player) fail("UNKNOWN_PLAYER", `player ${playerId} is not in giai-ma`);
@@ -169,7 +169,7 @@ export function giaiMaPoints(state: GiaiMaState, playerId: string): number {
     return state.players.find((p) => p.id === playerId)?.keywordPoints ?? 0;
 }
 
-// Ends the round (the MC closes it); unsubmitted players earn nothing.
+// Ends the round (the console closes it); unsubmitted players earn nothing.
 export function endGiaiMa(state: GiaiMaState): GiaiMaState {
     if (state.stage === "ended") return state;
     return { ...state, stage: "ended" };

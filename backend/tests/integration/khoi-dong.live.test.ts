@@ -8,7 +8,7 @@ import { answers, matchLive, matchResults, matches, tournaments, users } from ".
 import { signToken } from "../../src/lib/jwt.js";
 import type { MatchQuestion } from "../../src/game/contracts/index.js";
 
-// khoi-dong end to end: phase 1 oral (MC-recorded, 45 s per player), phase 2 typed
+// khoi-dong end to end: phase 1 oral (console-recorded, 45 s per player), phase 2 typed
 // (all players, one shared 60 s).
 
 let app: FastifyInstance;
@@ -118,7 +118,7 @@ const answer = (cookie: string, questionId: string, text: string) =>
     });
 
 describe("khoi-dong — phase 1 (oral, one run per player)", () => {
-    it("the MC starts the round; every seated player gets a run", async () => {
+    it("the console starts the round; every seated player gets a run", async () => {
         const res = await act({ kind: "khoi-dong.start" });
         expect(res.statusCode).toBe(200);
         expect(res.json().state.stage).toBe("phase1");
@@ -132,7 +132,7 @@ describe("khoi-dong — phase 1 (oral, one run per player)", () => {
         expect(res.json().error).toBe("BUZZ_ONLY");
     });
 
-    it("the MC records six correct answers for player 0, each worth 10", async () => {
+    it("the console records six correct answers for player 0, each worth 10", async () => {
         for (let i = 0; i < 6; i++) {
             const res = await act({ kind: "khoi-dong.recordOral", correct: true, spentS: 2 });
             expect(res.statusCode).toBe(200);
@@ -151,7 +151,7 @@ describe("khoi-dong — phase 1 (oral, one run per player)", () => {
         expect(rows.every((r) => JSON.stringify(r.value) === JSON.stringify({ oral: true }))).toBe(true);
     });
 
-    it("the MC times out player 1's run; phase 1 is complete", async () => {
+    it("the console times out player 1's run; phase 1 is complete", async () => {
         const res = await act({ kind: "khoi-dong.timeOutRun" });
         expect(res.statusCode).toBe(200);
         const state = (await live()).state as Record<string, unknown>;
@@ -164,7 +164,7 @@ describe("khoi-dong — phase 2: the buzz race", () => {
     const buzz = (cookie: string) =>
         app.inject({ method: "POST", url: `/gameplay/matches/${matchId}/live/buzz`, headers: asPlayer(cookie) });
 
-    it("the MC opens phase 2 with twelve questions, and nothing runs yet", async () => {
+    it("the console opens phase 2 with twelve questions, and nothing runs yet", async () => {
         const res = await act({ kind: "khoi-dong.beginPhase2" });
         expect(res.statusCode).toBe(200);
         expect(res.json().state.stage).toBe("phase2");
@@ -201,7 +201,7 @@ describe("khoi-dong — phase 2: the buzz race", () => {
         expect(view.me.canBuzz).toBe(false);
     });
 
-    it("the MC judges it wrong: the answerer is locked out and the re-buzz is armed", async () => {
+    it("the console judges it wrong: the answerer is locked out and the re-buzz is armed", async () => {
         const res = await act({ kind: "khoi-dong.judgeBuzz", correct: false });
         expect(res.statusCode).toBe(200);
         expect(res.json().state.phase2.current.excluded).toEqual([playerIds[0]]);
@@ -227,7 +227,7 @@ describe("khoi-dong — phase 2: the buzz race", () => {
         expect(res.json().state.phase2.index).toBe(1);
     });
 
-    it("nobody buzzing: the MC moves on and the question costs nothing", async () => {
+    it("nobody buzzing: the console moves on and the question costs nothing", async () => {
         expect((await act({ kind: "khoi-dong.openBuzz" })).statusCode).toBe(200);
         const res = await act({ kind: "khoi-dong.nextQuestion" });
         expect(res.statusCode).toBe(200);
@@ -243,14 +243,14 @@ describe("khoi-dong — phase 2: the buzz race", () => {
         expect(res.statusCode).toBe(403);
     });
 
-    it("the MC closes phase 2; further buzzes are refused", async () => {
+    it("the console closes phase 2; further buzzes are refused", async () => {
         expect((await act({ kind: "khoi-dong.closePhase2" })).statusCode).toBe(200);
         const res = await buzz(playerCookies[0]);
         expect(res.statusCode).toBe(409);
         expect(res.json().error).toBe("PHASE_ENDED");
     });
 
-    it("the MC ends the round", async () => {
+    it("the console ends the round", async () => {
         const res = await act({ kind: "khoi-dong.endRound" });
         expect(res.statusCode).toBe(200);
         expect(res.json().state.ended).toBe(true);

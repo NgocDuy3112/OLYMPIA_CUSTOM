@@ -36,6 +36,13 @@
       "when": 1793591869290,
       "tag": "0004_power_star_assign",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793608165047,
+      "tag": "0005_question_kind_choice",
+      "breakpoints": true
     }
   ]
 }

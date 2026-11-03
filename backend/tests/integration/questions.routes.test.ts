@@ -30,7 +30,7 @@ const validTournament = (name: string, tags = ["THTH"]) => ({
 });
 
 const mc = (text = "2 + 2?"): CreateQuestionInput => ({
-    kind: "MC",
+    kind: "CHOICE",
     questionText: text,
     
     payload: { options: [{ id: "A", text: "4" }, { id: "B", text: "5" }], correctSet: ["A"] }
@@ -162,7 +162,7 @@ describe("POST — payload integrity", () => {
         expect(res.statusCode).toBe(400);
     });
 
-    it("400 when kind is MC but the payload is a TEXT shape", async () => {
+    it("400 when kind is console but the payload is a TEXT shape", async () => {
         const res = await create({
             ...mc(),
             payload: { acceptedAnswers: ["x"], normalize: { caseSensitive: false, trim: true, stripAccents: true } }

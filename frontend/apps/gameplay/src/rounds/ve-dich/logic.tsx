@@ -1,7 +1,7 @@
 import { playerScreenOf } from "@/lib/live"
-import { VeDichChungAOCPlayer } from "./VeDichChungAOCPlayer"
-import { VeDichPickAOCPlayer } from "./VeDichPickAOCPlayer"
-import { VeDichRiengAOCPlayer } from "./VeDichRiengAOCPlayer"
+import { VeDichChungAOCPlayer } from "@shared/deck/screens/VeDichChungAOCPlayer"
+import { VeDichPickAOCPlayer } from "@shared/deck/screens/VeDichPickAOCPlayer"
+import { VeDichRiengAOCPlayer } from "@shared/deck/screens/VeDichRiengAOCPlayer"
 import type { RoundModule } from "../types"
 
 // Về đích — the AOC ruleset: turn-based. The board draws while nothing is

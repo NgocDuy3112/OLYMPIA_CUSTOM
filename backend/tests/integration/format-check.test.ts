@@ -35,7 +35,7 @@ const createMatch = (payload: Record<string, unknown>) =>
             scheduledAt: "2026-03-01T10:00:00Z",
             roundConfigs: {
                 "ve-dich": {
-                    allowedKinds: ["MC"],
+                    allowedKinds: ["CHOICE"],
                     scoring: { template: "constant", points: 10 },
                     turns: [{ id: "phase1", mode: "text", delivery: "batch", questionCount: 2 }]
                 }
@@ -77,7 +77,7 @@ beforeAll(async () => {
         stages: [{ id: "splitting-1", title: "Splitting 1", role: "splitting" }],
         roundRules: {
             "ve-dich": {
-                allowedKinds: ["MC"],
+                allowedKinds: ["CHOICE"],
                 scoring: { template: "constant", points: 10 },
                 turns: [{ id: "phase1", mode: "text", delivery: "batch", questionCount: 2 }]
             }
@@ -98,7 +98,7 @@ beforeAll(async () => {
 
     await db.insert(questionBank).values(
         Array.from({ length: 8 }, (_, i) => ({
-            kind: "MC" as const,
+            kind: "CHOICE" as const,
             questionText: `Q${i}`,
             
             payload: { options: [{ id: "a", text: "A" }, { id: "b", text: "B" }], correctSet: ["a"] },

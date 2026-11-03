@@ -1,6 +1,6 @@
 // What a QUESTION looks like on any screen that is not the judge's — anywhere a
 // question is shown but its answer must not be.
-// One function, one rule: MC options yes, correct set never.
+// One function, one rule: console options yes, correct set never.
 //
 // Pure — no db, no fastify.
 import type { MatchQuestion } from "../game/contracts/index.js";
@@ -12,7 +12,7 @@ export interface SanitizedQuestion {
     questionText: string;
     media: MatchQuestion["media"];
     timeLimit: number | null;
-    // MC carries its options; KEYWORD carries the PUBLIC code length (delta D3:
+    // console carries its options; KEYWORD carries the PUBLIC code length (delta D3:
     // "MẬT MÃ GỒM CÓ 25 CHỮ CÁI" is shown on every screen — the letters never
     // are); every other kind arrives as {}. The correct set is never part of this shape.
     payload: {
@@ -29,7 +29,7 @@ export function sanitizeQuestion(question: MatchQuestion): SanitizedQuestion {
         questionText: question.questionText,
         media: question.media,
         timeLimit: question.timeLimit,
-        payload: question.kind === "MC"
+        payload: question.kind === "CHOICE"
             ? { options: (question.payload as { options: Array<{ id: string; text: string }> }).options }
             : question.kind === "KEYWORD" &&
                 typeof (question.payload as { code?: unknown }).code === "string"

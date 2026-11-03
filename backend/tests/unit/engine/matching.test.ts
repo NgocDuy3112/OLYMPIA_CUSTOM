@@ -29,34 +29,34 @@ describe("normalizeText", () => {
     });
 });
 
-describe("autoMatch — MC", () => {
+describe("autoMatch — console", () => {
     const payload = {
         options: [{ id: "a", text: "A" }, { id: "b", text: "B" }, { id: "c", text: "C" }],
         correctSet: ["a", "c"]
     } as QuestionPayload;
 
     it("accepts a set regardless of order", () => {
-        expect(autoMatch("MC", payload, { picked: ["c", "a"] })).toBe(true);
+        expect(autoMatch("CHOICE", payload, { picked: ["c", "a"] })).toBe(true);
     });
 
     it("ignores duplicate picks", () => {
-        expect(autoMatch("MC", payload, { picked: ["c", "a", "a"] })).toBe(true);
+        expect(autoMatch("CHOICE", payload, { picked: ["c", "a", "a"] })).toBe(true);
     });
 
     it("rejects an incomplete set", () => {
-        expect(autoMatch("MC", payload, { picked: ["a"] })).toBe(false);
+        expect(autoMatch("CHOICE", payload, { picked: ["a"] })).toBe(false);
     });
 
     it("rejects an extra option", () => {
-        expect(autoMatch("MC", payload, { picked: ["a", "b", "c"] })).toBe(false);
+        expect(autoMatch("CHOICE", payload, { picked: ["a", "b", "c"] })).toBe(false);
     });
 
     it("rejects an empty submission", () => {
-        expect(autoMatch("MC", payload, { picked: [] })).toBe(false);
+        expect(autoMatch("CHOICE", payload, { picked: [] })).toBe(false);
     });
 
-    it("rejects a text value on an MC question", () => {
-        expect(autoMatch("MC", payload, { text: "a,c" })).toBe(false);
+    it("rejects a text value on an console question", () => {
+        expect(autoMatch("CHOICE", payload, { text: "a,c" })).toBe(false);
     });
 });
 

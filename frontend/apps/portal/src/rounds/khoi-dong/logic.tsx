@@ -2,7 +2,7 @@ import type { ConsoleFacts } from "@/components/stage/deck"
 import { KhoiDongChungAOCController, type KhoiDongChungCtx } from "./KhoiDongChungAOCController"
 import { KhoiDongRiengAOCController, type KhoiDongRiengCtx } from "./KhoiDongRiengAOCController"
 import { screenCore, type RoundAction, type RoundModule } from "../types"
-import type { KhoiDongMc } from "@/lib/live"
+import type { KhoiDongConsole } from "@/lib/live"
 
 // Khởi động — the AOC ruleset: phase 1 walks the oral runs one by one, phase 2
 // is the shared typed batch against one deadline. Kết thúc ends the open run
@@ -18,7 +18,7 @@ function chungCtx(f: ConsoleFacts): KhoiDongChungCtx {
     return {
         ...screenCore(f),
         remaining: f.remaining,
-        mcKhoiDong: (f.v.mc ?? null) as KhoiDongMc | null
+        consoleKhoiDong: (f.v.console ?? null) as KhoiDongConsole | null
     }
 }
 

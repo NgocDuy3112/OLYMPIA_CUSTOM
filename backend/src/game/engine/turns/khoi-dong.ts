@@ -74,7 +74,7 @@ export function phase1Total(state: Phase1State): number {
 /**
  * Về Khởi động · lượt chung — the buzz race.
  *
- * Twelve questions, ONE at a time. On each: the MC opens a 5 s buzz window, the
+ * Twelve questions, ONE at a time. On each: the console opens a 5 s buzz window, the
  * whole field races, and the FASTEST one answers out loud (the rest are locked —
  * one buzz wins, exactly as in every other buzzing round).
  *
@@ -85,7 +85,7 @@ export function phase1Total(state: Phase1State): number {
  *   nobody buzzes                → the question dies (no points either way)
  *
  * There is no shared clock: a question lives in its own windows, and the phase
- * ends when its twelve questions are done (or the MC closes it).
+ * ends when its twelve questions are done (or the console closes it).
  */
 export interface Phase2Buzz {
     questionId: string;
@@ -158,7 +158,7 @@ export function isPhase2WindowOpen(state: Phase2State, nowIso: string): boolean 
 }
 
 /**
- * The MC opens a window for the question in play. First call starts the
+ * The the console opens a window for the question in play. First call starts the
  * question (attempt 1); after a wrong verdict it opens attempt 2 for everyone
  * the first answerer is not.
  */
@@ -207,7 +207,7 @@ export function buzzPhase2(state: Phase2State, playerId: string, nowIso: string)
 }
 
 /**
- * The MC judges the buzzed answer.
+ * The console judges the buzzed answer.
  *
  *   correct on attempt 1 → +pointsPerCorrect, next question
  *   correct on attempt 2 → +secondChancePoints, next question
@@ -240,7 +240,7 @@ export function judgePhase2(state: Phase2State, correct: boolean, rules: KhoiDon
     return settle(state, current, null, 0);
 }
 
-/** The MC moves on without a score (nobody buzzed, or the window ran out twice). */
+/** The console moves on without a score (nobody buzzed, or the window ran out twice). */
 export function nextPhase2Question(state: Phase2State): Phase2State {
     if (state.closed) fail("PHASE_ENDED", "phase 2 is over");
     if (state.current !== null && state.current.buzzer !== null) {
