@@ -84,10 +84,10 @@ export function Lobby({
                                     />
                                 </div>
                                 <div className="flex min-w-0 flex-1 flex-col justify-start gap-[0.3cqw] pt-[0.2cqw] text-center">
-                                    <span className="truncate font-display font-semibold leading-none text-foreground" style={{ fontSize: pt(28) }}>
+                                    <span className="truncate font-display font-semibold leading-none text-foreground" style={{ fontSize: pt(16) }}>
                                         {row.displayName}
                                     </span>
-                                    <span className="font-display font-bold leading-none tabular-nums text-foreground" style={{ fontSize: pt(40) }}>
+                                    <span className="font-display font-bold leading-none tabular-nums text-foreground" style={{ fontSize: pt(48) }}>
                                         {row.points}
                                     </span>
                                 </div>
@@ -113,7 +113,6 @@ export function Lobby({
                             (data.status === "LIVE" || Boolean(mc.opensMatch)) &&
                             Boolean(mc.canStart) &&
                             !mc.busy
-                        // "You are here" stays a FACT (it drives the tooltip), not a colour.
                         const isCurrent =
                             data.roundId === round.id &&
                             (round.phase === undefined ||
