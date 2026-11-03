@@ -31,6 +31,7 @@ import {
     matchLive,
     matchResults,
     matches,
+    tournamentPlayers,
     tournaments,
     users
 } from "../src/db/schema/index.js";
@@ -74,11 +75,19 @@ async function remove() {
     await db.delete(matchResults).where(eq(matchResults.matchId, MATCH_ID));
     await db.delete(matchLive).where(eq(matchLive.matchId, MATCH_ID));
     await db.delete(matches).where(eq(matches.id, MATCH_ID));
+    await db.delete(tournamentPlayers).where(eq(tournamentPlayers.tournamentId, TOURNAMENT_ID));
     await db.delete(tournaments).where(eq(tournaments.slug, SLUG));
-    const playerRows = await db
+    // Anyone on the fixture's roster goes too: a QA session adds contestants
+    // through the portal (the "Add contestant" box), and leaving them behind
+    // would make the next run of this script fail on a duplicate name.
+    const rostered = await db
+        .select({ id: tournamentPlayers.userId })
+        .from(tournamentPlayers)
+        .where(eq(tournamentPlayers.tournamentId, TOURNAMENT_ID));
+    const playerRows = [...rostered, ...(await db
         .select({ id: users.id })
         .from(users)
-        .where(inArray(users.displayName, PLAYERS));
+        .where(inArray(users.displayName, PLAYERS)))];
     if (playerRows.length > 0) {
         await db.delete(users).where(inArray(users.id, playerRows.map((r) => r.id)));
     }

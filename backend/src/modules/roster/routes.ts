@@ -7,7 +7,7 @@ import {
     tournamentParams,
     UUID_PATTERN
 } from "../tournament-shared.js";
-import { assignGroup, enrollPlayers, listEnrolled, type GroupLabel } from "./service.js";
+import { assignGroup, createContestant, enrollPlayers, listEnrolled, type GroupLabel } from "./service.js";
 
 export async function rosterRoutes(app: FastifyInstance) {
     tournamentErrorHandler(app);
@@ -46,6 +46,41 @@ export async function rosterRoutes(app: FastifyInstance) {
             });
 
             return { enrolled };
+        }
+    );
+
+    // Make the identity a seat points at: a PLAYER with a display name, enrolled
+    // in the same call. Players never sign in (no password, no Google) — the PIN
+    // claim mints their session — so this is the only way onto a roster.
+    app.post(
+        "/portal/tournaments/:tournamentId/players/new",
+        {
+            onRequest: staff,
+            schema: {
+                params: tournamentParams,
+                body: {
+                    type: "object",
+                    required: ["displayName"],
+                    additionalProperties: false,
+                    properties: {
+                        displayName: { type: "string", minLength: 1, maxLength: 100 }
+                    }
+                }
+            }
+        },
+        async (request) => {
+            const user = request.sessionUser!;
+            const { tournamentId } = request.params as { tournamentId: string };
+            const { displayName } = request.body as { displayName: string };
+
+            await assertWrite(tournamentId, user.id, user.role);
+            const contestant = await createContestant(tournamentId, displayName);
+
+            await auditFromRequest(request, "tournament_updated", {
+                details: { tournamentId, contestantId: contestant.userId, displayName: contestant.displayName }
+            });
+
+            return contestant;
         }
     );
 

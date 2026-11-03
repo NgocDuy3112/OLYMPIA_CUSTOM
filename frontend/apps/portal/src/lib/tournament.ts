@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api } from "@shared/lib/api"
-import type { Tournament } from "@/lib/tournaments"
+import type { Tournament, TournamentRound } from "@/lib/tournaments"
 
 export interface TurnConfig {
     id: string
@@ -96,7 +96,9 @@ export function useTournament(tournamentId: string) {
 export function useUpdateTournament(tournamentId: string) {
     const queryClient = useQueryClient()
     return useMutation({
-        mutationFn: (patch: Partial<Pick<TournamentDetail, "roundRules" | "stages">>) =>
+        // `rounds` is part of the patch because the ROUND LIST is editable too: a
+        // tournament created without rounds can only become playable through it.
+        mutationFn: (patch: Partial<Pick<TournamentDetail, "roundRules" | "stages">> & { rounds?: TournamentRound[] }) =>
             api<TournamentDetail>(`/portal/tournaments/${tournamentId}`, {
                 method: "PATCH",
                 body: JSON.stringify(patch),
@@ -260,6 +262,31 @@ export function useGroups(tournamentId: string) {
         queryKey: ["groups", tournamentId],
         queryFn: () => api<GroupTables>(`/portal/tournaments/${tournamentId}/groups`),
         enabled: Boolean(tournamentId),
+    })
+}
+
+/**
+ * Make a contestant: a PLAYER with only a display name, enrolled on the spot.
+ *
+ * Players never sign in by design (no password, no Google — the PIN claim mints
+ * their session), so the roster cannot wait for them to "register": the console
+ * creates the identity a seat points at. The backend rejects a duplicate name,
+ * because seats, rail cards and verdicts are read by name on the projector.
+ */
+export function useCreateContestant(tournamentId: string) {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: (displayName: string) =>
+            api<{ userId: string; displayName: string; group: "A" | "B" | null }>(
+                `/portal/tournaments/${tournamentId}/players/new`,
+                { method: "POST", body: JSON.stringify({ displayName }) }
+            ),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ["groups", tournamentId] })
+            void queryClient.invalidateQueries({ queryKey: ["enrolled", tournamentId] })
+            void queryClient.invalidateQueries({ queryKey: ["tournament", tournamentId] })
+        },
     })
 }
 

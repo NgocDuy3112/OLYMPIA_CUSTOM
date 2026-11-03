@@ -1,4 +1,5 @@
 // The tournament's roster: who may take a seat in a match. Admin-enrolled, free-form.
+import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { db } from "../../db/pool.js";
 import { tournamentPlayers, users } from "../../db/schema/index.js";
@@ -12,6 +13,51 @@ export async function enrollPlayers(tournamentId: string, userIds: string[]): Pr
         .onConflictDoNothing();
 
     return (await listEnrolled(tournamentId)).length;
+}
+
+/**
+ * Create a contestant and enroll them in one step.
+ *
+ * Players have no password and no Google account by design (the PIN claim mints
+ * their session), so the console needs a way to MAKE the identity a seat points
+ * at. The display name is what every surface shows; the email is a placeholder
+ * the schema requires for the PLAYER role, unique by construction and never
+ * mailed. A Google sign-in by the same person is a separate account — this path
+ * is for people who never sign in at all.
+ */
+export async function createContestant(
+    tournamentId: string,
+    displayName: string
+): Promise<{ userId: string; displayName: string; group: GroupLabel | null }> {
+    const name = displayName.trim();
+    if (name.length === 0) {
+        throw new TournamentError("VALIDATION", "a contestant needs a display name");
+    }
+
+    // Two "An"s on one roster is an operator mistake, not a feature: the seats,
+    // the rail and the verdicts are read by name on the projector.
+    const roster = await listEnrolled(tournamentId);
+    const taken = roster.some((row) => row.displayName.toLowerCase() === name.toLowerCase());
+    if (taken) {
+        throw new TournamentError(
+            "CONFLICT",
+            `"${name}" is already a contestant in this tournament`
+        );
+    }
+
+    const [user] = await db
+        .insert(users)
+        .values({
+            role: "PLAYER",
+            displayName: name,
+            // Required for the PLAYER role; never used to sign in.
+            email: `player-${randomUUID()}@players.invalid`,
+            tokenVersion: 0
+        })
+        .returning({ id: users.id, displayName: users.displayName });
+
+    await enrollPlayers(tournamentId, [user.id]);
+    return { userId: user.id, displayName: user.displayName, group: null };
 }
 
 /** Which group a contestant banks for, or null while they are still to be drawn. */
