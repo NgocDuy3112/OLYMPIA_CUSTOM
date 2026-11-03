@@ -5,170 +5,49 @@
  * buttons used to sit (ui-structure-plan.md ③, decision: same shell, input
  * replaces controls in the ActionBar region).
  *
- * Transport = docs/live-surface.md § L3: HTTP up, socket down (lib/live).
- * The rail keeps the deck's card geometry with a `me`-highlight ring on this
- * player's own card; everything else (badges, squares, timer, board, tiles) is
- * driven by the pushed LiveView — no static demo data anywhere.
+ * STRUCTURE (Phase 3): this file is now ONLY the shell —
+ *   1. the gate (401 / 403 / 409 / loading), drawn by `player-gates`;
+ *   2. the waiting room, when `playerScreenOf` says this view is a lobby;
+ *   3. one dispatch into the round's module (`src/rounds` owns the rules).
+ * The hooks, the gates' facts and the whole `PlayerCtx` bag live in
+ * `hooks/use-player-model`; the drawn primitives in `@shared/deck/player-deck`.
  *
- * STRUCTURE: this file is the ORCHESTRATOR — hooks, gates, derived facts and
- * the registry dispatch; the drawn primitives + the band controls live in
- * @shared/deck/player-deck, and each round draws through ONE module in
- * `src/rounds` (PlayerCtx in, JSX out). Players reach the match
- * through THIS app (gameplay), never the portal — the PIN join lives at /join.
+ * Players reach the match through THIS app (gameplay), never the portal — the
+ * PIN join lives at /join.
  */
-import { useState } from "react"
-import { Link } from "react-router-dom"
-import { useCountdown } from "@shared/lib/clock"
 import { StageShell } from "@shared/deck/stage-shell"
 import { Lobby } from "@shared/deck/lobby"
-import { Badges, Gate, MainCard, Rail, StageLayout, type PlayerCtx } from "@shared/deck/player-deck"
-import { ROUND_LABEL, isKnownRound, isWaitingStage, pt } from "@shared/deck/geometry"
-import { roundModuleOf } from "@/rounds"
-import {
-    playerScreenOf,
-    useLiveAnswer,
-    useLiveBuzz,
-    useLiveKeyword,
-    useLiveLobby,
-    useLiveMatch,
-    useLivePlayerCommand,
-    type AnswerValue,
-    type LivePlayerCommand,
-} from "@/lib/live"
-import { useMe } from "@/lib/session"
-
-/** S2 selector: the remembered qid if it is still open, else the clamped index. */
-function s2QIndex(qid: string, open: PlayerCtx["open"]): number {
-    const found = open.findIndex((entry) => entry.questionId === qid)
-    return found >= 0 ? found : -1
-}
-
-/** A refusal is a flash, not a crash — 409 means "the window moved on". */
-function refusalOf(error: unknown): string | null {
-    if (!error) return null
-    if (error instanceof Error) return error.message
-    return "Không gửi được — thử lại"
-}
+import { Badges, MainCard, Rail, StageLayout } from "@shared/deck/player-deck"
+import { ROUND_LABEL, pt } from "@shared/deck/geometry"
+import { gateOf } from "@/lib/player-gate"
+import { PlayerGateScreen } from "./player-gates"
+import { usePlayerModel } from "@/hooks/use-player-model"
 
 export function PlayerShell({ matchId }: { matchId: string }) {
-    // ── hooks first — early returns must not move the hook line ──────────────
-    const me = useMe()
-    const live = useLiveMatch(matchId, true)
-    const answer = useLiveAnswer(matchId)
-    // Khởi động chung: the buzz is that round's only player action (no payload).
-    const buzzAction = useLiveBuzz(matchId)
-    const keywordSubmit = useLiveKeyword(matchId)
-    const cmd = useLivePlayerCommand(matchId)
+    const model = usePlayerModel(matchId)
 
-    const [view2, setView2] = useState({ qid: "", idx: 0 })   // S2 question selector (derived reset)
-    const [pickedCells, setPickedCells] = useState<string[]>([])  // ve-dich board picks
+    // ── 1. the gate: a dead session, the wrong seat, or a match not LIVE yet ──
+    const gate = gateOf({ failureStatus: model.failureStatus, hasView: model.v !== undefined })
+    if (gate) return <PlayerGateScreen gate={gate} model={model} />
 
-    const v = live.view
-    const open = v?.open ?? []
-    const remaining = useCountdown(open[0]?.deadlineAt ?? null, live.clock)
-    const myId = me.data?.id ?? null
-
-    // Waiting = no view yet (409: match not LIVE) or a round not running.
-    // The lobby answers in BOTH cases — ask for it whenever that's true.
-    const failureStatus = live.failure?.status
-    const stageNow = v?.stage
-    // Reasons the lobby — not a round screen — is what this player should see.
-    const matchNotLiveYet = failureStatus === 409 // /live refuses until the match is LIVE
-    const noViewToPaint = v === undefined         // the first read/push has not landed
-    const roundNotRunning = isWaitingStage(stageNow ?? "")
-    const waiting = matchNotLiveYet || noViewToPaint || roundNotRunning
-    const lobby = useLiveLobby(matchId, waiting)
-
-    // ── gates (inside the canvas: the deck frame never flickers away) ────────
-    if (failureStatus === 401) {
-        return (
-            <StageShell>
-                <Gate title="Chưa vào trận" body="Phiên thí sinh đã hết hạn — nhập lại mã PIN để vào ghế.">
-                    <Link to="/join" className="rounded-lg bg-primary px-4 py-2 font-sans text-sm font-semibold text-primary-foreground">Nhập lại mã PIN</Link>
-                </Gate>
-            </StageShell>
-        )
-    }
-    if (failureStatus === 403) {
-        return (
-            <StageShell>
-                <Gate title="Không có trong trận" body="Ghế này không thuộc về bạn — báo lại với ban điều hành.">
-                    <Link to="/join" className="rounded-lg bg-primary px-4 py-2 font-sans text-sm font-semibold text-primary-foreground">Nhập mã khác</Link>
-                </Gate>
-            </StageShell>
-        )
-    }
-    if (failureStatus === 409) {
-        // Not LIVE yet — the lobby is the waiting screen (hook keeps polling).
-        return (
-            <StageShell>
-                {lobby.data ? (
-                    <Lobby
-                        data={lobby.data}
-                        meId={myId}
-                        hint="Chờ điều hành mở trận — trang tự cập nhật."
-                    />
-                ) : (
-                    <Gate title="Trận chưa bắt đầu" body="Điều hành chưa mở trận — trang tự cập nhật khi trận sang LIVE.">
-                        <button onClick={live.refetch} className="rounded-lg bg-primary px-4 py-2 font-sans text-sm font-semibold text-primary-foreground">Thử lại</button>
-                    </Gate>
-                )}
-            </StageShell>
-        )
-    }
-    if (!v) {
-        return (
-            <StageShell>
-                <Gate title="Đang tải…" body={live.failure?.message ?? "Đọc trạng thái vòng thi"}>
-                    {live.failure ? (
-                        <button onClick={live.refetch} className="rounded-lg bg-primary px-4 py-2 font-sans text-sm font-semibold text-primary-foreground">Thử lại</button>
-                    ) : null}
-                </Gate>
-            </StageShell>
-        )
-    }
-
-    // ── derived facts ────────────────────────────────────────────────────────
-    const roundId = v.roundId
-    const stage = v.stage
-    const screen = playerScreenOf(v)
-    const flash = refusalOf(answer.error) ?? refusalOf(keywordSubmit.error) ?? refusalOf(cmd.error)
-    const nameOf = (id: string) => v.table.find((row) => row.id === id)?.displayName ?? "Thí sinh"
-
-    // S2: which of the batch is on screen (derived: drop a qid that closed)
-    const s2Idx = Math.min(view2.idx, Math.max(0, open.length - 1))
-    const s2Q = roundId === "khoi-dong" && stage === "phase2" && open[s2QIndex(view2.qid, open)] !== undefined
-        ? open[s2QIndex(view2.qid, open)]
-        : open[s2Idx]
-
-    // ── waiting / unknown rounds → THE LOBBY ───────────────────────────────────
-    if (screen === "lobby") {
-        // Why we're waiting: an unknown round or stage says so; an ended round
-        // says that; everything else is "waiting for the console to start".
-        const lobbyHint = !isKnownRound(roundId) || stage === "unknown"
-            ? "Vòng này chưa có màn hình thí sinh — hỏi ban điều hành."
-            : stage === "ended"
-              ? "Vòng đã kết thúc — chờ điều hành chuyển vòng."
-              : "Chờ điều hành bắt đầu vòng — trang tự cập nhật."
-        if (lobby.data) {
+    // ── 2. the waiting room — where every ended / unknown / paused round lands ─
+    if (model.screen === "lobby") {
+        if (model.lobby.data) {
             return (
                 <StageShell>
-                    <Lobby
-                        data={lobby.data}
-                        meId={myId}
-                        hint={lobbyHint}
-                    />
+                    <Lobby data={model.lobby.data} meId={model.myId} hint={model.lobbyHint} />
                 </StageShell>
             )
         }
-        // Lobby still loading: the deck's own waiting card (no flicker of a blank canvas).
+        // Lobby still loading: the deck's own waiting card (never a blank canvas).
+        const v = model.v!
         return (
             <StageShell>
-                <StageLayout rail={<Rail variant="compact" view={v} myId={myId} />}>
+                <StageLayout rail={<Rail variant="compact" view={v} myId={model.myId} />}>
                     <MainCard>
-                        <Badges round={ROUND_LABEL[roundId] ?? roundId} />
+                        <Badges round={ROUND_LABEL[v.roundId] ?? v.roundId} />
                         <p className="font-sans leading-relaxed text-foreground" style={{ fontSize: pt(16) }}>
-                            {lobbyHint}
+                            {model.lobbyHint}
                         </p>
                         <p className="font-sans text-muted-foreground" style={{ fontSize: pt(13) }}>
                             Điểm của bạn: <b className="tabular-nums text-foreground">{v.me.points ?? v.me.score ?? 0}</b>
@@ -179,38 +58,8 @@ export function PlayerShell({ matchId }: { matchId: string }) {
         )
     }
 
-    // ── the context every round module renders from ──────────────────────────────────────────
-    const submitAnswer = (questionId: string, value: AnswerValue) => answer.mutate({ questionId, value })
-    const submitKeyword = (questionId: string, text: string) => keywordSubmit.mutate({ questionId, value: { text } })
-    const command = (action: LivePlayerCommand) => cmd.mutate(action)
-
-    const ctx: PlayerCtx = {
-        v,
-        stage,
-        open,
-        remaining,
-        myId,
-        flash,
-        nameOf,
-        s2Q,
-        s2Idx,
-        pickS2: (questionId: string, idx: number) => setView2({ qid: questionId, idx }),
-        pickedCells,
-        setPickedCells,
-        answerBusy: answer.isPending,
-        submitAnswer,
-        buzzBusy: buzzAction.isPending,
-        buzz: () => buzzAction.mutate({}),
-        keywordBusy: keywordSubmit.isPending,
-        submitKeyword,
-        cmdBusy: cmd.isPending,
-        command,
-    }
-
-    // One screen per round module (src/rounds owns the RULES) — "lobby"
-    // already returned above; unknown rounds never reach here.
-    const body = roundModuleOf(roundId)?.render(ctx) ?? null
-
+    // ── 3. the round's own screen — one module, one dispatch ──────────────────
+    const body = model.render && model.ctx ? model.render(model.ctx) : null
     return <StageShell>{body}</StageShell>
 }
 
