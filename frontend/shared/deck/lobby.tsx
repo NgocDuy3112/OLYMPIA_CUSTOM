@@ -4,10 +4,7 @@ import { useSelfCam } from "@shared/lib/rtc"
 import { pt } from "./geometry"
 import type { LobbyData } from "./types"
 
-/**
- * A seat's camera in the PlayerCard's rectangle — same attach discipline as
- * the rails: the track owns the <video>, cleanup detaches it.
- */
+
 function LobbyVideo({ track }: { track: RemoteVideoTrack | LocalVideoTrack }) {
     const holder = useRef<HTMLSpanElement>(null)
     useEffect(() => {
@@ -49,10 +46,7 @@ export function Lobby({
     // This surface's own camera (players); the console passes row.video itself.
     const selfCam = useSelfCam()
 
-    // Top-anchored on purpose: the lobby is a DECK, and a deck hangs from its top
-    // edge — the seats stay put when the hint line changes, and the layout does not
-    // shift as the round list grows. `overflow-y-auto` keeps a small canvas (a
-    // phone) from clipping the hint off the bottom.
+
     return (
         <div className="absolute inset-0 flex flex-col items-center overflow-y-auto px-[4cqw] pt-[5cqw] text-center">
             <h1 className="font-display font-bold uppercase leading-none text-foreground" style={{ fontSize: "3cqw" }}>
@@ -90,10 +84,10 @@ export function Lobby({
                                     />
                                 </div>
                                 <div className="flex min-w-0 flex-1 flex-col justify-start gap-[0.3cqw] pt-[0.2cqw] text-center">
-                                    <span className="truncate font-display font-medium leading-none text-foreground" style={{ fontSize: pt(12) }}>
+                                    <span className="truncate font-display font-semibold leading-none text-foreground" style={{ fontSize: pt(28) }}>
                                         {row.displayName}
                                     </span>
-                                    <span className="font-display font-bold leading-none tabular-nums text-foreground" style={{ fontSize: pt(48) }}>
+                                    <span className="font-display font-bold leading-none tabular-nums text-foreground" style={{ fontSize: pt(40) }}>
                                         {row.points}
                                     </span>
                                 </div>
@@ -109,26 +103,23 @@ export function Lobby({
                 </p>
             )}
 
-            {/* controller: one button per round — ALL reachable: new starts it,
-                ● playing re-opens its saved state (round.goTo), ended too (same
-                style). The round buttons are also the way BACK into a round —
-                the separate "quay lại deck" is gone. */}
+
             {mc && data.rounds.length > 0 && (
                 <div className="mt-[3cqw] flex flex-wrap items-center justify-center gap-[1cqw]">
                     {data.rounds.map((round, i) => {
-                        // Entry-level "you are here": a split pair marks only the
-                        // phase we're standing in (pending/unknown marks both).
+                        // A start needs a LIVE match — or a console that opens it as
+                        // part of the same gesture (`opensMatch`).
+                        const live =
+                            (data.status === "LIVE" || Boolean(mc.opensMatch)) &&
+                            Boolean(mc.canStart) &&
+                            !mc.busy
+                        // "You are here" stays a FACT (it drives the tooltip), not a colour.
                         const isCurrent =
                             data.roundId === round.id &&
                             (round.phase === undefined ||
                                 data.currentPhase === round.phase ||
                                 data.currentPhase === null ||
                                 data.currentPhase === undefined)
-                        const live =
-                            (data.status === "LIVE" || Boolean(mc.opensMatch)) &&
-                            Boolean(mc.canStart) &&
-                            !mc.busy
-                        const prefix = round.status === "playing" && isCurrent ? "● " : ""
                         return (
                             <button
                                 key={`${round.id}:${round.name}:${i}`}
@@ -146,25 +137,16 @@ export function Lobby({
                                                 ? data.status === "LIVE"
                                                     ? `Bắt đầu vòng ${round.name}`
                                                     : mc.opensMatch
-                                                ? `Bắt đầu vòng ${round.name} (mở trận cùng lúc)`
-                                                : "Trận chưa mở — bắt đầu ở trang trận"
+                                                        ? `Bắt đầu vòng ${round.name} (mở trận cùng lúc)`
+                                                        : "Trận chưa mở — bắt đầu ở trang trận"
                                                 : `Bắt đầu vòng ${round.name} (nhảy tới)`
                                 }
-                                className={`rounded-[0.5cqw] px-[1.8cqw] py-[0.8cqw] font-sans font-semibold uppercase leading-none tracking-wide transition ${!live
-                                        ? "cursor-default bg-card text-muted-foreground ring-1 ring-border"
-                                        : round.status === "ended"
-                                            ? "cursor-pointer bg-muted text-foreground ring-1 ring-border hover:ring-primary"
-                                            : isCurrent
-                                                ? round.status === "playing"
-                                                    ? "cursor-pointer bg-sky-50 text-sky-800 ring-2 ring-sky-400 hover:brightness-95"
-                                                    : "cursor-pointer bg-primary text-primary-foreground shadow-sm hover:brightness-110"
-                                                : round.status === "playing"
-                                                    ? "cursor-pointer bg-card text-foreground ring-1 ring-border hover:ring-sky-400"
-                                                    : "cursor-pointer bg-card text-foreground ring-1 ring-border hover:ring-primary"
-                                    } ${live && mc.busy ? "opacity-60" : ""}`}
+                                className={`rounded-[0.5cqw] px-[1.8cqw] py-[0.8cqw] font-sans font-semibold uppercase leading-none tracking-wide ring-1 ring-border transition ${live
+                                    ? "cursor-pointer bg-card text-foreground hover:ring-primary"
+                                    : "cursor-default bg-card text-muted-foreground"
+                                } ${live && mc.busy ? "opacity-60" : ""}`}
                                 style={{ fontSize: "1.2cqw" }}
                             >
-                                {prefix}
                                 {round.name}
                             </button>
                         )
