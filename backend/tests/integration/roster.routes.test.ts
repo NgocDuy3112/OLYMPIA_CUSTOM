@@ -28,6 +28,14 @@ const add = (displayName: string, cookie = ownerCookie) =>
         payload: { displayName }
     });
 
+const addWithEmail = (displayName: string, email: string) =>
+    app.inject({
+        method: "POST",
+        url: createUrl(),
+        headers: auth(ownerCookie),
+        payload: { displayName, email }
+    });
+
 beforeAll(async () => {
     app = await buildApp();
     await app.ready();
@@ -126,5 +134,51 @@ describe("the roster refuses what an operator would regret", () => {
             payload: { displayName: "Hà" }
         });
         expect(res.statusCode).toBe(401);
+    });
+});
+
+describe("the email is what makes the identity claimable", () => {
+    it("keeps the address, so a Google sign-in can attach to this very row", async () => {
+        const res = await addWithEmail("Hạnh", "hanh@example.test");
+        expect(res.statusCode).toBe(200);
+        const { userId } = res.json() as { userId: string };
+
+        const [row] = await db.select().from(users).where(eq(users.id, userId));
+        // provisionPlayer() matches by email and links the Google sub to this user,
+        // so their matches/answers/standings were never on another row to begin with
+        expect(row.email).toBe("hanh@example.test");
+        expect(row.emailVerified).toBe(false); // we have not verified it; Google will
+    });
+
+    it("normalises the address (case and spaces)", async () => {
+        const res = await addWithEmail("Linh", "  Linh@Example.Test ");
+        const { userId } = res.json() as { userId: string };
+        const [row] = await db.select().from(users).where(eq(users.id, userId));
+        expect(row.email).toBe("linh@example.test");
+    });
+
+    it("falls back to a placeholder when no address is given", async () => {
+        const res = await add("Khánh");
+        const { userId } = res.json() as { userId: string };
+        const [row] = await db.select().from(users).where(eq(users.id, userId));
+        expect(row.email).toMatch(/@players\.invalid$/);
+    });
+
+    it("refuses an address that already belongs to someone, naming them", async () => {
+        const first = await addWithEmail("Minh", "minh@example.test");
+        expect(first.statusCode).toBe(200);
+
+        const again = await addWithEmail("Minh khác", "minh@example.test");
+        expect(again.statusCode).toBe(409);
+        const body = again.json() as { message: string; details?: string[] };
+        expect(body.message).toContain("already belongs to Minh");
+        // the operator gets the identity to enroll instead of a second row
+        const { userId } = first.json() as { userId: string };
+        expect(body.details).toEqual([userId, "Minh"]);
+    });
+
+    it("refuses something that is not an email", async () => {
+        const res = await addWithEmail("Sai", "khong-phai-email");
+        expect(res.statusCode).toBe(400);
     });
 });

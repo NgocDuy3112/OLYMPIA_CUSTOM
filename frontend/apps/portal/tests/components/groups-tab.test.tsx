@@ -11,6 +11,7 @@ const TOURNAMENT = "t1"
 const GROUPS_URL = `GET /portal/tournaments/${TOURNAMENT}/groups`
 const ASSIGN_URL = (userId: string) => `PATCH /portal/tournaments/${TOURNAMENT}/players/${userId}/group`
 const CREATE_URL = `POST /portal/tournaments/${TOURNAMENT}/players/new`
+const ENROLL_URL = `POST /portal/tournaments/${TOURNAMENT}/players`
 
 const line = (userId: string, displayName: string, bankedPoints: number, matchesPlayed = 1) => ({
     userId,
@@ -185,5 +186,50 @@ describe("GroupsTab — making a contestant", () => {
         await userEvent.click(screen.getByRole("button", { name: /Add/ }))
 
         expect(await screen.findByRole("alert")).toHaveTextContent(/already a contestant/)
+    })
+})
+
+describe("GroupsTab — the email keeps a contestant's history", () => {
+    it("sends the address when the operator gives one", async () => {
+        const fetchMock = stubFetch({
+            [GROUPS_URL]: { body: tables({ unassigned: [] }) },
+            [CREATE_URL]: { body: { userId: "u9", displayName: "Em", group: null } },
+        })
+        render()
+
+        await userEvent.type(await screen.findByLabelText("Contestant name"), "Em")
+        await userEvent.type(screen.getByLabelText("Contestant email"), "em@example.test")
+        await userEvent.click(screen.getByRole("button", { name: /Add/ }))
+
+        await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+        const [, init] = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/players/new"))!
+        // with an address, their own Google sign-in attaches to this row later —
+        // their matches were never on another one
+        expect(JSON.parse(String(init?.body))).toEqual({ displayName: "Em", email: "em@example.test" })
+    })
+
+    it("offers to enroll the existing account instead of creating a second row", async () => {
+        const fetchMock = stubFetch({
+            [GROUPS_URL]: { body: tables({ unassigned: [] }) },
+            [CREATE_URL]: {
+                body: { message: "em@example.test already belongs to Em — enroll that account instead", details: ["u7", "Em"] },
+                status: 409,
+            },
+            [ENROLL_URL]: { body: { enrolled: 1 } },
+        })
+        render()
+
+        await userEvent.type(await screen.findByLabelText("Contestant name"), "Em khác")
+        await userEvent.type(screen.getByLabelText("Contestant email"), "em@example.test")
+        await userEvent.click(screen.getByRole("button", { name: /Add/ }))
+
+        const enroll = await screen.findByRole("button", { name: /Enroll Em/ })
+        await userEvent.click(enroll)
+
+        await waitFor(() => {
+            const [, init] = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/players"))!
+            // the EXISTING user is enrolled: same row, same stats, no duplicate
+            expect(JSON.parse(String(init?.body))).toEqual({ userIds: ["u7"] })
+        })
     })
 })

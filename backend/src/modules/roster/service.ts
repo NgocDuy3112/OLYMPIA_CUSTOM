@@ -15,19 +15,31 @@ export async function enrollPlayers(tournamentId: string, userIds: string[]): Pr
     return (await listEnrolled(tournamentId)).length;
 }
 
+/** A rough guard so a typo cannot become an account nobody can ever claim. */
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
 /**
  * Create a contestant and enroll them in one step.
  *
  * Players have no password and no Google account by design (the PIN claim mints
  * their session), so the console needs a way to MAKE the identity a seat points
- * at. The display name is what every surface shows; the email is a placeholder
- * the schema requires for the PLAYER role, unique by construction and never
- * mailed. A Google sign-in by the same person is a separate account — this path
- * is for people who never sign in at all.
+ * at. The display name is what every surface shows.
+ *
+ * EMAIL decides whether the identity can ever be theirs for good:
+ *  · given → the row carries that address, so the player's own Google sign-in
+ *    finds it (`provisionPlayer` matches by email) and ATTACHES to this very
+ *    user. Their matches, answers and standings are already on it: nothing moves.
+ *  · omitted → a `@players.invalid` placeholder, unique by construction and never
+ *    mailed. A show-floor identity: it plays, it never signs in.
+ *
+ * An address that already belongs to somebody is refused, not merged: the honest
+ * move is to enroll THAT account (`POST …/players`), so one person never ends up
+ * as two rows — which is the same stats-splitting bug in another costume.
  */
 export async function createContestant(
     tournamentId: string,
-    displayName: string
+    displayName: string,
+    email?: string
 ): Promise<{ userId: string; displayName: string; group: GroupLabel | null }> {
     const name = displayName.trim();
     if (name.length === 0) {
@@ -45,13 +57,38 @@ export async function createContestant(
         );
     }
 
+    const address = email?.trim().toLowerCase() || null;
+    if (address !== null && !EMAIL_SHAPE.test(address)) {
+        throw new TournamentError("VALIDATION", `"${email}" does not look like an email address`);
+    }
+
+    if (address !== null) {
+        const [existing] = await db
+            .select({ id: users.id, displayName: users.displayName })
+            .from(users)
+            .where(eq(users.email, address))
+            .limit(1);
+
+        if (existing) {
+            // The person is already somebody here. Hand the operator the identity
+            // to enroll instead of silently creating a second row for them.
+            throw new TournamentError(
+                "CONFLICT",
+                `${address} already belongs to ${existing.displayName} — enroll that account instead of creating a new one`,
+                [existing.id, existing.displayName]
+            );
+        }
+    }
+
     const [user] = await db
         .insert(users)
         .values({
             role: "PLAYER",
             displayName: name,
-            // Required for the PLAYER role; never used to sign in.
-            email: `player-${randomUUID()}@players.invalid`,
+            // With an address the player can later claim this very row through
+            // Google; without one this is a placeholder the schema requires for
+            // the PLAYER role — never routed, never mailed.
+            email: address ?? `player-${randomUUID()}@players.invalid`,
             tokenVersion: 0
         })
         .returning({ id: users.id, displayName: users.displayName });

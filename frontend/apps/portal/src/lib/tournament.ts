@@ -277,15 +277,39 @@ export function useCreateContestant(tournamentId: string) {
     const queryClient = useQueryClient()
 
     return useMutation({
-        mutationFn: (displayName: string) =>
+        // The optional address is what lets the player claim this identity later:
+        // their Google sign-in matches it and attaches to the SAME row, so their
+        // history was never elsewhere. Blank → a placeholder that plays and never
+        // signs in.
+        mutationFn: (input: { displayName: string; email?: string }) =>
             api<{ userId: string; displayName: string; group: "A" | "B" | null }>(
                 `/portal/tournaments/${tournamentId}/players/new`,
-                { method: "POST", body: JSON.stringify({ displayName }) }
+                { method: "POST", body: JSON.stringify(input) }
             ),
         onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: ["groups", tournamentId] })
             void queryClient.invalidateQueries({ queryKey: ["enrolled", tournamentId] })
             void queryClient.invalidateQueries({ queryKey: ["tournament", tournamentId] })
+        },
+    })
+}
+
+/**
+ * Enroll an account that already exists (the "this email is already somebody"
+ * answer): the person keeps their own row, and every stat they ever earned.
+ */
+export function useEnrollContestant(tournamentId: string) {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: (userIds: string[]) =>
+            api<{ enrolled: number }>(`/portal/tournaments/${tournamentId}/players`, {
+                method: "POST",
+                body: JSON.stringify({ userIds }),
+            }),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ["groups", tournamentId] })
+            void queryClient.invalidateQueries({ queryKey: ["enrolled", tournamentId] })
         },
     })
 }

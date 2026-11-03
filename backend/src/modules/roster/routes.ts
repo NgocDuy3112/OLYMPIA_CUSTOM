@@ -63,7 +63,10 @@ export async function rosterRoutes(app: FastifyInstance) {
                     required: ["displayName"],
                     additionalProperties: false,
                     properties: {
-                        displayName: { type: "string", minLength: 1, maxLength: 100 }
+                        displayName: { type: "string", minLength: 1, maxLength: 100 },
+                        // Optional: with an address the player's own Google sign-in
+                        // attaches to this row later, keeping their history.
+                        email: { type: "string", maxLength: 255 }
                     }
                 }
             }
@@ -71,10 +74,10 @@ export async function rosterRoutes(app: FastifyInstance) {
         async (request) => {
             const user = request.sessionUser!;
             const { tournamentId } = request.params as { tournamentId: string };
-            const { displayName } = request.body as { displayName: string };
+            const { displayName, email } = request.body as { displayName: string; email?: string };
 
             await assertWrite(tournamentId, user.id, user.role);
-            const contestant = await createContestant(tournamentId, displayName);
+            const contestant = await createContestant(tournamentId, displayName, email);
 
             await auditFromRequest(request, "tournament_updated", {
                 details: { tournamentId, contestantId: contestant.userId, displayName: contestant.displayName }
