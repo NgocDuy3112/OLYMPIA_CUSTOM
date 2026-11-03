@@ -13,10 +13,11 @@
     "preview:portal": "vite preview --config apps/portal/vite.config.ts",
     "preview:gameplay": "vite preview --config apps/gameplay/vite.config.ts",
     "lint": "eslint .",
-    "test": "vitest run",
+    "test": "npm run typecheck && vitest run",
     "test:portal": "vitest run --config apps/portal/vitest.config.ts",
     "dev:audience": "vite --config apps/audience/vite.config.ts",
-    "build:audience": "tsc -p apps/audience --noEmit && vite build --config apps/audience/vite.config.ts"
+    "build:audience": "tsc -p apps/audience --noEmit && vite build --config apps/audience/vite.config.ts",
+    "typecheck": "tsc -p apps/portal --noEmit && tsc -p apps/gameplay --noEmit && tsc -p apps/audience --noEmit"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
