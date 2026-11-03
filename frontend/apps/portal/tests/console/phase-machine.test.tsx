@@ -22,6 +22,7 @@ const LOBBY = `GET /portal/tournaments/${T}/matches/${M}/lobby`
 const MATCHES = `GET /portal/tournaments/${T}/matches?limit=100`
 const RTC = `POST /portal/tournaments/${T}/matches/${M}/rtc/token`
 const ACTIONS = `POST /portal/tournaments/${T}/matches/${M}/live/actions`
+const STATUS = `PATCH /portal/tournaments/${T}/matches/${M}/status`
 const LIVE_PATH = `/portal/tournaments/${T}/matches/${M}/live`
 
 /** A live read mid-round: khoi-dong phase 2 (the buzz race), one open question. */
@@ -162,5 +163,35 @@ describe("the console's phase machine — Về sảnh", () => {
         await userEvent.click(await screen.findByRole("button", { name: "Về sảnh" }))
         // the console can start a round again without leaving the lobby
         expect(await screen.findByRole("button", { name: /Khởi động · Chung/ })).toBeTruthy()
+    })
+})
+
+describe("the console can start the match it is controlling", () => {
+    it("offers a start button instead of sending the operator to another page", async () => {
+        const { fetchMock } = draw({
+            [LIVE]: { body: { message: "Trận chưa mở" }, status: 409 },
+            [STATUS]: { body: { id: M, status: "LIVE" } },
+        })
+
+        const start = await screen.findByRole("button", { name: /Bắt đầu trận/ })
+        await userEvent.click(start)
+
+        const call = fetchMock.mock.calls.find(([url, init]) => `${init?.method ?? "GET"} ${String(url)}` === STATUS)
+        expect(call).toBeTruthy()
+        expect(JSON.parse(String(call![1]?.body))).toEqual({ status: "LIVE" })
+    })
+
+    it("shows the refusal when the match is not ready (no seats / no questions)", async () => {
+        draw({
+            [LIVE]: { body: { message: "Trận chưa mở" }, status: 409 },
+            [STATUS]: {
+                body: { message: "match m1 is not ready to go live", details: ["no questions assembled"] },
+                status: 409,
+            },
+        })
+
+        await userEvent.click(await screen.findByRole("button", { name: /Bắt đầu trận/ }))
+        // the reason stays on the control room, not in a toast that has already gone
+        expect(await screen.findByRole("alert")).toHaveTextContent(/not ready to go live/)
     })
 })

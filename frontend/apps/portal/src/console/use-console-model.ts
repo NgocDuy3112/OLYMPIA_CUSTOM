@@ -24,10 +24,18 @@ import { useConsoleCommits } from "./model/use-console-commits"
 import { useConsoleNav } from "./model/use-console-nav"
 import { useConsolePlans } from "./model/use-console-plans"
 import { useConsoleAdjust } from "./model/use-console-adjust"
+import { useTransitionMatch } from "@/lib/tournament"
+import { ApiError } from "@shared/lib/api"
 import { railCardsOf } from "./lib/rail-cards"
 import { lobbyViewOf } from "./lib/lobby-view"
 import { consoleFactsOf } from "./lib/facts"
 import { readinessOf } from "./lib/phase"
+
+/** The refusal plus the reasons the API put in `details` — the useful half. */
+function startRefusal(error: Error): string {
+    const details = error instanceof ApiError ? error.details ?? [] : []
+    return [error.message, ...details].join(" — ")
+}
 
 type ConsoleModel = {
     /** The score-adjust dialog: which player, and the callbacks the host wires. */
@@ -40,8 +48,19 @@ type ConsoleModel = {
     | { phase: "loading" }
     /** transport failed and no lobby answered — say why, offer a retry */
     | { phase: "error"; message: string; retry: () => void }
-    /** the match is not LIVE yet — waiting lobby, starts disabled */
-    | { phase: "not-live"; lobby: LobbyData }
+    /**
+     * The match is not LIVE yet. The console is the operator's screen, so it is
+     * also where the match starts — sending them to another page to press one
+     * button was the reason this phase looked like "we're not in the controller".
+     */
+    | {
+        phase: "not-live"
+        lobby: LobbyData
+        /** UPCOMING → LIVE; refused (409) when seats or questions are missing */
+        start: () => void
+        starting: boolean
+        startError: string | null
+    }
     /** a round is (re)selectable: the waiting room with the rounds navigator */
     | {
         phase: "lobby"
@@ -59,6 +78,9 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     const { live, writer, v, projection, roundId, stage, open, questions, table, byId, peers, send, sendChain } = transport
 
     const nav = useConsoleNav()
+    // Starting the match is a MATCH transition (not a live action), so it lives by
+    // the transport rather than in the action writer.
+    const transition = useTransitionMatch(tournamentId)
     // The stopwatch is scoped to the open oral run (null → a stopped, empty watch).
     const watch = useConsoleWatch(v?.projection.oral?.questionId ?? null)
     const judging = useConsoleJudging({ tournamentId, matchId, roundId, questions, openIds: open.map((q) => q.questionId) })
@@ -114,7 +136,24 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     if (live.isPending) return { phase: "loading", ...adjust }
 
     if (live.isError || !v || !projection) {
-        if (lobby.data) return { phase: "not-live", lobby: prepareLobby(lobby.data), ...adjust }
+        if (lobby.data) {
+            return {
+                ...adjust,
+                phase: "not-live",
+                lobby: prepareLobby(lobby.data),
+                start: () =>
+                    transition.mutate(
+                        { matchId, status: "LIVE" },
+                        // the live read is what this phase is waiting on: re-read it
+                        { onSuccess: () => void live.refetch() }
+                    ),
+                starting: transition.isPending,
+                // The API answers NOT_READY with the reasons in `details` ("no
+                // questions assembled", "seats: 3"). They are the whole point of the
+                // refusal, so they travel with it.
+                startError: transition.isError ? startRefusal(transition.error) : null,
+            }
+        }
         return {
             ...adjust,
             phase: "error",

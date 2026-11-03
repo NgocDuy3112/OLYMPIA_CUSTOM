@@ -37,10 +37,28 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
                 <Lobby
                     data={model.lobby}
                     mc={{
-                        canStart: false, // no live version to guard a start until the match is LIVE
-                        onStart: () => { /* disabled until LIVE */ },
+                        canStart: false, // no round can start until the match is LIVE
+                        onStart: () => { /* rounds come after the match is LIVE */ },
                     }}
-                    hint="Trận chưa bắt đầu — mở ở trang trận để chuyển sang LIVE."
+                    hint={
+                        <span className="flex flex-col items-center gap-[1.2cqw]">
+                            <span>Trận chưa bắt đầu — đây là phòng điều khiển, bắt đầu trận ngay tại đây.</span>
+                            <button
+                                type="button"
+                                onClick={model.start}
+                                disabled={model.starting}
+                                className="rounded-lg bg-primary px-[1.4cqw] py-[0.6cqw] font-sans font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-60"
+                                style={{ fontSize: pt(13) }}
+                            >
+                                {model.starting ? "Đang bắt đầu…" : "Bắt đầu trận ▶"}
+                            </button>
+                            {model.startError ? (
+                                <span role="alert" className="text-destructive" style={{ fontSize: pt(12) }}>
+                                    {model.startError}
+                                </span>
+                            ) : null}
+                        </span>
+                    }
                 />
             </StageShell>
         )
