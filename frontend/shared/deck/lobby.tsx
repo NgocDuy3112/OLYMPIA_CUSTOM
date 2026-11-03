@@ -43,13 +43,12 @@ export function Lobby({
     // This surface's own camera (players); the console passes row.video itself.
     const selfCam = useSelfCam()
 
-    // Centred, not top-anchored: the waiting room is the whole canvas for as long
-    // as it is on screen, and a title + one row of seats pinned to the top of a
-    // full-size deck reads as a page that failed to finish loading. `justify-center`
-    // + scroll: it centres when it fits, and scrolls when the canvas is small (a
-    // phone) instead of clipping the hint.
+    // Top-anchored on purpose: the lobby is a DECK, and a deck hangs from its top
+    // edge — the seats stay put when the hint line changes, and the layout does not
+    // shift as the round list grows. `overflow-y-auto` keeps a small canvas (a
+    // phone) from clipping the hint off the bottom.
     return (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-[1.5cqw] overflow-y-auto px-[4cqw] py-[4cqw] text-center">
+        <div className="absolute inset-0 flex flex-col items-center overflow-y-auto px-[4cqw] pt-[5cqw] text-center">
             <h1 className="font-display font-bold uppercase leading-none text-foreground" style={{ fontSize: "3cqw" }}>
                 {data.title}
             </h1>
