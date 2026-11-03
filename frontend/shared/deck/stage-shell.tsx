@@ -13,9 +13,23 @@ import type { ReactNode } from "react"
  * domain labels) was unreachable dead code and has been deleted — this frame
  * is all StageShell is, and all it needs to be.
  */
-export function StageShell({ children }: { children: ReactNode }) {
+export function StageShell({
+    children,
+    /**
+     * Fill the viewport instead of holding 16:9. The decks never set it — a deck
+     * is drawn for a projector. The player's PIN door does: it is a FORM, opened
+     * on a phone in a player's hand, and a 16:9 canvas on a 390 px screen is a
+     * 219 px letterbox that clips the card.
+     */
+    fullHeight = false,
+}: {
+    children: ReactNode
+    fullHeight?: boolean
+}) {
     return (
-        <div className="@container relative aspect-video w-full overflow-hidden bg-background">
+        <div
+            className={`@container relative w-full overflow-hidden bg-background ${fullHeight ? "min-h-dvh" : "aspect-video"}`}
+        >
             {children}
         </div>
     )

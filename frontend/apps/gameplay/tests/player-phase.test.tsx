@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { cleanup, render, screen } from "@testing-library/react"
+import { render, screen } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { PlayerShell } from "@/components/player-shell"
 
 // The PLAYER deck's phase machine, mounted for real: a 409 is the waiting lobby,
@@ -81,9 +81,6 @@ function view(over: Record<string, unknown> = {}) {
         },
     })
 }
-
-// gameplay has no global setup file: clean the DOM between these renders.
-afterEach(cleanup)
 
 describe("the player deck's phase machine", () => {
     it("waits in the lobby while the match is not LIVE (409, no view)", async () => {

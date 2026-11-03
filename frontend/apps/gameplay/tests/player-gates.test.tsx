@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react"
+import { render, screen } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { PlayerGateScreen } from "@/components/player-gates"
 import type { PlayerGate } from "@/lib/player-gate"
 import type { PlayerModel } from "@/hooks/use-player-model"
@@ -28,10 +28,6 @@ function model(over: Partial<PlayerModel> = {}): PlayerModel {
         ...over,
     }
 }
-
-// gameplay has no global setup file, so each file cleans its own DOM up —
-// otherwise the next test's queries see the previous gate's buttons.
-afterEach(cleanup)
 
 const lobbyData = { label: "Trận 1", table: [], rounds: [], title: "Giải" } as unknown as LobbyData
 

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react"
 import { useNavigate } from "react-router-dom"
+import { StageShell } from "@shared/deck/stage-shell"
 import { api, ApiError } from "@shared/lib/api"
 
 /**
@@ -11,6 +12,14 @@ import { api, ApiError } from "@shared/lib/api"
  * the GAMEPLAY session for that seat (user decision: match code + pick your
  * name — no password anywhere in this flow). On success the player lands in
  * /s/:slug/matches/:id — the PlayerShell deck.
+ *
+ * It is drawn INSIDE the deck's frame (StageShell), not as a page of its own:
+ * this is the first screen of the show a player sees, so it should look like the
+ * deck they are about to sit in — same canvas, same card, same palette.
+ *
+ * But it is a FORM on a phone, not a deck for a projector: the canvas fills the
+ * viewport (`fullHeight`) instead of holding 16:9, and the type has a legibility
+ * floor. A 390 px phone is the common case here, not the exception.
  */
 
 interface LookupResult {
@@ -20,6 +29,14 @@ interface LookupResult {
     status: "UPCOMING" | "LIVE" | "FINISHED"
     seats: Array<{ userId: string; displayName: string }>
 }
+
+/** Type with a floor: the canvas is the deck's, the reader is on a phone. */
+const FIELD = { fontSize: "clamp(16px, 2.1cqw, 24px)" } as const
+const HEADLINE = { fontSize: "clamp(22px, 3.2cqw, 40px)" } as const
+const BODY = { fontSize: "clamp(13px, 1.35cqw, 17px)" } as const
+
+const statusText = (status: LookupResult["status"]) =>
+    status === "LIVE" ? "đang diễn ra" : status === "UPCOMING" ? "sắp diễn ra" : "đã kết thúc"
 
 export function JoinPage() {
     const navigate = useNavigate()
@@ -76,82 +93,102 @@ export function JoinPage() {
         }
     }
 
+    const forget = () => {
+        setLookup(null)
+        setError(null)
+    }
+
     return (
-        <div className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
-            <div className="w-full max-w-md rounded-2xl border bg-card p-6 shadow-sm">
-                <h1 className="font-display text-2xl font-bold uppercase tracking-wide text-foreground">
-                    Vào trận
-                </h1>
-                <p className="mt-1 text-sm text-muted-foreground">
-                    Nhập mã 6 ký tự ban điều hành đọc, rồi chọn tên của bạn.
-                </p>
-
-                <form onSubmit={submitCode} className="mt-5 flex gap-2">
-                    <input
-                        type="text"
-                        inputMode="text"
-                        autoCapitalize="characters"
-                        autoComplete="off"
-                        spellCheck={false}
-                        maxLength={6}
-                        value={code}
-                        onChange={(event) => setCode(event.target.value.toUpperCase())}
-                        placeholder="ABC123"
-                        aria-label="Mã vào trận"
-                        className="w-full min-w-0 rounded-lg border border-input bg-background px-4 py-3 font-mono text-xl uppercase tracking-[0.3em] outline-none focus:ring-2 focus:ring-ring"
-                    />
-                    <button
-                        type="submit"
-                        disabled={code.trim().length !== 6 || busy}
-                        className="shrink-0 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-50"
-                    >
-                        {busy ? "…" : "Vào"}
-                    </button>
-                </form>
-
-                {lookup && (
-                    <div className="mt-5">
-                        <p className="text-sm text-muted-foreground">
-                            <span className="font-medium text-foreground">{lookup.label}</span>
-                            {" · "}
-                            {lookup.status === "LIVE" ? "đang diễn ra" : lookup.status === "UPCOMING" ? "sắp diễn ra" : "đã kết thúc"}
+        <StageShell fullHeight>
+            <div className="flex min-h-dvh items-center justify-center p-5">
+                <div className="flex w-full max-w-[30rem] flex-col gap-4 rounded-2xl bg-card p-6 shadow-md ring-1 ring-border">
+                    <div className="flex flex-col items-center gap-1 text-center">
+                        <h1 className="font-display font-bold uppercase leading-none text-foreground" style={HEADLINE}>
+                            Vào trận
+                        </h1>
+                        <p className="font-sans leading-relaxed text-muted-foreground" style={BODY}>
+                            Nhập mã 6 ký tự ban điều hành đọc, rồi chọn tên của bạn.
                         </p>
-                        <p className="mt-3 text-sm font-medium">Bạn là ai?</p>
-                        <ul className="mt-2 flex flex-col gap-2">
-                            {lookup.seats.map((seat) => (
-                                <li key={seat.userId}>
-                                    <button
-                                        type="button"
-                                        onClick={() => void claim(seat.userId)}
-                                        disabled={busy}
-                                        className="w-full rounded-lg border bg-background px-4 py-3 text-left text-sm font-semibold text-foreground transition hover:border-primary hover:bg-primary/5 disabled:opacity-50"
-                                    >
-                                        {seat.displayName}
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
-                        {lookup.seats.length === 0 && (
-                            <p className="mt-2 text-sm text-muted-foreground">Trận này chưa có ghế — báo ban điều hành.</p>
-                        )}
                     </div>
-                )}
 
-                {error && (
-                    <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>
-                )}
+                    <form onSubmit={submitCode} className="flex items-stretch gap-2">
+                        <input
+                            type="text"
+                            inputMode="text"
+                            autoCapitalize="characters"
+                            autoComplete="off"
+                            spellCheck={false}
+                            maxLength={6}
+                            value={code}
+                            onChange={(event) => setCode(event.target.value.toUpperCase())}
+                            placeholder="ABC123"
+                            aria-label="Mã vào trận"
+                            disabled={lookup !== null}
+                            className="min-w-0 flex-1 rounded-lg border border-input bg-background px-3 py-2.5 text-center font-mono uppercase tracking-[0.35em] outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
+                            style={FIELD}
+                        />
+                        <button
+                            type="submit"
+                            disabled={code.trim().length !== 6 || busy || lookup !== null}
+                            className="shrink-0 rounded-lg bg-primary px-5 font-sans font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-50"
+                            style={BODY}
+                        >
+                            {busy && !lookup ? "…" : "Vào"}
+                        </button>
+                    </form>
 
-                {lookup && (
-                    <button
-                        type="button"
-                        onClick={() => { setLookup(null); setError(null) }}
-                        className="mt-5 text-sm text-muted-foreground underline-offset-4 hover:underline"
-                    >
-                        Nhập mã khác
-                    </button>
-                )}
+                    {lookup ? (
+                        <div className="flex flex-col gap-2">
+                            <p className="text-center font-sans text-muted-foreground" style={BODY}>
+                                <span className="font-medium text-foreground">{lookup.label}</span>
+                                {" · "}
+                                {statusText(lookup.status)}
+                            </p>
+                            <p className="text-center font-sans font-semibold text-foreground" style={BODY}>
+                                Bạn là ai?
+                            </p>
+                            <ul className="grid grid-cols-2 gap-2">
+                                {lookup.seats.map((seat) => (
+                                    <li key={seat.userId}>
+                                        <button
+                                            type="button"
+                                            onClick={() => void claim(seat.userId)}
+                                            disabled={busy}
+                                            className="w-full rounded-lg border bg-background px-3 py-2.5 font-sans font-semibold text-foreground transition hover:border-primary hover:bg-primary/5 disabled:opacity-50"
+                                            style={BODY}
+                                        >
+                                            {seat.displayName}
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                            {lookup.seats.length === 0 ? (
+                                <p className="text-center font-sans text-muted-foreground" style={BODY}>
+                                    Trận này chưa có ghế — báo ban điều hành.
+                                </p>
+                            ) : null}
+                        </div>
+                    ) : null}
+
+                    {error ? (
+                        <p role="alert" className="text-center font-sans text-destructive" style={BODY}>
+                            {error}
+                        </p>
+                    ) : null}
+
+                    {lookup ? (
+                        <button
+                            type="button"
+                            onClick={forget}
+                            className="mx-auto font-sans text-muted-foreground underline-offset-4 hover:underline"
+                            style={BODY}
+                        >
+                            Nhập mã khác
+                        </button>
+                    ) : null}
+                </div>
             </div>
-        </div>
+        </StageShell>
     )
 }
 
