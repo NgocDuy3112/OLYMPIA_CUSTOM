@@ -5,14 +5,17 @@ import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app.js";
 import { db } from "../../src/db/pool.js";
 import { matchStats, matches, tournamentPlayers, tournaments, users } from "../../src/db/schema/index.js";
-import { signToken } from "../../src/lib/jwt.js";
+import { signToken, signVerifyEmail } from "../../src/lib/jwt.js";
 
-// Making a contestant — the one way onto a roster without Google.
+// Making a contestant — two ways onto a roster.
 //
-// Players have no password and never sign in: the PIN claim mints their session.
-// So the console must be able to CREATE the identity a seat points at, and these
-// tests are the contract for that: a real PLAYER row, enrolled in the same call,
-// never two the same name on one roster.
+//  · the player registered THEIR OWN account (email + password they chose,
+//    verified by mail) — the operator enrolls the ADDRESS, never the password;
+//  · a show-floor contestant never registers — the console CREATES the identity
+//    a seat points at.
+//
+// These tests are the contract for both: a real PLAYER row either way, enrolled
+// in the same call, never two the same name on one roster.
 
 let app: FastifyInstance;
 let ownerCookie: string;
@@ -181,6 +184,89 @@ describe("the email is what makes the identity claimable", () => {
     it("refuses something that is not an email", async () => {
         const res = await addWithEmail("Sai", "khong-phai-email");
         expect(res.statusCode).toBe(400);
+    });
+});
+
+describe("enrolling an account by its address", () => {
+    const byEmailUrl = () => `/portal/tournaments/${tournamentId}/players/by-email`;
+    const enroll = (email: string) =>
+        app.inject({ method: "POST", url: byEmailUrl(), headers: auth(ownerCookie), payload: { email } });
+
+    /** A player who registered and opened the mail link — the real precondition. */
+    const registered = async (email: string) => {
+        const res = await app.inject({
+            method: "POST",
+            url: "/gameplay/auth/register",
+            payload: { email, password: "mat-khau-42", displayName: `Owner ${email}` },
+        });
+        expect(res.statusCode).toBe(200);
+        const [row] = await db.select().from(users).where(eq(users.email, email));
+        const verify = await app.inject({
+            method: "GET",
+            url: `/gameplay/auth/verify?token=${signVerifyEmail(app, row!.id)}`,
+        });
+        expect(verify.statusCode).toBe(302);
+        return row!.id;
+    };
+
+    it("seats a player who registered five minutes ago, without knowing their password", async () => {
+        const userId = await registered("moi-dang-ky@example.test");
+        const res = await enroll("  Moi-Dang-Ky@Example.Test ");
+        expect(res.statusCode).toBe(200);
+        expect(res.json()).toMatchObject({ userId, email: "moi-dang-ky@example.test", group: null });
+
+        const roster = await app.inject({ method: "GET", url: `/portal/tournaments/${tournamentId}/players`, headers: auth(ownerCookie) });
+        const ids = (roster.json().items as Array<{ userId: string }>).map((row) => row.userId);
+        expect(ids).toContain(userId);
+    });
+
+    it("404s an address nobody has registered yet, saying what to do", async () => {
+        const res = await enroll("chua-ky@example.test");
+        expect(res.statusCode).toBe(404);
+        expect((res.json() as { message: string }).message).toContain("ask them to register first");
+    });
+
+    it("403s an account that has not opened the verification link", async () => {
+        await app.inject({
+            method: "POST",
+            url: "/gameplay/auth/register",
+            payload: { email: "chua-xac-thuc@example.test", password: "mat-khau-42", displayName: "Chưa xác thực" },
+        });
+        const res = await enroll("chua-xac-thuc@example.test");
+        expect(res.statusCode).toBe(403);
+        expect((res.json() as { message: string }).message).toContain("has not verified");
+    });
+
+    it("409s the second enrollment of the same address", async () => {
+        await registered("enroll-2x@example.test");
+        expect((await enroll("enroll-2x@example.test")).statusCode).toBe(200);
+        const again = await enroll("enroll-2x@example.test");
+        expect(again.statusCode).toBe(409);
+        expect((again.json() as { message: string }).message).toContain("already on this roster");
+    });
+
+    it("404s a show-floor placeholder address — nobody registered it", async () => {
+        const { userId } = (await add("Show Floor")).json() as { userId: string };
+        const [row] = await db.select().from(users).where(eq(users.id, userId));
+        const res = await enroll(row!.email!);
+        expect(res.statusCode).toBe(404);
+    });
+
+    it("refuses something that is not an address, and a stranger's cookie", async () => {
+        expect((await enroll("khong-phai-email")).statusCode).toBe(400);
+
+        const [stranger] = await db
+            .insert(users)
+            .values({ role: "OPERATOR", username: "by-email-stranger", displayName: "Stranger", tokenVersion: 0 })
+            .returning();
+        const cookie = signToken(app, "PORTAL", { sub: stranger.id, role: "OPERATOR", tokenVersion: 0 });
+        const res = await app.inject({
+            method: "POST",
+            url: byEmailUrl(),
+            headers: auth(cookie),
+            payload: { email: "moi-dang-ky@example.test" },
+        });
+        expect(res.statusCode).toBe(403);
     });
 });
 

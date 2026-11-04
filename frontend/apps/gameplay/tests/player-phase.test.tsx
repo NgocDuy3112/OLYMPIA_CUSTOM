@@ -7,14 +7,13 @@ import { PlayerShell } from "@/components/player-shell"
 
 // The PLAYER deck's phase machine, mounted for real: a 409 is the waiting lobby,
 // a live view is the round screen, an ended view is the lobby again, and a dead
-// session is the PIN gate. These four are the whole of "which screen does this
+// session is the login gate. These four are the whole of "which screen does this
 // player see", and each one is an answer from the backend — never a crash.
 
 const M = "m1"
 const ME = "GET /gameplay/auth/me"
 const LIVE = `GET /gameplay/matches/${M}/live`
 const LOBBY = `GET /gameplay/matches/${M}/lobby`
-const METHODS = "GET /gameplay/auth/methods"
 
 interface StubRoute { body: unknown; status?: number }
 
@@ -94,16 +93,15 @@ describe("the player deck's phase machine", () => {
         expect(await screen.findByText(/Trận đấu sắp sửa diễn ra/)).toBeTruthy()
     })
 
-    it("gates a dead session to the PIN card (401) — with the field in place", async () => {
+    it("gates a dead session to the login card (401) — with the door in place", async () => {
         draw({
             [ME]: stub({ body: { message: "Hết phiên" }, status: 401 }),
             [LIVE]: stub({ body: { message: "Hết phiên" }, status: 401 }),
-            // the gate's PIN door asks what the deployment offers
-            [METHODS]: stub({ body: { pin: true, google: false } }),
         })
         expect(await screen.findByText("Chưa vào trận")).toBeTruthy()
-        // the player does not leave the show to re-enter: the code goes here
-        expect(await screen.findByLabelText("Mã vào trận")).toBeTruthy()
+        // the player does not leave the show to re-enter: the way back is here
+        const door = await screen.findByRole("link", { name: "Đăng nhập" })
+        expect(door.getAttribute("href")).toContain("/login?next=")
     })
 
     it("draws the round screen from a live view", async () => {

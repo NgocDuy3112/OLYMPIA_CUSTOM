@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom"
 import { ChevronDown, LogOut } from "lucide-react"
 import { cn } from "cn"
@@ -9,7 +10,15 @@ import {
     DropdownMenuTrigger,
 } from "@shared/ui/dropdown-menu"
 import { useTournamentList } from "@/lib/api"
-import { isUnauthorized, useLogout, useMe } from "@/lib/session"
+import {
+    isUnauthorized,
+    loginLink,
+    registerLink,
+    useLogout,
+    useMe,
+    useMyMatches,
+    type MyMatch,
+} from "@/lib/session"
 
 
 const links = [
@@ -32,6 +41,40 @@ export function NavBar() {
     // Pending or a real error: show the login link rather than flash a name for
     // a player who is signed in. Only a definitive 401 means "signed out".
     const signedOut = isUnauthorized(me.error) || me.data === null
+
+    // "Vào trận" reads the seats THIS player holds — only worth asking once the
+    // session says who they are (a signed-out ask would just be a 401).
+    const myMatches = useMyMatches({ enabled: !signedOut })
+    const [matchNotice, setMatchNotice] = useState<string | null>(null)
+    /** Several seats: the pick list is open (its items call goToMatch). */
+    const [pickOpen, setPickOpen] = useState(false)
+
+    /** One click to the deck: 0 seats → say so; 1 → go; several → pick. */
+    const enterMatch = async () => {
+        setMatchNotice(null)
+        const result = await myMatches.refetch()
+        const items = result.data?.items ?? []
+        if (result.error || !result.data) {
+            setMatchNotice("Không đọc được danh sách trận — thử lại.")
+            return
+        }
+        if (items.length === 0) {
+            setMatchNotice("Bạn chưa có trận — ban điều hành chưa xếp ghế.")
+            return
+        }
+        if (items.length === 1) {
+            goToMatch(items[0]!)
+            return
+        }
+        // Several: the list IS the choice (newest first already).
+        setPickOpen(true)
+    }
+
+    const goToMatch = (match: MyMatch) => {
+        setPickOpen(false)
+        setMatchNotice(null)
+        navigate(`/s/${match.slug}/matches/${match.matchId}`)
+    }
 
     return (
         <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
@@ -102,24 +145,73 @@ export function NavBar() {
                     </Link>
                 </nav>
                 {signedOut ? (
-                    // The player's door is the PIN: an operator creates the
-                    // identities and a seat claim mints the session, so nobody has
-                    // to sign in to play. Google stays reachable from /join for the
-                    // players who want their own account (`?next=` remembered here).
-                    <Link
-                        to={`/join?next=${encodeURIComponent(pathname)}`}
-                        className={cn(
-                            buttonVariants({ variant: "default", size: "lg" }),
-                            "ml-auto"
-                        )}
-                    >
-                        Vào trận
-                    </Link>
+                    // The player's own door: they registered an account, so the
+                    // navbar offers both ends of it (`?next=` remembered here).
+                    <div className="ml-auto flex items-center gap-2">
+                        <Link
+                            to={registerLink()}
+                            className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
+                        >
+                            Đăng ký
+                        </Link>
+                        <Link
+                            to={loginLink(pathname)}
+                            className={cn(buttonVariants({ variant: "default", size: "lg" }))}
+                        >
+                            Đăng nhập
+                        </Link>
+                    </div>
                 ) : me.data ? (
                     <div className="ml-auto flex items-center gap-2">
                         <span className="max-w-40 truncate text-sm text-muted-foreground">
                             {me.data.displayName}
                         </span>
+                        {matchNotice ? (
+                            <span role="status" className="max-w-56 truncate font-sans text-xs text-muted-foreground">
+                                {matchNotice}
+                            </span>
+                        ) : null}
+                        <div className="relative">
+                            <Button
+                                variant="default"
+                                size="lg"
+                                disabled={myMatches.isFetching}
+                                aria-expanded={pickOpen}
+                                onClick={() => {
+                                    // A pick already open: close it (the list is
+                                    // the choice, not a second fetch).
+                                    if (pickOpen) {
+                                        setPickOpen(false)
+                                        return
+                                    }
+                                    void enterMatch()
+                                }}
+                            >
+                                {myMatches.isFetching ? "Đang tìm…" : "Vào trận"}
+                            </Button>
+                            {pickOpen ? (
+                                <div
+                                    role="menu"
+                                    aria-label="Chọn trận"
+                                    className="absolute right-0 top-full z-50 mt-1 min-w-56 rounded-lg bg-popover p-1 shadow-md ring-1 ring-foreground/10"
+                                >
+                                    {(myMatches.data?.items ?? []).map((match) => (
+                                        <button
+                                            key={match.matchId}
+                                            type="button"
+                                            role="menuitem"
+                                            onClick={() => goToMatch(match)}
+                                            className="flex w-full flex-col rounded-md px-2 py-1.5 text-left hover:bg-accent"
+                                        >
+                                            <span className="text-sm font-medium">{match.tournamentName}</span>
+                                            <span className="text-xs text-muted-foreground">
+                                                {match.label} · {match.status === "LIVE" ? "đang diễn ra" : "sắp diễn ra"}
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : null}
+                        </div>
                         <Button
                             variant="ghost"
                             size="sm"

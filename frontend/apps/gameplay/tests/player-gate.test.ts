@@ -7,12 +7,12 @@ import { lobbyHintOf, NOT_LIVE_HINT } from "@/lib/lobby-hint"
 // call the operator, or to simply wait — getting it wrong strands them.
 
 describe("gateOf — the status codes are answers", () => {
-    it("sends an expired session to the PIN card", () => {
+    it("sends an expired session to the login door", () => {
         expect(gateOf({ failureStatus: 401, hasView: false })).toBe("unauthorized")
         expect(gateOf({ failureStatus: 401, hasView: true })).toBe("unauthorized")
     })
 
-    it("sends a foreign seat to the PIN card", () => {
+    it("sends a foreign seat to the login door", () => {
         expect(gateOf({ failureStatus: 403, hasView: false })).toBe("not-seated")
     })
 

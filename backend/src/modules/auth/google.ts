@@ -192,11 +192,10 @@ export function googleConfigured(): boolean {
 export async function googleAuthRoutes(app: FastifyInstance) {
     const perIp = { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } };
 
-    // What a PLAYER may sign in with. The PIN is always the door (an operator
-    // creates the identities); Google is the optional one — the join page only
-    // offers it when this says so, so it can never render a dead button.
+    // What a PLAYER may sign in with besides their own password: Google, and
+    // only when this deployment configured it — the login page only offers it
+    // when this says so, so it can never render a dead button.
     app.get("/gameplay/auth/methods", perIp, async () => ({
-        pin: true,
         google: googleConfigured(),
     }));
 
@@ -209,7 +208,7 @@ export async function googleAuthRoutes(app: FastifyInstance) {
             // opened by a BROWSER (it is a link), so answering with a 503 JSON blob
             // showed players a wall of braces. Send them to the door that works.
             if (error instanceof SignInError) {
-                return reply.redirect("/join?notice=google-off");
+                return reply.redirect("/login?notice=google-off");
             }
             throw error;
         }

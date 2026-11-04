@@ -65,8 +65,6 @@ export interface MatchSummary {
     label: string
     status: "UPCOMING" | "LIVE" | "FINISHED"
     scheduledAt: string
-    /** The player's door-in code (STANDARD only) — staff display; players enter it on the gameplay app's /join. */
-    joinCode?: string | null
     players: MatchSeat[]
     questions: unknown[]
 }
@@ -264,12 +262,11 @@ export function useGroups(tournamentId: string) {
 }
 
 /**
- * Make a contestant: a PLAYER with only a display name, enrolled on the spot.
- *
- * Players never sign in by design (no password, no Google — the PIN claim mints
- * their session), so the roster cannot wait for them to "register": the console
- * creates the identity a seat points at. The backend rejects a duplicate name,
- * because seats, rail cards and verdicts are read by name on the projector.
+ * Make a show-floor contestant: a PLAYER with only a display name, enrolled on
+ * the spot. A contestant who never registers an account of their own still needs
+ * a seat, so the console creates the identity a seat points at. The backend
+ * rejects a duplicate name, because seats, rail cards and verdicts are read by
+ * name on the projector.
  */
 /** A contestant as the players tab lists them: name, address (or none), group. */
 export interface ContestantRow {
@@ -336,10 +333,9 @@ export function useCreateContestant(tournamentId: string) {
     const queryClient = useQueryClient()
 
     return useMutation({
-        // The optional address is what lets the player claim this identity later:
-        // their Google sign-in matches it and attaches to the SAME row, so their
-        // history was never elsewhere. Blank → a placeholder that plays and never
-        // signs in.
+        // The optional address lets the player's own sign-in attach to this SAME
+        // row later, so their history was never elsewhere. Blank → a placeholder
+        // that plays at the show floor and never signs in.
         mutationFn: (input: { displayName: string; email?: string }) =>
             api<{ userId: string; displayName: string; group: "A" | "B" | null }>(
                 `/portal/tournaments/${tournamentId}/players/new`,
@@ -354,9 +350,28 @@ export function useCreateContestant(tournamentId: string) {
 }
 
 /**
- * Enroll an account that already exists (the "this email is already somebody"
- * answer): the person keeps their own row, and every stat they ever earned.
+ * Enroll an account the PLAYER registered themselves, by its address. The
+ * operator never learns the password — there is none to learn. The server
+ * refuses an address nobody registered (404), one that has not opened its
+ * verification link (403), and one already on this roster (409).
  */
+export function useEnrollByEmail(tournamentId: string) {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: (email: string) =>
+            api<{ userId: string; displayName: string; email: string; group: "A" | "B" | null }>(
+                `/portal/tournaments/${tournamentId}/players/by-email`,
+                { method: "POST", body: JSON.stringify({ email }) }
+            ),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ["groups", tournamentId] })
+            void queryClient.invalidateQueries({ queryKey: ["enrolled", tournamentId] })
+            void queryClient.invalidateQueries({ queryKey: ["tournament", tournamentId] })
+        },
+    })
+}
+
 /** The DRAW: place a contestant in Nhóm A / Nhóm B, or clear it with null. */
 export function useAssignGroup(tournamentId: string) {
     const queryClient = useQueryClient()

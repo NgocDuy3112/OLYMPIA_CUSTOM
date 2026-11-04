@@ -5,10 +5,11 @@
  * The copy is instructive on purpose: a player reading this is already stuck, so
  * every branch says what to DO — not what failed.
  *
- * The two session gates (expired 401, wrong seat 403) carry the PIN DOOR ITSELF,
- * not a link to another page: the message says "nhập lại mã PIN", so the field has
- * to be right here, and the player keeps their place in the show. Those two are
- * drawn full-height (`StageShell fullHeight`) — a form, not a deck.
+ * The two session gates (expired 401, wrong seat 403) link to `/login` IN PLACE:
+ * the message says the session is gone or the seat is not theirs, and the button
+ * that fixes it is right there — the player keeps their place in the show (the
+ * `?next=` carries this very page back). Those two are drawn full-height
+ * (`StageShell fullHeight`) — a form, not a deck.
  *
  * The 409 wait and the loading read stay inside the 16:9 canvas: they are the
  * deck's own states and nothing has to be typed.
@@ -19,14 +20,14 @@ import { Lobby } from "@shared/deck/lobby"
 import { Gate } from "@shared/deck/player-deck"
 import { Card, CardContent } from "@shared/ui/card"
 import { NOT_LIVE_HINT } from "@/lib/lobby-hint"
+import { loginLink } from "@/lib/session"
 import type { PlayerGate } from "@/lib/player-gate"
 import type { PlayerModel } from "@/hooks/use-player-model"
-import { PinDoor } from "./pin-door"
 
 /** The deck's primary action, in one place so the gates cannot drift apart. */
 const actionClass = "rounded-lg bg-primary px-4 py-2 font-sans text-sm font-semibold text-primary-foreground"
 
-/** A session gate: the message, and the field that fixes it. */
+/** A session gate: the message, and the door that fixes it. */
 function SessionGate({ title, body, next }: { title: string; body: string; next: string }) {
     return (
         <StageShell fullHeight>
@@ -39,7 +40,9 @@ function SessionGate({ title, body, next }: { title: string; body: string; next:
                             </h1>
                             <p className="font-sans text-sm text-muted-foreground">{body}</p>
                         </div>
-                        <PinDoor next={next} />
+                        <Link to={loginLink(next)} className={`${actionClass} mx-auto`}>
+                            Đăng nhập
+                        </Link>
                     </CardContent>
                 </Card>
             </div>
@@ -48,15 +51,15 @@ function SessionGate({ title, body, next }: { title: string; body: string; next:
 }
 
 export function PlayerGateScreen({ gate, model }: { gate: PlayerGate; model: PlayerModel }) {
-    // Where to come back to after a Google sign-in: this very page (the deck route
-    // carries the tournament slug). The PIN claim navigates from its own response.
+    // Where to come back to after signing in: this very page (the deck route
+    // carries the tournament slug), carried as ?next= on the login link.
     const here = useLocation().pathname
 
     if (gate === "unauthorized") {
         return (
             <SessionGate
                 title="Chưa vào trận"
-                body="Phiên thí sinh đã hết hạn — nhập lại mã PIN để vào ghế."
+                body="Phiên thí sinh đã hết hạn — đăng nhập lại để vào ghế."
                 next={here}
             />
         )
@@ -66,7 +69,7 @@ export function PlayerGateScreen({ gate, model }: { gate: PlayerGate; model: Pla
         return (
             <SessionGate
                 title="Không có trong trận"
-                body="Ghế này không thuộc về bạn — nhập lại mã PIN và chọn tên của mình."
+                body="Ghế này không thuộc về bạn — đăng nhập bằng tài khoản của mình."
                 next={here}
             />
         )
@@ -92,7 +95,7 @@ export function PlayerGateScreen({ gate, model }: { gate: PlayerGate; model: Pla
             <Gate title="Đang tải…" body={model.failureMessage ?? "Đọc trạng thái vòng thi"}>
                 {model.failureMessage ? (
                     <button onClick={model.retry} className={actionClass}>Thử lại</button>
-                ) : <Link to="/join" className={actionClass}>Nhập mã PIN</Link>}
+                ) : null}
             </Gate>
         </StageShell>
     )

@@ -6,7 +6,7 @@
 // Pure so the table is unit-tested — getting it wrong shows a player the wrong
 // instruction on the projector-sized screen in front of them.
 export type PlayerGate =
-    /** 401 — the session expired; rejoin with a PIN */
+    /** 401 — the session expired; sign in again */
     | "unauthorized"
     /** 403 — the seat belongs to someone else */
     | "not-seated"

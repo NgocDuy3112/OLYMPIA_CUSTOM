@@ -43,8 +43,8 @@ export default function App() {
           }
         />
 
-        {/* The player's door (PIN join) and the player's deck moved to the
-            GAMEPLAY app — players never enter the portal (user decision). */}
+        {/* The player's deck lives in the GAMEPLAY app — players never enter
+            the portal (user decision). */}
 
         <Route
           path="/login"

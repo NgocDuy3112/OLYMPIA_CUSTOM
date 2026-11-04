@@ -13,7 +13,7 @@
  * `hooks/use-player-model`; the drawn primitives in `@shared/deck/player-deck`.
  *
  * Players reach the match through THIS app (gameplay), never the portal — the
- * PIN join lives at /join.
+ * login door is /login.
  */
 import { StageShell } from "@shared/deck/stage-shell"
 import { Lobby } from "@shared/deck/lobby"

@@ -10,6 +10,7 @@ import {
 import {
     assignGroup,
     createContestant,
+    enrollByEmail,
     enrollPlayers,
     listEnrolled,
     removeContestant,
@@ -66,9 +67,44 @@ export async function rosterRoutes(app: FastifyInstance) {
         }
     );
 
+    // Enroll an account the PLAYER registered themselves (email + password of
+    // their own choosing): the operator types the address, never the password.
+    // 404 nobody registered it, 403 unverified, 409 already on the roster.
+    app.post(
+        "/portal/tournaments/:tournamentId/players/by-email",
+        {
+            onRequest: staff,
+            schema: {
+                params: tournamentParams,
+                body: {
+                    type: "object",
+                    required: ["email"],
+                    additionalProperties: false,
+                    properties: {
+                        email: { type: "string", maxLength: 255 }
+                    }
+                }
+            }
+        },
+        async (request) => {
+            const user = request.sessionUser!;
+            const { tournamentId } = request.params as { tournamentId: string };
+            const { email } = request.body as { email: string };
+
+            await assertWrite(tournamentId, user.id, user.role);
+            const enrolled = await enrollByEmail(tournamentId, email);
+
+            await auditFromRequest(request, "tournament_updated", {
+                details: { tournamentId, enrolled: enrolled.userId, byEmail: enrolled.email }
+            });
+
+            return enrolled;
+        }
+    );
+
     // Make the identity a seat points at: a PLAYER with a display name, enrolled
-    // in the same call. Players never sign in (no password, no Google) — the PIN
-    // claim mints their session — so this is the only way onto a roster.
+    // in the same call. This is the SHOW-FLOOR identity — a contestant who never
+    // registers an account of their own (the by-email route above enrolls those).
     app.post(
         "/portal/tournaments/:tournamentId/players/new",
         {

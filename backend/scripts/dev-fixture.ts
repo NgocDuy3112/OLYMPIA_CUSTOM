@@ -40,7 +40,8 @@ import type { MatchQuestion } from "../src/game/contracts/index.js";
 const SLUG = "fixture-cup";
 const OPERATOR = { username: "fixture-op", password: "fixture-pass-2026", displayName: "Fixture Op" };
 const PLAYERS = ["An", "Bình", "Chi", "Dũng"];
-const JOIN_CODE = "FIX123";
+/** Dev-only password the fixture's players sign in with (they are real accounts). */
+const PLAYER_PASSWORD = "fixture-pass-2026";
 const TOURNAMENT_ID = "11111111-1111-4111-8111-111111111111";
 const MATCH_ID = "22222222-2222-4222-8222-222222222222";
 
@@ -141,12 +142,18 @@ async function main() {
     const playerRows = await db
         .insert(users)
         .values(
-            PLAYERS.map((name, i) => ({
-                role: "PLAYER" as const,
-                email: `fixture-player-${i + 1}@example.com`,
-                displayName: name,
-                tokenVersion: 0
-            }))
+            await Promise.all(
+                PLAYERS.map(async (name, i) => ({
+                    role: "PLAYER" as const,
+                    email: `fixture-player-${i + 1}@example.com`,
+                    displayName: name,
+                    // Real accounts: verified and passworded, so a dev can log in
+                    // on /login the same way a player would after registering.
+                    emailVerified: true,
+                    passwordHash: await argon2.hash(PLAYER_PASSWORD),
+                    tokenVersion: 0
+                }))
+            )
         )
         .returning();
 
@@ -196,13 +203,13 @@ async function main() {
 fixture ready
 ─────────────
 tournament   ${TOURNAMENT_ID}  (slug: ${SLUG})
-match        ${MATCH_ID}       status LIVE, join code ${JOIN_CODE}
+match        ${MATCH_ID}       status LIVE
 seats        ${PLAYERS.join(", ")}
 questions    6 oral (phase 1) + 12 typed (phase 2), all khởi động
 
 console      http://localhost:5173/tournaments/${TOURNAMENT_ID}/matches/${MATCH_ID}/stage
   sign in    http://localhost:5173/login   ${OPERATOR.username} / ${OPERATOR.password}
-players      http://localhost:5175/join    code ${JOIN_CODE}, then pick a name
+players      http://localhost:5175/login   fixture-player-N@example.com / ${PLAYER_PASSWORD}
   deck       http://localhost:5175/s/${SLUG}/matches/${MATCH_ID}
 
 session      npx tsx --env-file=../configs/.env scripts/dev-fixture.ts --session

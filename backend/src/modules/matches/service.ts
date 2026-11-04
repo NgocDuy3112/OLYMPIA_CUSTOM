@@ -1,4 +1,3 @@
-import { randomInt } from "node:crypto";
 import { and, asc, count, eq, isNull } from "drizzle-orm";
 import { db } from "../../db/pool.js";
 import { answers, matchLive, matchResults, matchStats, matches, scoreAdjustments, tournaments } from "../../db/schema/index.js";
@@ -23,20 +22,6 @@ export type MatchRow = typeof matches.$inferSelect;
 type TournamentRow = typeof tournaments.$inferSelect;
 type MatchStatusValue = "UPCOMING" | "LIVE" | "FINISHED";
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-// The player's door-in code: 6 chars from an unambiguous alphabet (no 0/O/1/I),
-// so staff can read it off a screen and a player can type it on a phone. The
-// unique index is the arbiter — retry a handful of times, then let it throw.
-const JOIN_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-const JOIN_CODE_ATTEMPTS = 5;
-
-export function newJoinCode(): string {
-    let code = "";
-    for (let i = 0; i < 6; i += 1) {
-        code += JOIN_ALPHABET[randomInt(JOIN_ALPHABET.length)];
-    }
-    return code;
-}
 
 
 async function scoreMatch(tx: Tx, match: MatchRow): Promise<void> {
@@ -270,39 +255,23 @@ export async function createMatch(
         entries
     });
 
-    // STANDARD matches get a join code. The partial unique index owns collisions:
-    // a generated clash retries, not fails.
-
-    let row: MatchRow | undefined;
-    for (let attempt = 0; row === undefined && attempt < JOIN_CODE_ATTEMPTS; attempt += 1) {
-        try {
-            const [inserted] = await executor
-                .insert(matches)
-                .values({
-                    tournamentId,
-                    stageId: input.stageId,
-                    slot: input.slot ?? null,
-                    label: input.label,
-                    scheduledAt: new Date(input.scheduledAt),
-                    status: "UPCOMING",
-                    joinCode: newJoinCode(),
-                    players: input.players ?? [],
-                    roundConfigs,
-                    questions,
-                    live: null,
-                    discord: null
-                })
-                .returning();
-            row = inserted;
-        } catch (error) {
-            // Only the join-code index may be retried; anything else is real.
-            const code = (error as { code?: string }).code;
-            const constraint = (error as { constraint?: string }).constraint ?? "";
-            const isJoinCode = code === "23505" && constraint.includes("join_code");
-            if (!isJoinCode || attempt === JOIN_CODE_ATTEMPTS - 1) throw error;
-        }
-    }
-    return row!;
+    const [inserted] = await executor
+        .insert(matches)
+        .values({
+            tournamentId,
+            stageId: input.stageId,
+            slot: input.slot ?? null,
+            label: input.label,
+            scheduledAt: new Date(input.scheduledAt),
+            status: "UPCOMING",
+            players: input.players ?? [],
+            roundConfigs,
+            questions,
+            live: null,
+            discord: null
+        })
+        .returning();
+    return inserted;
 }
 
 

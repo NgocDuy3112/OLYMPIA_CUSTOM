@@ -8,13 +8,14 @@ import { renderWithProviders } from "../helpers/render"
 // It lists and nothing else: name, the account it belongs to (or "chưa có"), and the
 // three actions. Group membership belongs to the Groups tab; scores to Standings.
 //
-// The email is the load-bearing field: without one the contestant is a show-floor
-// identity (plays by PIN, keeps no history), with one their own Google sign-in
-// attaches to this row later.
+// The dialog has two doors: enroll an account the player registered themselves
+// (by address — the operator never sees a password), or create a show-floor
+// identity (name + optional email).
 
 const TOURNAMENT = "t1"
 const ROSTER_URL = `GET /portal/tournaments/${TOURNAMENT}/players`
 const CREATE_URL = `POST /portal/tournaments/${TOURNAMENT}/players/new`
+const ENROLL_URL = `POST /portal/tournaments/${TOURNAMENT}/players/by-email`
 const EDIT_URL = (userId: string) => `PATCH /portal/tournaments/${TOURNAMENT}/players/${userId}`
 const REMOVE_URL = (userId: string) => `DELETE /portal/tournaments/${TOURNAMENT}/players/${userId}`
 
@@ -54,9 +55,9 @@ describe("the roster list", () => {
         expect(screen.getByText("chưa có tài khoản")).toBeInTheDocument()
     })
 
-    it("counts how many can sign in and how many only play by PIN", async () => {
+    it("counts how many have an account and how many are show-floor only", async () => {
         draw()
-        expect(await screen.findByText(/2 contestants · 1 with an account, 1 playing only through the PIN/)).toBeInTheDocument()
+        expect(await screen.findByText(/2 contestants · 1 with an account, 1 show-floor only/)).toBeInTheDocument()
     })
 
     it("points at the right first step when the roster is empty", async () => {
@@ -72,6 +73,11 @@ describe("adding a contestant — in a dialog, like every other create here", ()
         return screen.findByRole("dialog")
     }
 
+    /** The show-floor door (name + optional email) — the dialog's second tab. */
+    const openCreateTab = async () => {
+        await userEvent.click(await screen.findByRole("tab", { name: /Tạo danh tính tại chỗ/ }))
+    }
+
     it("does not put a form in the header: the roster card offers a button", async () => {
         draw()
         await screen.findByText("An")
@@ -79,12 +85,20 @@ describe("adding a contestant — in a dialog, like every other create here", ()
         expect(screen.getByRole("button", { name: /Thêm thí sinh/ })).toBeInTheDocument()
     })
 
-    it("opens a dialog with a name, an optional email, and the reason for it", async () => {
+    it("opens on enroll-by-email: the address, and why the player must have registered", async () => {
         draw()
         await openDialog()
+        expect(screen.getByLabelText(/Email của thí sinh/)).toBeInTheDocument()
+        // the email's consequence is stated where the decision is made
+        expect(screen.getByText(/không biết và không cần mật khẩu/)).toBeInTheDocument()
+    })
+
+    it("offers a show-floor identity beside it, with the reason for its email", async () => {
+        draw()
+        await openDialog()
+        await openCreateTab()
         expect(screen.getByLabelText(/^Tên$/)).toBeInTheDocument()
         expect(screen.getByLabelText(/Email \(không bắt buộc\)/)).toBeInTheDocument()
-        // the email's consequence is stated where the decision is made
         expect(screen.getByText(/giữ được lịch sử/)).toBeInTheDocument()
     })
 
@@ -94,12 +108,45 @@ describe("adding a contestant — in a dialog, like every other create here", ()
         await userEvent.click(screen.getByRole("button", { name: "Huỷ" }))
         await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
         expect(callOf(fetchMock!, CREATE_URL)).toBeUndefined()
+        expect(callOf(fetchMock!, ENROLL_URL)).toBeUndefined()
+    })
+
+    it("enrolls an address with no password in sight — the whole point", async () => {
+        const { fetchMock } = draw({
+            [ENROLL_URL]: { body: { userId: "u7", displayName: "Em", email: "em@example.test", group: null } },
+        })
+
+        await openDialog()
+        await userEvent.type(screen.getByLabelText(/Email của thí sinh/), "em@example.test")
+        await userEvent.click(screen.getByRole("button", { name: /^Ghi danh$/ }))
+
+        await waitFor(() => expect(callOf(fetchMock!, ENROLL_URL)).toBeTruthy())
+        expect(JSON.parse(String(callOf(fetchMock!, ENROLL_URL)![1]?.body))).toEqual({ email: "em@example.test" })
+        // and it closes itself on success
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+    })
+
+    it("keeps the server's refusal in the dialog, next to what caused it", async () => {
+        draw({
+            [ENROLL_URL]: {
+                body: { message: "no contestant has registered with x@example.test yet — ask them to register first" },
+                status: 404,
+            },
+        })
+
+        await openDialog()
+        await userEvent.type(screen.getByLabelText(/Email của thí sinh/), "x@example.test")
+        await userEvent.click(screen.getByRole("button", { name: /^Ghi danh$/ }))
+
+        expect(await screen.findByRole("alert")).toHaveTextContent(/ask them to register first/)
+        expect(screen.getByRole("dialog")).toBeInTheDocument()
     })
 
     it("sends the name alone when no email is given", async () => {
         const { fetchMock } = draw({ [CREATE_URL]: { body: { userId: "u9", displayName: "Em", group: null } } })
 
         await openDialog()
+        await openCreateTab()
         await userEvent.type(screen.getByLabelText(/^Tên$/), "  Em  ")
         await userEvent.click(screen.getByRole("button", { name: /^Thêm$/ }))
 
@@ -113,6 +160,7 @@ describe("adding a contestant — in a dialog, like every other create here", ()
         const { fetchMock } = draw({ [CREATE_URL]: { body: { userId: "u9", displayName: "Em", group: null } } })
 
         await openDialog()
+        await openCreateTab()
         await userEvent.type(screen.getByLabelText(/^Tên$/), "Em")
         await userEvent.type(screen.getByLabelText(/Email/), "em@example.test")
         await userEvent.click(screen.getByRole("button", { name: /^Thêm$/ }))
@@ -128,6 +176,7 @@ describe("adding a contestant — in a dialog, like every other create here", ()
         draw({ [CREATE_URL]: { body: { message: '"An" is already a contestant in this tournament' }, status: 409 } })
 
         await openDialog()
+        await openCreateTab()
         await userEvent.type(screen.getByLabelText(/^Tên$/), "An")
         await userEvent.click(screen.getByRole("button", { name: /^Thêm$/ }))
 

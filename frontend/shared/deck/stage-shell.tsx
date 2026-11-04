@@ -16,8 +16,8 @@ import type { ReactNode } from "react"
 export function StageShell({
     children,
     /**
-     * Fill the viewport instead of holding 16:9 — for a FORM (the player's PIN
-     * door), which is opened on a phone and is not a deck at all.
+     * Fill the viewport instead of holding 16:9 — for a FORM (the login door a
+     * stuck player is sent to), which is opened on a phone and is not a deck at all.
      */
     fullHeight = false,
 }: {

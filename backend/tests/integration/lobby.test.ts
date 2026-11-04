@@ -61,7 +61,6 @@ beforeAll(async () => {
 
     const [match] = await db.insert(matches).values({
         tournamentId, stageId: "s1", scheduledAt: new Date(), label: "Lobby Match", status: "UPCOMING",
-        joinCode: "LOBBY1",
         players: [{ kind: "user", userId: player.id, seed: 1 }],
         roundConfigs: {
             // Both orders present; the tournament's order (khoi-dong first) wins.

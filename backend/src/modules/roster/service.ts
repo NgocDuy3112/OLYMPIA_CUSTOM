@@ -19,11 +19,78 @@ export async function enrollPlayers(tournamentId: string, userIds: string[]): Pr
 const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 /**
+ * Enroll an EXISTING account by its address — the operator never learns the
+ * password, because there is none to learn: the player registered it themselves.
+ *
+ * The three refusals are each a different mistake at the desk, and each one says
+ * what to DO instead:
+ *  · nobody registered that address → 404, ask the player to register first;
+ *  · registered but unverified → 403, the player must open the mail link first
+ *    (an unverified account cannot log in, so a seat for it would be dead);
+ *  · already on this roster → 409, nothing to do.
+ *
+ * A `@players.invalid` placeholder answers the same 404: nobody registered it.
+ */
+export async function enrollByEmail(
+    tournamentId: string,
+    rawEmail: string
+): Promise<{ userId: string; displayName: string; email: string; group: GroupLabel | null }> {
+    const email = rawEmail.trim().toLowerCase();
+    if (!EMAIL_SHAPE.test(email)) {
+        throw new TournamentError("VALIDATION", `"${rawEmail}" does not look like an email address`);
+    }
+    // A show-floor placeholder is a system-made address nobody ever registered:
+    // enrolling it would be the 404 below wearing a costume.
+    if (email.endsWith(PLACEHOLDER_DOMAIN)) {
+        throw new TournamentError(
+            "NOT_FOUND",
+            `no contestant has registered with ${email} yet — ask them to register first, then enroll the address here`
+        );
+    }
+
+    const [user] = await db
+        .select({
+            id: users.id,
+            displayName: users.displayName,
+            email: users.email,
+            emailVerified: users.emailVerified,
+            role: users.role,
+            disabledAt: users.disabledAt
+        })
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+
+    if (!user || user.role !== "PLAYER") {
+        throw new TournamentError(
+            "NOT_FOUND",
+            `no contestant has registered with ${email} yet — ask them to register first, then enroll the address here`
+        );
+    }
+    if (user.disabledAt) {
+        throw new TournamentError("FORBIDDEN", `${email} belongs to a disabled account`);
+    }
+    if (!user.emailVerified) {
+        throw new TournamentError(
+            "FORBIDDEN",
+            `${email} has not verified its address yet — the player must open the link in their registration mail first`
+        );
+    }
+
+    if (await enrolledRow(tournamentId, user.id)) {
+        throw new TournamentError("CONFLICT", `${email} is already on this roster`);
+    }
+
+    await enrollPlayers(tournamentId, [user.id]);
+    return { userId: user.id, displayName: user.displayName, email: user.email!, group: null };
+}
+
+/**
  * Create a contestant and enroll them in one step.
  *
- * Players have no password and no Google account by design (the PIN claim mints
- * their session), so the console needs a way to MAKE the identity a seat points
- * at. The display name is what every surface shows.
+ * A contestant with no account is a show-floor identity: the console MAKES the
+ * identity a seat points at, because they never registered one. The display name
+ * is what every surface shows.
  *
  * EMAIL decides whether the identity can ever be theirs for good:
  *  · given → the row carries that address, so the player's own Google sign-in

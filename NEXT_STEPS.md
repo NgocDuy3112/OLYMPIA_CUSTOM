@@ -1,6 +1,7 @@
 # Next: player accounts (login-first), replacing the PIN door
 
-**Status:** step 1 of 6 done (`b093114`). Steps 2–6 below are the remaining work.
+**Status:** all 6 steps done. Steps 2–6 landed with this pass (uncommitted at the
+moment of writing — see the per-step notes below); step 1 was `b093114`.
 **Approved shape:** players register themselves (email + password they choose), verify
 by email, log in, and "Vào trận" opens the match they are seated in. The operator
 **enrolls a known email** instead of creating identities. **The PIN path is removed.**
@@ -25,7 +26,7 @@ so a dev box can finish the flow by reading the log. Nothing pretends to have se
 
 ---
 
-## 2. Gameplay: `/register` and `/login`
+## 2. DONE — Gameplay: `/register` and `/login`
 
 - `apps/gameplay/src/pages/RegisterPage.tsx` — email, password, display name; on
   success show "kiểm tra email để xác thực" (the mail may not exist locally — say so
@@ -37,13 +38,14 @@ so a dev box can finish the flow by reading the log. Nothing pretends to have se
   `useAuthMethods().google`).
 - Routes in `App.tsx` **outside** AppShell (like `/join` was) or inside — decide:
   inside keeps the navbar, which is where the player sees their name after login.
+  **Decided: inside** — the door sits under the navbar it leads into.
 
 **Done when:** a person can register, read the link from the backend log, verify, log
-in, and see their name in the navbar.
+in, and see their name in the navbar. — covered by `tests/auth-pages.test.tsx`.
 
 ---
 
-## 3. Navbar + "Vào trận" straight to the deck
+## 3. DONE — Navbar + "Vào trận" straight to the deck
 
 - Signed out → `Đăng nhập` (and `Đăng ký`).
 - Signed in → `[Name] [Vào trận]`. The button calls `GET /gameplay/me/match`:
@@ -52,25 +54,29 @@ in, and see their name in the navbar.
 - Remove the `Vào trận → /join?next=` link.
 
 **Done when:** a signed-in seated player reaches their deck in one click, and a
-signed-in unseated player is told why not.
+signed-in unseated player is told why not. — covered by `tests/navbar.test.tsx`.
 
 ---
 
-## 4. Roster: enroll by email
+## 4. DONE — Roster: enroll by email
 
 - `POST /portal/tournaments/:t/players/by-email { email }` — finds the PLAYER by
   address and enrolls; 404 with a clear message when nobody registered that address
-  yet, 409 when already enrolled. Refuse an unverified account.
+  yet, 409 when already enrolled. Refuse an unverified account. **Decided:** a
+  `@players.invalid` placeholder answers the same 404 (nobody registered it), and a
+  disabled account answers 403.
 - Thí sinh tab: "Thêm thí sinh" dialog gains a tab/choice — **Enroll an account
   (email)** beside the existing **Create a show-floor identity (name + optional email)**.
   Keep the second one: a contestant who never signs in still needs a seat.
+  **Decided:** tabs; enroll-by-email is the default (the shape the plan approved).
 
 **Done when:** the operator can seat a person who registered five minutes ago,
-without knowing their password.
+without knowing their password. — backend tests in `roster.routes.test.ts`, dialog
+tests in `players-tab.test.tsx`.
 
 ---
 
-## 5. Delete the PIN path
+## 5. DONE — Delete the PIN path
 
 | Remove | Where |
 |---|---|
@@ -84,11 +90,18 @@ Keep `matchId`/seat claim semantics untouched — seats still reference a user i
 only the way a session is minted changes.
 
 **Done when:** nothing in either app mentions a PIN, and the tests that covered the
-join routes are deleted with them (not skipped).
+join routes are deleted with them (not skipped). — `join.routes.test.ts` and
+`join-page.test.tsx` are deleted; `/gameplay/auth/methods` now answers `{ google }`
+only; `docs/schema.md` updated to match.
+
+**Decided (risk 4):** the `join_code` column is **dropped** — migration
+`0008_drop_join_code.sql` — rather than left dead. The dev fixture's players are
+now real verified accounts (`fixture-player-N@example.com` / `fixture-pass-2026`)
+so a dev can still get onto the deck.
 
 ---
 
-## 6. Privacy policy
+## 6. DONE — Privacy policy
 
 - New section: **account** (email, argon2 hash — never the password, verification
   mail, session cookie) and what deleting an account would mean (results stay: they
@@ -96,6 +109,8 @@ join routes are deleted with them (not skipped).
 - Keep the existing camera/mic section; it is unchanged by accounts.
 - The contact block is still a placeholder — a real address must be filled in before
   the page is published.
+- **Not done, deliberately:** the contact block is untouched (still a placeholder —
+  a real address must be filled in before the page is published).
 
 ---
 

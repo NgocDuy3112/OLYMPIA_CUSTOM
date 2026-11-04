@@ -24,7 +24,7 @@ export default defineConfig({
         proxy: {
             // Same escape hatch as the gameplay app: another process (e.g. podman's
             // gvproxy) can hold port 3000, so the dev backend may live elsewhere.
-            // /gameplay + ws: the portal's PLAYER shell (PIN join → player view)
+            // /gameplay + ws: the portal's PLAYER shell (the player's own deck lives there)
             // rides the player surface — same endpoints the gameplay app uses,
             // including the live stream's socket upgrade.
             // ws: true on every surface — the live stream's socket upgrade rides

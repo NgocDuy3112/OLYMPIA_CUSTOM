@@ -9,12 +9,10 @@ import type { PlayerModel } from "@/hooks/use-player-model"
 import type { LobbyData } from "@shared/deck/types"
 
 // The four screens a player can be stuck behind. Each must stand alone: the only
-// thing it is handed is the model (the two session gates also render the PIN door,
-// which asks /gameplay/auth/methods). Getting one wrong strands a player in front
-// of a projector-sized screen with the wrong instruction.
-//
-// The session gates used to hand out a LINK to /join; the field belongs where the
-// message is, so they now carry the door itself.
+// thing it is handed is the model (the two session gates link to /login, so a
+// player who lost their session signs back in without leaving the show).
+// Getting one wrong strands a player in front of a projector-sized screen with
+// the wrong instruction.
 
 function model(over: Partial<PlayerModel> = {}): PlayerModel {
     return {
@@ -36,10 +34,6 @@ function model(over: Partial<PlayerModel> = {}): PlayerModel {
 const lobbyData = { label: "Trận 1", table: [], rounds: [], title: "Giải" } as unknown as LobbyData
 
 function draw(gate: PlayerGate, over: Partial<PlayerModel> = {}) {
-    // the gate's PIN door asks the deployment what it offers
-    vi.stubGlobal("fetch", vi.fn(async () =>
-        ({ ok: true, status: 200, statusText: "", json: async () => ({ pin: true, google: false }) }) as unknown as Response
-    ))
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     return render(
         <QueryClientProvider client={client}>
@@ -52,23 +46,23 @@ function draw(gate: PlayerGate, over: Partial<PlayerModel> = {}) {
 
 
 describe("PlayerGateScreen — an expired session (401)", () => {
-    it("says the session is gone and puts the PIN FIELD right here", async () => {
+    it("says the session is gone and puts the LOGIN door right here", async () => {
         draw("unauthorized")
         expect(screen.getByText("Chưa vào trận")).toBeTruthy()
         expect(screen.getByText(/Phiên thí sinh đã hết hạn/)).toBeTruthy()
-        // the message says "nhập lại mã PIN" — so the field is in the card, not a
-        // link that throws the player out of the show
-        expect(await screen.findByLabelText("Mã vào trận")).toBeTruthy()
-        expect(screen.queryByRole("link", { name: "Nhập lại mã PIN" })).toBeNull()
+        // the message says the session is gone — so the way back is in the card,
+        // not a link that throws the player out of the show
+        const door = screen.getByRole("link", { name: "Đăng nhập" })
+        expect(door.getAttribute("href")).toContain("/login?next=")
     })
 })
 
 describe("PlayerGateScreen — the wrong seat (403)", () => {
-    it("says the seat is not theirs, and offers the PIN field to pick another name", async () => {
+    it("says the seat is not theirs, and offers the login door to sign in as themselves", async () => {
         draw("not-seated")
         expect(screen.getByText("Không có trong trận")).toBeTruthy()
         expect(screen.getByText(/Ghế này không thuộc về bạn/)).toBeTruthy()
-        expect(await screen.findByLabelText("Mã vào trận")).toBeTruthy()
+        expect(screen.getByRole("link", { name: "Đăng nhập" })).toBeTruthy()
     })
 
     it("does not offer a retry — retrying cannot fix the wrong seat", () => {

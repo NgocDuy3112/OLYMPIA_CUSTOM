@@ -52,9 +52,9 @@ export function PrivacyPage() {
                 <Section title="1. Phạm vi">
                     <p>
                         Chính sách này áp dụng cho hệ thống thi đấu Olympia Custom dùng để tổ chức và
-                        phát sóng các trận đấu: trang dành cho thí sinh (vào trận bằng mã PIN) và trang
-                        dành cho khán giả. Bên vận hành giải — ban điều hành hoặc đơn vị tổ chức — là bên
-                        quyết định dữ liệu nào được tạo ra trong giải của họ.
+                        phát sóng các trận đấu: trang dành cho thí sinh (đăng nhập bằng tài khoản
+                        riêng) và trang dành cho khán giả. Bên vận hành giải — ban điều hành hoặc đơn
+                        vị tổ chức — là bên quyết định dữ liệu nào được tạo ra trong giải của họ.
                     </p>
                 </Section>
 
@@ -62,13 +62,12 @@ export function PrivacyPage() {
                     <Bullets
                         items={[
                             <>
-                                <b>Danh tính khi vào trận</b>: tên hiển thị bạn chọn ở trang vào trận,
-                                ghế bạn ngồi, thời điểm vào. Không cần mật khẩu, không cần email.
+                                <b>Danh tính khi vào trận</b>: tên hiển thị, ghế bạn ngồi, thời điểm vào.
                             </>,
                             <>
-                                <b>Email (không bắt buộc)</b>: chỉ có khi ban điều hành nhập, hoặc khi
-                                bạn tự đăng nhập bằng Google. Email dùng để giữ lịch sử thi đấu của bạn
-                                qua nhiều giải.
+                                <b>Tài khoản</b> (nếu bạn đăng ký): email và băm mật khẩu (Argon2 —
+                                mật khẩu gốc không bao giờ được lưu), trạng thái xác thực email, và
+                                liên kết xác thực trong email gửi cho bạn. Xem mục 3.
                             </>,
                             <>
                                 <b>Dữ liệu thi đấu</b>: câu trả lời và đáp án bạn chọn, thời điểm nộp,
@@ -86,7 +85,43 @@ export function PrivacyPage() {
                     />
                 </Section>
 
-                <Section title="3. Camera và micro">
+                <Section title="3. Tài khoản thí sinh">
+                    <p>
+                        Bạn có thể tự đăng ký tài khoản (email + mật khẩu do bạn chọn) để giữ lịch sử
+                        thi đấu của mình qua nhiều giải. Ban điều hành chỉ ghi danh địa chỉ email của
+                        bạn vào giải — không bao giờ biết hay đặt mật khẩu cho bạn.
+                    </p>
+                    <Bullets
+                        items={[
+                            <>
+                                <b>Chúng tôi lưu gì</b>: email, tên hiển thị, và băm mật khẩu theo
+                                Argon2. Mật khẩu gốc không bao giờ được lưu dưới bất kỳ hình thức
+                                nào — nhân viên không thể đọc được nó.
+                            </>,
+                            <>
+                                <b>Email xác thực</b>: khi đăng ký, chúng tôi gửi một liên kết xác thực
+                                (hết hạn sau 24 giờ) tới địa chỉ của bạn. Tài khoản chưa xác thực
+                                không đăng nhập được và không được ghi danh vào giải.
+                            </>,
+                            <>
+                                <b>Cookie phiên</b>: sau khi đăng nhập, một cookie giữ phiên của bạn
+                                (không đọc được bằng JavaScript, tự hết hạn). Đăng xuất sẽ xoá nó ngay.
+                            </>,
+                            <>
+                                <b>Không dùng làm mật khẩu dự phòng</b>: nếu bạn quên mật khẩu, ban
+                                điều hành không thể đọc lại mật khẩu cũ của bạn.
+                            </>,
+                        ]}
+                    />
+                    <p>
+                        <b>Xoá tài khoản</b>: bạn có thể yêu cầu ban tổ chức xoá tài khoản (email,
+                        băm mật khẩu, phiên đăng nhập). Kết quả thi đấu của bạn — câu trả lời, điểm,
+                        thứ hạng — <b>giữ lại</b>: chúng là biên bản của kỳ thi và không thể xoá riêng
+                        lẻ (mục 9).
+                    </p>
+                </Section>
+
+                <Section title="4. Camera và micro">
                     <p>
                         Camera/micro chỉ được dùng khi bạn vào trận với tư cách thí sinh. Trình duyệt
                         sẽ hỏi quyền trước, và bạn có thể từ chối — khi đó bạn vẫn thi đấu được, chỉ là
@@ -115,7 +150,7 @@ export function PrivacyPage() {
                     />
                 </Section>
 
-                <Section title="4. Cookie và phiên đăng nhập">
+                <Section title="5. Cookie và phiên đăng nhập">
                     <p>
                         Hệ thống chỉ dùng cookie cần thiết để giữ phiên của bạn (cookie không đọc được
                         bằng JavaScript, hết hạn sau một khoảng thời gian, chỉ gửi tới đúng tên miền của
@@ -124,7 +159,7 @@ export function PrivacyPage() {
                     </p>
                 </Section>
 
-                <Section title="5. Mục đích và căn cứ xử lý">
+                <Section title="6. Mục đích và căn cứ xử lý">
                     <Bullets
                         items={[
                             "Tổ chức, điều hành và phát sóng trận đấu; tính điểm và xếp hạng.",
@@ -139,7 +174,7 @@ export function PrivacyPage() {
                     </p>
                 </Section>
 
-                <Section title="6. Chia sẻ với ai">
+                <Section title="7. Chia sẻ với ai">
                     <Bullets
                         items={[
                             <>
@@ -161,24 +196,26 @@ export function PrivacyPage() {
                     <p>Chúng tôi không bán, không cho thuê và không trao đổi dữ liệu cá nhân.</p>
                 </Section>
 
-                <Section title="7. Lưu trong bao lâu">
+                <Section title="8. Lưu trong bao lâu">
                     <Bullets
                         items={[
                             "Dữ liệu thi đấu (câu trả lời, điểm, kết quả) được giữ cùng với giải, vì đó là biên bản của kỳ thi.",
                             "Tài khoản thí sinh chỉ chơi tại chỗ (không email) chỉ tồn tại trong phạm vi giải đó.",
+                            "Tài khoản tự đăng ký được giữ cho tới khi bạn yêu cầu xoá (mục 3); kết quả thi đấu vẫn ở lại.",
                             "Hình và tiếng không được lưu trên máy chủ của chúng tôi.",
                             "Nhật ký máy chủ được giữ trong thời gian cần thiết để điều tra sự cố.",
                         ]}
                     />
                 </Section>
 
-                <Section title="8. Quyền của bạn">
+                <Section title="9. Quyền của bạn">
                     <Bullets
                         items={[
                             "Biết dữ liệu nào đang được lưu về mình.",
                             "Yêu cầu sửa tên hiển thị hoặc email (ban điều hành sửa trực tiếp trong tab Thí sinh).",
                             "Từ chối hoặc thu hồi quyền camera/micro bất cứ lúc nào.",
                             "Yêu cầu xoá khỏi danh sách thí sinh khi chưa thi đấu.",
+                            "Yêu cầu xoá tài khoản tự đăng ký của bạn — kết quả thi đấu vẫn được giữ (mục 3).",
                             "Khiếu nại về việc xử lý dữ liệu với ban tổ chức.",
                         ]}
                     />
@@ -188,16 +225,17 @@ export function PrivacyPage() {
                     </p>
                 </Section>
 
-                <Section title="9. Bảo mật">
+                <Section title="10. Bảo mật">
                     <p>
-                        Phiên đăng nhập dùng cookie không đọc được bằng JavaScript; mật khẩu của ban
-                        điều hành được băm (Argon2) và đăng nhập có xác thực hai lớp; mỗi yêu cầu được
-                        kiểm tra quyền theo vai trò trong giải. Không có hệ thống nào an toàn tuyệt đối —
-                        nếu bạn phát hiện lỗ hổng, hãy báo cho ban tổ chức.
+                        Phiên đăng nhập dùng cookie không đọc được bằng JavaScript; mật khẩu của bạn
+                        và của ban điều hành đều được băm (Argon2 — không lưu mật khẩu gốc), và đăng
+                        nhập ban điều hành có xác thực hai lớp; mỗi yêu cầu được kiểm tra quyền theo
+                        vai trò trong giải. Không có hệ thống nào an toàn tuyệt đối — nếu bạn phát
+                        hiện lỗ hổng, hãy báo cho ban tổ chức.
                     </p>
                 </Section>
 
-                <Section title="10. Thí sinh dưới 18 tuổi">
+                <Section title="11. Thí sinh dưới 18 tuổi">
                     <p>
                         Giải có thể có thí sinh chưa thành niên. Với thí sinh dưới 18 tuổi, ban tổ chức
                         cần có sự đồng ý của cha mẹ hoặc người giám hộ trước khi bật camera/micro, và
@@ -205,14 +243,14 @@ export function PrivacyPage() {
                     </p>
                 </Section>
 
-                <Section title="11. Thay đổi chính sách">
+                <Section title="12. Thay đổi chính sách">
                     <p>
                         Khi chính sách thay đổi, ngày “cập nhật lần cuối” ở trên sẽ đổi. Thay đổi quan
                         trọng sẽ được ban tổ chức thông báo trước khi áp dụng cho giải đang diễn ra.
                     </p>
                 </Section>
 
-                <Section title="12. Liên hệ">
+                <Section title="13. Liên hệ">
                     <p>
                         Mọi câu hỏi hoặc yêu cầu về dữ liệu cá nhân, liên hệ ban tổ chức giải của bạn
                         (thông tin liên hệ do ban tổ chức công bố cùng thể lệ giải). Bạn cũng có thể hỏi

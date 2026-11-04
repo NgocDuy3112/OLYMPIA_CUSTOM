@@ -51,9 +51,6 @@ export const matches = pgTable(
         status: matchStatus("status").notNull().default("UPCOMING"),
         kind: matchKind("kind").notNull().default("STANDARD"),
         slot: integer("slot"),
-        // The player's door in: staff read this code off the match page, players
-        // type it on /join to pick a seat and get a session (no password).
-        joinCode: text("join_code"),
         players: jsonb("players").$type<Seat[]>().notNull(),
         roundConfigs: jsonb("round_configs").$type<Record<string, RoundConfig>>().notNull(),
         questions: jsonb("questions").$type<MatchQuestion[]>().notNull(),
@@ -70,9 +67,6 @@ export const matches = pgTable(
         uniqueIndex("matches_stage_slot_unique")
             .on(table.tournamentId, table.stageId, table.slot)
             .where(sql`deleted_at IS NULL AND slot IS NOT NULL`),
-        uniqueIndex("matches_join_code_unique")
-            .on(table.joinCode)
-            .where(sql`join_code IS NOT NULL AND deleted_at IS NULL`),
         check(
             "matches_live_phase_check",
             sql`live IS NULL OR jsonb_typeof(live->'phase') = 'string'`

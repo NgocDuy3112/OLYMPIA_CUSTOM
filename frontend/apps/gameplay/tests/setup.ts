@@ -15,8 +15,9 @@ const hasDom = typeof document !== "undefined"
 if (hasDom) {
     afterEach(cleanup)
 
-    // input-otp (the PIN slot field) measures by hit-testing the document; jsdom
-    // has no layout, so it must answer something. Same polyfill as the portal's.
+    // input-otp (the portal's MFA code field) measures by hit-testing the
+    // document; jsdom has no layout, so it must answer something. Same polyfill
+    // as the portal's.
     if (typeof document.elementFromPoint !== "function") {
         document.elementFromPoint = () => null
     }

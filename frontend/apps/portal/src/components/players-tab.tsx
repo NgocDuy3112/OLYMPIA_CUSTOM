@@ -19,10 +19,11 @@ import { AddContestantDialog } from "./add-contestant-dialog"
  * three actions. Group membership belongs to the Groups tab (that tab is the
  * DRAW); scores belong to Standings.
  *
- * The EMAIL is the load-bearing field. A contestant made without one is a
- * show-floor identity: they play through the PIN and can never sign in, so their
- * history is never theirs. With one, their own Google sign-in finds this row and
- * attaches to it — nothing moves, because nothing was anywhere else.
+ * The EMAIL is the load-bearing field, and there are two ways a row gets one:
+ * the player registered THEIR OWN account (the operator enrolls the address,
+ * never a password), or the operator attaches an address to a show-floor
+ * identity so the player's own sign-in finds this row and attaches to it —
+ * nothing moves, because nothing was anywhere else.
  */
 export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; frozen: boolean }) {
     const roster = useContestants(tournamentId)
@@ -78,7 +79,7 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
                 <CardDescription>
                     {rows.length === 0
                         ? "No contestants yet — add the first one."
-                        : `${rows.length} contestant${rows.length === 1 ? "" : "s"} · ${withAccount} with an account, ${rows.length - withAccount} playing only through the PIN.`}
+                        : `${rows.length} contestant${rows.length === 1 ? "" : "s"} · ${withAccount} with an account, ${rows.length - withAccount} show-floor only.`}
                 </CardDescription>
                 <CardAction>
                     <Button size="sm" variant="outline" onClick={() => setAdding(true)}>
@@ -129,7 +130,7 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
                                         ) : (
                                             <span
                                                 className="text-sm text-muted-foreground"
-                                                title="Không có email: thí sinh chỉ vào trận bằng mã PIN, không giữ được lịch sử khi tự đăng nhập."
+                                                title="Không có email: thí sinh chỉ thi tại chỗ, không đăng nhập được nên không giữ được lịch sử khi tự đăng nhập."
                                             >
                                                 chưa có tài khoản
                                             </span>

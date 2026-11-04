@@ -6,7 +6,8 @@ import { SchedulePage } from "@/pages/SchedulePage"
 import { StandingsPage } from "@/pages/StandingsPage"
 import { NotFoundPage } from "@/pages/NotFoundPage"
 import { PrivacyPage } from "@/pages/PrivacyPage"
-import { JoinPage } from "@/pages/JoinPage"
+import { LoginPage } from "@/pages/LoginPage"
+import { RegisterPage } from "@/pages/RegisterPage"
 import { PlayerShell } from "@/components/player-shell"
 import { CameraPanel } from "@/components/live/CameraPanel"
 import { SelfBroadcastContext, useSelfBroadcast } from "@shared/lib/rtc"
@@ -155,14 +156,13 @@ function App() {
                     </Route>
                     <Route path="/standings" element={<CurrentTournamentRedirect path={(slug) => `/s/${slug}/standings`} />} />
                     <Route path="/privacy" element={<PrivacyPage />} />
+                    {/* The player's own door. Inside the shell on purpose: the
+                        navbar is where a signed-in player sees their name, so the
+                        pages that lead there sit under it too. */}
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
                     <Route path="*" element={<NotFoundPage />} />
                 </Route>
-
-                {/* The player's door: PIN join → the seat's GAMEPLAY session →
-                    the deck at /s/:slug/matches/:id. Players live HERE, never
-                    in the portal (user decision) — so it sits outside the
-                    AppShell, like the portal's old /join did. */}
-                <Route path="/join" element={<JoinPage />} />
             </Routes>
         </BrowserRouter>
     )
