@@ -1,7 +1,8 @@
 # Next: player accounts (login-first), replacing the PIN door
 
-**Status:** all 6 steps done. Steps 2–6 landed with this pass (uncommitted at the
-moment of writing — see the per-step notes below); step 1 was `b093114`.
+**Status:** steps 1–6 done (step 1 = `b093114`, steps 2–6 = `8729b9e`).
+**Step 7 below is the remaining work** — decided 03/11 after the account loop landed:
+the account is the identity, the PIN comes back as a ROOM CODE only.
 **Approved shape:** players register themselves (email + password they choose), verify
 by email, log in, and "Vào trận" opens the match they are seated in. The operator
 **enrolls a known email** instead of creating identities. **The PIN path is removed.**
@@ -124,6 +125,87 @@ so a dev can still get onto the deck.
 3. **Existing show-floor contestants keep working** exactly as today (seated,
    operator-driven) but have no account and no way to log in.
 4. **Join codes become dead** in step 5 — existing matches carry one in the database;
-   decide whether the column is dropped or simply stops being written/displayed.
+   decided: the column is **dropped** (`0008_drop_join_code.sql`). Superseded in
+   shape by step 7, which brings codes back as an expiring `match_codes` table.
 5. **`?next=`** on the old join link is unused after a claim; the login page should
    honour it instead (step 2).
+
+---
+
+## 7. Room codes: the PIN returns, demoted (decided, not built)
+
+**The decision:** `mail + password (chosen by the player) + PIN` — NOT
+`playername + PIN`. Identity picked at the door is unrepairable once answers are on
+the record (the stats-splitting bug), so the player's name is never typed in.
+The two secrets are split by what they answer:
+
+| | Mail + password | Room code (PIN) |
+|---|---|---|
+| Answers | **Who you are** — stats, history, the seat row | **Which room is open** |
+| Held by | The player, forever | The operator, rotatable |
+| Grants | The session | Entry to one match, once seated |
+
+**The rule: the code says which room, the account says who you are.** A claim needs
+BOTH — an authenticated session AND the code. Identity is never chosen at the door;
+a player the desk never pre-seated still walks straight in.
+
+This inverts the deleted claim (`join.ts`): the old one minted a session FROM the
+code (code = identity — why it was deleted in step 5); this one REQUIRES a session
+and uses the code only for entry (account = identity, code = room). `matchId`/seat
+semantics stay untouched — seats keep referencing `user.id`.
+
+### The five decisions
+
+1. **Instant seat if room.** Logged-in + valid code + a free seat → seated on the
+   spot. Capacity is the real check: a match holds 3–4 (the format check must reject
+   a full table). The console shows who claimed and can eject them. The code IS the
+   permission — no approval queue.
+2. **Walk-in with no account:** they register at the venue, then the **operator
+   clicks "verify" in the roster** — the desk can see the account exists, so SMTP
+   stays optional on the floor. Mail links remain a convenience, not a gate.
+3. **Forgotten password:** the operator issues a **one-time entry code bound to
+   that player's seat/account** — the desk NEVER holds a password. This preserves
+   the plan's principle ("a password the operator knows is a password the operator
+   knows"). Not a temp password.
+4. **The account stays the only identity.** `GET /gameplay/me/match`, enroll-by-email
+   and the navbar's one-click `Vào trận` all keep working unchanged.
+5. **Codes are rotatable and expiring** — leaked code → mint a new one; seats and
+   accounts untouched.
+
+### What to build
+
+- **Schema:** a `match_codes` table (code, matchId, expiresAt, usedAt?) — NOT a
+  re-add of the dropped `join_code` column (migration `0008` stays). Rotation and
+  expiry are the whole point, and a standing column cannot expire.
+  Plus: a one-time entry code for the operator-reset path (same table or a sibling,
+  bound to a userId instead of a matchId).
+- **`POST /gameplay/join/claim { code }`** — authenticated now (the old one was
+  pre-session): session + code + seat space → upsert a seat for the session's own
+  userId. 401 without a session, 404 unknown/expired code, 409 full table.
+- **Gameplay UI:** `Vào trận` keeps its one-click path for seated players; a
+  secondary "nhập mã" opens a code box for walk-ins (sends them to `/login?next=`
+  first when signed out — `?next=` round-trips back to the code box).
+- **Roster (portal):** two operator actions — *activate* (set `emailVerified=true`
+  for an account that exists) and *issue one-time entry code* (the password-reset
+  path).
+- **Console matches tab:** show / rotate the room code — where `PIN xxxxxx` used to
+  be before step 5 removed it.
+- **Tests:** claim route (session required, capacity, expiry, rotation), the code
+  box, the roster actions. The old `join.routes.test.ts` is NOT resurrected as-is —
+  its shape is wrong (it tested a pre-session claim).
+
+**Done when:** a player who registered five minutes ago and a player with no
+pre-assigned seat both reach the deck by typing a code the desk can rotate at any
+time — and no surface anywhere lets anyone pick their own name at the door.
+
+### Risks (step 7)
+
+1. **The code is a bearer secret again** — anyone holding it + an account gets a
+   seat. Accepted for a show floor (the desk watches and can eject), which is why
+   rotation and expiry are mandatory rather than nice-to-have.
+2. **Capacity races:** two walk-ins claiming the last seat at the same moment — the
+   seat upsert must be atomic (one wins, the other gets 409).
+3. **`verify` in the roster is a trust action:** the operator vouches for the
+   address. It should be audited (the audit log already records roster writes).
+4. **One-time codes are also bearer secrets**, but bound to a user and single-use —
+   strictly narrower than the old standing PIN.
