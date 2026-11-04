@@ -284,3 +284,89 @@ describe("the group a contestant banks for", () => {
         expect(screen.getByText("chưa xếp")).toBeInTheDocument()
     })
 })
+
+// ── step 7: the desk's two account actions ──────────────────────────────────
+//
+// «Xác thực» is the operator vouching for an address (SMTP stays optional on
+// the floor); «Mã vào» is the forgotten-password path — a one-time code bound
+// to THIS player, shown once, because the desk must never hold a password.
+
+const VERIFY_URL = (userId: string) => `POST /portal/tournaments/${TOURNAMENT}/players/${userId}/verify`
+const ENTRY_URL = (userId: string) => `POST /portal/tournaments/${TOURNAMENT}/players/${userId}/entry-code`
+
+const accountRow = (
+    userId: string,
+    displayName: string,
+    email: string,
+    emailVerified: boolean
+) => ({ ...row(userId, displayName, email), emailVerified })
+
+describe("the desk's account actions", () => {
+    it("offers «Xác thực» only for an account that has not opened its mail link", async () => {
+        draw({}, [
+            accountRow("u9", "Chi", "chi@example.test", false),
+            accountRow("u10", "Dũng", "dung@example.test", true),
+        ])
+
+        await screen.findByText("Chi")
+        // one unverified account → exactly one button; the verified row is done
+        expect(screen.getAllByRole("button", { name: /Xác thực/ })).toHaveLength(1)
+        expect(screen.getByText("dung@example.test")).toBeInTheDocument()
+    })
+
+    it("activates the account in one click — the operator never touches a password", async () => {
+        const { fetchMock } = draw(
+            { [VERIFY_URL("u9")]: { body: { userId: "u9", email: "chi@example.test", emailVerified: true } } },
+            [accountRow("u9", "Chi", "chi@example.test", false)]
+        )
+
+        await screen.findByText("Chi")
+        await userEvent.click(screen.getByRole("button", { name: /Xác thực/ }))
+
+        await waitFor(() => expect(callOf(fetchMock!, VERIFY_URL("u9"))).toBeTruthy())
+        // POST with no body: the address is already on the row
+        expect(callOf(fetchMock!, VERIFY_URL("u9"))![1]?.body).toBeUndefined()
+    })
+
+    it("hands out a one-time entry code and shows it once, with its clock", async () => {
+        const expiresAt = new Date(Date.now() + 15 * 60_000).toISOString()
+        const { fetchMock } = draw(
+            { [ENTRY_URL("u9")]: { body: { userId: "u9", email: "chi@example.test", code: "ABC234", expiresAt } } },
+            [accountRow("u9", "Chi", "chi@example.test", true)]
+        )
+
+        await screen.findByText("Chi")
+        await userEvent.click(screen.getByRole("button", { name: /Mã vào/ }))
+
+        const banner = await screen.findByRole("status")
+        expect(banner).toHaveTextContent(/Mã vào cho/)
+        expect(banner).toHaveTextContent("ABC234")
+        expect(banner).toHaveTextContent(/dùng một lần/)
+        expect(banner).toHaveTextContent(/15 phút/)
+        expect(callOf(fetchMock!, ENTRY_URL("u9"))).toBeTruthy()
+
+        // …and it can be put away: the code is not pinned to the screen
+        await userEvent.click(screen.getByRole("button", { name: "Đóng" }))
+        await waitFor(() => expect(screen.queryByRole("status")).toBeNull())
+    })
+
+    it("offers no account actions for a show-floor identity", async () => {
+        draw({}, [row("u1", "An")])
+
+        await screen.findByText("An")
+        expect(screen.queryByRole("button", { name: /Xác thực/ })).toBeNull()
+        expect(screen.queryByRole("button", { name: /Mã vào/ })).toBeNull()
+    })
+
+    it("keeps the server's refusal on the tab", async () => {
+        draw(
+            { [VERIFY_URL("u9")]: { body: { message: "chi@example.test belongs to a disabled account" }, status: 403 } },
+            [accountRow("u9", "Chi", "chi@example.test", false)]
+        )
+
+        await screen.findByText("Chi")
+        await userEvent.click(screen.getByRole("button", { name: /Xác thực/ }))
+
+        expect(await screen.findByRole("alert")).toHaveTextContent(/disabled account/)
+    })
+})

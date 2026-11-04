@@ -23,6 +23,7 @@ import { questionRoutes } from "./modules/questions/routes.js";
 import { matchRoutes } from "./modules/matches/routes.js";
 import { liveRoutes } from "./modules/live/routes.js";
 import { rosterRoutes } from "./modules/roster/routes.js";
+import { matchCodeRoutes } from "./modules/match-codes/routes.js";
 import { standingsRoutes } from "./modules/standings/routes.js";
 import { gameplayReadRoutes } from "./modules/gameplay-read/routes.js";
 import { mcpKeyRoutes } from "./modules/mcp-keys/routes.js";
@@ -95,6 +96,7 @@ export async function buildApp() {
     await app.register(matchRoutes);
     await app.register(liveRoutes);
     await app.register(rosterRoutes);
+    await app.register(matchCodeRoutes);
     await app.register(standingsRoutes);
     await app.register(gameplayReadRoutes);
     await app.register(mcpKeyRoutes);

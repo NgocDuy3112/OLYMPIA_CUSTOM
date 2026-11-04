@@ -1,16 +1,27 @@
 import { useState, type FormEvent } from "react"
-import { Pencil, Plus, Trash2 } from "lucide-react"
+import { KeyRound, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react"
 import { Button } from "@shared/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
 import { Input } from "@shared/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
 import {
+    useActivateContestant,
     useContestants,
+    useIssueEntryCode,
     useRemoveContestant,
     useUpdateContestant,
     type ContestantRow,
 } from "@/lib/tournament"
 import { AddContestantDialog } from "./add-contestant-dialog"
+
+/**
+ * How many minutes the code on screen still lives. The desk reads it out loud
+ * and the clock is the honest half of the sentence: a code that outlives its
+ * claim on the room is exactly what rotation exists to prevent.
+ */
+function minutesLeft(iso: string): number {
+    return Math.max(1, Math.ceil((new Date(iso).getTime() - Date.now()) / 60_000))
+}
 
 /**
  * Thí sinh — the roster, and the only place a contestant is created or corrected.
@@ -29,6 +40,8 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
     const roster = useContestants(tournamentId)
     const update = useUpdateContestant(tournamentId)
     const remove = useRemoveContestant(tournamentId)
+    const activate = useActivateContestant(tournamentId)
+    const issueCode = useIssueEntryCode(tournamentId)
 
     /** Adding is a dialog, like every other create on this page. */
     const [adding, setAdding] = useState(false)
@@ -36,6 +49,8 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
     const [editing, setEditing] = useState<ContestantRow | null>(null)
     const [editName, setEditName] = useState("")
     const [editEmail, setEditEmail] = useState("")
+    /** An entry code just issued — shown ONCE, to the operator who asked for it. */
+    const [issued, setIssued] = useState<{ displayName: string; code: string; expiresAt: string } | null>(null)
 
     const startEdit = (row: ContestantRow) => {
         setEditing(row)
@@ -66,6 +81,20 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
         remove.mutate(row.userId)
     }
 
+    /** The desk vouches for the address: the player can log in now. */
+    const verify = (row: ContestantRow) => {
+        setIssued(null)
+        activate.mutate(row.userId)
+    }
+
+    /** Forgotten password: one code, this player, one use — no password held. */
+    const giveEntryCode = (row: ContestantRow) => {
+        activate.reset()
+        issueCode.mutate(row.userId, {
+            onSuccess: (data) => setIssued({ displayName: row.displayName, ...data }),
+        })
+    }
+
     if (roster.isPending) return <p className="text-sm text-muted-foreground">Loading the roster…</p>
     if (roster.isError) return <p role="alert" className="text-sm text-destructive">{roster.error.message}</p>
 
@@ -93,6 +122,33 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
                 {remove.isError ? (
                     <p role="alert" className="px-6 pb-4 text-sm text-destructive">{remove.error.message}</p>
                 ) : null}
+                {activate.isError ? (
+                    <p role="alert" className="px-6 pb-4 text-sm text-destructive">{activate.error.message}</p>
+                ) : null}
+                {issueCode.isError ? (
+                    <p role="alert" className="px-6 pb-4 text-sm text-destructive">{issueCode.error.message}</p>
+                ) : null}
+
+                {/* The code exists to be READ OUT and then forgotten: it is on
+                    screen once, with its clock, and nowhere else. */}
+                {issued ? (
+                    <div
+                        role="status"
+                        className="mb-4 flex items-center justify-between gap-3 rounded-md border border-border bg-muted px-6 py-3"
+                    >
+                        <p className="font-sans text-sm">
+                            <span className="text-muted-foreground">Mã vào cho</span>{" "}
+                            <b>{issued.displayName}</b>:{" "}
+                            <b className="font-mono tracking-widest">{issued.code}</b>{" "}
+                            <span className="text-xs text-muted-foreground">
+                                — dùng một lần, hết hạn sau {minutesLeft(issued.expiresAt)} phút.
+                            </span>
+                        </p>
+                        <Button size="sm" variant="ghost" onClick={() => setIssued(null)}>
+                            Đóng
+                        </Button>
+                    </div>
+                ) : null}
 
                 {rows.length === 0 ? (
                     <p className="px-6 pb-6 text-sm text-muted-foreground">
@@ -105,7 +161,7 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
                                 <TableHead className="pl-6">Contestant</TableHead>
                                 <TableHead className="w-28">Nhóm</TableHead>
                                 <TableHead>Account</TableHead>
-                                <TableHead className="w-56 pr-6 text-right">Actions</TableHead>
+                                <TableHead className="w-80 pr-6 text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -137,7 +193,7 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
                                         )}
                                     </TableCell>
                                     <TableCell className="pr-6 text-right">
-                                        <span className="flex justify-end gap-1">
+                                        <span className="flex flex-wrap justify-end gap-1">
                                             <Button
                                                 size="sm"
                                                 variant="ghost"
@@ -147,6 +203,32 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
                                                 <Pencil className="size-3.5" />
                                                 Sửa
                                             </Button>
+                                            {row.email && !row.emailVerified ? (
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    disabled={activate.isPending}
+                                                    onClick={() => verify(row)}
+                                                    title="Xác thực tài khoản để thí sinh đăng nhập được (ban điều hành xác nhận địa chỉ)"
+                                                >
+                                                    <ShieldCheck className="size-3.5" />
+                                                    Xác thực
+                                                </Button>
+                                            ) : null}
+                                            {row.email ? (
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    disabled={issueCode.isPending}
+                                                    onClick={() => giveEntryCode(row)}
+                                                    title="Quên mật khẩu: cấp mã một lần cho thí sinh — bàn điều hành không giữ mật khẩu"
+                                                >
+                                                    <KeyRound className="size-3.5" />
+                                                    {issueCode.isPending && issueCode.variables === row.userId
+                                                        ? "Đang cấp…"
+                                                        : "Mã vào"}
+                                                </Button>
+                                            ) : null}
                                             <Button
                                                 size="sm"
                                                 variant="ghost"

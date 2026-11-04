@@ -5,9 +5,14 @@
  * Why it exists: the frontend suites stub fetch, and the backend integration
  * tests build their matches in-process and tear them down. Neither leaves
  * something a person can open at localhost and click. This script writes the
- * smallest tournament that reaches a round: one operator, four PIN players, one
- * LIVE match with khởi động's question batches, and the `matchLive` row the
+ * smallest tournament that reaches a round: one operator, four player accounts,
+ * one LIVE match with khởi động's question batches, and the `matchLive` row the
  * engine expects before a round starts.
+ *
+ * Three players are SEALED into the match; the fourth walks in the way step 7
+ * says a walk-in does — log in, then type the printed ROOM CODE on /code. The
+ * code is minted per run (and rotated, so a stale one from yesterday is dead).
+ * That is the whole claim flow, on a dev box, without touching the console.
  *
  * It is IDEMPOTENT: run it again and it replaces its own fixture (matched by
  * slug), never touching other data. `--clean` removes it and prints nothing else.
@@ -35,11 +40,14 @@ import {
     tournaments,
     users
 } from "../src/db/schema/index.js";
+import { rotateRoomCode } from "../src/modules/match-codes/service.js";
 import type { MatchQuestion } from "../src/game/contracts/index.js";
 
 const SLUG = "fixture-cup";
 const OPERATOR = { username: "fixture-op", password: "fixture-pass-2026", displayName: "Fixture Op" };
 const PLAYERS = ["An", "Bình", "Chi", "Dũng"];
+/** The player who is NOT pre-seated: they reach the deck with the room code. */
+const WALK_IN = 3;
 /** Dev-only password the fixture's players sign in with (they are real accounts). */
 const PLAYER_PASSWORD = "fixture-pass-2026";
 const TOURNAMENT_ID = "11111111-1111-4111-8111-111111111111";
@@ -72,19 +80,22 @@ function question(turnId: "phase1" | "phase2", position: number): MatchQuestion 
 }
 
 async function remove() {
+    // Anyone on the fixture's roster goes too: a QA session adds contestants
+    // through the portal (the "Add contestant" box), and leaving them behind
+    // would make the next run of this script fail on a duplicate name.
+    // Read BEFORE the roster rows are deleted below — afterwards this query
+    // always answers "nobody", which is how QA's accounts used to leak.
+    const rostered = await db
+        .select({ id: tournamentPlayers.userId })
+        .from(tournamentPlayers)
+        .where(eq(tournamentPlayers.tournamentId, TOURNAMENT_ID));
+
     await db.delete(answers).where(eq(answers.matchId, MATCH_ID));
     await db.delete(matchResults).where(eq(matchResults.matchId, MATCH_ID));
     await db.delete(matchLive).where(eq(matchLive.matchId, MATCH_ID));
     await db.delete(matches).where(eq(matches.id, MATCH_ID));
     await db.delete(tournamentPlayers).where(eq(tournamentPlayers.tournamentId, TOURNAMENT_ID));
     await db.delete(tournaments).where(eq(tournaments.slug, SLUG));
-    // Anyone on the fixture's roster goes too: a QA session adds contestants
-    // through the portal (the "Add contestant" box), and leaving them behind
-    // would make the next run of this script fail on a duplicate name.
-    const rostered = await db
-        .select({ id: tournamentPlayers.userId })
-        .from(tournamentPlayers)
-        .where(eq(tournamentPlayers.tournamentId, TOURNAMENT_ID));
     const playerRows = [...rostered, ...(await db
         .select({ id: users.id })
         .from(users)
@@ -181,8 +192,13 @@ async function main() {
         scheduledAt: new Date(),
         label: "Fixture — Chung kết",
         status: "LIVE",
-        joinCode: JOIN_CODE,
-        players: playerRows.map((p, i) => ({ kind: "user" as const, userId: p.id, seed: i + 1 })),
+        // Three of the four are seated; the fourth seat is what the room code
+        // below buys (capacity is the format's 4). `joinCode` is gone — the
+        // column was dropped in migration 0008, and a standing code could
+        // neither expire nor rotate.
+        players: playerRows
+            .slice(0, WALK_IN)
+            .map((p, i) => ({ kind: "user" as const, userId: p.id, seed: i + 1 })),
         roundConfigs: {
             "khoi-dong": {
                 allowedKinds: ["TEXT"],
@@ -199,12 +215,19 @@ async function main() {
     // The engine's row: a LIVE match with no round started yet.
     await db.insert(matchLive).values({ matchId: MATCH_ID, version: 0, roundId: "khoi-dong", state: {} });
 
+    // The walk-in's door: a fresh room code (rotation deletes whatever the last
+    // run minted), expiring in 24 h like every code the desk issues.
+    const room = await rotateRoomCode(TOURNAMENT_ID, MATCH_ID, operator.id);
+
     console.log(`
 fixture ready
 ─────────────
 tournament   ${TOURNAMENT_ID}  (slug: ${SLUG})
 match        ${MATCH_ID}       status LIVE
-seats        ${PLAYERS.join(", ")}
+seated       ${PLAYERS.slice(0, WALK_IN).join(", ")}
+room code    ${room.code}      → http://localhost:5175/code
+             (sign in as fixture-player-${WALK_IN + 1}@example.com / ${PLAYER_PASSWORD},
+              then type the code — that is the 4th seat)
 questions    6 oral (phase 1) + 12 typed (phase 2), all khởi động
 
 console      http://localhost:5173/tournaments/${TOURNAMENT_ID}/matches/${MATCH_ID}/stage

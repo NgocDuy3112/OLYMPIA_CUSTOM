@@ -115,6 +115,46 @@ export interface MyMatch {
 }
 
 /**
+ * Claim a seat with the room code the desk handed out — session + code, never
+ * code alone (the code says WHICH room, the account says WHO). The answer is
+ * the match they are now seated in: 401 means the session is gone, 404 an
+ * unknown or expired code, 409 a full table. The server's own message is what
+ * the page shows.
+ */
+export function useClaimCode() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: (code: string) =>
+            api<{ matchId: string; slug: string; label: string }>("/gameplay/join/claim", {
+                method: "POST",
+                body: JSON.stringify({ code }),
+            }),
+        onSuccess: () => {
+            // The seat is new: "which match am I in" was read without it.
+            void queryClient.invalidateQueries()
+        },
+    })
+}
+
+/**
+ * Redeem the desk's one-time entry code (a forgotten password) — it answers
+ * with the player's OWN session, so every cached read was made without it.
+ */
+export function useEntryCode() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: (code: string) =>
+            api<{ id: string; displayName: string }>("/gameplay/auth/entry-code", {
+                method: "POST",
+                body: JSON.stringify({ code }),
+            }),
+        onSuccess: () => {
+            void queryClient.invalidateQueries()
+        },
+    })
+}
+
+/**
  * The matches this player has a seat in (UPCOMING or LIVE, newest first).
  * A signed-out player gets a 401 — an answer, never a retry.
  */

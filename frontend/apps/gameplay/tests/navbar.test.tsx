@@ -132,3 +132,22 @@ describe("NavBar — signed in", () => {
         expect(await screen.findByRole("status")).toHaveTextContent(/Không đọc được danh sách trận/)
     })
 })
+
+describe("NavBar — the other way in (a room code)", () => {
+    it("signed out: «Nhập mã» goes to the login door first, carrying the code box", async () => {
+        draw({ ...signedOut, ...noTournaments })
+
+        const door = await screen.findByRole("link", { name: "Nhập mã" })
+        expect(door.getAttribute("href")).toBe("/login?next=%2Fcode")
+    })
+
+    it("signed in: «Nhập mã» sits beside Vào trận and opens the code box", async () => {
+        draw({ ...signedIn, ...noTournaments, ...oneMatch })
+        await screen.findByText("An")
+
+        const box = await screen.findByRole("link", { name: "Nhập mã" })
+        expect(box.getAttribute("href")).toBe("/code")
+        // the one-click path for a seated player is untouched
+        expect(screen.getByRole("button", { name: "Vào trận" })).toBeTruthy()
+    })
+})

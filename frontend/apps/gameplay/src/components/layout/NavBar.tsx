@@ -147,7 +147,16 @@ export function NavBar() {
                 {signedOut ? (
                     // The player's own door: they registered an account, so the
                     // navbar offers both ends of it (`?next=` remembered here).
+                    // "Nhập mã" goes to the login door FIRST — a room code only
+                    // works with the session that says who is typing it — and
+                    // carries the code box back as ?next=.
                     <div className="ml-auto flex items-center gap-2">
+                        <Link
+                            to={loginLink("/code")}
+                            className={cn(buttonVariants({ variant: "ghost", size: "lg" }))}
+                        >
+                            Nhập mã
+                        </Link>
                         <Link
                             to={registerLink()}
                             className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
@@ -212,6 +221,15 @@ export function NavBar() {
                                 </div>
                             ) : null}
                         </div>
+                        {/* The OTHER way into a match: a seat nobody pre-assigned,
+                            claimed with the room code the desk reads out. Same
+                            account — the code only says which room. */}
+                        <Link
+                            to="/code"
+                            className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
+                        >
+                            Nhập mã
+                        </Link>
                         <Button
                             variant="ghost"
                             size="sm"

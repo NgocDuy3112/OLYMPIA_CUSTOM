@@ -8,10 +8,12 @@ import {
     UUID_PATTERN
 } from "../tournament-shared.js";
 import {
+    activateAccount,
     assignGroup,
     createContestant,
     enrollByEmail,
     enrollPlayers,
+    issueEntryCodeFor,
     listEnrolled,
     removeContestant,
     updateContestant,
@@ -173,6 +175,56 @@ export async function rosterRoutes(app: FastifyInstance) {
             });
 
             return contestant;
+        }
+    );
+
+    // ACTIVATE: the operator vouches for the address and the account can log in.
+    // This is what keeps SMTP optional on the floor — the desk can see the
+    // account exists, so the mail link stops being a gate. A trust action, so it
+    // is audited like every other roster write.
+    app.post(
+        "/portal/tournaments/:tournamentId/players/:userId/verify",
+        { onRequest: staff, schema: { params: playerParams } },
+        async (request) => {
+            const user = request.sessionUser!;
+            const { tournamentId, userId } = request.params as { tournamentId: string; userId: string };
+
+            await assertWrite(tournamentId, user.id, user.role);
+            const activated = await activateAccount(tournamentId, userId);
+
+            await auditFromRequest(request, "tournament_updated", {
+                targetId: userId,
+                details: { tournamentId, activated: userId, email: activated.email }
+            });
+
+            return activated;
+        }
+    );
+
+    // FORGOTTEN PASSWORD: a one-time entry code bound to this player's own
+    // account. The desk never holds a password — there is none to hand out —
+    // and the code dies on use or in 15 minutes. The VALUE is returned to the
+    // operator's screen and never written to the audit trail.
+    app.post(
+        "/portal/tournaments/:tournamentId/players/:userId/entry-code",
+        { onRequest: staff, schema: { params: playerParams } },
+        async (request) => {
+            const user = request.sessionUser!;
+            const { tournamentId, userId } = request.params as { tournamentId: string; userId: string };
+
+            await assertWrite(tournamentId, user.id, user.role);
+            const issued = await issueEntryCodeFor(tournamentId, userId, user.id);
+
+            await auditFromRequest(request, "tournament_updated", {
+                targetId: userId,
+                details: {
+                    tournamentId,
+                    entryCodeFor: userId,
+                    expiresAt: issued.expiresAt.toISOString()
+                }
+            });
+
+            return issued;
         }
     );
 

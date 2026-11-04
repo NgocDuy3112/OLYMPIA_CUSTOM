@@ -117,8 +117,9 @@ export function AddContestantDialog({
                                         required
                                     />
                                     <FieldDescription>
-                                        Thí sinh phải đăng ký tài khoản và bấm xác thực trong email trước.
-                                        Ban điều hành ghi danh địa chỉ — không biết và không cần mật khẩu.
+                                        Thí sinh tự đăng ký tài khoản; ban điều hành ghi danh địa chỉ —
+                                        không biết và không cần mật khẩu. Chưa bấm xác thực trong email
+                                        cũng được: ghi danh xong, bấm «Xác thực» ngay ở bảng dưới này.
                                     </FieldDescription>
                                 </Field>
                             </TabsContent>

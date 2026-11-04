@@ -1,10 +1,18 @@
 import { useState } from "react"
+import { RefreshCw, X } from "lucide-react"
 import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
 import { allowedSeatsOf, seatsPhrase } from "@/lib/tournaments"
-import { useEnrolled, useMatches, type TournamentDetail } from "@/lib/tournament"
+import {
+    useEjectSeat,
+    useEnrolled,
+    useMatchCodes,
+    useMatches,
+    useRotateMatchCode,
+    type TournamentDetail,
+} from "@/lib/tournament"
 import { NewMatchDialog } from "./new-match-dialog"
 
 
@@ -23,6 +31,12 @@ export function MatchesTab({
 }) {
     const matches = useMatches(tournamentId)
     const enrolled = useEnrolled(tournamentId)
+    // The room code: the walk-in's way in (gameplay's /code), shown where the
+    // old PIN used to be. Write-guarded on the server, so `codes.data` existing
+    // IS the permission to show these controls.
+    const codes = useMatchCodes(tournamentId)
+    const rotate = useRotateMatchCode(tournamentId)
+    const eject = useEjectSeat(tournamentId)
     // AOC: 3 or 4 seats per match — the format decides, the dialog offers.
     const allowedSeats = allowedSeatsOf(tournament.format)
 
@@ -38,6 +52,8 @@ export function MatchesTab({
     const data = matches.data
     const names = new Map((enrolled.data?.items ?? []).map((row) => [row.userId, row.displayName]))
     const nameOf = (userId: string) => names.get(userId) ?? `Unknown (${short(userId)})`
+    const codeOf = (matchId: string) =>
+        (codes.data?.items ?? []).find((item) => item.matchId === matchId)
 
     return (
         <div className="flex flex-col gap-4">
@@ -57,6 +73,13 @@ export function MatchesTab({
                 </CardHeader>
 
                 <CardContent className="p-0">
+                    {rotate.isError ? (
+                        <p role="alert" className="px-6 pb-4 text-sm text-destructive">{rotate.error.message}</p>
+                    ) : null}
+                    {eject.isError ? (
+                        <p role="alert" className="px-6 pb-4 text-sm text-destructive">{eject.error.message}</p>
+                    ) : null}
+
                     {data.items.length === 0 ? (
                         <p className="px-6 pb-6 text-sm text-muted-foreground">
                             A match seats {seatsPhrase(allowedSeats)} players.
@@ -74,6 +97,7 @@ export function MatchesTab({
                                 {data.items.map((match) => {
                                     const seated = match.players.flatMap((seat) =>
                                         seat.userId ? [seat.userId] : [])
+                                    const code = codeOf(match.id)
                                     return (
                                         <TableRow key={match.id}>
                                             <TableCell className="pl-6">
@@ -85,8 +109,25 @@ export function MatchesTab({
                                             <TableCell>
                                                 <div className="flex flex-wrap gap-1">
                                                     {seated.map((userId) => (
-                                                        <span key={userId} className="rounded bg-muted px-1.5 py-0.5 text-xs">
+                                                        <span
+                                                            key={userId}
+                                                            className="flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-xs"
+                                                        >
                                                             {nameOf(userId)}
+                                                            {match.status === "UPCOMING" ? (
+                                                                <button
+                                                                    type="button"
+                                                                    aria-label={`Gỡ ${nameOf(userId)} khỏi trận`}
+                                                                    title="Gỡ khỏi trận — thí sinh vào nhầm mã"
+                                                                    disabled={eject.isPending}
+                                                                    onClick={() =>
+                                                                        eject.mutate({ matchId: match.id, userId })
+                                                                    }
+                                                                    className="text-muted-foreground hover:text-destructive"
+                                                                >
+                                                                    <X className="size-3" aria-hidden />
+                                                                </button>
+                                                            ) : null}
                                                         </span>
                                                     ))}
                                                 </div>
@@ -103,6 +144,38 @@ export function MatchesTab({
                                                         >
                                                             Control
                                                         </Button>
+                                                        {codes.data ? (
+                                                            <div className="flex items-center justify-end gap-1">
+                                                                {code ? (
+                                                                    <span
+                                                                        className="font-mono text-xs tracking-widest text-muted-foreground"
+                                                                        title={`Mã thí sinh gõ ở ô «Nhập mã» của app gameplay — hết hạn ${new Date(code.expiresAt).toLocaleString()}`}
+                                                                    >
+                                                                        Mã {code.code}
+                                                                    </span>
+                                                                ) : null}
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    disabled={
+                                                                        rotate.isPending && rotate.variables === match.id
+                                                                    }
+                                                                    onClick={() => rotate.mutate(match.id)}
+                                                                    title={
+                                                                        code
+                                                                            ? "Xoay mã — mã cũ ngừng hoạt động ngay, ghế và tài khoản không đổi"
+                                                                            : "Tạo mã vào phòng cho thí sinh"
+                                                                    }
+                                                                >
+                                                                    <RefreshCw className="size-3" aria-hidden />
+                                                                    {rotate.isPending && rotate.variables === match.id
+                                                                        ? "…"
+                                                                        : code
+                                                                          ? "Xoay"
+                                                                          : "Tạo mã"}
+                                                                </Button>
+                                                            </div>
+                                                        ) : null}
                                                     </div>
                                                 )}
                                             </TableCell>

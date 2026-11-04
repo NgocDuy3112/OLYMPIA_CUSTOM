@@ -4,6 +4,8 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "../../db/pool.js";
 import { answers, matchStats, scoreAdjustments, tournamentPlayers, users } from "../../db/schema/index.js";
 import { TournamentError } from "../tournaments/errors.js";
+import { CodeError } from "../match-codes/errors.js";
+import { issueEntryCode } from "../match-codes/service.js";
 
 export async function enrollPlayers(tournamentId: string, userIds: string[]): Promise<number> {
     if (userIds.length === 0) return 0;
@@ -22,12 +24,17 @@ const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
  * Enroll an EXISTING account by its address — the operator never learns the
  * password, because there is none to learn: the player registered it themselves.
  *
- * The three refusals are each a different mistake at the desk, and each one says
+ * The refusals are each a different mistake at the desk, and each one says
  * what to DO instead:
  *  · nobody registered that address → 404, ask the player to register first;
- *  · registered but unverified → 403, the player must open the mail link first
- *    (an unverified account cannot log in, so a seat for it would be dead);
+ *  · a disabled account → 403, it cannot come back by itself;
  *  · already on this roster → 409, nothing to do.
+ *
+ * UNVERIFIED accounts are enrolled (step 7, decision 2): on a floor without
+ * SMTP the player may never open the mail link, and refusing them here would
+ * keep them OUT of the roster — which is exactly where the operator's
+ * «Xác thực» button lives. The row lands unverified, the button is right
+ * there, and only then can the player log in.
  *
  * A `@players.invalid` placeholder answers the same 404: nobody registered it.
  */
@@ -70,12 +77,6 @@ export async function enrollByEmail(
     if (user.disabledAt) {
         throw new TournamentError("FORBIDDEN", `${email} belongs to a disabled account`);
     }
-    if (!user.emailVerified) {
-        throw new TournamentError(
-            "FORBIDDEN",
-            `${email} has not verified its address yet — the player must open the link in their registration mail first`
-        );
-    }
 
     if (await enrolledRow(tournamentId, user.id)) {
         throw new TournamentError("CONFLICT", `${email} is already on this roster`);
@@ -83,6 +84,94 @@ export async function enrollByEmail(
 
     await enrollPlayers(tournamentId, [user.id]);
     return { userId: user.id, displayName: user.displayName, email: user.email!, group: null };
+}
+
+/**
+ * ACTIVATE an account: the operator vouches for the address and sets
+ * `emailVerified` themselves.
+ *
+ * This is the floor's answer to SMTP being optional — the desk can SEE the
+ * account exists (the player registered it a minute ago), so the mail link is a
+ * convenience rather than a gate. It is a TRUST action: the operator is asserting
+ * the address is real, which is why the route audits it, and why it refuses a
+ * show-floor identity (there is no account behind it to activate) and a disabled
+ * one (activation would not un-disable it, and saying so beats a silent no-op).
+ */
+export async function activateAccount(
+    tournamentId: string,
+    userId: string
+): Promise<{ userId: string; email: string; emailVerified: boolean }> {
+    if (!(await enrolledRow(tournamentId, userId))) {
+        throw new TournamentError("NOT_ENROLLED", "this player is not enrolled in the tournament");
+    }
+
+    const [user] = await db
+        .select({ id: users.id, email: users.email, emailVerified: users.emailVerified, disabledAt: users.disabledAt })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+    if (!user) throw new TournamentError("NOT_FOUND", "no such account");
+    if (!user.email || user.email.endsWith(PLACEHOLDER_DOMAIN)) {
+        throw new TournamentError(
+            "VALIDATION",
+            "this is a show-floor identity with no account behind it — attach an email first"
+        );
+    }
+    if (user.disabledAt) throw new TournamentError("FORBIDDEN", `${user.email} belongs to a disabled account`);
+
+    if (!user.emailVerified) {
+        await db
+            .update(users)
+            .set({ emailVerified: true, updatedAt: new Date() })
+            .where(eq(users.id, userId));
+    }
+
+    return { userId, email: user.email, emailVerified: true };
+}
+
+/**
+ * Issue this contestant's ONE-TIME entry code — the desk's answer to a
+ * forgotten password, so the operator never holds (or resets) a password.
+ *
+ * The roster decides WHO may get one — enrolled here, with a real account
+ * behind the row — and `match-codes` mints and expires it.
+ */
+export async function issueEntryCodeFor(
+    tournamentId: string,
+    userId: string,
+    createdBy: string
+): Promise<{ userId: string; email: string; code: string; expiresAt: Date }> {
+    if (!(await enrolledRow(tournamentId, userId))) {
+        throw new TournamentError("NOT_ENROLLED", "this player is not enrolled in the tournament");
+    }
+
+    const [user] = await db
+        .select({ id: users.id, email: users.email })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+    if (!user) throw new TournamentError("NOT_FOUND", "no such account");
+    if (!user.email || user.email.endsWith(PLACEHOLDER_DOMAIN)) {
+        throw new TournamentError(
+            "VALIDATION",
+            "this is a show-floor identity with no account to sign in to — attach an email first"
+        );
+    }
+
+    // Disabled / unverified refusals live in match-codes: they are properties
+    // of the ACCOUNT, not of this roster row. Their vocabulary is this
+    // module's, so a refused code answers the roster's own error shape.
+    try {
+        const issued = await issueEntryCode(userId, createdBy);
+        return { userId, email: user.email, ...issued };
+    } catch (error) {
+        if (error instanceof CodeError) {
+            throw new TournamentError(error.code, error.message, error.details);
+        }
+        throw error;
+    }
 }
 
 /**
@@ -180,6 +269,8 @@ export async function listEnrolled(
     userId: string;
     displayName: string;
     email: string | null;
+    /** Has the player opened their mail link? The desk's «Xác thực» button acts on this. */
+    emailVerified: boolean;
     group: GroupLabel | null;
     enrolledAt: Date;
 }>> {
@@ -188,6 +279,7 @@ export async function listEnrolled(
             userId: tournamentPlayers.userId,
             displayName: users.displayName,
             email: users.email,
+            emailVerified: users.emailVerified,
             group: tournamentPlayers.group,
             enrolledAt: tournamentPlayers.enrolledAt
         })

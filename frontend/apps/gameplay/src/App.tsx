@@ -8,6 +8,7 @@ import { NotFoundPage } from "@/pages/NotFoundPage"
 import { PrivacyPage } from "@/pages/PrivacyPage"
 import { LoginPage } from "@/pages/LoginPage"
 import { RegisterPage } from "@/pages/RegisterPage"
+import { CodePage } from "@/pages/CodePage"
 import { PlayerShell } from "@/components/player-shell"
 import { CameraPanel } from "@/components/live/CameraPanel"
 import { SelfBroadcastContext, useSelfBroadcast } from "@shared/lib/rtc"
@@ -161,6 +162,9 @@ function App() {
                         pages that lead there sit under it too. */}
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
+                    {/* The walk-in's door: a room code, half of an entrance —
+                        the session (from the doors above) is the other half. */}
+                    <Route path="/code" element={<CodePage />} />
                     <Route path="*" element={<NotFoundPage />} />
                 </Route>
             </Routes>

@@ -1,11 +1,12 @@
-# Next: player accounts (login-first), replacing the PIN door
+# Player accounts (login-first) — replacing the PIN door
 
-**Status:** steps 1–6 done (step 1 = `b093114`, steps 2–6 = `8729b9e`).
-**Step 7 below is the remaining work** — decided 03/11 after the account loop landed:
-the account is the identity, the PIN comes back as a ROOM CODE only.
-**Approved shape:** players register themselves (email + password they choose), verify
-by email, log in, and "Vào trận" opens the match they are seated in. The operator
-**enrolls a known email** instead of creating identities. **The PIN path is removed.**
+**Status: all seven steps are DONE.** Step 1 = `b093114`, steps 2–6 = `8729b9e`,
+step 7 (room codes) = the build recorded at the bottom of this file.
+The approved shape, as built: players register themselves (email + password they
+choose), verify by email, log in, and "Vào trận" opens the match they are seated
+in. The operator **enrolls a known email** instead of creating identities. **The
+PIN path is removed**, and what came back in step 7 is a ROOM CODE that says
+which room is open — never who the player is.
 
 Why self-registration and not "operator types the password": an operator-chosen
 password is a password the operator knows. The desk has no business holding one.
@@ -66,6 +67,9 @@ signed-in unseated player is told why not. — covered by `tests/navbar.test.tsx
   yet, 409 when already enrolled. Refuse an unverified account. **Decided:** a
   `@players.invalid` placeholder answers the same 404 (nobody registered it), and a
   disabled account answers 403.
+  **AMENDED BY STEP 7 (decision 4 below):** the unverified refusal is GONE — an
+  unverified address is enrolled, landing in the roster with «Xác thực» beside it,
+  because refusing it here kept the account out of the only place that button is.
 - Thí sinh tab: "Thêm thí sinh" dialog gains a tab/choice — **Enroll an account
   (email)** beside the existing **Create a show-floor identity (name + optional email)**.
   Keep the second one: a contestant who never signs in still needs a seat.
@@ -120,8 +124,11 @@ so a dev can still get onto the deck.
 1. **A new runtime dependency** (`nodemailer`, + `@types`). It is the only dependency
    added so far; veto it and the mailer falls back to log-only (verification then
    needs the operator to hand out the link).
-2. **Verification is a real gate**: a registered-but-unverified account cannot log in,
-   and an unverified account cannot be enrolled (step 4).
+2. **Verification is a real gate**: a registered-but-unverified account cannot log in.
+   (Originally also "an unverified account cannot be enrolled (step 4)" — **step 7
+   removed that half**: enrollment no longer refuses an unverified address, because
+   the refusal kept the account out of the roster where step 7's «Xác thực» button
+   lives. Login still refuses until somebody clicks it.)
 3. **Existing show-floor contestants keep working** exactly as today (seated,
    operator-driven) but have no account and no way to log in.
 4. **Join codes become dead** in step 5 — existing matches carry one in the database;
@@ -132,7 +139,7 @@ so a dev can still get onto the deck.
 
 ---
 
-## 7. Room codes: the PIN returns, demoted (decided, not built)
+## 7. DONE — Room codes: the PIN returns, demoted
 
 **The decision:** `mail + password (chosen by the player) + PIN` — NOT
 `playername + PIN`. Identity picked at the door is unrepairable once answers are on
@@ -172,40 +179,98 @@ semantics stay untouched — seats keep referencing `user.id`.
 5. **Codes are rotatable and expiring** — leaked code → mint a new one; seats and
    accounts untouched.
 
-### What to build
+### What was built
 
-- **Schema:** a `match_codes` table (code, matchId, expiresAt, usedAt?) — NOT a
-  re-add of the dropped `join_code` column (migration `0008` stays). Rotation and
-  expiry are the whole point, and a standing column cannot expire.
-  Plus: a one-time entry code for the operator-reset path (same table or a sibling,
-  bound to a userId instead of a matchId).
-- **`POST /gameplay/join/claim { code }`** — authenticated now (the old one was
-  pre-session): session + code + seat space → upsert a seat for the session's own
-  userId. 401 without a session, 404 unknown/expired code, 409 full table.
-- **Gameplay UI:** `Vào trận` keeps its one-click path for seated players; a
-  secondary "nhập mã" opens a code box for walk-ins (sends them to `/login?next=`
-  first when signed out — `?next=` round-trips back to the code box).
-- **Roster (portal):** two operator actions — *activate* (set `emailVerified=true`
-  for an account that exists) and *issue one-time entry code* (the password-reset
-  path).
-- **Console matches tab:** show / rotate the room code — where `PIN xxxxxx` used to
-  be before step 5 removed it.
-- **Tests:** claim route (session required, capacity, expiry, rotation), the code
-  box, the roster actions. The old `join.routes.test.ts` is NOT resurrected as-is —
-  its shape is wrong (it tested a pre-session claim).
+- **Schema:** `match_codes` (migration `0009_match_codes.sql`) — code, `matchId`,
+  `userId`, `expiresAt`, `usedAt?`, `createdBy`, with a CHECK that a row names
+  EXACTLY ONE target: a match is a ROOM code, a user is an ENTRY code. The
+  dropped `join_code` (0008) stays dropped; a standing column cannot expire.
+- **`POST /gameplay/join/claim { code }`** — authenticated: session + code + a
+  free seat → a seat for the session's own userId, in one transaction behind
+  `FOR UPDATE` (two walk-ins for the last seat cannot both win). 401 without a
+  session, 404 unknown/expired code (an entry code answers the same 404), 409 a
+  full table or a finished match. Re-claiming while already seated is a no-op.
+  Capacity = the largest `allowedSeatCounts` seat count of the format.
+- **`POST /gameplay/auth/entry-code { code }`** — the password-reset path:
+  single use (a conditional UPDATE consumes it), 15 minutes, and it mints the
+  SAME GAMEPLAY cookie a password login does (the player's own tokenVersion).
+- **Roster (portal):** `POST …/players/:userId/verify` (activate — set
+  `emailVerified`, refused for a show-floor identity and a disabled account,
+  audited) and `POST …/players/:userId/entry-code` (issue, refused until the
+  account is activated, audited **without the value**). `listEnrolled` now
+  returns `emailVerified`, which is what the button reads.
+- **Console:** `GET …/match-codes` (all live codes of the tournament) and
+  `POST …/matches/:m/code` (mint or ROTATE — the new row is written first, then
+  the old ones are deleted in the same transaction). Both write-guarded: a code
+  seats people, and `canViewTournament` says yes to every staff member on a
+  PUBLIC tournament. Plus `DELETE …/matches/:m/players/:userId` — **eject**, the
+  seat-level undo decision 1 asks for (UPCOMING only; it deliberately bypasses
+  `updateMatch`'s whole-array format check, which still runs at the LIVE
+  transition and says what is missing).
+- **Gameplay UI:** `/code` — the code box. Signed out it is a gate to
+  `/login?next=%2Fcode` (the round trip the plan asks for); signed in it claims
+  and lands on `/s/:slug/matches/:id`. The navbar gains a secondary **Nhập mã**
+  beside the one-click **Vào trận** (signed out → `/login?next=%2Fcode`). The
+  login page gains **«Quên mật khẩu? Dùng mã một lần do ban điều hành cấp»** —
+  a second door in the same card, never a second form.
+- **Portal UI:** the roster row gains **Xác thực** (only while unverified) and
+  **Mã vào** (only where there is an account), the code shown ONCE in a banner
+  with its clock and dismissible; the matches tab shows `Mã XXXXXX` + **Xoay**/
+  **Tạo mã** where `PIN xxxxxx` used to be, and each UPCOMING seat gets an ×.
 
-**Done when:** a player who registered five minutes ago and a player with no
-pre-assigned seat both reach the deck by typing a code the desk can rotate at any
-time — and no surface anywhere lets anyone pick their own name at the door.
+**Decisions taken while building** (all in the plan's shape):
 
-### Risks (step 7)
+1. **Claim checks no roster** — decision 1 says the code IS the permission and
+   decision 2's walk-in is already enrolled by the desk to reach «Xác thực».
+   The seat, not the roster, is what `GET /gameplay/me/match` reads.
+2. **An entry code needs an activated account** — «Xác thực» is refused first
+   for an unverified one, so the two roster actions compose in that order.
+3. **Audit reuses `tournament_updated`** with `seatClaimed`, `roomCodeRotated`,
+   `activated` and `entryCodeFor` in `details` — a code VALUE is never written.
+4. **Enroll-by-email stopped refusing unverified addresses** (step 4's 403 is
+   SUPERSEDED by decision 2). On a floor without SMTP the player may never open
+   the link, so the refusal kept the account OUT of the roster — which is where
+   decision 2's «Xác thực» button lives: never enrolled → never verified → dead
+   end. The row now lands unverified with the button one click away; a disabled
+   account still 403s, unknown still 404s, already enrolled still 409s. Step 4's
+   test was rewritten to say so, and the enroll dialog's copy no longer demands
+   the link first.
+
+**Also fixed while building:** `scripts/dev-fixture.ts` still wrote
+`joinCode: JOIN_CODE` after step 5 deleted the constant — a ReferenceError that
+made the fixture unrunnable, against a column `0008` had dropped. It now seats
+three of its four players and mints a ROOM CODE per run, so a dev can log in as
+the fourth and walk the whole claim flow on localhost.
+
+**Done when (met):** a player who registered five minutes ago and a player with
+no pre-assigned seat both reach the deck by typing a code the desk can rotate at
+any time — and no surface anywhere lets anyone pick their own name at the door.
+
+**Tests:** `match-codes.routes.test.ts` (claim session/capacity/expiry/rotation,
+entry-code single use, eject, both audits) · roster +12 (activate, issue, guards)
+· `code-page.test.tsx` · navbar +2 · auth-pages +4 (the entry-code door) ·
+players-tab +5 · `matches-tab.test.tsx` (show/rotate/eject/403). The old
+`join.routes.test.ts` was NOT resurrected — its shape was wrong (a pre-session
+claim).
+
+### Risks (step 7) — as they stand after the build
 
 1. **The code is a bearer secret again** — anyone holding it + an account gets a
    seat. Accepted for a show floor (the desk watches and can eject), which is why
    rotation and expiry are mandatory rather than nice-to-have.
+   *Addressed:* 24 h room codes, rotation deletes the old value in the same
+   transaction, and the matches tab can eject a wrongly seated player.
 2. **Capacity races:** two walk-ins claiming the last seat at the same moment — the
    seat upsert must be atomic (one wins, the other gets 409).
+   *Addressed:* the claim runs in a transaction behind `SELECT … FOR UPDATE` on the
+   match; the loser sees the full table and gets the same 409 a sequential caller
+   would (`match-codes.routes.test.ts` asserts the seat list never grows past the
+   winner's write).
 3. **`verify` in the roster is a trust action:** the operator vouches for the
    address. It should be audited (the audit log already records roster writes).
+   *Addressed:* audited as `tournament_updated` with `details.activated` +
+   `targetId`, asserted in `roster.routes.test.ts`.
 4. **One-time codes are also bearer secrets**, but bound to a user and single-use —
    strictly narrower than the old standing PIN.
+   *Addressed:* consumed by a conditional UPDATE (one winner), 15-minute life,
+   replaced on re-issue, and never written to the audit trail.

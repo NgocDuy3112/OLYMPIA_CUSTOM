@@ -12,6 +12,7 @@ import {
     validate
 } from "./schemas.js";
 import { pageResult, type Page, type PageResult } from "../../lib/pagination.js";
+import { isSeatedInMatch } from "./seats.js";
 import { nextRoundId, orderedMatchRounds } from "./rounds.js";
 import { buildMatchResults } from "./scoring.js";
 import { tournamentRoundConfigs } from "./stage-inputs.js";
@@ -359,6 +360,59 @@ export async function updateMatch(
         .where(eq(matches.id, matchId))
         .returning();
     return row;
+}
+
+
+/**
+ * Take ONE seat back — the console's eject for a walk-in who claimed with the
+ * wrong code, or a seat filled by mistake at the desk.
+ *
+ * Deliberately NOT `updateMatch`: that replaces the whole players array and
+ * validates it against the format, so removing one player would be refused the
+ * moment the table is left short of the allowed count. The count is checked
+ * where it matters — when the match goes LIVE, which says exactly what is
+ * missing. The write runs behind `FOR UPDATE` so two ejects cannot resurrect
+ * each other's seat.
+ */
+export async function ejectSeat(
+    tournamentId: string,
+    matchId: string,
+    userId: string
+): Promise<MatchRow> {
+    return db.transaction(async (tx) => {
+        const [match] = await tx
+            .select()
+            .from(matches)
+            .where(and(
+                eq(matches.id, matchId),
+                eq(matches.tournamentId, tournamentId),
+                isNull(matches.deletedAt)
+            ))
+            .for("update")
+            .limit(1);
+
+        if (!match) throw new MatchError("NOT_FOUND", `match ${matchId} not found`);
+        if (match.status !== "UPCOMING") {
+            throw new MatchError(
+                "IMMUTABLE",
+                `match ${matchId} is ${match.status} and its seats can no longer be changed`
+            );
+        }
+
+        const seated = isSeatedInMatch(match.players, userId);
+        if (!seated) {
+            throw new MatchError("NOT_FOUND", `no seat for ${userId} in match ${matchId}`);
+        }
+
+        const next = match.players.filter((seat) => !(seat.kind === "user" && seat.userId === userId));
+        const [updated] = await tx
+            .update(matches)
+            .set({ players: next, updatedAt: new Date() })
+            .where(eq(matches.id, matchId))
+            .returning();
+
+        return updated;
+    });
 }
 
 

@@ -274,6 +274,8 @@ export interface ContestantRow {
     displayName: string
     /** null for a show-floor identity (a placeholder address) — they cannot sign in */
     email: string | null
+    /** Has the player opened their mail link? Drives the desk's «Xác thực». */
+    emailVerified: boolean
     group: "A" | "B" | null
     enrolledAt: string
 }
@@ -352,8 +354,11 @@ export function useCreateContestant(tournamentId: string) {
 /**
  * Enroll an account the PLAYER registered themselves, by its address. The
  * operator never learns the password — there is none to learn. The server
- * refuses an address nobody registered (404), one that has not opened its
- * verification link (403), and one already on this roster (409).
+ * refuses an address nobody registered (404), a disabled account (403), and
+ * one already on this roster (409). An address that has NOT opened its mail
+ * link is accepted: the row lands unverified and the roster's «Xác thực»
+ * button (step 7) activates it — on a floor without SMTP the link may never
+ * arrive, and refusing it here would keep the account out of the roster.
  */
 export function useEnrollByEmail(tournamentId: string) {
     const queryClient = useQueryClient()
@@ -386,6 +391,100 @@ export function useAssignGroup(tournamentId: string) {
             // The roster carries the group, and the tables are derived from it.
             void queryClient.invalidateQueries({ queryKey: ["groups", tournamentId] })
             void queryClient.invalidateQueries({ queryKey: ["enrolled", tournamentId] })
+        },
+    })
+}
+
+// ── the desk's two account actions ───────────────────────────────────────────────
+
+/**
+ * ACTIVATE an account: the operator vouches for the address the player
+ * registered, so the mail link stops being a gate on a floor without SMTP.
+ * The refusal for a show-floor identity comes back as the row's own error.
+ */
+export function useActivateContestant(tournamentId: string) {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: (userId: string) =>
+            api<{ userId: string; email: string; emailVerified: boolean }>(
+                `/portal/tournaments/${tournamentId}/players/${userId}/verify`,
+                { method: "POST" }
+            ),
+        onSuccess: () => {
+            // The roster carries the flag the button reads.
+            void queryClient.invalidateQueries({ queryKey: ["enrolled", tournamentId] })
+            void queryClient.invalidateQueries({ queryKey: ["groups", tournamentId] })
+        },
+    })
+}
+
+/**
+ * FORGOTTEN PASSWORD: a one-time entry code bound to this player's own
+ * account — the desk never holds a password, because there is none to hold.
+ * The value comes back once, to this screen, and is never cached anywhere.
+ */
+export function useIssueEntryCode(tournamentId: string) {
+    return useMutation({
+        mutationFn: (userId: string) =>
+            api<{ userId: string; email: string; code: string; expiresAt: string }>(
+                `/portal/tournaments/${tournamentId}/players/${userId}/entry-code`,
+                { method: "POST" }
+            ),
+    })
+}
+
+// ── the matches: room codes and seats ───────────────────────────────────────
+
+/** A live room code — the secret a walk-in types on /code of the gameplay app. */
+export interface RoomCode {
+    matchId: string
+    code: string
+    expiresAt: string
+}
+
+/**
+ * Every live room code of the tournament, in one read. Write-guarded on the
+ * server (a code seats people), so an answer here is also the permission to
+ * show one: a 403 renders as "no code controls", not as an error banner.
+ */
+export function useMatchCodes(tournamentId: string) {
+    return useQuery({
+        queryKey: ["match-codes", tournamentId],
+        queryFn: () => api<{ items: RoomCode[] }>(`/portal/tournaments/${tournamentId}/match-codes`),
+        enabled: Boolean(tournamentId),
+        // A refusal is an answer (another desk's tournament), never a retry.
+        retry: false,
+    })
+}
+
+/** Mint the room code, or rotate it: the old code dies in the same request. */
+export function useRotateMatchCode(tournamentId: string) {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: (matchId: string) =>
+            api<RoomCode>(`/portal/tournaments/${tournamentId}/matches/${matchId}/code`, {
+                method: "POST",
+            }),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ["match-codes", tournamentId] })
+        },
+    })
+}
+
+/** Take ONE seat back — the console's eject for a walk-in who claimed wrong. */
+export function useEjectSeat(tournamentId: string) {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: (seat: { matchId: string; userId: string }) =>
+            api<void>(
+                `/portal/tournaments/${tournamentId}/matches/${seat.matchId}/players/${seat.userId}`,
+                { method: "DELETE" }
+            ),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ["matches", tournamentId] })
         },
     })
 }

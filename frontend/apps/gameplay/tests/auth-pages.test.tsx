@@ -157,3 +157,52 @@ describe("LoginPage", () => {
         expect(await screen.findByRole("alert")).toHaveTextContent(/chưa được xác thực/)
     })
 })
+
+describe("LoginPage — the desk's one-time entry code", () => {
+    const ENTRY = "POST /gameplay/auth/entry-code"
+
+    it("offers the code door under the password one, and swaps the fields", async () => {
+        draw({}, "/login")
+        expect(screen.getByLabelText("Email")).toBeTruthy()
+
+        await userEvent.click(screen.getByRole("button", { name: /Quên mật khẩu/ }))
+        // one card, one form: the password fields are gone, not stacked
+        expect(screen.queryByLabelText("Email")).toBeNull()
+        expect(screen.getByLabelText("Mã một lần")).toBeTruthy()
+        expect(screen.getByText(/dùng một lần, hết hạn sau 15 phút/)).toBeTruthy()
+        expect(screen.getByText(/Mật khẩu không ai biết cả/)).toBeTruthy()
+    })
+
+    it("redeems the code into the player's own session, honouring ?next=", async () => {
+        const { fetchMock } = draw({ [ENTRY]: { body: { id: "u1", displayName: "An" } } }, "/login?next=%2Fcode")
+
+        await userEvent.click(screen.getByRole("button", { name: /Quên mật khẩu/ }))
+        await userEvent.type(screen.getByLabelText("Mã một lần"), "ABC234")
+        await userEvent.click(screen.getByRole("button", { name: "Vào" }))
+
+        await waitFor(() => expect(screen.getByText("landed at /code")).toBeTruthy())
+        const call = fetchMock.mock.calls.find(([input]) => String(input).includes("/entry-code"))
+        expect(JSON.parse(String(call![1]?.body))).toEqual({ code: "ABC234" })
+    })
+
+    it("keeps the server's refusal on the form", async () => {
+        draw({ [ENTRY]: { body: { message: "Mã không hợp lệ hoặc đã hết hạn." }, status: 404 } }, "/login")
+
+        await userEvent.click(screen.getByRole("button", { name: /Quên mật khẩu/ }))
+        await userEvent.type(screen.getByLabelText("Mã một lần"), "HET234")
+        await userEvent.click(screen.getByRole("button", { name: "Vào" }))
+
+        expect(await screen.findByRole("alert")).toHaveTextContent(/không hợp lệ hoặc đã hết hạn/)
+        expect(screen.getByLabelText("Mã một lần")).toBeTruthy()
+    })
+
+    it("walks back to the password door", async () => {
+        draw({}, "/login")
+
+        await userEvent.click(screen.getByRole("button", { name: /Quên mật khẩu/ }))
+        await userEvent.click(screen.getByRole("button", { name: /Quay lại đăng nhập/ }))
+
+        expect(screen.getByLabelText("Email")).toBeTruthy()
+        expect(screen.queryByLabelText("Mã một lần")).toBeNull()
+    })
+})

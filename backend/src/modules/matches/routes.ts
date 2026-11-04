@@ -16,6 +16,7 @@ import {
     assembleMatch,
     createMatch,
     deleteMatch,
+    ejectSeat,
     getMatch,
     listMatches,
     requireMatchScope,
@@ -44,6 +45,17 @@ const matchParams = {
     properties: {
         tournamentId: { type: "string", pattern: UUID_PATTERN },
         matchId: { type: "string", pattern: UUID_PATTERN },
+    },
+} as const;
+
+const seatParams = {
+    type: "object",
+    required: ["tournamentId", "matchId", "userId"],
+    additionalProperties: false,
+    properties: {
+        tournamentId: { type: "string", pattern: UUID_PATTERN },
+        matchId: { type: "string", pattern: UUID_PATTERN },
+        userId: { type: "string", pattern: UUID_PATTERN },
     },
 } as const;
 
@@ -236,6 +248,36 @@ export async function matchRoutes(app: FastifyInstance) {
             }
 
             return match;
+        }
+    );
+
+    // Take ONE seat back — the console's eject for a walk-in who claimed with
+    // the wrong code. A seat-level edit (not updateMatch's whole-array replace),
+    // so the format's seat count is not re-litigated here: it is checked when
+    // the match goes LIVE, which says what is missing.
+    app.delete(
+        "/portal/tournaments/:tournamentId/matches/:matchId/players/:userId",
+        { onRequest: staff, schema: { params: seatParams } },
+        async (request, reply) => {
+            const user = request.sessionUser!;
+            const { tournamentId, matchId, userId } = request.params as {
+                tournamentId: string;
+                matchId: string;
+                userId: string;
+            };
+
+            const scope = await requireMatchScope(tournamentId);
+            assertView(scope, user, tournamentId);
+            assertWrite(scope, user);
+
+            await ejectSeat(tournamentId, matchId, userId);
+
+            await auditFromRequest(request, "tournament_updated", {
+                matchId,
+                details: { tournamentId, seatEjected: userId }
+            });
+
+            return reply.code(204).send();
         }
     );
 
