@@ -1,7 +1,7 @@
 # Player accounts (login-first) — replacing the PIN door
 
 **Status: all seven steps are DONE.** Step 1 = `b093114`, steps 2–6 = `8729b9e`,
-step 7 (room codes) = the build recorded at the bottom of this file.
+step 7 (room codes) = `22abc99` — the build recorded at the bottom of this file.
 The approved shape, as built: players register themselves (email + password they
 choose), verify by email, log in, and "Vào trận" opens the match they are seated
 in. The operator **enrolls a known email** instead of creating identities. **The
