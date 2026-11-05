@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { cellFaded, HINT_TILES, hintTileClass, mcCellClass, playerCellClass, type CellWhere } from "@shared/deck/cells"
+import { HINT_TILES, hintTileClass, mcCellClass, playerCellClass, type CellWhere } from "@shared/deck/cells"
 
 // The vé-đích / giải mã class tables: every state must be DISTINGUISHABLE and
 // must say what it is (a taken cell is black on both surfaces, an open one is
@@ -47,11 +47,10 @@ describe("vé-đích cells", () => {
         expect(chosen).not.toContain("hover:bg-accent")
     })
 
-    it("cellFaded: deferred is always faded, free is faded only when not pickable", () => {
-        expect(cellFaded("deferred", true)).toBe(true)
-        expect(cellFaded("free", false)).toBe(true)
-        expect(cellFaded("free", true)).toBe(false)
-        expect(cellFaded("open", false)).toBe(false)
+    it("cellFaded is gone with the band rule — deferred alone dims a cell", () => {
+        // (free cells fade only while no pick can happen — mcCellClass's `faded`)
+        expect(mcCellClass("deferred", true)).toContain("opacity-50")
+        expect(mcCellClass("free", false)).not.toContain("opacity-50")
     })
 })
 

@@ -5,8 +5,8 @@ import { VeDichPickAOCController, type VeDichPickCtx } from "./VeDichPickAOCCont
 import { VeDichRiengAOCController, type VeDichRiengCtx } from "./VeDichRiengAOCController"
 import { screenCore, type HetLuotFacts, type RoundAction, type RoundModule } from "../types"
 
-// Về đích — the AOC ruleset: turn-based. Phase 1 each player picks the highest
-// free cell (opens typed), phase 2 each picks three (oral + 5s buzz window).
+// Về đích — the AOC ruleset: turn-based. Phase 1 the console picks any free
+// 20/30 cell (opens typed), phase 2 the console picks three (oral + 5s buzz window).
 // The board draws while nothing is open. The TURN is Hết lượt's job (resolve,
 // verdicts first); Về sảnh ends the WHOLE round — the engine closes any open
 // question with it, so it stays the ungated escape hatch.

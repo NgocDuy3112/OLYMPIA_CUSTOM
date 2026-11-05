@@ -21,8 +21,8 @@ const CELL_STATE: Record<Exclude<CellWhere, "free">, string> = {
 
 /**
  * The the console's grid: a status read-out — nothing is clickable here (the console presses
- * Bắt đầu on the strip), so a free cell is plain card. `faded` marks a free
- * cell this turn may NOT pick (only the top band is open).
+ * Bắt đầu on the strip), so a free cell is plain card. `faded` dims a free
+ * cell the desk may not pick right now (no turn staged).
  */
 export function mcCellClass(where: CellWhere, faded: boolean): string {
     if (where === "free") {
@@ -46,10 +46,6 @@ export function playerCellClass({ where, chosen, actionable }: {
     if (actionable) return `${CELL_SHAPE} cursor-pointer bg-card ring-1 ring-border transition hover:bg-accent`
     return `${CELL_SHAPE} cursor-default bg-card text-muted-foreground/70 ring-1 ring-border`
 }
-
-/** A free cell this turn may not pick: the "only the top band" rule, drawn. */
-export const cellFaded = (where: CellWhere, pickableNow: boolean): boolean =>
-    where === "deferred" || (where === "free" && !pickableNow)
 
 // ── giải mã hint tiles ───────────────────────────────────────────────────────
 

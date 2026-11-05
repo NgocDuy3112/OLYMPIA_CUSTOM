@@ -444,7 +444,7 @@ describe("player view — ve-dich board (G3)", () => {
     it("a picked cell STAYS on the board — open now, taken (black) from the next turn", () => {
         let state = createVeDich(POOL, [P("p0"), P("p1")]);
         const view = () => buildPlayerView(base({ roundId: "ve-dich", state, userId: "p0", questions: veFrozen(POOL) }));
-        state = pickPhase1(state, "p0", "TNTT-30");   // highest free = 30
+        state = pickPhase1(state, "p0", "TNTT-30");   // opens a 30 (either band)
         expect(view().board)
             .toContainEqual({ questionId: "TNTT-30", value: 30, where: "open" });
 
@@ -581,7 +581,7 @@ describe("player view — Hiện đáp án (the revealed answer)", () => {
         const questions = frozen(POOL.map((q) => q.id));
 
         let state = createVeDich(POOL, players);
-        state = pickPhase1(state, "p0", "G-30");                   // opens the highest free cell
+        state = pickPhase1(state, "p0", "G-30");                   // opens a free cell (20s and 30s both fair game)
         state = { ...state, revealedAnswer: "G-30" };
         expect(buildPlayerView(base({ roundId: "ve-dich", state, questions })).revealed)
             .toEqual({ questionId: "G-30", answer: "A" });

@@ -112,9 +112,11 @@ describe("Phase 1 picks", () => {
         expect(next.remaining.find((q) => q.id === "THTH-30")).toBeUndefined();
     });
 
-    it("rejects a lower-value question while a higher one is still unchosen", () => {
+    it("picks either band: a 20 while 30s are still free (the show's rule)", () => {
         const state = createVeDich(POOL, [player("a", 0)]);
-        expect(codeOf(() => pickPhase1(state, "a", "THTH-20"))).toBe("NOT_HIGHEST");
+        const next = pickPhase1(state, "a", "THTH-20");
+        expect(next.open?.question.id).toBe("THTH-20");
+        expect(next.remaining.find((q) => q.id === "THTH-20")).toBeUndefined();
     });
 
     it("allows any of several tied top-value questions", () => {

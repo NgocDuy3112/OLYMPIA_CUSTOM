@@ -2,7 +2,7 @@ import { useState } from "react"
 import { Badges, CardHeader, ConsoleStage, MainCard, Rail } from "@/components/stage/deck"
 import { backToLobbyAction } from "@/components/stage/actions"
 import { pt, DECK_PAD } from "@shared/deck/geometry"
-import { cellFaded, playerCellClass, type CellWhere } from "@shared/deck/cells"
+import { playerCellClass, type CellWhere } from "@shared/deck/cells"
 import { VE_GRID_COLUMNS, boardRows } from "@shared/deck/ve-dich-board"
 
 // Về đích — bảng chọn câu (S5 = phase 2 bốc 3 câu · S6 = phase 1 chọn 1 câu).
@@ -51,11 +51,10 @@ function VeDichPickBoard({ ctx }: { ctx: VeDichPickCtx }) {
     const boardQs = questions.filter((q) => q.roundId === "ve-dich")
     const boardMap = new Map((projection.board ?? []).map((c) => [c.questionId, c.where]))
     const rows = boardRows(boardQs, (q) => q.points)
-    // Chung: only the TOP free band is pickable this turn — everything lower fades.
-    const maxFree = Math.max(-1, ...boardQs.filter((q) => boardMap.get(q._id) === "free").map((q) => q.points))
 
     // The desk's staged cells: click to toggle, confirm in the strip. Picking is
     // live only while it is a turn to pick FOR and nothing is staged/open yet.
+    // EITHER band is pickable — the show allows a 20 or a 30 in any order.
     const [chosen, setChosen] = useState<string[]>([])
     const pendingCount = (projection.board ?? []).filter((c) => c.where === "pending").length
     const openCount = projection.open.length
@@ -112,12 +111,9 @@ function VeDichPickBoard({ ctx }: { ctx: VeDichPickCtx }) {
                         >
                             {row.cells.map((q) => {
                                 const where: CellWhere = boardMap.get(q._id) ?? (phase2 || q.points <= 30 ? "taken" : "deferred")
-                                const pickableNow = phase2 || q.points === maxFree
-                                const faded = cellFaded(where, pickableNow)
                                 const staged = chosen.includes(q._id)
                                 const actionable = picking && where === "free"
-                                    && pickableNow
-                                    && (phase2 ? chosen.length < need || staged : true)
+                                    && (staged || chosen.length < need)
                                 return (
                                     <button
                                         key={q._id}
@@ -126,7 +122,7 @@ function VeDichPickBoard({ ctx }: { ctx: VeDichPickCtx }) {
                                         aria-pressed={staged}
                                         onClick={() => toggle(q._id)}
                                         title={where === "free"
-                                            ? actionable ? "Chọn câu này" : faded ? "lượt này không chọn được" : CELL_TITLE.free
+                                            ? actionable ? "Chọn câu này" : CELL_TITLE.free
                                             : CELL_TITLE[where]}
                                         className={playerCellClass({ where, chosen: staged, actionable })}
                                         style={{ ...DECK_PAD, gridColumn: `span ${row.span}` }}

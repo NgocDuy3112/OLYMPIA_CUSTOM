@@ -6,7 +6,8 @@ import { VE_GRID_COLUMNS, boardRows } from "../ve-dich-board"
 // Về đích — bảng chọn câu (S6 = phase 1 · S5 = phase 2): the CONSOLE picks for
 // the player whose turn it is (prod parity — the desk drives the board), so this
 // screen is DISPLAY-ONLY: it shows the show's grid, whose turn it is, and what
-// has been staged — the cells are never clickable here. The board is the show's —
+// has been staged — the cells are never clickable here. EITHER band is pickable
+// (the show allows a 20 or a 30 in any order). The board is the show's —
 // 6×20, 6×30, 4×40, 4×50 — rows are the bands and the higher bands are wider
 // (span 3 of 12), so the grid stays balanced without any category columns.
 type VeDichPickPlayerCtx = PlayerCore
@@ -32,8 +33,6 @@ export function VeDichPickAOCPlayer({ ctx }: { ctx: VeDichPickPlayerCtx }) {
     const phase2 = ctx.stage === "phase2"
     const board = v.board ?? []
     const rows = boardRows(board, (cell) => cell.value)
-    // Chung: only the TOP free band is in play this turn — everything lower fades.
-    const maxFree = Math.max(-1, ...board.filter((c) => c.where === "free").map((c) => c.value))
     const need = phase2 ? 3 : 1
 
     return (
@@ -60,10 +59,8 @@ export function VeDichPickAOCPlayer({ ctx }: { ctx: VeDichPickPlayerCtx }) {
                         >
                             {row.cells.map((cell) => {
                                 const where = cell.where
-                                const faded = where === "deferred" || (where === "free" && cell.value < maxFree)
-                                const title = where === "free"
-                                    ? faded ? "lượt này không chọn được" : "còn trống"
-                                    : CELL_TITLE[where]
+                                const faded = where === "deferred"
+                                const title = where === "free" ? "còn trống" : CELL_TITLE[where]
                                 return (
                                     <div
                                         key={cell.questionId}

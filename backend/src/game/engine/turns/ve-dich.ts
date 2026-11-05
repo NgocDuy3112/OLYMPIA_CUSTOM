@@ -106,7 +106,6 @@ export type VeDichError =
     | { code: "WRONG_PHASE"; message: string }
     | { code: "NOT_YOUR_TURN"; message: string }
     | { code: "INVALID_QUESTION"; message: string }
-    | { code: "NOT_HIGHEST"; message: string }
     | { code: "POWER_UNAVAILABLE"; message: string }
     | { code: "ALREADY_OPEN"; message: string }
     | { code: "NOTHING_OPEN"; message: string }
@@ -211,12 +210,8 @@ export function currentPlayer(state: VeDichState): PlayerState {
     return state.players[state.turnIndex];
 }
 
-function maxRemainingValue(remaining: VeDichQuestion[]): number {
-    return remaining.reduce((max, q) => Math.max(max, q.value), 0);
-}
-
-// Phase 1: the current player picks one question. It must be a highest-value one
-// (ties among the top value are allowed; the player chooses which).
+// Phase 1: the current player picks one question — EITHER band: the show lets
+// the desk pick any free 20- or 30-point cell, in any order (no top-band rule).
 export function pickPhase1(
     state: VeDichState,
     playerId: string,
@@ -232,9 +227,6 @@ export function pickPhase1(
     // where remaining may still list the big cells.
     if (question.value !== 20 && question.value !== 30) {
         fail("INVALID_QUESTION", "phase 1 only plays 20- and 30-point questions");
-    }
-    if (question.value !== maxRemainingValue(state.remaining)) {
-        fail("NOT_HIGHEST", "Phase 1 picks must be a highest-value remaining question");
     }
 
     return {

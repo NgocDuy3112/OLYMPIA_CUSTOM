@@ -423,7 +423,7 @@ describe("VeDichPick — S5/S6, the board", () => {
     })
     const freeCell = (id: string, value: number) => ({ questionId: id, value, where: "free" as const })
 
-    it("the console picks for the turn player — stage the top cell, confirm sends the pick", async () => {
+    it("the console picks for the turn player — either band: a 20 while 30s are free", async () => {
         const user = userEvent.setup()
         const f = renderRound(
             "ve-dich",
@@ -433,11 +433,11 @@ describe("VeDichPick — S5/S6, the board", () => {
             [veQuestion("q30", 30), veQuestion("q20", 20)],
         )
 
-        // the 20 sits out this turn (the top-band rule), the 30 is stageable
-        expect(screen.getByTitle("lượt này không chọn được")).toBeInTheDocument()
-        await user.click(screen.getByTitle("Chọn câu này"))          // the cell
+        // BOTH bands are stageable — the show allows a 20 or a 30 in any order
+        expect(screen.getAllByTitle("Chọn câu này")).toHaveLength(2)
+        await user.click(screen.getByRole("button", { name: "20" }))   // the lower band's cell
         await user.click(screen.getByRole("button", { name: "Chọn câu này" }))  // the strip confirm
-        expect(f.send).toHaveBeenCalledWith({ kind: "ve-dich.pick", playerId: "u1", questionId: "q30" })
+        expect(f.send).toHaveBeenCalledWith({ kind: "ve-dich.pick", playerId: "u1", questionId: "q20" })
     })
 
     it("phase 2: stage three cells — Chốt sends the batch for the turn player", async () => {
