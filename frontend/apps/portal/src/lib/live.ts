@@ -77,18 +77,11 @@ export interface KhoiDongConsole {
     ended: boolean
     phase2Begun: boolean
     phase2Closed: boolean
-    /** Which of the twelve is in play, and which chance (1 = ×10, 2 = ×5). */
+    /** Which of the six is in play (the strip's cursor). */
     questionIndex: number
     questionCount: number
-    attempt: 1 | 2 | null
-    /** Is a buzz window running right now? */
+    /** Is the window Bấm giờ opened running RIGHT NOW? */
     windowOpen: boolean
-    /** The fastest — the only player the console may judge. */
-    buzzerId: string | null
-    /** How fast that buzz was, in ms (the race's stopwatch). */
-    buzzerMs: number | null
-    /** Locked out of the re-buzz (the wrong first answerer). */
-    lockedOut: string[]
 }
 
 export interface LiveResponse {

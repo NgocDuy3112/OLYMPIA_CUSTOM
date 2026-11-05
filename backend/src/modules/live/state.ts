@@ -88,23 +88,14 @@ export const KhoiDongPhase1RunSchema = Type.Object({
 export const KhoiDongPhase2Schema = Type.Object({
     kind: Type.Literal("phase2"),
     pointsPerCorrect: Type.Integer(),
-    secondChancePoints: Type.Integer(),
-    buzzWindowS: Type.Integer(),
+    windowS: Type.Integer(),
     questionIds: Type.Array(Type.String()),
     index: Type.Integer({ minimum: 0 }),
-    current: Type.Union([
-        Type.Object({
-            questionId: Type.String(),
-            attempt: Type.Union([Type.Literal(1), Type.Literal(2)]),
-            openedAt: Type.Union([Type.String(), Type.Null()]),
-            buzzer: Type.Union([Type.String(), Type.Null()]),
-            buzzerMs: Type.Union([Type.Integer(), Type.Null()]),
-            excluded: Type.Array(Type.String()),
-            settled: Type.Union([Type.Integer(), Type.Null()])
-        }),
-        Type.Null()
-    ]),
-    awards: Type.Record(Type.String(), Type.Integer()),
+    // Bấm giờ's stamp; null while the question waits for its window.
+    openedAt: Type.Union([Type.String(), Type.Null()]),
+    // points per question, per player — replaced on re-judgement, never summed,
+    // so a card the console corrects cannot be paid twice.
+    results: Type.Record(Type.String(), Type.Record(Type.String(), Type.Integer())),
     closed: Type.Boolean()
 });
 

@@ -63,11 +63,10 @@ export function Rail({ variant, view, myId, currentQid }: {
                 const myVerdict = currentQid ? view.me.verdicts?.[currentQid] : undefined
                 // …and, when the round publishes, the whole field's verdict.
                 const shownVerdict = mine ? myVerdict : publicFor(row.id, currentQid)
-                // The card's STATE is the verdict: bright (right), grey (wrong or
-                // locked out), purple + dashed white (buzzed first), plain (waiting).
+                // The card's STATE is the verdict: bright (right), grey (wrong),
+                // purple + dashed white (buzzed first), plain (waiting).
                 const state = railCardState({
                     verdict: shownVerdict ?? null,
-                    locked: mine && view.me.lockedOut === true,
                     buzzing: view.me.buzzer === row.id,
                 })
                 const activeRun = view.oral?.playerId === row.id

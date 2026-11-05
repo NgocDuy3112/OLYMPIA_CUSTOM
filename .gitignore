@@ -441,3 +441,6 @@ terraform.rc
 
 # Agent prompts — local only, không track
 prompts/
+
+# Playwright MCP snapshots (browser walkthrough output)
+.playwright-mcp/

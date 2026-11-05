@@ -69,51 +69,38 @@ export function phase1Total(state: Phase1State): number {
     return Object.values(state.results).reduce((sum, r) => sum + r.points, 0);
 }
 
-// ─── Phase 2: typed, simultaneous, one shared 60 s clock ──────────────────────
+// ─── Phase 2: typed, simultaneous, one 10 s window per question ──────────────
 
 /**
- * Về Khởi động · lượt chung — the buzz race.
+ * Về Khởi động · lượt chung — the timed batch.
  *
- * Twelve questions, ONE at a time. On each: the console opens a 5 s buzz window, the
- * whole field races, and the FASTEST one answers out loud (the rest are locked —
- * one buzz wins, exactly as in every other buzzing round).
+ * SIX questions, everyone answers the SAME one, and the console opens the
+ * window with Bấm giờ: from that click each player has `windowS` seconds to
+ * type and submit. The input locks when the clock runs out — the server refuses
+ * late answers, and the screen greys the field at zero.
  *
- *   correct on the first window  → +10, the question is done
- *   wrong                        → that player is locked out, a SECOND window
- *                                  opens for the rest, and the fastest of them
- *                                  answers: correct → +5, wrong → the question dies
- *   nobody buzzes                → the question dies (no points either way)
+ *   each correct player → +10, independently (a wrong answer pays nothing)
  *
- * There is no shared clock: a question lives in its own windows, and the phase
- * ends when its twelve questions are done (or the console closes it).
+ * After the lock the console marks every card in the rail, and clicking the
+ * NEXT number on the progress strip moves on — never before every submission
+ * on the question carries a verdict (the live layer checks that).
  */
-export interface Phase2Buzz {
-    questionId: string;
-    attempt: 1 | 2;                 // which chance is running
-    openedAt: string | null;        // the open window's start, null = no window
-    buzzer: string | null;          // the fastest — the only one who may answer
-    /** How fast that buzz was (ms from the window opening). */
-    buzzerMs: number | null;
-    /** Locked out of the re-buzz: the player who answered attempt 1 wrong. */
-    excluded: string[];
-    /** Points this question awarded, once judged. null = still live. */
-    settled: number | null;
-}
-
 export interface Phase2State {
     kind: "phase2";
-    /** First correct answer (window 1). */
+    /** What one correct answer pays — frozen when the round opened. */
     pointsPerCorrect: number;
-    /** Second-chance correct answer (window 2). */
-    secondChancePoints: number;
-    buzzWindowS: number;
-    questionIds: string[];
-    /** The question in play; === questionIds.length once the phase is done. */
+    /** The window the console opens per question, in seconds. */
+    windowS: number;
+    questionIds: string[]; // six, in order
+    /** The question in play; === questionIds.length once every one is played. */
     index: number;
-    /** null between questions. */
-    current: Phase2Buzz | null;
-    /** Running total per player — the phase's own ledger. */
-    awards: Record<string, number>;
+    /** The window's start (Bấm giờ); null while the question waits. */
+    openedAt: string | null;
+    /**
+     * Points per question, per player. REPLACED rather than accumulated, so a
+     * card the console re-marks (Sai → Đúng) is corrected instead of paid twice.
+     */
+    results: Record<string, Record<string, number>>;
     closed: boolean;
 }
 
@@ -122,151 +109,79 @@ export function startPhase2(
     rules: KhoiDongRules = KHOI_DONG_DEFAULTS
 ): Phase2State {
     if (questionIds.length !== rules.phase2Questions) {
-        fail("VALIDATION", `phase 2 needs exactly ${rules.phase2Questions} questions`);
+        fail("VALIDATION", `chung needs exactly ${rules.phase2Questions} questions`);
     }
     return {
         kind: "phase2",
         pointsPerCorrect: rules.pointsPerCorrect,
-        secondChancePoints: rules.secondChancePoints,
-        buzzWindowS: rules.phase2BuzzWindowS,
+        windowS: rules.phase2WindowS,
         questionIds,
         index: 0,
-        current: null,
-        awards: {},
+        openedAt: null,
+        results: {},
         closed: false
     };
 }
 
-/** The phase is done when its questions are: no current question, none left. */
+/** The question in play — null once every question has been played. */
+export function phase2QuestionId(state: Phase2State): string | null {
+    if (state.closed || state.index >= state.questionIds.length) return null;
+    return state.questionIds[state.index];
+}
+
 export function phase2Complete(state: Phase2State): boolean {
-    return state.closed || (state.index >= state.questionIds.length && state.current === null);
+    return state.closed || state.index >= state.questionIds.length;
 }
 
-/** Is `playerId` still allowed to buzz the current window? */
-export function mayBuzzPhase2(state: Phase2State, playerId: string): boolean {
-    const current = state.current;
-    if (current === null || current.openedAt === null) return false;
-    if (current.buzzer !== null) return false;              // the fastest already won
-    return !current.excluded.includes(playerId);
-}
-
+/** Is the window for the question in play running right now? */
 export function isPhase2WindowOpen(state: Phase2State, nowIso: string): boolean {
-    const current = state.current;
-    if (current === null || current.openedAt === null) return false;
-    const elapsed = Date.parse(nowIso) - Date.parse(current.openedAt);
-    return elapsed >= 0 && elapsed <= state.buzzWindowS * 1000;
+    if (state.openedAt === null || phase2QuestionId(state) === null) return false;
+    const elapsed = Date.parse(nowIso) - Date.parse(state.openedAt);
+    return elapsed >= 0 && elapsed <= state.windowS * 1000;
 }
 
 /**
- * The the console opens a window for the question in play. First call starts the
- * question (attempt 1); after a wrong verdict it opens attempt 2 for everyone
- * the first answerer is not.
+ * Bấm giờ: the console opens the window for the question in play. Pressing it
+ * again after the clock ran out gives the field another window — the desk's
+ * call, and every submission already made stays on its card.
  */
-export function openPhase2Buzz(state: Phase2State, nowIso: string): Phase2State {
-    if (state.closed) fail("PHASE_ENDED", "phase 2 is over");
-    if (state.index >= state.questionIds.length) fail("PHASE_ENDED", "every question has been played");
-
-    const current = state.current;
-    if (current !== null && current.buzzer !== null) {
-        fail("ALREADY_OPEN", "someone buzzed first — judge that answer");
-    }
-
-    const next: Phase2Buzz = current === null
-        ? { questionId: state.questionIds[state.index], attempt: 1, openedAt: nowIso, buzzer: null, buzzerMs: null, excluded: [], settled: null }
-        : { ...current, openedAt: nowIso, buzzer: null, buzzerMs: null };
-
-    return { ...state, current: next };
+export function openPhase2Window(state: Phase2State, nowIso: string): Phase2State {
+    if (state.closed) fail("PHASE_ENDED", "chung is over");
+    if (phase2QuestionId(state) === null) fail("PHASE_ENDED", "every question has been played");
+    if (isPhase2WindowOpen(state, nowIso)) fail("ALREADY_OPEN", "the window is already running");
+    return { ...state, openedAt: nowIso };
 }
 
-/** The player's buzz: server receive order decides, and only the fastest lands. */
-export function buzzPhase2(state: Phase2State, playerId: string, nowIso: string): Phase2State {
-    if (state.closed) fail("PHASE_ENDED", "phase 2 is over");
-    const current = state.current;
-    if (current === null || current.openedAt === null) {
-        fail("NOTHING_OPEN", "no buzz window is open");
-    }
-    if (!isPhase2WindowOpen(state, nowIso)) {
-        fail("WINDOW_CLOSED", "the buzz window has closed");
-    }
-    if (current.buzzer !== null) {
-        fail("ALREADY_OPEN", "someone already buzzed first");
-    }
-    if (current.excluded.includes(playerId)) {
-        fail("NOT_YOUR_TURN", "you are locked out of this question's re-buzz");
-    }
+/**
+ * The console marks ONE card — the rail's selected player, Đúng or Sai. Every
+ * submitted answer is judged this way, one card at a time, and the verdict is
+ * what the ledger (and the fact written next to it) records.
+ */
+export function judgePhase2Card(state: Phase2State, playerId: string, correct: boolean): Phase2State {
+    const questionId = phase2QuestionId(state);
+    if (questionId === null) fail("PHASE_ENDED", "chung is over");
 
-    return {
-        ...state,
-        current: {
-            ...current,
-            buzzer: playerId,
-            // The race is a stopwatch: keep the time that decided it.
-            buzzerMs: Math.max(0, Date.parse(nowIso) - Date.parse(current.openedAt))
-        }
+    const results = { ...state.results };
+    results[questionId] = {
+        ...(results[questionId] ?? {}),
+        // Correct pays, wrong pays nothing — either way this verdict REPLACES
+        // whatever this card said before, so a re-judgement is a correction.
+        [playerId]: correct ? state.pointsPerCorrect : 0
     };
+    return { ...state, results };
 }
 
 /**
- * The console judges the buzzed answer.
- *
- *   correct on attempt 1 → +pointsPerCorrect, next question
- *   correct on attempt 2 → +secondChancePoints, next question
- *   wrong on attempt 1   → the answerer is locked out, attempt 2 is armed
- *   wrong on attempt 2   → the question dies
+ * The next number on the progress strip: move to the following question. The
+ * window dies with the question it belonged to — the next one waits for its
+ * own Bấm giờ.
  */
-export function judgePhase2(state: Phase2State, correct: boolean, rules: KhoiDongRules = KHOI_DONG_DEFAULTS): Phase2State {
-    if (state.closed) fail("PHASE_ENDED", "phase 2 is over");
-    const current = state.current;
-    if (current === null || current.buzzer === null) {
-        fail("NOTHING_OPEN", "nobody has buzzed this question");
-    }
+export function nextPhase2(state: Phase2State): Phase2State {
+    if (state.closed) fail("PHASE_ENDED", "chung is over");
+    if (phase2QuestionId(state) === null) fail("PHASE_ENDED", "every question has been played");
 
-    const buzzer = current.buzzer;
-
-    if (correct) {
-        const points = current.attempt === 1 ? current.settled ?? state.pointsPerCorrect : state.secondChancePoints;
-        return settle(state, current, buzzer, points);
-    }
-
-    if (current.attempt === 1) {
-        // Arm the re-buzz: the wrong answerer watches the rest race for it.
-        return {
-            ...state,
-            current: { ...current, attempt: 2, openedAt: null, buzzer: null, buzzerMs: null, excluded: [...current.excluded, buzzer] }
-        };
-    }
-
-    // Second wrong answer: the question dies, no points to anyone.
-    return settle(state, current, null, 0);
-}
-
-/** The console moves on without a score (nobody buzzed, or the window ran out twice). */
-export function nextPhase2Question(state: Phase2State): Phase2State {
-    if (state.closed) fail("PHASE_ENDED", "phase 2 is over");
-    if (state.current !== null && state.current.buzzer !== null) {
-        fail("ALREADY_OPEN", "judge the buzzed answer first");
-    }
-    return settle(state, state.current, null, 0);
-}
-
-function settle(
-    state: Phase2State,
-    current: Phase2Buzz | null,
-    awardedTo: string | null,
-    points: number
-): Phase2State {
-    const awards = { ...state.awards };
-    if (awardedTo !== null && points > 0) {
-        awards[awardedTo] = (awards[awardedTo] ?? 0) + points;
-    }
     const index = state.index + 1;
-    return {
-        ...state,
-        index,
-        current: null,
-        awards,
-        closed: index >= state.questionIds.length
-    };
+    return { ...state, index, openedAt: null, closed: index >= state.questionIds.length };
 }
 
 export function closePhase2(state: Phase2State): Phase2State {
@@ -274,5 +189,5 @@ export function closePhase2(state: Phase2State): Phase2State {
 }
 
 export function phase2Points(state: Phase2State, playerId: string): number {
-    return state.awards[playerId] ?? 0;
+    return Object.values(state.results).reduce((sum, byPlayer) => sum + (byPlayer[playerId] ?? 0), 0);
 }

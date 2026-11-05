@@ -18,9 +18,10 @@ import { LiveActionSchema, type ButPhaAction, type GiaiMaAction, type KhoiDongAc
 import { applyGiaiMaAction, type GiaiMaContext } from "./giai-ma.js";
 import { applyButPhaAction } from "./but-pha.js";
 import { applyKhoiDongAction } from "./khoi-dong.js";
+import { isPhase2WindowOpen, phase2QuestionId } from "../../game/engine/turns/khoi-dong.js";
 import { applyVeDichAction } from "./ve-dich.js";
 import { buildPlayerView, rankTable, type PlayerView, type ScoreRow } from "./view.js";
-import { submitAnswer, submitKhoiDongBuzz, submitKeyword, SubmitError } from "./submit.js";
+import { submitAnswer, submitKeyword, SubmitError } from "./submit.js";
 import { submitVeDichCommand } from "./ve-dich-player.js";
 import {
     ackMessage,
@@ -340,20 +341,18 @@ function consoleFacts(roundId: string, raw: unknown): Record<string, unknown> | 
     if (roundId === "khoi-dong") {
         const state = parseKhoiDongState(raw);
         const p2 = state.phase2;
-        const current = p2?.current ?? null;
         return {
             stage: state.stage,
             ended: state.ended,
             phase2Begun: p2 !== null,
             phase2Closed: p2?.closed ?? false,
-            // The buzz race's own facts — who is in play, on which chance.
+            // The batch's own facts: which of the six is in play, and whether
+            // its window is running RIGHT NOW — time-aware, because Bấm giờ's
+            // button reads this to know it may press (and a clock that ran out
+            // shows as closed even before any client refreshes).
             questionIndex: p2?.index ?? 0,
             questionCount: p2?.questionIds.length ?? 0,
-            attempt: current?.attempt ?? null,
-            windowOpen: current?.openedAt !== null && current?.openedAt !== undefined,
-            buzzerId: current?.buzzer ?? null,
-            buzzerMs: current?.buzzerMs ?? null,
-            lockedOut: current?.excluded ?? []
+            windowOpen: p2 !== null && isPhase2WindowOpen(p2, new Date().toISOString())
         };
     }
     return {};  // but-pha: the shared projection (stage/open/deadlines) says it all
@@ -588,8 +587,23 @@ export async function liveRoutes(app: FastifyInstance) {
                                 ? EMPTY_KHOI_DONG
                                 : parseKhoiDongState(current.state);
 
+                            // The judge's NO_ANSWER and the advance's
+                            // UNJUDGED_ANSWERS read the question in play's drafts
+                            // INSIDE this transaction, so a submission landing
+                            // mid-flight cannot slip past either guard.
+                            let answerDrafts: AnswerDraft[] = [];
+                            if (action.kind === "khoi-dong.judge" || action.kind === "khoi-dong.nextQuestion") {
+                                const questionId = engine.phase2 === null
+                                    ? null
+                                    : phase2QuestionId(engine.phase2);
+                                if (questionId !== null) {
+                                    answerDrafts = await tx.readAnswerDrafts(questionId);
+                                }
+                            }
+
                             const { state, facts } = applyKhoiDongAction(engine, action as KhoiDongAction, {
-                                ...khoiDongContext(match, current.roundId, user.id, new Date().toISOString())
+                                ...khoiDongContext(match, current.roundId, user.id, new Date().toISOString()),
+                                answerDrafts
                             });
                             return { state: state as unknown as Record<string, unknown>, facts };
                         }
@@ -634,10 +648,10 @@ export async function liveRoutes(app: FastifyInstance) {
             // Tell every connected player their view is stale.
             await publish(matchId);
 
-            if (action.kind === "khoi-dong.judgeBuzz") {
+            if (action.kind === "khoi-dong.judge") {
                 await auditFromRequest(request, "answer_judged", {
                     matchId,
-                    details: { roundId: next.roundId, correct: action.correct }
+                    details: { roundId: next.roundId, playerId: action.playerId, correct: action.correct }
                 });
             }
 
@@ -1167,23 +1181,6 @@ export async function liveRoutes(app: FastifyInstance) {
             }
 
             throw app.httpErrors.badRequest("unknown command");
-        }
-    );
-
-    // Khởi động chung's only action: the BUZZ. The engine decides whether a
-    // window is open, who is locked out, and whose buzz was first.
-    app.post(
-        "/gameplay/matches/:matchId/live/buzz",
-        { onRequest: [requireAuth("GAMEPLAY")], schema: { params: matchIdParams } },
-        async (request) => {
-            const user = request.sessionUser!;
-            const { matchId } = request.params as { matchId: string };
-            return submitKhoiDongBuzz({
-                matchId,
-                userId: user.id,
-                ip: request.ip,
-                userAgent: request.headers["user-agent"] ?? null
-            });
         }
     );
 

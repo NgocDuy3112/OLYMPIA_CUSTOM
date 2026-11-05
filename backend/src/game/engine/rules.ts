@@ -13,21 +13,20 @@ import type { RoundConfig, TurnConfig } from "../contracts/index.js";
 export const KHOI_DONG_DEFAULTS = {
     phase1Questions: 6,
     phase1BudgetS: 45,
-    // Chung is a buzz race now: twelve questions, on a 5 s window each, no
-    // shared budget. First correct answers pays 10, the re-buzz pays 5.
-    phase2Questions: 12,
-    phase2BuzzWindowS: 5,
-    pointsPerCorrect: 10,
-    secondChancePoints: 5
+    // Chung is a TIMED BATCH now: six questions, everyone types into ONE 10 s
+    // window the console opens with Bấm giờ, and every correct answer pays 10 —
+    // independently, no buzz, no second chance, nobody locked out.
+    phase2Questions: 6,
+    phase2WindowS: 10,
+    pointsPerCorrect: 10
 };
 
 export interface KhoiDongRules {
     phase1Questions: number;
     phase1BudgetS: number;
     phase2Questions: number;
-    phase2BuzzWindowS: number;
+    phase2WindowS: number;
     pointsPerCorrect: number;
-    secondChancePoints: number;
 }
 
 export function khoiDongRules(config: RoundConfig | undefined): KhoiDongRules {
@@ -37,11 +36,12 @@ export function khoiDongRules(config: RoundConfig | undefined): KhoiDongRules {
     return {
         phase1Questions: phase1?.questionCount ?? KHOI_DONG_DEFAULTS.phase1Questions,
         phase1BudgetS: phase1?.timeBudgetSeconds ?? KHOI_DONG_DEFAULTS.phase1BudgetS,
-        // Fixed by the show: chung is TWELVE questions, whatever a rulebook says.
+        // Fixed by the show: chung is SIX questions, whatever a rulebook says.
         phase2Questions: KHOI_DONG_DEFAULTS.phase2Questions,
-        phase2BuzzWindowS: phase2?.buzzWindowSeconds ?? KHOI_DONG_DEFAULTS.phase2BuzzWindowS,
-        pointsPerCorrect: constantPoints(config) ?? KHOI_DONG_DEFAULTS.pointsPerCorrect,
-        secondChancePoints: KHOI_DONG_DEFAULTS.secondChancePoints
+        // The window the console opens per question — the turn's own time limit
+        // when the rulebook sets one, the show's 10 s otherwise.
+        phase2WindowS: phase2?.timeLimitSeconds ?? KHOI_DONG_DEFAULTS.phase2WindowS,
+        pointsPerCorrect: constantPoints(config) ?? KHOI_DONG_DEFAULTS.pointsPerCorrect
     };
 }
 

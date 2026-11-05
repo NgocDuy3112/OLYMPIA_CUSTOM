@@ -18,7 +18,6 @@ import { roundModuleOf } from "@/rounds"
 import {
     playerScreenOf,
     useLiveAnswer,
-    useLiveBuzz,
     useLiveKeyword,
     useLiveLobby,
     useLiveMatch,
@@ -62,7 +61,6 @@ export function usePlayerModel(matchId: string): PlayerModel {
     const me = useMe()
     const live = useLiveMatch(matchId, true)
     const answer = useLiveAnswer(matchId)
-    const buzzAction = useLiveBuzz(matchId)
     const keywordSubmit = useLiveKeyword(matchId)
     const cmd = useLivePlayerCommand(matchId)
 
@@ -115,7 +113,6 @@ export function usePlayerModel(matchId: string): PlayerModel {
             busy: answer.isPending,
             submit: (questionId: string, value: AnswerValue) => answer.mutate({ questionId, value }),
         },
-        buzz: { busy: buzzAction.isPending, fire: () => buzzAction.mutate({}) },
         keyword: {
             busy: keywordSubmit.isPending,
             submit: (questionId: string, text: string) => keywordSubmit.mutate({ questionId, value: { text } }),

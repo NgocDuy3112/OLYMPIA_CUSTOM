@@ -62,8 +62,6 @@ export function audienceCtx(view: PlayerView): PlayerCtx {
         submitAnswer: noop,
         keywordBusy: false,
         submitKeyword: noop,
-        buzzBusy: false,
-        buzz: noop,
         cmdBusy: false,
         command: noop,
     }

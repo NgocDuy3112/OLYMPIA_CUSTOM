@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildPlayerView, type SubmittedAnswer } from "../../../src/modules/live/view.js";
 import { openHint, startGiaiMa } from "../../../src/game/engine/turns/giai-ma.js";
 import { openCurrentQuestion, startButPha, submitAnswer } from "../../../src/game/engine/turns/but-pha.js";
-import { endKhoiDong, judgeBuzz, openBuzz, recordBuzz, startKhoiDong } from "../../../src/game/engine/turns/khoi-dong-round.js";
+import { endKhoiDong, nextQuestion, openWindow, startKhoiDong } from "../../../src/game/engine/turns/khoi-dong-round.js";
 import {
     advanceTurn,
     beginPhase2 as beginVeDichPhase2,
@@ -105,8 +105,8 @@ describe("player view — but-pha", () => {
 
 describe("player view — khoi-dong", () => {
     const P1 = ["a1", "a2", "a3", "a4", "a5", "a6"];
-    // Chung is twelve questions now — the phase refuses any other count.
-    const P2 = Array.from({ length: 12 }, (_, i) => `b${i + 1}`);
+    // Chung is six questions now — the phase refuses any other count.
+    const P2 = Array.from({ length: 6 }, (_, i) => `b${i + 1}`);
 
     it("phase 1 is oral: nothing to type, and it says whose run it is", () => {
         const state = startKhoiDong(["p0", "p1"], P1);
@@ -117,49 +117,53 @@ describe("player view — khoi-dong", () => {
         expect(theirs.me.isMyRun).toBe(false);
     });
 
-    it("phase 2: nothing is open until the console opens the window — then ONE question", () => {
+    it("phase 2: the question is on screen at once — but with NO deadline before Bấm giờ", () => {
         const state = beginPhase2(finishSetup(["p0", "p1"], P1, P2), P2);
         const waiting = buildPlayerView(base({ roundId: "khoi-dong", state }));
-        expect(waiting.open).toEqual([]);
-        expect(waiting.me.canBuzz).toBe(false);
-
-        const opened = openBuzz(state, NOW);
-        const view = buildPlayerView(base({ roundId: "khoi-dong", state: opened }));
-        expect(view.open).toHaveLength(1);                       // one question, not a batch
-        expect(view.open[0]).toEqual({ questionId: "b1", deadlineAt: at(5), question: null });
-        expect(view.me.canBuzz).toBe(true);
+        expect(waiting.stage).toBe("phase2");
+        expect(waiting.open).toHaveLength(1);                       // one question at a time
+        expect(waiting.open[0]).toEqual({ questionId: "b1", deadlineAt: null, question: null });
+        expect(waiting.me.windowOpen).toBe(false);                  // the field is locked
+        expect(waiting.me.questionCount).toBe(6);
     });
 
-    it("phase 2: the first buzz closes the window for everyone; the buzzer is the answerer", () => {
-        const raced = recordBuzz(openBuzz(beginPhase2(finishSetup(["p0", "p1"], P1, P2), P2), NOW), "p0", at(1));
-        const mine = buildPlayerView(base({ roundId: "khoi-dong", state: raced }));
-        const theirs = buildPlayerView(base({ roundId: "khoi-dong", state: raced, userId: "p1" }));
-
-        expect(mine.me.isAnswerer).toBe(true);
-        expect(theirs.me.isAnswerer).toBe(false);
-        expect(mine.me.canBuzz).toBe(false);
-        expect(theirs.me.canBuzz).toBe(false);
+    it("phase 2: Bấm giờ puts a 10 s deadline on it and unlocks the field", () => {
+        const running = openWindow(beginPhase2(finishSetup(["p0", "p1"], P1, P2), P2), NOW);
+        const view = buildPlayerView(base({ roundId: "khoi-dong", state: running, now: at(1) }));
+        expect(view.open[0].deadlineAt).toBe(at(10));
+        expect(view.me.windowOpen).toBe(true);
+        expect(view.me.answerState).toBe("none");
+        expect(view.me.questionIndex).toBe(0);
     });
 
-    it("phase 2: the board shows how fast the winning buzz was", () => {
-        const raced = recordBuzz(openBuzz(beginPhase2(finishSetup(["p0", "p1"], P1, P2), P2), NOW), "p0", at(1.24));
-        const view = buildPlayerView(base({ roundId: "khoi-dong", state: raced }));
-        expect(view.me.buzzer).toBe("p0");
-        expect(view.me.buzzerMs).toBe(1240);
+    it("phase 2: at zero the window is shut — the field locks for everyone", () => {
+        const running = openWindow(beginPhase2(finishSetup(["p0", "p1"], P1, P2), P2), NOW);
+        const expired = buildPlayerView(base({ roundId: "khoi-dong", state: running, now: at(10.5) }));
+        expect(expired.me.windowOpen).toBe(false);
+        // …and every player reads the same lock, whoever they are
+        const theirs = buildPlayerView(base({ roundId: "khoi-dong", state: running, now: at(10.5), userId: "p1" }));
+        expect(theirs.me.windowOpen).toBe(false);
     });
 
-    it("phase 2: the player who answered wrong is locked out of the re-buzz, and the view says so", () => {
-        let state = recordBuzz(openBuzz(beginPhase2(finishSetup(["p0", "p1"], P1, P2), P2), NOW), "p0", at(1));
-        state = judgeBuzz(state, false);
+    it("phase 2: a judged row reads as this player's own verdict", () => {
+        const running = openWindow(beginPhase2(finishSetup(["p0", "p1"], P1, P2), P2), NOW);
+        const view = buildPlayerView(base({
+            roundId: "khoi-dong",
+            state: running,
+            now: at(1),
+            submitted: [{ questionId: "b1", judged: true, verdict: "CORRECT" }],
+        }));
+        expect(view.me.answerState).toBe("final");
+        expect(view.me.verdicts).toEqual({ b1: "CORRECT" });
+    });
 
-        const lockedOut = buildPlayerView(base({ roundId: "khoi-dong", state }));
-        expect(lockedOut.me.lockedOut).toBe(true);
-        expect(lockedOut.me.attempt).toBe(2);
-
-        const reOpened = openBuzz(state, at(10));
-        // The view judges the buzz against ITS clock: inside the second window only.
-        expect(buildPlayerView(base({ roundId: "khoi-dong", state: reOpened, now: at(11) })).me.canBuzz).toBe(false);
-        expect(buildPlayerView(base({ roundId: "khoi-dong", state: reOpened, now: at(11), userId: "p1" })).me.canBuzz).toBe(true);
+    it("phase 2: the cursor follows the strip — question 2 of six after advancing", () => {
+        let state = beginPhase2(finishSetup(["p0", "p1"], P1, P2), P2);
+        state = nextQuestion(openWindow(state, NOW));
+        const view = buildPlayerView(base({ roundId: "khoi-dong", state, now: at(1) }));
+        expect(view.me.questionIndex).toBe(1);
+        expect(view.open[0].questionId).toBe("b2");
+        expect(view.me.windowOpen).toBe(false);                     // its window waits for Bấm giờ
     });
 
     it("an ENDED round surfaces the waiting stage — Về sảnh lands on the lobby", () => {

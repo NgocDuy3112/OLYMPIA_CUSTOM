@@ -1,18 +1,18 @@
 // khoi-dong as a whole round: phase 1 is one run per player (each with their own
-// 45 s); phase 2 is a twelve-question BUZZ race (see ./khoi-dong.ts Phase2State).
+// 45 s); phase 2 is a six-question TIMED BATCH — Bấm giờ opens a 10 s window
+// everyone types into (see ./khoi-dong.ts Phase2State).
 // Composes the per-phase primitives in ./khoi-dong.ts; pure, no I/O.
 import {
     answerPhase1,
-    buzzPhase2,
     closePhase2,
     isPhase2WindowOpen,
-    judgePhase2,
-    mayBuzzPhase2,
-    nextPhase2Question,
-    openPhase2Buzz,
+    judgePhase2Card,
+    nextPhase2,
+    openPhase2Window,
     phase1Total,
     phase2Complete,
     phase2Points,
+    phase2QuestionId,
     startPhase1,
     startPhase2,
     timeOutPhase1,
@@ -108,8 +108,8 @@ export function timeOutRun(state: KhoiDongState): KhoiDongState {
     return advanceActive({ ...state, runs });
 }
 
-// Phase 2 opens once every player has finished their phase-1 run. There is no
-// shared clock: each question lives in its own 5 s buzz windows.
+// Phase 2 opens once every player has finished their phase-1 run. The batch
+// waits for its first Bấm giờ — there is no clock until the console opens one.
 export function beginPhase2(state: KhoiDongState, phase2Ids: string[]): KhoiDongState {
     if (state.stage !== "phase1") fail("WRONG_STAGE", "phase 1 is over");
     if (!phase1Complete(state) && !phase1Untouched(state)) fail("PHASE1_INCOMPLETE", "not every player has finished phase 1");
@@ -117,36 +117,31 @@ export function beginPhase2(state: KhoiDongState, phase2Ids: string[]): KhoiDong
 }
 
 function requirePhase2(state: KhoiDongState): Phase2State {
-    if (state.stage !== "phase2" || state.phase2 === null) fail("WRONG_STAGE", "phase 2 is not open");
+    if (state.stage !== "phase2" || state.phase2 === null) fail("WRONG_STAGE", "chung is not open");
     if (state.ended) fail("ENDED", "the round has ended");
     return state.phase2;
 }
 
-/** The the console opens (or re-opens) the buzz window for the question in play. */
-export function openBuzz(state: KhoiDongState, nowIso: string): KhoiDongState {
-    return { ...state, phase2: openPhase2Buzz(requirePhase2(state), nowIso) };
+/** Bấm giờ: the console opens the window for the question in play. */
+export function openWindow(state: KhoiDongState, nowIso: string): KhoiDongState {
+    return { ...state, phase2: openPhase2Window(requirePhase2(state), nowIso) };
 }
 
-/** A player's buzz — server receive order, one winner, everyone else blocked. */
-export function recordBuzz(state: KhoiDongState, playerId: string, nowIso: string): KhoiDongState {
-    return { ...state, phase2: buzzPhase2(requirePhase2(state), playerId, nowIso) };
+/** The console marks ONE card of the question in play — Đúng or Sai. */
+export function judgeCard(state: KhoiDongState, playerId: string, correct: boolean): KhoiDongState {
+    return { ...state, phase2: judgePhase2Card(requirePhase2(state), playerId, correct) };
 }
 
-/** The the console's verdict on the buzzed answer: +10 first chance, +5 second, else dead. */
-export function judgeBuzz(state: KhoiDongState, correct: boolean): KhoiDongState {
-    return { ...state, phase2: judgePhase2(requirePhase2(state), correct, state.rules) };
-}
-
-/** Move on: nobody buzzed, or the window ran out with no answer worth scoring. */
+/**
+ * The next number on the progress strip. The LIVE layer checks coverage first
+ * (every submission on the question carries a verdict) — the engine only moves
+ * the cursor and kills the window with the question it belonged to.
+ */
 export function nextQuestion(state: KhoiDongState): KhoiDongState {
-    return { ...state, phase2: nextPhase2Question(requirePhase2(state)) };
+    return { ...state, phase2: nextPhase2(requirePhase2(state)) };
 }
 
-export function closeBuzzPhase(state: KhoiDongState): KhoiDongState {
-    return { ...state, phase2: closePhase2(requirePhase2(state)) };
-}
-
-export { isPhase2WindowOpen, mayBuzzPhase2 };
+export { isPhase2WindowOpen, phase2QuestionId };
 
 export function endKhoiDong(state: KhoiDongState): KhoiDongState {
     if (state.ended) return state;

@@ -67,8 +67,6 @@ function ctx(over: Partial<PlayerCtx> = {}): PlayerCtx {
         answerBusy: false,
         submitAnswer: vi.fn(),
         keywordBusy: false,
-        buzzBusy: false,
-        buzz: vi.fn(),
         submitKeyword: vi.fn(),
         cmdBusy: false,
         command: vi.fn(),
@@ -91,18 +89,38 @@ const openQ = {
 }
 
 describe("player screens render from a plain fixture", () => {
-    it("khởi động · lượt chung — a buzz race: the button appears only for an open window", () => {
+    it("khởi động · lượt chung — no window yet: the field waits for Bấm giờ", () => {
         const open = view({ roundId: "khoi-dong", open: [openQ] })
-        const racer = ctx({ v: open, s2Q: open.open[0] })
-        racer.v = { ...open, me: { ...open.me, canBuzz: true } }
-        expect(render(<KhoiDongChungAOCPlayer ctx={racer} />).getByText("Bấm chuông")).toBeTruthy()
+        const { getByText, queryByLabelText } = render(
+            <KhoiDongChungAOCPlayer ctx={ctx({ v: open, remaining: 0 })} />
+        )
+        expect(getByText(/Chờ điều hành bấm giờ/)).toBeTruthy()
+        expect(queryByLabelText("Câu trả lời của bạn")).toBeNull()
     })
 
-    it("khởi động · lượt chung — a player locked out of the re-buzz is told so", () => {
-        const open = view({ roundId: "khoi-dong", open: [openQ] })
-        const state = { ...open, me: { ...open.me, lockedOut: true, attempt: 2 as const } }
-        const { getByText } = render(<KhoiDongChungAOCPlayer ctx={ctx({ v: state, s2Q: open.open[0] })} />)
-        expect(getByText(/không được bấm chuông nữa/)).toBeTruthy()
+    // a REAL text question: AnswerBand draws the input for one, and nothing for
+    // the bare { question: null } fixture above
+    const windowLive = () =>
+        view({
+            roundId: "khoi-dong",
+            open: [{ questionId: "q1", deadlineAt: null, question: question("q1") }],
+            me: { windowOpen: true, questionIndex: 0, questionCount: 6 } as PlayerView["me"],
+        })
+
+    it("khởi động · lượt chung — the field opens with the window", () => {
+        const { getByLabelText, getByText } = render(
+            <KhoiDongChungAOCPlayer ctx={ctx({ v: windowLive(), remaining: 8_000 })} />
+        )
+        expect(getByLabelText("Câu trả lời của bạn")).not.toBeDisabled()
+        expect(getByText(/còn 0:08/)).toBeTruthy()
+    })
+
+    it("khởi động · lượt chung — and LOCKS the moment the clock hits zero", () => {
+        // greyed in place, not removed: the player SEES the window ended
+        const { getByLabelText } = render(
+            <KhoiDongChungAOCPlayer ctx={ctx({ v: windowLive(), remaining: 0 })} />
+        )
+        expect(getByLabelText("Câu trả lời của bạn")).toBeDisabled()
     })
 
     it("khởi động · lượt cá nhân — the run pill names who is playing", () => {

@@ -27,8 +27,6 @@ interface PlayerCtxParts {
     pickedCells: string[]
     setPickedCells: Dispatch<SetStateAction<string[]>>
     answer: { busy: boolean; submit: (questionId: string, value: AnswerValue) => void }
-    /** khởi động chung: the buzz is that round's only action (no payload) */
-    buzz: { busy: boolean; fire: () => void }
     keyword: { busy: boolean; submit: (questionId: string, text: string) => void }
     cmd: { busy: boolean; run: (action: LivePlayerCommand) => void }
 }
@@ -55,8 +53,6 @@ export function playerCtxOf(parts: PlayerCtxParts): PlayerCtx {
         setPickedCells: parts.setPickedCells,
         answerBusy: parts.answer.busy,
         submitAnswer: parts.answer.submit,
-        buzzBusy: parts.buzz.busy,
-        buzz: parts.buzz.fire,
         keywordBusy: parts.keyword.busy,
         submitKeyword: parts.keyword.submit,
         cmdBusy: parts.cmd.busy,

@@ -41,12 +41,12 @@ describe("the four AOC rounds", () => {
 });
 
 describe("the canonical rules resolve to the engine's defaults", () => {
-    it("khởi động: six oral runs, twelve buzz questions", () => {
+    it("khởi động: six oral runs, six timed questions", () => {
         const rules = khoiDongRules(aocRoundConfig("khoi-dong") ?? undefined);
         expect(rules.phase1Questions).toBe(KHOI_DONG_DEFAULTS.phase1Questions);
         expect(rules.phase1BudgetS).toBe(KHOI_DONG_DEFAULTS.phase1BudgetS);
         expect(rules.phase2Questions).toBe(KHOI_DONG_DEFAULTS.phase2Questions);
-        expect(rules.phase2BuzzWindowS).toBe(KHOI_DONG_DEFAULTS.phase2BuzzWindowS);
+        expect(rules.phase2WindowS).toBe(KHOI_DONG_DEFAULTS.phase2WindowS);
         expect(rules.pointsPerCorrect).toBe(KHOI_DONG_DEFAULTS.pointsPerCorrect);
     });
 

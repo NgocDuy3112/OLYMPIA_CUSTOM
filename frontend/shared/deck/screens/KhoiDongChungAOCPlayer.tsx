@@ -1,66 +1,65 @@
-import { PlayerStage, Progress, QuestionFrame, Rail, Timer, type PlayerCore } from "../player-deck"
-import { STRIP_R, pt } from "../geometry"
-import { COPY } from "../copy"
-import { formatBuzzMs } from "@shared/lib/clock"
-import type { PlayerView } from "../types"
+import { formatRemaining } from "@shared/lib/clock"
+import { AnswerBand, PlayerStage, Progress, QuestionFrame, Rail, Timer, type PlayerCore } from "../player-deck"
+import type { AnswerValue } from "../types"
 
-// Khởi động — lượt chung (S2): NOW a buzz race. Twelve questions, one at a
-// time; the console opens a 5 s window and the fastest buzz answers out loud.
+// Khởi động — lượt chung (S2): the TIMED BATCH. Six questions, everyone types
+// into the SAME window, opened when the controller presses Bấm giờ.
 //
-//   attempt 1, correct → +10        | wrong → this player is locked out
-//   attempt 2, correct → +5         | wrong → the question dies
+//   open when the clock starts → LOCKED at zero (the server refuses late answers too)
+//   each correct player → +10, independently — no buzz, no second chance
 //
 // Pure: every value comes from the orchestrator, narrowed to what this screen reads.
 type KhoiDongChungPlayerCtx = PlayerCore & {
+    /** ms left on the window — 0 both before Bấm giờ and after it expires. */
     remaining: number
-    /** the question in play (one at a time now, not a batch) */
-    s2Q: PlayerView["open"][number] | undefined
     answerBusy: boolean
-    buzzBusy: boolean
-    buzz: () => void
-}
-
-/** What the band says when this player cannot or need not press anything. */
-function standDown(v: PlayerView, questionInPlay: boolean): string {
-    if (!questionInPlay) return "Chờ điều hành mở câu tiếp theo…"
-    if (v.me.lockedOut) return "Bạn đã trả lời sai — câu này không được bấm chuông nữa"
-    if (v.me.isAnswerer) return `Bạn nhanh nhất (${formatBuzzMs(v.me.buzzerMs)}) — trả lời đi!`
-    return "Chờ chuông…"
+    submitAnswer: (questionId: string, value: AnswerValue) => void
 }
 
 export function KhoiDongChungAOCPlayer({ ctx }: { ctx: KhoiDongChungPlayerCtx }) {
-    const { v, remaining, myId, flash, s2Q, answerBusy, buzzBusy, buzz } = ctx
-    const inPlay = s2Q !== undefined
+    const { v, remaining, myId, flash, answerBusy, submitAnswer } = ctx
+    const openQ = ctx.open[0]
+    const windowOpen = v.me.windowOpen === true
+    // THE LOCK: the field is editable only while the clock is actually running.
+    // `remaining` is 0 before the console starts the window and0 again the
+    // moment it expires, so both states grey the input out.
+    const locked = !windowOpen || remaining <= 0
 
     return (
         <PlayerStage
-            rail={<Rail variant="answers" view={v} myId={myId} currentQid={s2Q?.questionId ?? null} />}
+            rail={<Rail variant="answers" view={v} myId={myId} currentQid={openQ?.questionId ?? null} />}
             band={
-                v.me.canBuzz ? (
-                    <button
-                        type="button"
-                        onClick={buzz}
-                        disabled={buzzBusy || answerBusy}
-                        className="flex h-[3.3cqw] items-center gap-[0.8cqw] rounded-lg bg-destructive px-[2.4cqw] font-sans text-base font-bold uppercase text-destructive-foreground shadow-sm transition hover:brightness-110 disabled:opacity-60"
-                        style={{ borderRadius: STRIP_R }}
-                        title={COPY.buzz}
-                    >
-                        <span className="size-[1.1cqw] rounded-full bg-destructive-foreground" aria-hidden />
-                        {COPY.buzz}
-                    </button>
-                ) : (
+                !openQ ? (
                     <span
                         className="flex h-[3.3cqw] items-center rounded-lg bg-muted px-[1.2cqw] font-sans font-semibold text-foreground ring-1 ring-border"
-                        style={{ fontSize: pt(12), borderRadius: STRIP_R }}
+                        style={{ fontSize: 12, borderRadius: 6 }}
                     >
-                        {standDown(v, inPlay)}
+                        Chờ điều hành mở câu tiếp theo…
                     </span>
+                ) : !windowOpen ? (
+                    <span
+                        className="flex h-[3.3cqw] items-center rounded-lg bg-muted px-[1.2cqw] font-sans font-semibold text-foreground ring-1 ring-border"
+                        style={{ fontSize: 12, borderRadius: 6 }}
+                    >
+                        Chờ điều hành bấm giờ…
+                    </span>
+                ) : (
+                    <AnswerBand
+                        question={openQ.question}
+                        answerState={v.me.answerState}
+                        verdict={v.me.verdicts?.[openQ.questionId]}
+                        disabled={locked}
+                        busy={answerBusy}
+                        error={flash}
+                        onSubmit={(value) => submitAnswer(openQ.questionId, value)}
+                    />
                 )
             }
             hint={
-                inPlay
-                    ? `còn ${formatSeconds(remaining)} · ${v.me.attempt === 2 ? "lượt 2 (×5)" : "lượt 1 (×10)"}` +
-                      (v.me.buzzer ? ` · chuông ${formatBuzzMs(v.me.buzzerMs)}` : "")
+                openQ
+                    ? windowOpen
+                        ? `còn ${formatRemaining(remaining)}`
+                        : "chờ bấm giờ"
                     : "chờ điều hành"
             }
             flash={flash}
@@ -70,18 +69,17 @@ export function KhoiDongChungAOCPlayer({ ctx }: { ctx: KhoiDongChungPlayerCtx })
                 mode="Lượt chung"
                 right={
                     <>
-                        <Progress total={12} done={0} active={0} />
-                        <Timer remaining={remaining} fallback="5s" />
+                        <Progress
+                            total={v.me.questionCount ?? 6}
+                            done={v.me.questionIndex ?? 0}
+                            active={v.me.questionIndex ?? 0}
+                        />
+                        <Timer remaining={windowOpen ? remaining : null} fallback="10s" />
                     </>
                 }
-                question={s2Q?.question?.questionText ?? null}
-                media={s2Q?.question?.media ?? null}
+                question={openQ?.question?.questionText ?? "Chờ mở câu tiếp theo…"}
+                media={openQ?.question?.media ?? null}
             />
         </PlayerStage>
     )
-}
-
-/** Two digits, like every other clock on the deck. */
-function formatSeconds(remaining: number): string {
-    return `${Math.max(0, Math.ceil(remaining))}s`
 }

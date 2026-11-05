@@ -1,16 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
     answerPhase1,
-    buzzPhase2,
     closePhase2,
     isPhase2WindowOpen,
-    judgePhase2,
-    mayBuzzPhase2,
-    nextPhase2Question,
-    openPhase2Buzz,
+    judgePhase2Card,
+    nextPhase2,
+    openPhase2Window,
     phase1Total,
     phase2Complete,
     phase2Points,
+    phase2QuestionId,
     startPhase1,
     startPhase2,
     timeOutPhase1
@@ -80,103 +79,90 @@ describe("khoi-dong phase 1 (oral, sequential, 45 s)", () => {
 const T0 = "2026-01-01T00:00:00.000Z";
 const at = (s: number) => new Date(Date.parse(T0) + s * 1000).toISOString();
 
-describe("khoi-dong phase 2 — the buzz race", () => {
-    const SET = Array.from({ length: 12 }, (_, i) => `p${i + 1}`);
-    const open = (state = startPhase2(SET), now = T0) => openPhase2Buzz(state, now);
+describe("khoi-dong phase 2 — the timed batch", () => {
+    const SET = IDS6;                                  // six, like phase 1
+    const open = (state = startPhase2(SET), now = T0) => openPhase2Window(state, now);
 
-    it("is TWELVE questions, and refuses anything else", () => {
+    it("is SIX questions, and refuses anything else", () => {
         expect(codeOf(() => startPhase2(["x"]))).toBe("VALIDATION");
-        expect(codeOf(() => startPhase2(SET.slice(0, 6)))).toBe("VALIDATION");
-        expect(startPhase2(SET).questionIds).toHaveLength(12);
+        expect(codeOf(() => startPhase2(SET.slice(0, 3)))).toBe("VALIDATION");
+        expect(startPhase2(SET).questionIds).toHaveLength(6);
     });
 
-    it("nobody may buzz before the operator opens a window", () => {
+    it("nothing runs before Bấm giờ: the question waits, window shut", () => {
         const s = startPhase2(SET);
-        expect(mayBuzzPhase2(s, "a")).toBe(false);
-        expect(codeOf(() => buzzPhase2(s, "a", T0))).toBe("NOTHING_OPEN");
+        expect(s.openedAt).toBeNull();
+        expect(isPhase2WindowOpen(s, T0)).toBe(false);
+        expect(phase2QuestionId(s)).toBe("q1");
     });
 
-    it("the fastest buzz wins and everyone else is blocked", () => {
+    it("Bấm giờ opens the window for the question in play — once", () => {
         const s = open();
+        expect(s.openedAt).toBe(T0);
         expect(isPhase2WindowOpen(s, at(1))).toBe(true);
-        const buzzed = buzzPhase2(s, "a", at(1));
-        expect(buzzed.current?.buzzer).toBe("a");
-        expect(codeOf(() => buzzPhase2(buzzed, "b", at(2)))).toBe("ALREADY_OPEN");
-        expect(mayBuzzPhase2(buzzed, "b")).toBe(false);
+        expect(codeOf(() => openPhase2Window(s, at(1)))).toBe("ALREADY_OPEN");
     });
 
-    it("keeps the winning buzz's time", () => {
-        const buzzed = buzzPhase2(open(), "a", at(1.24));
-        expect(buzzed.current?.buzzerMs).toBe(1240);
-    });
-
-    it("a fresh window forgets the previous time", () => {
-        let s = judgePhase2(buzzPhase2(open(), "a", at(1)), false);
-        expect(s.current?.buzzerMs).toBeNull();
-        s = openPhase2Buzz(s, at(10));
-        expect(s.current?.buzzerMs).toBeNull();
-    });
-
-    it("the window is exactly five seconds", () => {
+    it("the window is exactly ten seconds — at zero the input locks", () => {
         const s = open();
-        expect(isPhase2WindowOpen(s, at(5))).toBe(true);
-        expect(isPhase2WindowOpen(s, at(5.001))).toBe(false);
-        expect(codeOf(() => buzzPhase2(s, "a", at(6)))).toBe("WINDOW_CLOSED");
+        expect(isPhase2WindowOpen(s, at(10))).toBe(true);
+        expect(isPhase2WindowOpen(s, at(10.001))).toBe(false);
     });
 
-    it("correct on the first window: +10, and the question is done", () => {
-        const s = judgePhase2(buzzPhase2(open(), "a", at(1)), true);
+    it("after the clock runs out the console may give the field another window", () => {
+        let s = open();
+        s = openPhase2Window(s, at(12));
+        expect(s.openedAt).toBe(at(12));
+        expect(isPhase2WindowOpen(s, at(15))).toBe(true);
+    });
+
+    it("each correct player pays ten, independently — wrong pays nothing", () => {
+        let s = open();
+        s = judgePhase2Card(s, "a", true);
+        s = judgePhase2Card(s, "b", true);
+        s = judgePhase2Card(s, "c", false);
         expect(phase2Points(s, "a")).toBe(10);
-        expect(s.current).toBeNull();
-        expect(s.index).toBe(1);
+        expect(phase2Points(s, "b")).toBe(10);
+        expect(phase2Points(s, "c")).toBe(0);
     });
 
-    it("wrong on the first window: the answerer is locked out and a re-buzz is armed", () => {
-        const s = judgePhase2(buzzPhase2(open(), "a", at(1)), false);
-        expect(s.current?.attempt).toBe(2);
-        expect(s.current?.excluded).toEqual(["a"]);
-        expect(s.current?.openedAt).toBeNull();          // the console opens window 2
-        expect(mayBuzzPhase2(s, "a")).toBe(false);
-        expect(mayBuzzPhase2(s, "b")).toBe(false);       // no window yet
-    });
-
-    it("the re-buzz admits everyone but the first answerer, and pays 5", () => {
-        let s = judgePhase2(buzzPhase2(open(), "a", at(1)), false);
-        s = openPhase2Buzz(s, at(10));
-        expect(mayBuzzPhase2(s, "a")).toBe(false);
-        expect(codeOf(() => buzzPhase2(s, "a", at(11)))).toBe("NOT_YOUR_TURN");
-
-        s = buzzPhase2(s, "b", at(11));
-        s = judgePhase2(s, true);
-        expect(phase2Points(s, "b")).toBe(5);
+    it("re-marking a card CORRECTS it instead of paying twice", () => {
+        let s = open();
+        s = judgePhase2Card(s, "a", true);
+        s = judgePhase2Card(s, "a", false);
         expect(phase2Points(s, "a")).toBe(0);
+        s = judgePhase2Card(s, "a", true);
+        expect(phase2Points(s, "a")).toBe(10);
     });
 
-    it("wrong twice: the question dies with no points, and the next one is armed", () => {
-        let s = judgePhase2(buzzPhase2(open(), "a", at(1)), false);
-        s = judgePhase2(buzzPhase2(openPhase2Buzz(s, at(10)), "b", at(11)), false);
-        expect(phase2Points(s, "a")).toBe(0);
-        expect(phase2Points(s, "b")).toBe(0);
-        expect(s.current).toBeNull();
+    it("judging before any question is in play is refused", () => {
+        const done = closePhase2(startPhase2(SET));
+        expect(codeOf(() => judgePhase2Card(done, "a", true))).toBe("PHASE_ENDED");
+    });
+
+    it("advancing moves the cursor and kills the window with its question", () => {
+        let s = open();
+        s = nextPhase2(s);
         expect(s.index).toBe(1);
+        expect(s.openedAt).toBeNull();
+        expect(phase2QuestionId(s)).toBe("q2");
+        expect(isPhase2WindowOpen(s, at(11))).toBe(false);
     });
 
-    it("nobody buzzing: the console moves on, nothing is scored", () => {
-        const s = nextPhase2Question(open());
-        expect(phase2Points(s, "a")).toBe(0);
-        expect(s.index).toBe(1);
-    });
-
-    it("the phase completes when its twelve questions are played", () => {
+    it("advancing past the last question completes the phase", () => {
         let s = startPhase2(SET);
-        for (let i = 0; i < 12; i++) s = nextPhase2Question(openPhase2Buzz(s, T0));
+        for (let i = 0; i < 6; i++) s = nextPhase2(s);
         expect(phase2Complete(s)).toBe(true);
         expect(s.closed).toBe(true);
-        expect(codeOf(() => openPhase2Buzz(s, T0))).toBe("PHASE_ENDED");
+        expect(phase2QuestionId(s)).toBeNull();
+        expect(codeOf(() => openPhase2Window(s, T0))).toBe("PHASE_ENDED");
+        expect(codeOf(() => judgePhase2Card(s, "a", true))).toBe("PHASE_ENDED");
+        expect(codeOf(() => nextPhase2(s))).toBe("PHASE_ENDED");
     });
 
-    it("no buzzes after the phase is closed", () => {
+    it("closing the phase ends it", () => {
         const s = closePhase2(open());
-        expect(codeOf(() => buzzPhase2(s, "a", T0))).toBe("PHASE_ENDED");
+        expect(phase2Complete(s)).toBe(true);
+        expect(codeOf(() => nextPhase2(s))).toBe("PHASE_ENDED");
     });
 });

@@ -33,15 +33,12 @@ export interface PlayerMe {
     points?: number
     answered?: string[]
     finalized?: string[]
-    // khoi-dong · lượt chung (the buzz race)
-    /** A buzz window is open and the engine would admit this player. */
-    isAnswererBuzz?: boolean
-    /** Locked out of the re-buzz: this player answered the first window wrong. */
-    lockedOut?: boolean
-    /** Which chance is running: 1 pays 10, 2 pays 5. */
-    attempt?: 1 | 2 | null
-    /** How fast the winning buzz was (ms) — the race's stopwatch. */
-    buzzerMs?: number | null
+    // khoi-dong · lượt chung (the timed batch)
+    /** The window Bấm giờ opened is running right now — the field is unlocked. */
+    windowOpen?: boolean
+    /** Which of the six is in play, and how many there are (the strip). */
+    questionIndex?: number
+    questionCount?: number
     // giai-ma
     keywordLocked?: boolean
     eliminated?: boolean
@@ -59,6 +56,8 @@ export interface PlayerMe {
     canBuzz?: boolean
     power?: "STAR" | "ASSIGN" | null
     buzzer?: string | null
+    /** ve-dich: how fast the winning buzz was (ms) — the race's stopwatch. */
+    buzzerMs?: number | null
 }
 
 export interface PlayerView {
@@ -188,9 +187,6 @@ export interface PlayerCtx {
     submitAnswer: (questionId: string, value: AnswerValue) => void
     keywordBusy: boolean
     submitKeyword: (questionId: string, text: string) => void
-    /** Khởi động chung: the buzz (phase 2 has no typed answers). */
-    buzzBusy: boolean
-    buzz: () => void
     cmdBusy: boolean
     command: (action: VeDichCommand) => void
 }

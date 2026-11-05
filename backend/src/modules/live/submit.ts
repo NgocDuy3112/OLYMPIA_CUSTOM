@@ -24,7 +24,7 @@ import { mutateLive, type Transition } from "./apply.js";
 import { publish } from "./hub.js";
 import { pgLiveStore, readLive, writeDraft } from "./store.js";
 import { parseButPhaState, parseGiaiMaState, parseKhoiDongState, parseVeDichState } from "./state.js";
-import { recordBuzz } from "../../game/engine/turns/khoi-dong-round.js";
+import { isPhase2WindowOpen, phase2QuestionId } from "../../game/engine/turns/khoi-dong-round.js";
 
 export type Suggestion = "CORRECT" | "INCORRECT";
 
@@ -170,7 +170,50 @@ export async function submitAnswer(ctx: SubmitContext): Promise<AnswerResult> {
     }
 
     if (live.roundId === "khoi-dong") {
-        throw new SubmitError(409, "BUZZ_ONLY", "khởi động chung takes buzzes, not typed answers — use /live/buzz");
+        if (!("text" in value)) {
+            throw new SubmitError(400, "BAD_VALUE", "a chung answer must be text");
+        }
+        const state = parseKhoiDongState(live.state);
+        if (state.stage !== "phase2" || state.phase2 === null) {
+            // Phase 1 is oral: the console records what was said, nothing to type.
+            throw new SubmitError(409, "NO_WINDOW", "khởi động riêng is oral — there is nothing to type yet");
+        }
+        const questionId = phase2QuestionId(state.phase2);
+        if (questionId === null) {
+            throw new SubmitError(409, "ENDED", "every chung question has been played");
+        }
+        if (questionId !== ctx.questionId) {
+            throw new SubmitError(409, "NOT_OPEN", "that question is not the one in play");
+        }
+        // THE LOCK, in two words: no clock started → NO_WINDOW; the clock ran
+        // out → WINDOW_CLOSED (the same instant the screen greys the field).
+        if (state.phase2.openedAt === null) {
+            throw new SubmitError(409, "NO_WINDOW", "the console has not started the clock for this question yet");
+        }
+        if (!isPhase2WindowOpen(state.phase2, now)) {
+            throw new SubmitError(409, "WINDOW_CLOSED", "the clock has run out — the answer window is closed");
+        }
+
+        const question = match.questions.find((q) => q._id === questionId);
+        if (!question) throw new SubmitError(400, "NOT_IN_MATCH", "question is not part of this match");
+
+        const suggestion: Suggestion = autoMatch(question.kind as QuestionKind, question.payload, value)
+            ? "CORRECT" : "INCORRECT";
+
+        // Revision while the window runs: last answer wins (the default). At
+        // zero this branch never runs, and a JUDGED row refuses a rewrite — the
+        // console's verdict is the last word, not the player's retyping.
+        await writeDraft({
+            matchId: ctx.matchId,
+            questionId,
+            userId: ctx.userId,
+            value,
+            suggestion,
+            answeredMs: Math.max(0, Date.parse(now) - Date.parse(state.phase2!.openedAt!))
+        });
+        await draftAudit(ctx, live.roundId, suggestion);
+        await publish(ctx.matchId);
+        return { drafted: true };
     }
 
     if (live.roundId === "ve-dich") {
@@ -265,29 +308,4 @@ export async function submitKeyword(ctx: SubmitContext): Promise<AnswerResult> {
 
     await publish(ctx.matchId);
     return { drafted: true };
-}
-
-/**
- * Khởi động chung's only player action: the BUZZ. The engine decides whether a
- * window is open, whether this player is locked out of the re-buzz, and whether
- * someone was already faster.
- */
-export async function submitKhoiDongBuzz(ctx: Omit<SubmitContext, "questionId" | "value">): Promise<{ buzzed: true }> {
-    const full = { ...ctx, questionId: "", value: null };
-    const { live } = await loadContext(full);
-    if (live.roundId !== "khoi-dong") {
-        throw new SubmitError(409, "NO_ROUND", `round ${live.roundId} is not khoi-dong`);
-    }
-
-    await mutateLive(
-        pgLiveStore<Record<string, unknown>>(ctx.matchId),
-        (current): Transition<Record<string, unknown>> => {
-            const state = parseKhoiDongState(current.state);
-            const next = recordBuzz(state, ctx.userId, new Date().toISOString());
-            return { state: next as unknown as Record<string, unknown>, facts: [] };
-        }
-    );
-
-    await publish(ctx.matchId);
-    return { buzzed: true };
 }

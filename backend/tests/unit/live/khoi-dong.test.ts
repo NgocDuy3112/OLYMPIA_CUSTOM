@@ -5,15 +5,20 @@ import { khoiDongPoints, type KhoiDongState } from "../../../src/game/engine/tur
 import { RuleError } from "../../../src/game/engine/turns/errors.js";
 
 const P1 = ["a1", "a2", "a3", "a4", "a5", "a6"];
-// Chung stages TWELVE questions; the engine refuses any other count.
-const P2 = Array.from({ length: 12 }, (_, i) => `b${i + 1}`);
+// Chung stages SIX questions; the engine refuses any other count.
+const P2 = Array.from({ length: 6 }, (_, i) => `b${i + 1}`);
 const NOW = "2026-01-01T00:00:00.000Z";
 
 const ctx = (over: Partial<KhoiDongContext> = {}): KhoiDongContext => ({
     actorId: "console-1", rules: KHOI_DONG_DEFAULTS, roundId: "khoi-dong", now: NOW,
     playerIds: ["p0", "p1"], phase1QuestionIds: P1, phase2QuestionIds: P2,
+    answerDrafts: [],
     ...over
 });
+
+/** A submitted card awaiting the console's verdict (the ledger's own shape). */
+const draft = (userId: string, judged = false) =>
+    ({ userId, suggestion: "CORRECT" as const, answeredMs: 900, judged });
 
 const started = (): KhoiDongState =>
     applyKhoiDongAction({} as KhoiDongState, { kind: "khoi-dong.start" }, ctx()).state;
@@ -86,55 +91,91 @@ describe("applyKhoiDongAction — phase 2", () => {
         expect(Object.values(s.runs).every((r) => Object.keys(r.results).length === 0)).toBe(true);
     });
 
-    it("beginPhase2 opens the twelve-question buzz race", () => {
+    it("beginPhase2 opens the six-question batch, waiting for its first Bấm giờ", () => {
         const s = applyKhoiDongAction(finishedPhase1(), { kind: "khoi-dong.beginPhase2" }, ctx()).state;
         expect(s.stage).toBe("phase2");
         expect(s.phase2?.questionIds).toEqual(P2);
-        expect(s.phase2?.current).toBeNull();            // nothing runs until the console opens
+        expect(s.phase2?.openedAt).toBeNull();            // nothing runs until Bấm giờ
     });
 
-    it("openBuzz starts the window, and nothing may be judged until someone buzzes", () => {
-        const started = applyKhoiDongAction(finishedPhase1(), { kind: "khoi-dong.beginPhase2" }, ctx()).state;
-        const opened = applyKhoiDongAction(started, { kind: "khoi-dong.openBuzz" }, ctx()).state;
-        expect(opened.phase2?.current?.questionId).toBe(P2[0]);
-        expect(opened.phase2?.current?.buzzer).toBeNull();
-        expect(() => applyKhoiDongAction(opened, { kind: "khoi-dong.judgeBuzz", correct: true }, ctx())).toThrow(RuleError);
+    it("startWindow opens the window for the question in play — once", () => {
+        const base = applyKhoiDongAction(finishedPhase1(), { kind: "khoi-dong.beginPhase2" }, ctx()).state;
+        const res = applyKhoiDongAction(base, { kind: "khoi-dong.startWindow" }, ctx());
+        expect(res.state.phase2?.openedAt).toBe(NOW);
+        expect(res.facts).toEqual([]);
+
+        // a second press while the clock runs is refused
+        expect(() => applyKhoiDongAction(res.state, { kind: "khoi-dong.startWindow" }, ctx())).toThrow(RuleError);
     });
 
-    it("judging a correct buzz pays 10 and writes an answer fact", () => {
-        let s = applyKhoiDongAction(finishedPhase1(), { kind: "khoi-dong.beginPhase2" }, ctx()).state;
-        s = applyKhoiDongAction(s, { kind: "khoi-dong.openBuzz" }, ctx()).state;
-        // the buzz is a PLAYER action: applied through the engine directly
-        s = { ...s, phase2: { ...s.phase2!, current: { ...s.phase2!.current!, buzzer: "p0" } } };
-
-        const res = applyKhoiDongAction(s, { kind: "khoi-dong.judgeBuzz", correct: true }, ctx());
-        expect(khoiDongPoints(res.state, "p0")).toBe(60 + 10);
+    it("judging a submitted card pays 10 and writes a judge fact", () => {
+        const base = applyKhoiDongAction(finishedPhase1(), { kind: "khoi-dong.beginPhase2" }, ctx()).state;
+        const res = applyKhoiDongAction(
+            base,
+            { kind: "khoi-dong.judge", playerId: "p0", correct: true },
+            ctx({ answerDrafts: [draft("p0")] })
+        );
+        expect(khoiDongPoints(res.state, "p0")).toBe(60 + 10);     // 60 from the oral runs
         expect(res.facts).toEqual([{
-            type: "answer", questionId: P2[0], userId: "p0",
-            value: { oral: true }, verdict: "CORRECT", pointsAwarded: 10, autoMatched: false
+            type: "judge", questionId: P2[0], userId: "p0", verdict: "CORRECT", pointsAwarded: 10
         }]);
     });
 
-    it("a wrong buzz locks the answerer out and arms the re-buzz", () => {
-        let s = applyKhoiDongAction(finishedPhase1(), { kind: "khoi-dong.beginPhase2" }, ctx()).state;
-        s = applyKhoiDongAction(s, { kind: "khoi-dong.openBuzz" }, ctx()).state;
-        s = { ...s, phase2: { ...s.phase2!, current: { ...s.phase2!.current!, buzzer: "p0" } } };
-
-        const res = applyKhoiDongAction(s, { kind: "khoi-dong.judgeBuzz", correct: false }, ctx());
-        expect(res.state.phase2?.current?.attempt).toBe(2);
-        expect(res.state.phase2?.current?.excluded).toEqual(["p0"]);
+    it("a wrong card pays nothing and writes a zero-point fact", () => {
+        const base = applyKhoiDongAction(finishedPhase1(), { kind: "khoi-dong.beginPhase2" }, ctx()).state;
+        const res = applyKhoiDongAction(
+            base,
+            { kind: "khoi-dong.judge", playerId: "p0", correct: false },
+            ctx({ answerDrafts: [draft("p0")] })
+        );
         expect(khoiDongPoints(res.state, "p0")).toBe(60);
+        expect(res.facts[0]).toMatchObject({ type: "judge", verdict: "INCORRECT", pointsAwarded: 0 });
     });
 
-    it("nextQuestion moves on with nothing scored", () => {
-        let s = applyKhoiDongAction(finishedPhase1(), { kind: "khoi-dong.beginPhase2" }, ctx()).state;
-        s = applyKhoiDongAction(s, { kind: "khoi-dong.openBuzz" }, ctx()).state;
-        const res = applyKhoiDongAction(s, { kind: "khoi-dong.nextQuestion" }, ctx());
-        expect(res.state.phase2?.index).toBe(1);
-        expect(khoiDongPoints(res.state, "p0")).toBe(60);
+    it("marking a player who submitted nothing is refused", () => {
+        const base = applyKhoiDongAction(finishedPhase1(), { kind: "khoi-dong.beginPhase2" }, ctx()).state;
+        expect(() => applyKhoiDongAction(
+            base,
+            { kind: "khoi-dong.judge", playerId: "p1", correct: true },
+            ctx({ answerDrafts: [draft("p0")] })
+        )).toThrow(RuleError);
     });
 
-    it("endRound ends the round and closes the window", () => {
+    it("re-marking corrects the ledger instead of paying twice", () => {
+        const base = applyKhoiDongAction(finishedPhase1(), { kind: "khoi-dong.beginPhase2" }, ctx()).state;
+        const right = applyKhoiDongAction(
+            base, { kind: "khoi-dong.judge", playerId: "p0", correct: true },
+            ctx({ answerDrafts: [draft("p0")] })
+        ).state;
+        const fixed = applyKhoiDongAction(
+            right, { kind: "khoi-dong.judge", playerId: "p0", correct: false },
+            ctx({ answerDrafts: [draft("p0", true)] })
+        ).state;
+        expect(khoiDongPoints(fixed, "p0")).toBe(60);
+    });
+
+    it("advancing waits for every submitted card to be judged", () => {
+        const opened = applyKhoiDongAction(
+            applyKhoiDongAction(finishedPhase1(), { kind: "khoi-dong.beginPhase2" }, ctx()).state,
+            { kind: "khoi-dong.startWindow" }, ctx()
+        ).state;
+
+        // a card still waiting → the strip may not move
+        expect(() => applyKhoiDongAction(
+            opened, { kind: "khoi-dong.nextQuestion" },
+            ctx({ answerDrafts: [draft("p0")] })
+        )).toThrow(RuleError);
+
+        // every card judged → question 2, and its window waits for its own Bấm giờ
+        const next = applyKhoiDongAction(
+            opened, { kind: "khoi-dong.nextQuestion" },
+            ctx({ answerDrafts: [draft("p0", true)] })
+        );
+        expect(next.state.phase2?.index).toBe(1);
+        expect(next.state.phase2?.openedAt).toBeNull();
+    });
+
+    it("endRound ends the round and closes the batch", () => {
         const s = applyKhoiDongAction(finishedPhase1(), { kind: "khoi-dong.beginPhase2" }, ctx()).state;
         const res = applyKhoiDongAction(s, { kind: "khoi-dong.endRound" }, ctx());
         expect(res.state.ended).toBe(true);

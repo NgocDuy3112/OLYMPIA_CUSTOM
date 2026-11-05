@@ -31,6 +31,9 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
                         question={hintWindow.question}
                         answerState={v.me.answerState}
                         verdict={v.me.verdicts?.[hintWindow.questionId]}
+                        // THE LOCK: at zero the window is over — the server
+                        // refuses late answers, and the field greys with it.
+                        disabled={remaining <= 0}
                         busy={answerBusy}
                         error={flash}
                         onSubmit={(value) => submitAnswer(hintWindow.questionId, value)}

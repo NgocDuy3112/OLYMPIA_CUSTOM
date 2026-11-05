@@ -31,10 +31,9 @@ const consoleSent: unknown[] = [
     { kind: "khoi-dong.recordOral", correct: true, spentS: 12 },
     { kind: "khoi-dong.timeOutRun" },
     { kind: "khoi-dong.beginPhase2" },
-    { kind: "khoi-dong.openBuzz" },
-    { kind: "khoi-dong.judgeBuzz", correct: false },
+    { kind: "khoi-dong.startWindow" },
+    { kind: "khoi-dong.judge", playerId: "u1", correct: false },
     { kind: "khoi-dong.nextQuestion" },
-    { kind: "khoi-dong.closePhase2" },
     { kind: "khoi-dong.endRound" },
     // ve-dich — controller half
     { kind: "ve-dich.start" },

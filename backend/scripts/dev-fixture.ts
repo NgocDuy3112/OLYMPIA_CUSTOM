@@ -22,7 +22,8 @@
  *   npx tsx --env-file=../configs/.env scripts/dev-fixture.ts --clean
  *
  * The round it arms is khởi động ONLY: phase 1 (six oral runs each) and phase 2
- * (twelve typed questions, five-second buzz windows). That is deliberate — it is
+ * (six typed questions, one 10 s window each — Bấm giờ opens it). That is
+ * deliberate — it is
  * the round that exercises the most frontend surface (stopwatch, buzz, verdicts,
  * Về sảnh). Extending it to another round means adding that round's `roundConfigs`
  * entry and question batch, exactly as the integration tests do.
@@ -190,10 +191,10 @@ async function main() {
         stages: [{ id: "s1", title: "Chung kết" }]
     });
 
-    // six oral runs in phase 1, twelve typed questions in phase 2 — the engine
+    // six oral runs in phase 1, six typed questions in phase 2 — the engine
     // refuses any other count for this round
     const phase1 = [1, 2, 3, 4, 5, 6].map((n) => question("phase1", n));
-    const phase2 = Array.from({ length: 12 }, (_, i) => question("phase2", i + 1));
+    const phase2 = Array.from({ length: 6 }, (_, i) => question("phase2", i + 1));
 
     await db.insert(matches).values({
         id: MATCH_ID,
@@ -239,7 +240,7 @@ seated       ${PLAYERS.slice(0, WALK_IN).join(", ")}
 room code    ${room.code}      → http://localhost:5175/code
              (sign in as ${usernames[WALK_IN]} / ${PLAYER_PASSWORD} — first sign-in asks
               you to set your own password — then type the code: the 4th seat)
-questions    6 oral (phase 1) + 12 typed (phase 2), all khởi động
+questions    6 oral (phase 1) + 6 typed (phase 2), all khởi động
 
 console      http://localhost:5173/tournaments/${TOURNAMENT_ID}/matches/${MATCH_ID}/stage
   sign in    http://localhost:5173/login   ${OPERATOR.username} / ${OPERATOR.password}

@@ -106,14 +106,15 @@ describe("the player deck's phase machine", () => {
 
     it("draws the round screen from a live view", async () => {
         draw({ [ME]: me, [LIVE]: view() })
-        // khởi động phase 2 is the buzz race: the band's only control
-        expect(await screen.findByRole("button", { name: "Bấm chuông" })).toBeTruthy()
+        // khởi động phase 2 is the timed batch: with no window open yet the
+        // band waits for the controller's Bấm giờ (there is no buzz control)
+        expect(await screen.findByText(/Chờ điều hành bấm giờ/)).toBeTruthy()
     })
 
     it("sends an ENDED view back to the lobby", async () => {
         draw({ [ME]: me, [LIVE]: view({ stage: "ended" }), [LOBBY]: lobby() })
         expect(await screen.findByText(/Trận đấu đã kết thúc/)).toBeTruthy()
-        expect(screen.queryByRole("button", { name: "Bấm chuông" })).toBeNull()
+        expect(screen.queryByText(/Chờ điều hành bấm giờ/)).toBeNull()
     })
 
     it("sends an unknown round to the lobby, not to a dead screen", async () => {

@@ -25,6 +25,9 @@ export function ButPhaAOCPlayer({ ctx }: { ctx: ButPhaPlayerCtx }) {
                         question={openQ.question}
                         answerState={v.me.answerState}
                         verdict={v.me.verdicts?.[openQ.questionId]}
+                        // THE LOCK: the question's 30 s are over — the field
+                        // greys at zero, the same instant the server refuses.
+                        disabled={remaining <= 0}
                         busy={answerBusy}
                         error={flash}
                         onSubmit={(value) => submitAnswer(openQ.questionId, value)}

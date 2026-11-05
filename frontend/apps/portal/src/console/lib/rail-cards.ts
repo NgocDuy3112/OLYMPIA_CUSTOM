@@ -60,8 +60,9 @@ export interface RailCardsInput {
 
 /** Which player wears the purple card this frame — the live answerer. */
 function buzzingIdOf(input: RailCardsInput): string | null {
+    // khởi động chung has no single answerer any more: the whole field types
+    // into one window, so the purple card is ve-dich's race alone.
     if (input.roundId === "ve-dich") return input.veDich?.buzzerId ?? null
-    if (input.roundId === "khoi-dong") return input.khoiDong?.buzzerId ?? null
     return null
 }
 

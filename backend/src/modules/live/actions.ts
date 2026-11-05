@@ -105,16 +105,18 @@ export const KhoiDongRecordOral = Type.Object({
 });
 export const KhoiDongTimeOutRun = Type.Object({ kind: Type.Literal("khoi-dong.timeOutRun") });
 export const KhoiDongBeginPhase2 = Type.Object({ kind: Type.Literal("khoi-dong.beginPhase2") });
-// The operator opens EVERY window — the first attempt and the re-buzz.
-export const KhoiDongOpenBuzz = Type.Object({ kind: Type.Literal("khoi-dong.openBuzz") });
-// The verdict on the buzzed answer: +10 on the first chance, +5 on the second.
-export const KhoiDongJudgeBuzz = Type.Object({
-    kind: Type.Literal("khoi-dong.judgeBuzz"),
+// Bấm giờ: the console opens the window — from this click the field has the
+// round's `windowS` seconds to type and submit.
+export const KhoiDongStartWindow = Type.Object({ kind: Type.Literal("khoi-dong.startWindow") });
+// The console marks ONE submitted card: the rail's selected player, Đúng or Sai.
+export const KhoiDongJudge = Type.Object({
+    kind: Type.Literal("khoi-dong.judge"),
+    playerId: Type.String({ minLength: 1 }),
     correct: Type.Boolean()
 });
-// Move on: nobody buzzed, or the question is done.
+// The next number on the progress strip — every card on the question in play
+// must be judged first (the live layer refuses the advance otherwise).
 export const KhoiDongNextQuestion = Type.Object({ kind: Type.Literal("khoi-dong.nextQuestion") });
-export const KhoiDongClosePhase2 = Type.Object({ kind: Type.Literal("khoi-dong.closePhase2") });
 export const KhoiDongEndRound = Type.Object({ kind: Type.Literal("khoi-dong.endRound") });
 
 // The controller's final verdicts for one phase-2 question's answers. The player's
@@ -122,8 +124,8 @@ export const KhoiDongEndRound = Type.Object({ kind: Type.Literal("khoi-dong.endR
 
 export const KhoiDongActionSchema = Type.Union([
     KhoiDongStart, KhoiDongRecordOral, KhoiDongTimeOutRun,
-    KhoiDongBeginPhase2, KhoiDongOpenBuzz, KhoiDongJudgeBuzz, KhoiDongNextQuestion,
-    KhoiDongClosePhase2, KhoiDongEndRound
+    KhoiDongBeginPhase2, KhoiDongStartWindow, KhoiDongJudge,
+    KhoiDongNextQuestion, KhoiDongEndRound
 ]);
 export type KhoiDongAction = Static<typeof KhoiDongActionSchema>;
 
@@ -224,10 +226,9 @@ export const LiveActionSchema = Type.Union([
     KhoiDongRecordOral,
     KhoiDongTimeOutRun,
     KhoiDongBeginPhase2,
-    KhoiDongOpenBuzz,
-    KhoiDongJudgeBuzz,
+    KhoiDongStartWindow,
+    KhoiDongJudge,
     KhoiDongNextQuestion,
-    KhoiDongClosePhase2,
     KhoiDongEndRound,
     VeDichStart,
     VeDichBeginPhase2,

@@ -3,11 +3,10 @@ import {
     activePlayerId,
     activeQuestionId,
     beginPhase2,
-    closeBuzzPhase,
-    judgeBuzz,
-    openBuzz,
-    recordBuzz,
     endKhoiDong,
+    judgeCard,
+    nextQuestion,
+    openWindow,
     khoiDongPoints,
     phase1Complete,
     recordOral,
@@ -21,8 +20,8 @@ const beginPhase2At = (state: Parameters<typeof beginPhase2>[0], ids: string[]) 
     beginPhase2(state, ids);
 
 const P1 = ["a1", "a2", "a3", "a4", "a5", "a6"];
-// Chung is TWELVE questions now — the phase refuses any other count.
-const P2 = Array.from({ length: 12 }, (_, i) => `b${i + 1}`);
+// Chung is SIX questions now — the phase refuses any other count.
+const P2 = Array.from({ length: 6 }, (_, i) => `b${i + 1}`);
 const PLAYERS = ["p0", "p1"];
 
 function codeOf(fn: () => unknown): string {
@@ -117,39 +116,47 @@ describe("khoi-dong round — phase 2 begins only after phase 1", () => {
     });
 });
 
-describe("khoi-dong round — phase 2: the buzz race", () => {
+describe("khoi-dong round — phase 2: the timed batch", () => {
     function inPhase2() {
         return beginPhase2At(finishRun(finishRun(startKhoiDong(PLAYERS, P1))), P2);
     }
 
-    it("opens a window, takes the fastest buzz, and pays 10 for the first correct", () => {
-        let s = openBuzz(inPhase2(), OPENED);
-        s = recordBuzz(s, "p0", OPENED);
-        s = judgeBuzz(s, true);
-        expect(khoiDongPoints(s, "p0")).toBe(60 + 10);        // 60 from phase 1
-        expect(s.phase2?.index).toBe(1);
+    it("Bấm giờ opens the window; each correct player pays ten on top of their run", () => {
+        let s = openWindow(inPhase2(), OPENED);
+        expect(s.phase2?.openedAt).toBe(OPENED);
+
+        s = judgeCard(s, "p0", true);
+        s = judgeCard(s, "p1", true);
+        expect(khoiDongPoints(s, "p0")).toBe(60 + 10);   // 60 from phase 1, +10 for the card
+        expect(khoiDongPoints(s, "p1")).toBe(60 + 10);
+        expect(s.phase2?.index).toBe(0);                 // marking never advances on its own
     });
 
-    it("a wrong first answer locks that player out of the re-buzz, which pays 5", () => {
-        let s = openBuzz(inPhase2(), OPENED);
-        s = judgeBuzz(recordBuzz(s, "p0", OPENED), false);
-        expect(s.phase2?.current?.excluded).toEqual(["p0"]);
-
-        s = openBuzz(s, OPENED);
-        expect(codeOf(() => recordBuzz(s, "p0", OPENED))).toBe("NOT_YOUR_TURN");
-        s = judgeBuzz(recordBuzz(s, "p1", OPENED), true);
-        expect(khoiDongPoints(s, "p1")).toBe(60 + 5);
+    it("a wrong card pays nothing, and re-marking corrects the ledger", () => {
+        let s = openWindow(inPhase2(), OPENED);
+        s = judgeCard(s, "p0", false);
         expect(khoiDongPoints(s, "p0")).toBe(60);
+        s = judgeCard(s, "p0", true);
+        expect(khoiDongPoints(s, "p0")).toBe(70);
     });
 
-    it("closing the phase rejects further buzzes", () => {
-        const s = closeBuzzPhase(inPhase2());
-        expect(codeOf(() => recordBuzz(s, "p0", OPENED))).toBe("PHASE_ENDED");
+    it("advancing moves the cursor and shuts the window with its question", () => {
+        let s = openWindow(inPhase2(), OPENED);
+        s = nextQuestion(s);
+        expect(s.phase2?.index).toBe(1);
+        expect(s.phase2?.openedAt).toBeNull();
+
+        // question 2 waits for its OWN Bấm giờ — and may be opened again
+        const reopened = openWindow(s, OPENED);
+        expect(reopened.phase2?.index).toBe(1);
+        expect(reopened.phase2?.openedAt).toBe(OPENED);
     });
 
-    it("ending the round closes the phase", () => {
+    it("ending the round closes the phase — no window, no marks", () => {
         const s = endKhoiDong(inPhase2());
         expect(s.ended).toBe(true);
         expect(s.phase2?.closed).toBe(true);
+        expect(codeOf(() => openWindow(s, OPENED))).toBe("ENDED");
+        expect(codeOf(() => judgeCard(s, "p0", true))).toBe("ENDED");
     });
 });

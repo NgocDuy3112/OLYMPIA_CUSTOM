@@ -41,10 +41,9 @@ export type LiveAction =
     | { kind: "khoi-dong.recordOral"; correct: boolean; spentS: number }
     | { kind: "khoi-dong.timeOutRun" }
     | { kind: "khoi-dong.beginPhase2" }
-    | { kind: "khoi-dong.openBuzz" }
-    | { kind: "khoi-dong.judgeBuzz"; correct: boolean }
+    | { kind: "khoi-dong.startWindow" }
+    | { kind: "khoi-dong.judge"; playerId: string; correct: boolean }
     | { kind: "khoi-dong.nextQuestion" }
-    | { kind: "khoi-dong.closePhase2" }
     | { kind: "khoi-dong.endRound" }
     // ── ve-dich ────────────────────────────────────────────────────────────────
     | { kind: "ve-dich.start"; phase?: 1 | 2 }

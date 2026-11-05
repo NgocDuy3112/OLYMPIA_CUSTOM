@@ -19,7 +19,7 @@ import {
     type KhoiDongState
 } from "../../game/engine/turns/khoi-dong-round.js";
 import { isBuzzOpen, mayBuzz, type VeDichState } from "../../game/engine/turns/ve-dich.js";
-import { isPhase2WindowOpen, mayBuzzPhase2 } from "../../game/engine/turns/khoi-dong.js";
+import { isPhase2WindowOpen, phase2QuestionId } from "../../game/engine/turns/khoi-dong.js";
 import { sanitizeQuestion, type SanitizedQuestion } from "../../lib/question-view.js";
 import type { MatchQuestion } from "../../game/contracts/index.js";
 
@@ -258,19 +258,21 @@ function khoiDongView(input: ViewInput, state: KhoiDongState): PlayerView {
         };
     }
 
-    // ── phase 2: the buzz race ──────────────────────────────────────────────
+    // ── phase 2: the timed batch ─────────────────────────────────────────────
     const p2 = state.phase2;
-    const current = p2?.current ?? null;
+    const questionId = p2 === null ? null : phase2QuestionId(p2);
     const windowOpen = p2 !== null && isPhase2WindowOpen(p2, input.now);
 
-    const open: PlayerView["open"] = current === null
+    // The question in play is on screen as soon as it IS the question in play
+    // (the field may pre-read it); the DEADLINE only exists while the window
+    // runs — before Bấm giờ `deadlineAt` is null, so the countdown is empty and
+    // the answer field stays locked.
+    const open: PlayerView["open"] = questionId === null || p2 === null
         ? []
         : [{
-              questionId: current.questionId,
-              deadlineAt: current.openedAt === null || p2 === null
-                  ? null
-                  : plusSeconds(current.openedAt, p2.buzzWindowS),
-              question: questionOf(input, current.questionId)
+              questionId,
+              deadlineAt: p2.openedAt === null ? null : plusSeconds(p2.openedAt, p2.windowS),
+              question: questionOf(input, questionId)
           }];
 
     return {
@@ -283,14 +285,13 @@ function khoiDongView(input: ViewInput, state: KhoiDongState): PlayerView {
         table: rankTable(input.table),
         me: {
             points: khoiDongPoints(state, input.userId),
-            // The buzz is the phase's only action: offered only while a window is
-            // open, only to players the engine would actually admit.
-            canBuzz: p2 !== null && windowOpen && mayBuzzPhase2(p2, input.userId),
-            buzzer: current?.buzzer ?? null,
-            buzzerMs: current?.buzzerMs ?? null,
-            isAnswerer: current?.buzzer === input.userId,
-            lockedOut: current?.excluded.includes(input.userId) ?? false,
-            attempt: current?.attempt ?? null,
+            answerState: questionId === null ? "none" : stateOf(input.submitted, questionId),
+            // Is THIS player's field open right now — the window runs (a judged
+            // or drafted row shows its state instead of the input).
+            windowOpen,
+            // the strip: which of the six is in play, and how many there are
+            questionIndex: p2?.index ?? 0,
+            questionCount: p2?.questionIds.length ?? 0,
             verdicts: verdictsOf(input.submitted)
         }
     };

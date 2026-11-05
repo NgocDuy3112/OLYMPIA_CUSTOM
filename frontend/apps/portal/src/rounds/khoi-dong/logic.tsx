@@ -4,10 +4,10 @@ import { KhoiDongRiengAOCController, type KhoiDongRiengCtx } from "./KhoiDongRie
 import { screenCore, type RoundAction, type RoundModule } from "../types"
 import type { KhoiDongConsole } from "@/lib/live"
 
-// Khởi động — the AOC ruleset: phase 1 walks the oral runs one by one, phase 2
-// is the shared typed batch against one deadline. Kết thúc ends the open run
-// (or jumps to phase 2 when the walks are complete), or commits the staged
-// verdicts and closes the batch.
+// Khởi động — the AOC ruleset: phase 1 walks the oral runs one by one; phase 2
+// is the six-question TIMED BATCH — Bấm giờ opens the window, the console marks
+// each card, the next number moves on. Kết thúc ends the open run (or jumps to
+// phase 2 when the walks are complete), or closes the batch.
 
 /** The round's narrow slices — the screens' ctx types, projected from facts. */
 function riengCtx(f: ConsoleFacts): KhoiDongRiengCtx {
@@ -18,7 +18,9 @@ function chungCtx(f: ConsoleFacts): KhoiDongChungCtx {
     return {
         ...screenCore(f),
         remaining: f.remaining,
-        consoleKhoiDong: (f.v.console ?? null) as KhoiDongConsole | null
+        consoleKhoiDong: (f.v.console ?? null) as KhoiDongConsole | null,
+        target: f.target,
+        setSelectedPlayer: f.setSelectedPlayer
     }
 }
 
@@ -32,7 +34,7 @@ export const khoiDongAOC: RoundModule = {
         if (input.stage === "phase1") {
             return [{ kind: input.hasOralRun ? "khoi-dong.timeOutRun" : "khoi-dong.beginPhase2" }]
         }
-        // phase 2 is the buzz race: the only way to end it is to end the round.
+        // phase 2 is the batch: the strip walks its six, then the round ends.
         return [{ kind: "khoi-dong.endRound" }]
     },
 }

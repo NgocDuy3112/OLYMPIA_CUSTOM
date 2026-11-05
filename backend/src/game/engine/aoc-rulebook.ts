@@ -25,7 +25,8 @@ export const AOC_ROUNDS: TournamentRound[] = [
 ];
 
 const RULES: Record<string, RoundConfig> = {
-    // Two phases: six oral runs on a 45 s budget, then the twelve-question buzz race.
+    // Two phases: six oral runs on a 45 s budget, then the six-question timed
+    // batch — everyone types into one 10 s window the console opens.
     "khoi-dong": {
         allowedKinds: ["TEXT"],
         scoring: { template: "constant", points: 10 },
@@ -39,10 +40,10 @@ const RULES: Record<string, RoundConfig> = {
             },
             {
                 id: "phase2",
-                mode: "oral",
-                delivery: "sequential",
-                questionCount: 12,
-                buzzWindowSeconds: 5
+                mode: "text",
+                delivery: "batch",
+                questionCount: 6,
+                timeLimitSeconds: 10
             }
         ]
     },

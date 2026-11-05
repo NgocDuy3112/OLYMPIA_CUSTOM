@@ -3,21 +3,20 @@ import {
     activePlayerId,
     activeQuestionId,
     beginPhase2,
-    openBuzz,
-    nextQuestion,
-    closeBuzzPhase,
     endKhoiDong,
-    judgeBuzz,
+    judgeCard,
+    nextQuestion,
+    openWindow,
+    phase2QuestionId,
     recordOral,
     startKhoiDong,
     timeOutRun
 } from "../../game/engine/turns/khoi-dong-round.js";
-import { khoiDongPoints } from "../../game/engine/scoring/khoi-dong.js";
-import { KHOI_DONG_DEFAULTS, type KhoiDongRules } from "../../game/engine/rules.js";
+import type { KhoiDongRules } from "../../game/engine/rules.js";
 import { fail } from "../../game/engine/turns/errors.js";
 import type { KhoiDongAction } from "./actions.js";
 import type { LiveFact } from "./facts.js";
-import type { Transition } from "./apply.js";
+import type { AnswerDraft, Transition } from "./apply.js";
 
 export interface KhoiDongContext {
     actorId: string;
@@ -28,6 +27,12 @@ export interface KhoiDongContext {
     playerIds: string[];          // the match's competitors, resolved server-side
     phase1QuestionIds: string[];  // 6 oral questions
     phase2QuestionIds: string[];  // 6 typed questions
+    /**
+     * The question in play's draft rows, read inside the transaction — the
+     * judge's NO_ANSWER check and the advance's UNJUDGED_ANSWERS guard both
+     * need what the ledger holds right now, not what it held a moment ago.
+     */
+    answerDrafts: AnswerDraft[];
 }
 
 export function applyKhoiDongAction(
@@ -78,40 +83,43 @@ export function applyKhoiDongAction(
         case "khoi-dong.beginPhase2":
             return { state: beginPhase2(state, ctx.phase2QuestionIds), facts: [] };
 
-        case "khoi-dong.openBuzz":
-            return { state: openBuzz(state, ctx.now), facts: [] };
+        // Bấm giờ: from this click the field has `windowS` seconds to type.
+        case "khoi-dong.startWindow":
+            return { state: openWindow(state, ctx.now), facts: [] };
 
-        case "khoi-dong.judgeBuzz": {
-            // The verdict belongs to the FASTEST buzzer — read before judging.
-            const current = state.phase2?.current ?? null;
-            const buzzer = current?.buzzer ?? null;
-            const questionId = current?.questionId ?? null;
+        // The console marks ONE card of the question in play — the rail's
+        // selected player, Đúng or Sai. Re-marking is a correction: the engine
+        // replaces this card's points instead of adding to them.
+        case "khoi-dong.judge": {
+            const questionId = state.phase2 === null ? null : phase2QuestionId(state.phase2);
+            if (questionId === null) fail("PHASE_ENDED", "chung is over");
 
-            const next = judgeBuzz(state, action.correct);
-
-            const facts: LiveFact[] = [];
-            if (buzzer !== null && questionId !== null) {
-                const points = state.phase2?.awards[buzzer] ?? 0;
-                const after = next.phase2?.awards[buzzer] ?? 0;
-                const awarded = after - points;            // 10, 5 or 0
-                facts.push({
-                    type: "answer",
-                    questionId,
-                    userId: buzzer,
-                    value: { oral: true },                 // it was answered out loud
-                    verdict: action.correct ? "CORRECT" : "INCORRECT",
-                    pointsAwarded: awarded,
-                    autoMatched: false                     // the console judged it
-                });
+            const draft = ctx.answerDrafts.find((d) => d.userId === action.playerId);
+            if (!draft) {
+                fail("NO_ANSWER", `no submitted answer from ${action.playerId} to judge`);
             }
+
+            const next = judgeCard(state, action.playerId, action.correct);
+            const facts: LiveFact[] = [{
+                type: "judge",
+                questionId,
+                userId: action.playerId,
+                verdict: action.correct ? "CORRECT" : "INCORRECT",
+                pointsAwarded: next.phase2?.results[questionId]?.[action.playerId] ?? 0
+            }];
             return { state: next, facts };
         }
 
-        case "khoi-dong.nextQuestion":
+        // The next number on the progress strip. Every submitted card on the
+        // question in play must carry a verdict first — the console marks them
+        // one by one, THEN moves the cursor.
+        case "khoi-dong.nextQuestion": {
+            const questionId = state.phase2 === null ? null : phase2QuestionId(state.phase2);
+            if (questionId !== null && ctx.answerDrafts.some((d) => !d.judged)) {
+                fail("UNJUDGED_ANSWERS", "judge every submitted answer before moving to the next question");
+            }
             return { state: nextQuestion(state), facts: [] };
-
-        case "khoi-dong.closePhase2":
-            return { state: closeBuzzPhase(state), facts: [] };
+        }
 
         case "khoi-dong.endRound":
             return { state: endKhoiDong(state), facts: [] };

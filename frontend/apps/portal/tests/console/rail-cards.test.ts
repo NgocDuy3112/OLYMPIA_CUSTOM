@@ -162,15 +162,15 @@ describe("railCardsOf — the live answerer wears the purple card", () => {
         expect(cards.find((c) => c.id === "u1")?.buzzing).toBeUndefined()
     })
 
-    it("marks khoi-dong's race winner", () => {
-        const khoiDong = { buzzerId: "u1" } as unknown as KhoiDongConsole
+    it("marks nobody on khởi động — the batch has no single answerer", () => {
+        const khoiDong = { questionIndex: 0, questionCount: 6, windowOpen: true } as KhoiDongConsole
         const cards = railCardsOf(input({ roundId: "khoi-dong", khoiDong }))
-        expect(cards.find((c) => c.id === "u1")?.buzzing).toBe(true)
+        expect(cards.every((c) => c.buzzing === undefined)).toBe(true)
     })
 
     it("marks nobody on a round whose buzz belongs to another mechanic", () => {
         // but-pha never wears the purple card, even with a stale buzzer in hand
-        const khoiDong = { buzzerId: "u1" } as unknown as KhoiDongConsole
+        const khoiDong = { questionIndex: 0, questionCount: 6, windowOpen: true } as KhoiDongConsole
         const cards = railCardsOf(input({ roundId: "but-pha", khoiDong }))
         expect(cards.every((c) => c.buzzing === undefined)).toBe(true)
     })

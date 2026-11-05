@@ -126,52 +126,73 @@ describe("KhoiDongRieng — S1, the oral run", () => {
     })
 })
 
-describe("KhoiDongChung — S2, the buzz race", () => {
+describe("KhoiDongChung — S2, the timed batch", () => {
     const BUTTON = { selector: "button" } as const
-    const raced = (over: Record<string, unknown> = {}) => ({
+    const q1 = { questionId: "q1", deadlineAt: null, question: null }
+    const batch = (over: Record<string, unknown> = {}) => ({
         stage: "phase2",
         ended: false,
         phase2Begun: true,
         phase2Closed: false,
         questionIndex: 0,
-        questionCount: 12,
-        attempt: 1,
+        questionCount: 6,
         windowOpen: false,
-        buzzerId: null,
-        buzzerMs: null,
-        lockedOut: [],
         ...over,
     })
 
-    it("opens the window, and only when none is running", async () => {
+    it("Bấm giờ opens the window — and is inert while one runs", async () => {
         const user = userEvent.setup()
-        const f = renderRound("khoi-dong", { stage: "phase2" }, {}, raced())
+        const mod = roundModuleOf("khoi-dong")!
+        const f = facts({ stage: "phase2" }, { open: [q1] }, batch())
+        const { rerender } = render(mod.render(f))
 
-        await user.click(screen.getByText("Mở chuông", BUTTON))
-        expect(f.send).toHaveBeenCalledWith({ kind: "khoi-dong.openBuzz" })
+        await user.click(screen.getByText("Bấm giờ", BUTTON))
+        expect(f.send).toHaveBeenCalledWith({ kind: "khoi-dong.startWindow" })
+
+        // a window is already running → nothing to open (the engine would
+        // refuse a second press anyway; the button says so by being inert)
+        rerender(mod.render(facts(
+            { stage: "phase2" },
+            { open: [{ ...q1, deadlineAt: "2026-01-01T00:00:10.000Z" }] },
+            batch({ windowOpen: true }),
+        )))
+        expect(screen.queryByText("Bấm giờ", BUTTON)).toBeNull()
     })
 
-    it("judges the FASTEST buzzer — Đúng carries the chance's worth", async () => {
+    it("marks the SELECTED card: Đúng/Sai send that player with the verdict", async () => {
         const user = userEvent.setup()
-        const f = renderRound("khoi-dong", { stage: "phase2" }, {}, raced({ windowOpen: true, buzzerId: "u1" }))
+        const f = renderRound("khoi-dong", { stage: "phase2", target: "u2" }, { open: [q1] }, batch({ windowOpen: true }))
 
-        await user.click(screen.getByText("Đúng ×10", BUTTON))
-        expect(f.send).toHaveBeenCalledWith({ kind: "khoi-dong.judgeBuzz", correct: true })
+        await user.click(screen.getByText("Đúng", BUTTON))
+        expect(f.send).toHaveBeenCalledWith({ kind: "khoi-dong.judge", playerId: "u2", correct: true })
 
         await user.click(screen.getByText("Sai", BUTTON))
-        expect(f.send).toHaveBeenCalledWith({ kind: "khoi-dong.judgeBuzz", correct: false })
+        expect(f.send).toHaveBeenCalledWith({ kind: "khoi-dong.judge", playerId: "u2", correct: false })
     })
 
-    it("the re-buzz pays 5, and the label says so", () => {
-        renderRound("khoi-dong", { stage: "phase2" }, {}, raced({ attempt: 2, windowOpen: true, buzzerId: "u2" }))
-        expect(screen.getByText("Đúng ×5", BUTTON)).toBeInTheDocument()
+    it("has no chance labels left: one correct answer simply pays ten", () => {
+        renderRound("khoi-dong", { stage: "phase2", target: "u1" }, { open: [q1] }, batch({ windowOpen: true }))
+        expect(screen.getByText("Đúng", BUTTON)).toBeInTheDocument()
+        expect(screen.queryByText(/×10/)).toBeNull()
+        expect(screen.queryByText(/×5/)).toBeNull()
     })
 
-    it("nobody buzzed: Câu tiếp moves on, and there is nothing to judge", () => {
-        renderRound("khoi-dong", { stage: "phase2" }, {}, raced({ windowOpen: true }))
-        expect(screen.getByText("Câu tiếp", BUTTON)).toBeInTheDocument()
-        expect(screen.queryByText("Đúng ×10", BUTTON)).toBeNull()
+    it("nothing to mark without a target — the buttons stay inert", () => {
+        renderRound("khoi-dong", { stage: "phase2", target: null }, { open: [q1] }, batch({ windowOpen: true }))
+        expect(screen.queryByText("Đúng", BUTTON)).toBeNull()
         expect(screen.queryByText("Sai", BUTTON)).toBeNull()
+    })
+
+    it("the NEXT number on the strip is the advance", async () => {
+        const user = userEvent.setup()
+        const f = renderRound("khoi-dong", { stage: "phase2" }, { open: [q1] }, batch({ questionIndex: 1 }))
+
+        // the strip runs 1..6; on question 2 (index 1) only 3 moves it on
+        await user.click(screen.getByRole("button", { name: "3" }))
+        expect(f.send).toHaveBeenCalledWith({ kind: "khoi-dong.nextQuestion" })
+
+        await user.click(screen.getByRole("button", { name: "1" }))
+        expect(f.send).toHaveBeenCalledTimes(1)
     })
 })
 
