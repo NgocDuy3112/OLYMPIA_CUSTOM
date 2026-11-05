@@ -685,6 +685,7 @@ describe("powers — staged on the pick board BEFORE the question opens", () => 
         const { state, a } = riengStaged();
         const moved = advanceTurn(declarePower(state, a, "STAR"));
         expect(moved.stagedPower ?? null).toBeNull();
+        expect(moved.turnPowerUsed).toBe(false);           // never spent → no cap
         expect(moved.players.find((p) => p.id === a)!.powersLeft).toEqual(["STAR", "ASSIGN"]);
     });
 
@@ -695,5 +696,33 @@ describe("powers — staged on the pick board BEFORE the question opens", () => 
             players: state.players.map((p) => p.id === a ? { ...p, powersLeft: ["ASSIGN" as const] } : p)
         };
         expect(codeOf(() => declarePower(spent, a, "STAR"))).toBe("POWER_UNAVAILABLE");
+    });
+
+    it("ONE power per turn: a spent power caps the rest of the turn", () => {
+        const { state, a, b } = riengStaged();
+        let s = openPhase2Question(declarePower(state, a, "STAR"), "40-1", NOW);
+        s = resolveQuestion(closeCurrentAnswer(s, NOW), { answerer: true });
+
+        // the turn still has picks left — but the cap holds…
+        expect(s.pendingPicks.length).toBeGreaterThan(0);
+        expect(codeOf(() => declarePower(s, a, "ASSIGN", { targetId: b }))).toBe("ONE_POWER_PER_TURN");
+        // …the explicit none stays a legal no-op, and the held ASSIGN is still theirs
+        expect(codeOf(() => declarePower(s, a, null))).toBe("NO_ERROR");
+        expect(s.players.find((p) => p.id === a)!.powersLeft).toEqual(["ASSIGN"]);
+    });
+
+    it("the cap belongs to the TURN: advanceTurn lifts it — the held power survives", () => {
+        const { state, a } = riengStaged();
+        let s = openPhase2Question(declarePower(state, a, "STAR"), "40-1", NOW);
+        s = resolveQuestion(closeCurrentAnswer(s, NOW), { answerer: true });
+        s = advanceTurn(s);
+        expect(s.turnPowerUsed).toBe(false);
+        expect(s.stagedPower ?? null).toBeNull();
+
+        // the next player picks their three and may spend THEIR power
+        const next = s.players[s.turnIndex].id;
+        s = pickPhase2(s, next, s.remaining.slice(0, 3).map((q) => q.id));
+        const partner = s.players.find((p) => p.id !== next)!.id;
+        expect(codeOf(() => declarePower(s, next, "ASSIGN", { targetId: partner }))).toBe("NO_ERROR");
     });
 });

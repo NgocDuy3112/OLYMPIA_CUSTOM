@@ -339,7 +339,10 @@ function consoleFacts(roundId: string, raw: unknown): Record<string, unknown> | 
             // The pick board's staged power decision — which of the three
             // (Ngôi sao hy vọng / Chỉ định đối kháng / Không dùng) is chosen
             // for this turn, before the question opens.
-            stagedPower: state.stagedPower ?? null
+            stagedPower: state.stagedPower ?? null,
+            // The one-power-per-turn cap: the row goes inert once this turn
+            // spent one (the player's other power waits for their next turn).
+            turnPowerUsed: state.turnPowerUsed ?? false
         };
     }
     if (roundId === "khoi-dong") {

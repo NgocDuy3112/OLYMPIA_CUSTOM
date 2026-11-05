@@ -178,6 +178,9 @@ export const VeDichStateSchema = Type.Object({
         }),
         Type.Null()
     ])),
+    // One power SPENT per turn — the show's cap; cleared at advanceTurn.
+    // Optional: states written before it existed carry none.
+    turnPowerUsed: Type.Optional(Type.Boolean()),
     // The console's Hiện đáp án — display-only; optional on archived states.
     revealedAnswer: Type.Optional(Type.Union([Type.String(), Type.Null()]))
 });

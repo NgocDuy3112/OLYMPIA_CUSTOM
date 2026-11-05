@@ -83,7 +83,10 @@ function VeDichPickBoard({ ctx }: { ctx: VeDichPickCtx }) {
     // Three slots — Ngôi sao hy vọng / Chỉ định đối kháng / Không dùng quyền
     // năng. The choice STAGES (nothing spent); the open spends and applies it.
     const staged = consoleVeDich?.stagedPower ?? null
-    const canStage = phase2 && turnPlayer !== null && pendingCount > 0
+    const usedThisTurn = consoleVeDich?.turnPowerUsed === true
+    // One power per turn: after the turn spent one, the row goes inert — the
+    // player's other power waits for their next turn.
+    const canStage = phase2 && turnPlayer !== null && pendingCount > 0 && !usedThisTurn
     const stage = (power: "STAR" | "ASSIGN" | null) => {
         if (!turnPlayer) return
         ctx.send({
@@ -107,9 +110,11 @@ function VeDichPickBoard({ ctx }: { ctx: VeDichPickCtx }) {
                     label: "Quyền năng",
                     content: staged
                         ? `Đã chọn: ${staged.power === "STAR" ? COPY.powerStar : COPY.powerAssign}`
-                        : "chưa chọn",
+                        : usedThisTurn
+                            ? "đã dùng lượt này"
+                            : "chưa chọn",
                     muted: true,
-                    empty: !canStage,
+                    empty: !canStage && !usedThisTurn,
                 },
                 {
                     label: COPY.powerStar,

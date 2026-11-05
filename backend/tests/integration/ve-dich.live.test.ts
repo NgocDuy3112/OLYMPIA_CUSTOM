@@ -274,20 +274,46 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
         expect(await score(playerIds[1])).toBe(-75);       // -35 - 40
     });
 
-    it("ASSIGN hands the question to a partner, and the pair duel for it", async () => {
-        // Staged on the pick board by the CONSOLE — players cannot declare.
-        // The question then opens STRAIGHT into the race (nobody answers first).
-        const assigned = await act({
+    it("one power per turn: the turn already spent STAR — a second is refused", async () => {
+        const again = await act({
             kind: "ve-dich.declarePower",
             playerId: playerIds[1],
             power: "ASSIGN",
             targetId: playerIds[0]
         });
-        expect(assigned.statusCode).toBe(200);
-        expect((await act({ kind: "ve-dich.openQuestion", questionId: qid.get("40-3") })).statusCode).toBe(200);
+        expect(again.statusCode).toBe(409);
+        expect(again.json().error).toBe("ONE_POWER_PER_TURN");
+    });
 
-        // Only the two halves may buzz; the partner takes it.
-        const buzzed = await command(playerCookies[0], { type: "buzz", questionId: qid.get("40-3") });
+    it("the turn ends: the cap lifts with it, and the next player picks", async () => {
+        const advanced = await act({ kind: "ve-dich.advanceTurn" });
+        expect(advanced.statusCode).toBe(200);
+        expect(advanced.json().state.turnPowerUsed).toBe(false);
+
+        const picked = await act({
+            kind: "ve-dich.pickBatch",
+            playerId: playerIds[0],
+            questionIds: [qid.get("40-4"), qid.get("20-1"), qid.get("20-2")]
+        });
+        expect(picked.statusCode).toBe(200);
+        expect(picked.json().state.pendingPicks).toHaveLength(3);
+    });
+
+    it("ASSIGN hands the question to a partner, and the pair duel for it", async () => {
+        // The NEW turn player (0) stages on the pick board — the console's row,
+        // before the open; the question then opens STRAIGHT into the race.
+        const assigned = await act({
+            kind: "ve-dich.declarePower",
+            playerId: playerIds[0],
+            power: "ASSIGN",
+            targetId: playerIds[1]
+        });
+        expect(assigned.statusCode).toBe(200);
+        expect((await act({ kind: "ve-dich.openQuestion", questionId: qid.get("40-4") })).statusCode).toBe(200);
+
+        // Only the two halves may buzz; the ASSIGNER takes it — A buzzes and
+        // is right: A +100%, B −50%.
+        const buzzed = await command(playerCookies[0], { type: "buzz", questionId: qid.get("40-4") });
         expect(buzzed.statusCode).toBe(200);
 
         const resolved = await act({ kind: "ve-dich.resolve", answerer: false, buzzer: true });
@@ -299,13 +325,15 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
         const powers = (await db.select().from(matchEvents)
             .where(and(eq(matchEvents.matchId, matchId), eq(matchEvents.kind, "POWER"))))
             .map((row) => row.payload as { power: string; targetId?: string });
-        expect(powers).toContainEqual({ kind: "POWER", power: "ASSIGN", targetId: playerIds[0] });
+        expect(powers).toContainEqual({ kind: "POWER", power: "ASSIGN", targetId: playerIds[1] });
     });
 
-    it("both powers are spent once used — the state says so", async () => {
+    it("one power per turn: each player spent exactly one — the other is theirs", async () => {
         const state = (await live()).state;
-        const mine = state.players.find((p: { id: string }) => p.id === playerIds[1]);
-        expect(mine.powersLeft).toEqual([]);
+        const p0 = state.players.find((p: { id: string }) => p.id === playerIds[0]);
+        const p1 = state.players.find((p: { id: string }) => p.id === playerIds[1]);
+        expect(p0.powersLeft).toEqual(["STAR"]);         // ASSIGN spent on its turn — STAR still theirs
+        expect(p1.powersLeft).toEqual(["ASSIGN"]);        // STAR spent — ASSIGN waits for p1's next turn
     });
 });
 

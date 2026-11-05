@@ -77,6 +77,8 @@ export interface VeDichConsole {
      *  Ngôi sao hy vọng / Chỉ định đối kháng / Không dùng quyền năng — the
      *  console chose for this turn, before the question opens. */
     stagedPower: { power: "STAR" | "ASSIGN"; targetId?: string } | null
+    /** One power per turn: true once this turn spent one — the row is inert. */
+    turnPowerUsed: boolean
 }
 export interface KhoiDongConsole {
     stage: "phase1" | "phase2"

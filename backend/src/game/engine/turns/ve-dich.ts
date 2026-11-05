@@ -77,6 +77,12 @@ export interface VeDichState {
      */
     stagedPower?: StagedPower | null;
     /**
+     * At most ONE power may be SPENT per turn (the show's cap): set when a
+     * question opens with a staged power, cleared when the turn advances. The
+     * player's other power stays theirs for a later turn. Optional.
+     */
+    turnPowerUsed?: boolean;
+    /**
      * The operator ended the race: the clock stops and EVERY buzz is locked out
      * from here on, whatever the time limit says. Optional — states written
      * before the lock existed carry none.
@@ -120,6 +126,7 @@ export type VeDichError =
     | { code: "NOT_YOUR_TURN"; message: string }
     | { code: "INVALID_QUESTION"; message: string }
     | { code: "POWER_UNAVAILABLE"; message: string }
+    | { code: "ONE_POWER_PER_TURN"; message: string }
     | { code: "ALREADY_OPEN"; message: string }
     | { code: "NOTHING_OPEN"; message: string }
     | { code: "WINDOW_CLOSED"; message: string }
@@ -312,6 +319,12 @@ export function declarePower(
     }
     if (power === null) return { ...state, stagedPower: null };
 
+    // One power per turn: this turn already spent one — the player's OTHER
+    // power stays theirs for a later turn.
+    if (state.turnPowerUsed === true) {
+        fail("ONE_POWER_PER_TURN", "only one power may be used per turn");
+    }
+
     const player = state.players.find((p) => p.id === playerId)!;
     if (!player.powersLeft.includes(power)) {
         fail("POWER_UNAVAILABLE", `${power} already spent`);
@@ -356,6 +369,8 @@ export function openPhase2Question(state: VeDichState, questionId: string, nowIs
         ...state,
         players,
         stagedPower: null,
+        // One power per turn: spending one here caps the rest of this turn.
+        turnPowerUsed: staged !== null || state.turnPowerUsed === true,
         pendingPicks: state.pendingPicks.filter((q) => q.id !== questionId),
         open: {
             question,
@@ -537,8 +552,9 @@ function applyDeltas(state: VeDichState, deltas: Array<[string, number]>): VeDic
 export function advanceTurn(state: VeDichState): VeDichState {
     if (state.open) fail("ALREADY_OPEN", "finish the open question first");
     const next = state.turnIndex + 1;
-    // A new turn = a new decision: any staged power dies unspent here.
-    return { ...state, turnIndex: next, pendingPicks: [], stagedPower: null };
+    // A new turn = a new decision: any staged power dies unspent here, and the
+    // one-power-per-turn cap lifts with the turn it belonged to.
+    return { ...state, turnIndex: next, pendingPicks: [], stagedPower: null, turnPowerUsed: false };
 }
 
 export { veDichPoints };

@@ -95,6 +95,7 @@ const veDichMc = (over: Partial<VeDichConsole> = {}): VeDichConsole => ({
     power: null,
     pendingQuestionId: null,
     stagedPower: null,
+    turnPowerUsed: false,
     ...over,
 })
 
@@ -392,6 +393,19 @@ describe("VeDichRieng — the powers and the duel", () => {
         )
         expect(screen.queryByText("Ngôi sao hy vọng", BUTTON)).toBeNull()
         expect(screen.queryByText("Không dùng quyền năng", BUTTON)).toBeNull()
+    })
+
+    it("one power per turn: the row goes inert once the turn spent one", () => {
+        renderRound(
+            "ve-dich", {}, pickBoard,
+            veDichMc({ phase: 2, turnPlayerId: "u1", pendingQuestionId: "a", turnPowerUsed: true }),
+            [stagedQuestion],
+        )
+        expect(screen.queryByRole("button", { name: "Ngôi sao hy vọng" })).toBeNull()
+        expect(screen.queryByRole("button", { name: "Chỉ định đối kháng" })).toBeNull()
+        expect(screen.queryByRole("button", { name: "Không dùng quyền năng" })).toBeNull()
+        // …and the chip says why: the turn is done spending
+        expect(screen.getByText("đã dùng lượt này")).toBeInTheDocument()
     })
 
     it("during a duel the buzz slot is inert — an ASSIGN question has nothing to close", () => {
