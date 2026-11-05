@@ -1,7 +1,7 @@
 # Player accounts — how a player gets in
 
 **Status: all eight steps are DONE.** 1 = `b093114`, 2–6 = `8729b9e`,
-7 = `22abc99`, 8 = the build at the bottom of this file.
+7 = `22abc99`, 8 = `b9434e8` — the build at the bottom of this file.
 
 **Step 8 reverses the shape steps 1–7 were built on** (decided 04/11, after the
 room-code work landed): the **DESK creates the account** — handle derived from
