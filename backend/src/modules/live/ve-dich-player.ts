@@ -1,7 +1,7 @@
-// A player's ve-dich commands: declare a power, or buzz. The PICK is the
-// console's (see actions.ts) — a player's board only watches. All of these
-// change round state, so they run through mutateLive. The playerId always comes
-// from the session, never from the message.
+// A player's ve-dich command: BUZZ only. Picking and powers are the console's
+// (the desk picks for the turn player and stages powers before the question
+// opens). This changes round state, so it runs through mutateLive. The
+// playerId always comes from the session, never from the message.
 import type { VeDichAction } from "./actions.js";
 import { mutateLive, type Transition } from "./apply.js";
 import { pgLiveStore } from "./store.js";
@@ -12,7 +12,6 @@ import { loadContext, SubmitError, type SubmitContext } from "./submit.js";
 import { publish } from "./hub.js";
 
 export type VeDichCommand =
-    | { type: "power"; power: "STAR" | "ASSIGN"; targetId?: string }
     | { type: "buzz"; questionId: string };
 
 export interface VeDichCommandResult {
@@ -63,8 +62,6 @@ export async function submitVeDichCommand(
 
 function toAction(command: VeDichCommand, playerId: string): VeDichAction {
     switch (command.type) {
-        case "power":
-            return { kind: "ve-dich.declarePower", playerId, power: command.power, targetId: command.targetId };
         case "buzz":
             return { kind: "ve-dich.buzz", playerId };
     }

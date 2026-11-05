@@ -3,11 +3,10 @@
 // a local draft scoped to the subject it was typed for, so a new question reads
 // as empty without an effect clearing it.
 import { useState } from "react"
-import { Shield, Zap } from "lucide-react"
 import { STRIP_R, pt } from "./geometry"
 import { COPY } from "./copy"
 import { VerdictIcon } from "./primitives"
-import type { AnswerValue, PlayerQuestion, VeDichCommand } from "./types"
+import type { AnswerValue, PlayerQuestion } from "./types"
 
 const INPUT =
     "h-[3.3cqw] min-w-0 flex-1 rounded-lg border border-input bg-background px-[0.9cqw] font-sans text-foreground outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
@@ -159,67 +158,5 @@ export function KeywordBox({ busy, onSubmit }: { busy: boolean; onSubmit: (text:
                 {busy ? "…" : COPY.submit}
             </button>
         </div>
-    )
-}
-
-// ── vé-đích powers ──────────────────────────────────────────────────────────
-
-const POWER_BTN =
-    "flex h-[3.3cqw] items-center gap-[0.5cqw] rounded-lg px-[1.2cqw] font-sans text-sm font-semibold transition disabled:opacity-50"
-
-const STAR_BTN = "border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
-const ASSIGN_BTN = "border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-
-/** The powers a round can offer — the round itself decides which are in play. */
-type PowerName = "STAR" | "ASSIGN"
-
-/**
- * The declarations — public and one-shot, so they sit FIRST in the band, before
- * any answer control.
- *
- *   STAR   — one press: it fixes the outcome of YOUR OWN answer.
- *   ASSIGN — a target, so it is a two-step press: pick the player to hand the
- *            question to. Riêng only; the caller leaves it out of `powers`.
- */
-export function PowerButtons({ busy, powers, targets, onDeclare }: {
-    busy: boolean
-    /** What this player still holds, in this phase. */
-    powers: PowerName[]
-    /** The other players — ASSIGN's possible partners. */
-    targets: Array<{ id: string; name: string }>
-    onDeclare: (command: VeDichCommand) => void
-}) {
-    const star = powers.includes("STAR")
-    const assign = powers.includes("ASSIGN")
-    const style = { borderRadius: STRIP_R }
-
-    return (
-        <>
-            {star && (
-                <button
-                    type="button"
-                    onClick={() => onDeclare({ type: "power", power: "STAR" })}
-                    disabled={busy}
-                    className={`${POWER_BTN} ${STAR_BTN}`}
-                    style={style}
-                    title={COPY.powerStar}
-                >
-                    <Zap className="size-3.5" aria-hidden /> {COPY.powerStar}
-                </button>
-            )}
-            {assign && targets.map((target) => (
-                <button
-                    key={target.id}
-                    type="button"
-                    onClick={() => onDeclare({ type: "power", power: "ASSIGN", targetId: target.id })}
-                    disabled={busy}
-                    className={`${POWER_BTN} ${ASSIGN_BTN}`}
-                    style={style}
-                    title={`${COPY.powerAssign} → ${target.name}`}
-                >
-                    <Shield className="size-3.5" aria-hidden /> {COPY.powerAssign} {target.name}
-                </button>
-            ))}
-        </>
     )
 }

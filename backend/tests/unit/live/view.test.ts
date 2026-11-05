@@ -229,15 +229,19 @@ describe("player view — ve-dich", () => {
 
     const phase1 = () => createVeDich(POOL, [P("p0"), P("p1")]);
 
-    function phase2Open() {
+    function phase2Picked() {
         let s = phase1();
         s = advanceTurn(advanceTurn(s));
         s = beginVeDichPhase2(s);
         const current = s.players[0].id;
         const ids = s.remaining.slice(0, 3).map((q) => q.id);
         s = pickPhase2(s, current, ids);
-        s = openPhase2Question(s, ids[0]);
-        return { state: s, current, questionId: ids[0] };
+        return { picked: s, current, questionId: ids[0] };
+    }
+
+    function phase2Open() {
+        const { picked, current, questionId } = phase2Picked();
+        return { state: openPhase2Question(picked, questionId), current, questionId };
     }
 
     it("phase 1 offers nothing to type; it says whose turn it is to pick", () => {
@@ -255,7 +259,7 @@ describe("player view — ve-dich", () => {
         const view = buildPlayerView(base({ roundId: "ve-dich", state, userId: current }));
         expect(view.stage).toBe("phase2");
         expect(view.open[0].questionId).toBe(questionId);
-        expect(view.me).toMatchObject({ canAnswer: true, canDeclarePower: true, canBuzz: false, isAnswerer: true });
+        expect(view.me).toMatchObject({ canAnswer: true, canBuzz: false, isAnswerer: true });
     });
 
     it("phase 2: others can buzz once the window opens, and see its deadline", () => {
@@ -270,23 +274,26 @@ describe("player view — ve-dich", () => {
     });
 
     it("phase 2: a duel offers the buzz ONLY to the pair — and to the answerer", () => {
-        // ASSIGN on a partner: the race replaces the "current answers first" step,
-        // so the answerer now HAS a buzz and the room does not.
-        const { state } = phase2Open();
-        const answerer = state.open!.answerer;
-        const partner = state.players.find((p) => p.id !== answerer)!.id;
-        const outsider = state.players.filter((p) => p.id !== answerer && p.id !== partner)[0]?.id
+        // ASSIGN staged on the pick board, then the question opens into the
+        // race: the race replaces the "current answers first" step, so the
+        // answerer now HAS a buzz and the room does not.
+        const { picked, current, questionId } = phase2Picked();
+        const answerer = current;
+        const partner = picked.players.find((p) => p.id !== answerer)!.id;
+        const outsider = picked.players.filter((p) => p.id !== answerer && p.id !== partner)[0]?.id
             ?? "outsider";
 
-        const duel = declarePower(state, answerer, "ASSIGN", { targetId: partner, nowIso: NOW });
+        const duel = openPhase2Question(
+            declarePower(picked, answerer, "ASSIGN", { targetId: partner }),
+            questionId,
+            NOW
+        );
         const viewOf = (userId: string) =>
             buildPlayerView(base({ roundId: "ve-dich", state: duel, userId })).me;
 
         expect(viewOf(answerer).canBuzz).toBe(true);
         expect(viewOf(partner).canBuzz).toBe(true);
         expect(viewOf(outsider).canBuzz).toBe(false);
-        // …and nobody may declare a power once the duel has started
-        expect(viewOf(answerer).canDeclarePower).toBe(false);
 
         // Once one of them buzzes, the offer disappears for BOTH: one answerer.
         const won = buzz(duel, partner, at(1));

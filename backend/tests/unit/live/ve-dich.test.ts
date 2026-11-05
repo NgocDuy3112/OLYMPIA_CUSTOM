@@ -112,16 +112,11 @@ describe("ve-dich picks", () => {
 });
 
 describe("ve-dich powers and buzz", () => {
-    it("declaring a power spends it and records a POWER event", () => {
+    it("declaring AFTER the open is refused — the row lives on the pick board", () => {
         const s = phase2Open("p0", "THTH-50");
-        const res = applyVeDichAction(s, {
+        expect(() => applyVeDichAction(s, {
             kind: "ve-dich.declarePower", playerId: "p0", power: "STAR"
-        }, ctx());
-        expect(res.facts[0]).toMatchObject({
-            type: "event", userId: "p0", kind: "POWER", payload: { kind: "POWER", power: "STAR" }
-        });
-        expect(res.state.players.find((p) => p.id === "p0")!.powersLeft).toEqual(["ASSIGN"]);
-        expect(res.state.open?.power).toBe("STAR");
+        }, ctx())).toThrow(VeDichRuleError);
     });
 
     it("a PRE-OPEN choice is staged only — the POWER event lands at the open", () => {

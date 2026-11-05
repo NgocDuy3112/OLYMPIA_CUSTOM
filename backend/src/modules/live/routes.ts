@@ -1048,11 +1048,6 @@ export async function liveRoutes(app: FastifyInstance) {
                                 ...base, questionId: message.data.questionId, value: message.data.value
                             }), message.requestId));
                             break;
-                        case "power":
-                            reply(ackMessage("power", await submitVeDichCommand({
-                                ...base, command: { type: "power", power: message.data.power, targetId: message.data.targetId }
-                            }), message.requestId));
-                            break;
                         case "buzz":
                             reply(ackMessage("buzz", await submitVeDichCommand({
                                 ...base, command: { type: "buzz", questionId: message.data.questionId }
@@ -1189,8 +1184,6 @@ export async function liveRoutes(app: FastifyInstance) {
             const body = request.body as {
                 type: string;
                 questionId?: string;
-                power?: "STAR" | "ASSIGN";
-                targetId?: string;
             };
 
             const base = {
@@ -1200,21 +1193,12 @@ export async function liveRoutes(app: FastifyInstance) {
                 userAgent: request.headers["user-agent"] ?? null
             };
 
-            // The pick is NOT a player command — the console sends ve-dich.pick /
-            // pickBatch through POST /live/actions (the desk picks for the turn
-            // player; a player's board only watches).
+            // A player's ve-dich vocabulary is the BUZZ alone: the pick is the
+            // console's, and powers are staged by the console BEFORE the
+            // question opens (both via POST /live/actions).
             if (body.type === "buzz") {
                 if (!body.questionId) throw app.httpErrors.badRequest("questionId is required");
                 return submitVeDichCommand({ ...base, command: { type: "buzz", questionId: body.questionId } });
-            }
-            if (body.type === "power") {
-                if (body.power !== "STAR" && body.power !== "ASSIGN") {
-                    throw app.httpErrors.badRequest("power must be STAR or ASSIGN");
-                }
-                if (body.power === "ASSIGN" && !body.targetId) {
-                    throw app.httpErrors.badRequest("ASSIGN needs a targetId");
-                }
-                return submitVeDichCommand({ ...base, command: { type: "power", power: body.power, targetId: body.targetId } });
             }
 
             throw app.httpErrors.badRequest("unknown command");

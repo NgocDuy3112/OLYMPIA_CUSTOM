@@ -1,6 +1,6 @@
 import { Hand } from "lucide-react"
 import { formatRemaining } from "@shared/lib/clock"
-import { AnswerBand, PlayerStage, PowerButtons, QuestionFrame, Rail, Timer, VeDichStripCells, type PlayerCore } from "../player-deck"
+import { AnswerBand, PlayerStage, QuestionFrame, Rail, Timer, VeDichStripCells, type PlayerCore } from "../player-deck"
 import { STRIP_R, pt } from "../geometry"
 import { stripCellsOf } from "../ve-dich-board"
 import { formatBuzzMs } from "@shared/lib/clock"
@@ -8,8 +8,9 @@ import { COPY } from "../copy"
 import type { AnswerValue, VeDichCommand } from "../types"
 
 // Về đích — câu hỏi mở, phase 2 (S8): the personal round — everyone sees the
-// question; the answer is oral, the buzz window is the typed part, and powers
-// are declared here. Pure: every value comes from the orchestrator, narrowed.
+// question; the answer is oral, the buzz window is the typed part. Powers are
+// NOT the player's to declare — the console stages them on the pick board
+// before the question opens. Pure: every value comes from the orchestrator.
 type VeDichRiengPlayerCtx = PlayerCore & {
     remaining: number
     answerBusy: boolean
@@ -40,17 +41,6 @@ export function VeDichRiengAOCPlayer({ ctx }: { ctx: VeDichRiengPlayerCtx }) {
             rail={<Rail variant="compact" view={v} myId={myId} currentQid={qid || null} />}
             band={
                 <>
-                    {/* powers first: declaring is public and one-shot */}
-                    {v.me.canDeclarePower && (
-                        <PowerButtons
-                            busy={cmdBusy}
-                            powers={(v.me.powersLeft ?? []).filter((p) => p === "STAR" || p === "ASSIGN")}
-                            targets={v.table
-                                .filter((row) => row.id !== myId)
-                                .map((row) => ({ id: row.id, name: row.displayName }))}
-                            onDeclare={command}
-                        />
-                    )}
                     {v.me.canBuzz && openQ ? (
                         <button
                             type="button"

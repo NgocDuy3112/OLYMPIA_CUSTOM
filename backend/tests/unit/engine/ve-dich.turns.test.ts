@@ -58,6 +58,21 @@ function codeOf(fn: () => unknown): string {
     return "NO_ERROR";
 }
 
+// Powers are staged BEFORE the open (the pick board's row) — the question then
+// opens already powered, exactly as the show runs it.
+const stageOpen = (
+    picked: VeDichState,
+    playerId: string,
+    power: "STAR" | "ASSIGN",
+    targetId?: string,
+    questionId = "THTH-40"
+): VeDichState =>
+    openPhase2Question(
+        declarePower(picked, playerId, power, targetId ? { targetId } : {}),
+        questionId,
+        NOW
+    );
+
 describe("turn order", () => {
     const players = [player("a", 40), player("b", 90), player("c", 10)];
 
@@ -188,25 +203,24 @@ describe("powers — STAR", () => {
         expect(codeOf(() => declarePower(chung, "a", "STAR"))).toBe("WRONG_PHASE_FOR_POWER");
     });
 
-    it("only the player whose question it is may declare — the room cannot", () => {
+    it("only the player whose question it is may stage — the room cannot", () => {
         const { state, a } = riengOpen();
-        const opened = openPhase2Question(state, "THTH-40");
         const other = state.players.find((p) => p.id !== a)!.id;
-        expect(codeOf(() => declarePower(opened, other, "STAR"))).toBe("NOT_YOUR_TURN");
-        expect(codeOf(() => declarePower(opened, other, "ASSIGN", { targetId: a, nowIso: NOW })))
+        expect(codeOf(() => declarePower(state, other, "STAR"))).toBe("NOT_YOUR_TURN");
+        expect(codeOf(() => declarePower(state, other, "ASSIGN", { targetId: a })))
             .toBe("NOT_YOUR_TURN");
     });
 
     it("is declared at open, spent, and cannot be reused", () => {
         const { state, a } = riengOpen();
-        const withStar = declarePower(openPhase2Question(state, "THTH-40"), a, "STAR");
+        const withStar = stageOpen(state, a, "STAR");
         expect(withStar.open?.power).toBe("STAR");
         expect(withStar.players.find((p) => p.id === a)!.powersLeft).toEqual(["ASSIGN"]);
     });
 
     it("STAR on a 40-pt question, correct → +60 (worked example)", () => {
         const { state, a } = riengOpen();
-        let s = declarePower(openPhase2Question(state, "THTH-40"), a, "STAR");
+        let s = stageOpen(state, a, "STAR");
         s = closeCurrentAnswer(s, NOW);
         const after = resolveQuestion(s, { answerer: true });
         expect(after.players.find((p) => p.id === a)!.score).toBe(60);
@@ -215,7 +229,7 @@ describe("powers — STAR", () => {
     it("a declared STAR is spent even when the answer is wrong (−100%)", () => {
         const { state, a } = riengOpen();
         const after = resolveQuestion(
-            closeCurrentAnswer(declarePower(openPhase2Question(state, "THTH-40"), a, "STAR"), NOW),
+            closeCurrentAnswer(stageOpen(state, a, "STAR"), NOW),
             { answerer: false }
         );
         expect(after.players.find((p) => p.id === a)!.score).toBe(-40);
@@ -232,24 +246,30 @@ describe("powers — ASSIGN", () => {
 
     it("is Riêng only — Chung refuses it", () => {
         const chung = pickPhase1(createVeDich(POOL, [player("a", 0), player("b", 0)]), "a", "THTH-30");
-        expect(codeOf(() => declarePower(chung, "a", "ASSIGN", { targetId: "b", nowIso: NOW })))
+        expect(codeOf(() => declarePower(chung, "a", "ASSIGN", { targetId: "b" })))
             .toBe("WRONG_PHASE_FOR_POWER");
     });
 
     it("needs a partner: no target, yourself, or a stranger are all refused", () => {
         const s = twoUp();
         const a = s.players[0].id;
+        expect(codeOf(() => declarePower(s, a, "ASSIGN"))).toBe("INVALID_TARGET");
+        expect(codeOf(() => declarePower(s, a, "ASSIGN", { targetId: a }))).toBe("INVALID_TARGET");
+        expect(codeOf(() => declarePower(s, a, "ASSIGN", { targetId: "stranger" }))).toBe("INVALID_TARGET");
+    });
+
+    it("a question that is ALREADY OPEN is too late — the row is pre-open only", () => {
+        const s = twoUp();
+        const a = s.players[0].id;
         const opened = openPhase2Question(s, "THTH-40");
-        expect(codeOf(() => declarePower(opened, a, "ASSIGN", { nowIso: NOW }))).toBe("INVALID_TARGET");
-        expect(codeOf(() => declarePower(opened, a, "ASSIGN", { targetId: a, nowIso: NOW }))).toBe("INVALID_TARGET");
-        expect(codeOf(() => declarePower(opened, a, "ASSIGN", { targetId: "stranger", nowIso: NOW }))).toBe("INVALID_TARGET");
+        expect(codeOf(() => declarePower(opened, a, "STAR"))).toBe("ALREADY_OPEN");
     });
 
     it("opens the duel immediately: stage buzz, the partner recorded, the clock started", () => {
         const s = twoUp();
         const a = s.players[0].id;
         const b = s.players[1].id;
-        const after = declarePower(openPhase2Question(s, "THTH-40"), a, "ASSIGN", { targetId: b, nowIso: NOW });
+        const after = stageOpen(s, a, "ASSIGN", b);
 
         expect(after.open?.power).toBe("ASSIGN");
         expect(after.open?.assignedTo).toBe(b);
@@ -263,7 +283,7 @@ describe("powers — ASSIGN", () => {
         const a = s.players[0].id;
         const b = s.players[1].id;
         // THTH-40 carries a 30 s limit in the fixture
-        const after = declarePower(openPhase2Question(s, "THTH-40"), a, "ASSIGN", { targetId: b, nowIso: NOW });
+        const after = stageOpen(s, a, "ASSIGN", b);
         expect(buzzWindowSeconds(after)).toBe(30);
         expect(isBuzzOpen(after, at(20))).toBe(true);
         expect(isBuzzOpen(after, at(31))).toBe(false);
@@ -274,7 +294,7 @@ describe("powers — ASSIGN", () => {
         const a = s.players[0].id;
         const b = s.players[1].id;
         const outsider = s.players[2].id;
-        const after = declarePower(openPhase2Question(s, "THTH-40"), a, "ASSIGN", { targetId: b, nowIso: NOW });
+        const after = stageOpen(s, a, "ASSIGN", b);
 
         expect(codeOf(() => buzz(after, outsider, at(1)))).toBe("NOT_YOUR_TURN");
         // the answerer may now buzz — the normal rule does not apply to a duel
@@ -286,7 +306,7 @@ describe("powers — ASSIGN", () => {
         const s = twoUp();
         const a = s.players[0].id;
         const b = s.players[1].id;
-        const racing = declarePower(openPhase2Question(s, "THTH-40"), a, "ASSIGN", { targetId: b, nowIso: NOW });
+        const racing = stageOpen(s, a, "ASSIGN", b);
 
         const afterA = buzz(racing, a, at(1));
         expect(afterA.open?.buzzer).toBe(a);
@@ -302,7 +322,7 @@ describe("powers — ASSIGN", () => {
         const s = twoUp();
         const a = s.players[0].id;
         const b = s.players[1].id;
-        let after = declarePower(openPhase2Question(s, "THTH-40"), a, "ASSIGN", { targetId: b, nowIso: NOW });
+        let after = stageOpen(s, a, "ASSIGN", b);
         after = buzz(after, a, at(2));
         after = resolveQuestion(after, { answerer: true, buzzer: true });
 
@@ -315,7 +335,7 @@ describe("powers — ASSIGN", () => {
         const s = twoUp();
         const a = s.players[0].id;
         const b = s.players[1].id;
-        let after = declarePower(openPhase2Question(s, "THTH-40"), a, "ASSIGN", { targetId: b, nowIso: NOW });
+        let after = stageOpen(s, a, "ASSIGN", b);
         after = buzz(after, a, at(2));
         after = resolveQuestion(after, { answerer: false, buzzer: false });
 
@@ -327,7 +347,7 @@ describe("powers — ASSIGN", () => {
         const s = twoUp();
         const a = s.players[0].id;
         const b = s.players[1].id;
-        let after = declarePower(openPhase2Question(s, "THTH-40"), a, "ASSIGN", { targetId: b, nowIso: NOW });
+        let after = stageOpen(s, a, "ASSIGN", b);
         after = buzz(after, b, at(2));
         after = resolveQuestion(after, { answerer: false, buzzer: true });
 
@@ -339,7 +359,7 @@ describe("powers — ASSIGN", () => {
         const s = twoUp();
         const a = s.players[0].id;
         const b = s.players[1].id;
-        let after = declarePower(openPhase2Question(s, "THTH-40"), a, "ASSIGN", { targetId: b, nowIso: NOW });
+        let after = stageOpen(s, a, "ASSIGN", b);
         after = resolveQuestion(after, { answerer: false });           // no buzzer verdict needed
 
         expect(after.players.find((p) => p.id === a)!.score).toBe(-20);
@@ -350,7 +370,7 @@ describe("powers — ASSIGN", () => {
         const s = twoUp();
         const a = s.players[0].id;
         const b = s.players[1].id;
-        const racing = declarePower(openPhase2Question(s, "THTH-40"), a, "ASSIGN", { targetId: b, nowIso: NOW });
+        const racing = stageOpen(s, a, "ASSIGN", b);
 
         // Nothing has been buzzed yet, and the 30 s clock is still running…
         expect(isBuzzOpen(racing, at(1))).toBe(true);
@@ -367,7 +387,7 @@ describe("powers — ASSIGN", () => {
         const a = s.players[0].id;
         const b = s.players[1].id;
         const locked = lockBuzzWindow(
-            declarePower(openPhase2Question(s, "THTH-40"), a, "ASSIGN", { targetId: b, nowIso: NOW })
+            stageOpen(s, a, "ASSIGN", b)
         );
         const after = resolveQuestion(locked, { answerer: false });
 
@@ -380,7 +400,7 @@ describe("powers — ASSIGN", () => {
         const s = twoUp();
         const a = s.players[0].id;
         const b = s.players[1].id;
-        const racing = declarePower(openPhase2Question(s, "THTH-40"), a, "ASSIGN", { targetId: b, nowIso: NOW });
+        const racing = stageOpen(s, a, "ASSIGN", b);
 
         expect(codeOf(() => lockBuzzWindow(buzz(racing, a, at(1))))).toBe("ALREADY_OPEN");
         expect(codeOf(() => lockBuzzWindow(createVeDich(POOL, [player("a", 0)])))).toBe("NOTHING_OPEN");
@@ -399,7 +419,7 @@ describe("powers — ASSIGN", () => {
         const s = twoUp();
         const a = s.players[0].id;
         const b = s.players[1].id;
-        const after = declarePower(openPhase2Question(s, "THTH-40"), a, "ASSIGN", { targetId: b, nowIso: NOW });
+        const after = stageOpen(s, a, "ASSIGN", b);
         expect(codeOf(() => buzz(after, b, at(31)))).toBe("WINDOW_CLOSED");
     });
 });
@@ -480,13 +500,15 @@ describe("Phase 2 flow", () => {
         expect(codeOf(() => resolveQuestion(noBuzz, { answerer: true, buzzer: true }))).toBe("NOT_YOUR_TURN");
     });
 
-    it("the buzzer's power is not allowed: buzzers never declare powers", () => {
+    it("nobody declares mid-question — the row is pre-open only, buzzers included", () => {
         let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["THTH-50", "THTH-40", "THTH-30"]);
         state = openPhase2Question(state, "THTH-50");
         state = closeCurrentAnswer(state, NOW);
         state = buzz(state, "a", NOW);
-        // Only the current player may declare, so a buzzer is rejected as NOT_YOUR_TURN.
-        expect(codeOf(() => declarePower(state, "a", "STAR"))).toBe("NOT_YOUR_TURN");
+        // Too late for ANYONE once the question is open — a buzzer, and even
+        // the current player, get the same pre-open refusal.
+        expect(codeOf(() => declarePower(state, "a", "STAR"))).toBe("ALREADY_OPEN");
+        expect(codeOf(() => declarePower(state, "c", "STAR"))).toBe("ALREADY_OPEN");
     });
 
     it("advanceTurn moves to the next player and clears the pending picks", () => {

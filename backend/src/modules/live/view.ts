@@ -360,9 +360,8 @@ function veDichView(input: ViewInput, state: VeDichState): PlayerView {
             pendingPicks: state.pendingPicks.map((q) => q.id),
             isAnswerer: open?.answerer === input.userId,
             canAnswer: open !== null && open.stage === "current" && open.answerer === input.userId,
-            // Powers are Riêng's, and only on YOUR OWN turn (before the answer).
-            canDeclarePower: open !== null && open.stage === "current" && state.phase === 2
-                && open.answerer === input.userId && open.power === null,
+            // Powers are NOT the player's to declare — the console stages them
+            // on the pick board before the question opens (see declarePower).
             // Who may buzz is the ENGINE's rule, not a re-derivation: everyone but
             // the answerer on a normal question; ONLY the two halves of the duel on
             // an ASSIGN question (where the answerer buzzes too). `isBuzzOpen` also

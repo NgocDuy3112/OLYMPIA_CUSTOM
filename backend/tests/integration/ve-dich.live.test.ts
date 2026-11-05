@@ -253,18 +253,16 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
     });
 
     it("STAR (wrong) costs -100% of face value", async () => {
-        expect((await act({ kind: "ve-dich.openQuestion", questionId: qid.get("TNSS-40") })).statusCode).toBe(200);
-        // The CONSOLE declares for the turn player — the show deck is the
-        // operator's door. Regression: this kind was missing from
-        // LiveActionSchema, so every console declare used to 400 at the route
-        // before reaching the engine. (The player's own `power` command stays
-        // covered by the ASSIGN test below.)
-        const declared = await act({
+        // The choice comes FIRST — the console's pick-board row, before the open
+        // (the engine still checks NOT_YOUR_TURN for the turn player).
+        const staged = await act({
             kind: "ve-dich.declarePower",
-            playerId: playerIds[1],          // the turn player — the engine still checks NOT_YOUR_TURN
+            playerId: playerIds[1],
             power: "STAR"
         });
-        expect(declared.statusCode).toBe(200);
+        expect(staged.statusCode).toBe(200);
+        expect((await act({ kind: "ve-dich.openQuestion", questionId: qid.get("TNSS-40") })).statusCode).toBe(200);
+
         expect((await act({ kind: "ve-dich.closeCurrentAnswer" })).statusCode).toBe(200);
 
         const resolved = await act({ kind: "ve-dich.resolve", answerer: false });
@@ -273,14 +271,16 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
     });
 
     it("ASSIGN hands the question to a partner, and the pair duel for it", async () => {
-        expect((await act({ kind: "ve-dich.openQuestion", questionId: qid.get("XHPL-40") })).statusCode).toBe(200);
-
-        // The current player (1) hands the question to (0). That IS the race start:
-        // there is nobody to "answer first" in a duel.
-        const assigned = await command(playerCookies[1], {
-            type: "power", power: "ASSIGN", targetId: playerIds[0]
+        // Staged on the pick board by the CONSOLE — players cannot declare.
+        // The question then opens STRAIGHT into the race (nobody answers first).
+        const assigned = await act({
+            kind: "ve-dich.declarePower",
+            playerId: playerIds[1],
+            power: "ASSIGN",
+            targetId: playerIds[0]
         });
         expect(assigned.statusCode).toBe(200);
+        expect((await act({ kind: "ve-dich.openQuestion", questionId: qid.get("XHPL-40") })).statusCode).toBe(200);
 
         // Only the two halves may buzz; the partner takes it.
         const buzzed = await command(playerCookies[0], { type: "buzz", questionId: qid.get("XHPL-40") });

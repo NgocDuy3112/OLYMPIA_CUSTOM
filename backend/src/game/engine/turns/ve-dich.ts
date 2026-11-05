@@ -285,100 +285,47 @@ export function pickPhase2(
 
 // Power declaration: at question open, by the current player only, at most one
 // per question, and only if the player still has that power.
+/**
+ * The power decision — PRE-OPEN ONLY. PLAYERS CANNOT DECLARE: the console
+ * stages it on the pick board before Bắt đầu opens the question (the show's
+ * row: star / assign / none). Nothing is spent until the question opens with
+ * it; a turn change clears an unspent staging. `power: null` is the explicit
+ * "Không dùng quyền năng" — it clears a staged choice.
+ */
 export function declarePower(
     state: VeDichState,
     playerId: string,
     power: Power | null,
-    options: { targetId?: string; nowIso?: string } = {}
+    options: { targetId?: string } = {}
 ): VeDichState {
-    // PRE-OPEN — the show's rule: the decision comes BEFORE the question opens.
-    // Stage it on the pick board; nothing is spent until the question opens
-    // with it (a turn change clears it unspent). `power: null` is the explicit
-    // "Không dùng quyền năng" — it clears a staged choice.
-    if (!state.open) {
-        if (state.phase !== 2) {
-            fail("WRONG_PHASE_FOR_POWER", "powers only exist in Về đích Riêng (phase 2)");
-        }
-        if (currentPlayer(state).id !== playerId) {
-            fail("NOT_YOUR_TURN", "only the current player's power may be staged");
-        }
-        if (state.pendingPicks.length === 0) {
-            fail("NOTHING_OPEN", "pick the turn's questions first");
-        }
-        if (power === null) return { ...state, stagedPower: null };
-
-        const player = state.players.find((p) => p.id === playerId)!;
-        if (!player.powersLeft.includes(power)) {
-            fail("POWER_UNAVAILABLE", `${power} already spent`);
-        }
-        if (power === "ASSIGN") {
-            const targetId = options.targetId;
-            if (!targetId) fail("INVALID_TARGET", "ASSIGN needs a player to hand the question to");
-            if (targetId === playerId) fail("INVALID_TARGET", "you cannot assign the question to yourself");
-            if (!state.players.some((p) => p.id === targetId)) {
-                fail("INVALID_TARGET", `${targetId} is not playing this round`);
-            }
-            return { ...state, stagedPower: { power, targetId } };
-        }
-        return { ...state, stagedPower: { power } };
+    if (state.phase !== 2) {
+        fail("WRONG_PHASE_FOR_POWER", "powers only exist in Về đích Riêng (phase 2)");
     }
-
-    if (state.open.answerer !== playerId) {
-        fail("NOT_YOUR_TURN", "only the current player may declare a power");
-    }
-    if (state.open.stage !== "current") {
+    if (state.open) {
         fail("ALREADY_OPEN", "powers are declared before the question opens");
     }
-    if (power === null) return state;
+    if (currentPlayer(state).id !== playerId) {
+        fail("NOT_YOUR_TURN", "only the current player's power may be staged");
+    }
+    if (state.pendingPicks.length === 0) {
+        fail("NOTHING_OPEN", "pick the turn's questions first");
+    }
+    if (power === null) return { ...state, stagedPower: null };
 
     const player = state.players.find((p) => p.id === playerId)!;
     if (!player.powersLeft.includes(power)) {
         fail("POWER_UNAVAILABLE", `${power} already spent`);
     }
-
-    const spent = {
-        ...state,
-        players: state.players.map((p) =>
-            p.id === playerId
-                ? { ...p, powersLeft: p.powersLeft.filter((x) => x !== power) }
-                : p
-        )
-    };
-
-    // Both powers are RIÊNG rules: Về đích Riêng is the summit, where a player
-    // gambles on their own answer (STAR) or hands the question to someone else
-    // (ASSIGN). Chung has no powers at all.
-    if (state.phase !== 2) {
-        fail("WRONG_PHASE_FOR_POWER", `${power} only exists in Về đích Riêng (phase 2)`);
+    if (power === "ASSIGN") {
+        const targetId = options.targetId;
+        if (!targetId) fail("INVALID_TARGET", "ASSIGN needs a player to hand the question to");
+        if (targetId === playerId) fail("INVALID_TARGET", "you cannot assign the question to yourself");
+        if (!state.players.some((p) => p.id === targetId)) {
+            fail("INVALID_TARGET", `${targetId} is not playing this round`);
+        }
+        return { ...state, stagedPower: { power, targetId } };
     }
-
-    // STAR — a multiplier on your OWN answer. The answer flow is unchanged.
-    if (power === "STAR") {
-        return { ...spent, open: { ...state.open, power } };
-    }
-
-    // ASSIGN — handing the question to another player turns it into a DUEL:
-    // nobody answers first, and the two of you race from this moment.
-    const targetId = options.targetId;
-    if (!targetId) fail("INVALID_TARGET", "ASSIGN needs a player to hand the question to");
-    if (targetId === playerId) fail("INVALID_TARGET", "you cannot assign the question to yourself");
-    if (!state.players.some((p) => p.id === targetId)) {
-        fail("INVALID_TARGET", `${targetId} is not playing this round`);
-    }
-    if (!options.nowIso) fail("INVALID_TARGET", "ASSIGN needs the server clock to open the race");
-
-    return {
-        ...spent,
-        open: {
-            ...state.open,
-            power: "ASSIGN",
-            assignedTo: targetId,
-            // The race IS the buzz window, opened here instead of after an answer.
-            stage: "buzz"
-        },
-        buzzOpenedAt: options.nowIso,
-        buzzLocked: false
-    };
+    return { ...state, stagedPower: { power } };
 }
 
 // Phase 2 opens the question for the current player. Declaration happens here,

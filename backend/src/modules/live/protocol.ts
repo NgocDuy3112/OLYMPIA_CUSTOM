@@ -30,20 +30,10 @@ export const KeywordCommand = Type.Object({
     })
 });
 
-// ve-dich's power and buzz commands. The player is always taken from the
-// session, never from the message. PICKING is NOT a player command — the
-// console sends ve-dich.pick / pickBatch through POST /live/actions.
-export const PowerCommand = Type.Object({
-    v: V,
-    type: Type.Literal("power"),
-    requestId: Type.Optional(Type.String({ maxLength: 64 })),
-    data: Type.Object({
-        power: Type.Union([Type.Literal("STAR"), Type.Literal("ASSIGN")]),
-        // ASSIGN hands the question to a partner: required for it, ignored otherwise.
-        targetId: Type.Optional(Type.String({ maxLength: 64 }))
-    })
-});
-
+// ve-dich's ONLY player command: the buzz. The player is always taken from
+// the session, never from the message. Picking is the console's, and powers
+// are staged by the console BEFORE the question opens — neither is a player
+// command (POST /live/actions for both).
 export const BuzzCommand = Type.Object({
     v: V,
     type: Type.Literal("buzz"),
@@ -52,7 +42,7 @@ export const BuzzCommand = Type.Object({
 });
 
 export const ClientMessageSchema = Type.Union([
-    AnswerCommand, KeywordCommand, PowerCommand, BuzzCommand
+    AnswerCommand, KeywordCommand, BuzzCommand
 ]);
 export type ClientMessage = Static<typeof ClientMessageSchema>;
 

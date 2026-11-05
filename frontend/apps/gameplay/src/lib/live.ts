@@ -75,7 +75,6 @@ export interface LiveMe {
     pendingPicks?: string[]
     isAnswerer?: boolean
     canAnswer?: boolean
-    canDeclarePower?: boolean
     canBuzz?: boolean
     power?: "STAR" | "ASSIGN" | null
     buzzer?: string | null
@@ -208,9 +207,9 @@ export function useLiveLobby(matchId: string, enabled: boolean) {
 // ── the three commands ───────────────────────────────────────────────────────
 
 // ve-dich's player vocabulary, exactly as /live/commands validates it.
-// (No pick: the console sends ve-dich.pick / pickBatch through /live/actions.)
+// BUZZ only — no pick (the console's), no power (the console stages those
+// before the question opens).
 export type LivePlayerCommand =
-    | { type: "power"; power: "STAR" | "ASSIGN"; targetId?: string }
     | { type: "buzz"; questionId: string }
 
 export type AnswerValue = { picked?: string[]; text?: string }

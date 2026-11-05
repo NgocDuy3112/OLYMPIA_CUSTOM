@@ -51,7 +51,6 @@ export interface PlayerMe {
     pendingPicks?: string[]
     isAnswerer?: boolean
     canAnswer?: boolean
-    canDeclarePower?: boolean
     canBuzz?: boolean
     power?: "STAR" | "ASSIGN" | null
     buzzer?: string | null
@@ -123,11 +122,10 @@ export type LayoutKey =
     | "ve-dich-chung"
     | "ve-dich-rieng"
 
-// The player's ve-dich vocabulary. PICKING is NOT in it — the console sends
-// ve-dich.pick / pickBatch (the desk picks for the turn player); a player's
-// board only watches.
+// A player's ve-dich vocabulary — BUZZ only. Powers are NOT the player's to
+// declare (the console stages them on the pick board), and picking is the
+// console's too: a player's door here is just the race.
 export type VeDichCommand =
-    | { type: "power"; power: "STAR" | "ASSIGN"; targetId?: string }
     | { type: "buzz"; questionId: string }
 
 /** The lobby read — what the waiting screen shows while the match isn't running. */
