@@ -41,7 +41,7 @@ beforeAll(async () => {
             { role: "ADMIN", username: "mk-admin", displayName: "Admin" },
             { role: "OPERATOR", username: "mk-owner", displayName: "Owner" },
             { role: "OPERATOR", username: "mk-other", displayName: "Other" },
-            { role: "PLAYER", email: "mk-player@example.test", displayName: "Player" }
+            { role: "PLAYER", username: "mk-player", email: "mk-player@example.test", displayName: "Player" }
         ])
         .returning({ id: users.id });
 

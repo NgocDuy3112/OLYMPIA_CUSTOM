@@ -38,8 +38,8 @@ beforeAll(async () => {
     ownerCookie = signToken(app, "PORTAL", { sub: owner.id, role: "OPERATOR", tokenVersion: 0 });
 
     const playerRows = await db.insert(users).values([
-        { role: "PLAYER", email: "sa1@example.com", displayName: "SA One", tokenVersion: 0 },
-        { role: "PLAYER", email: "sa2@example.com", displayName: "SA Two", tokenVersion: 0 }
+        { role: "PLAYER", username: "sa1", email: "sa1@example.com", displayName: "SA One", tokenVersion: 0 },
+        { role: "PLAYER", username: "sa2", email: "sa2@example.com", displayName: "SA Two", tokenVersion: 0 }
     ]).returning();
     playerA = playerRows[0].id;
     playerB = playerRows[1].id;

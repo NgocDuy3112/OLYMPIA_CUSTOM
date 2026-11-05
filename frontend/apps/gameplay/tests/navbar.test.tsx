@@ -64,10 +64,12 @@ const oneMatch = {
 }
 
 describe("NavBar — signed out", () => {
-    it("offers both doors to the account the player owns", async () => {
+    it("offers the door to the account the desk issued — no signup (step 8)", async () => {
         draw({ ...signedOut, ...noTournaments })
         expect(await screen.findByRole("link", { name: "Đăng nhập" })).toBeTruthy()
-        expect(screen.getByRole("link", { name: "Đăng ký" })).toBeTruthy()
+        expect(screen.getByRole("link", { name: "Nhập mã" })).toBeTruthy()
+        // Accounts are created at the desk: the navbar never offers a form.
+        expect(screen.queryByRole("link", { name: "Đăng ký" })).toBeNull()
         expect(screen.queryByRole("button", { name: "Vào trận" })).toBeNull()
     })
 

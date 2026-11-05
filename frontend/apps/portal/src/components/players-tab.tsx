@@ -1,47 +1,38 @@
 import { useState, type FormEvent } from "react"
-import { KeyRound, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react"
+import { KeyRound, Pencil, Plus, Trash2 } from "lucide-react"
 import { Button } from "@shared/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
 import { Input } from "@shared/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
 import {
-    useActivateContestant,
     useContestants,
-    useIssueEntryCode,
     useRemoveContestant,
+    useResetPassword,
     useUpdateContestant,
     type ContestantRow,
 } from "@/lib/tournament"
 import { AddContestantDialog } from "./add-contestant-dialog"
 
-/**
- * How many minutes the code on screen still lives. The desk reads it out loud
- * and the clock is the honest half of the sentence: a code that outlives its
- * claim on the room is exactly what rotation exists to prevent.
- */
-function minutesLeft(iso: string): number {
-    return Math.max(1, Math.ceil((new Date(iso).getTime() - Date.now()) / 60_000))
-}
+const PASSWORD_MIN = 8
 
 /**
  * Thí sinh — the roster, and the only place a contestant is created or corrected.
  *
- * It lists and nothing else: a name, the account it belongs to (or "chưa có"), and
- * three actions. Group membership belongs to the Groups tab (that tab is the
- * DRAW); scores belong to Standings.
+ * It lists and nothing else: the name on the board, the ACCOUNT (handle, address
+ * if any, password state), and three actions. Group membership belongs to the
+ * Groups tab (that tab is the DRAW); scores belong to Standings.
  *
- * The EMAIL is the load-bearing field, and there are two ways a row gets one:
- * the player registered THEIR OWN account (the operator enrolls the address,
- * never a password), or the operator attaches an address to a show-floor
- * identity so the player's own sign-in finds this row and attaches to it —
- * nothing moves, because nothing was anywhere else.
+ * Since step 8 the account column IS the identity: the handle is what this
+ * player types at the login form, `hasPassword` says whether they can sign in
+ * at all yet, and "chưa đổi mật khẩu" means the desk's FIRST password is still
+ * in place — every one of those states ends at the same place, the player
+ * setting their own password on their first sign-in.
  */
 export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; frozen: boolean }) {
     const roster = useContestants(tournamentId)
     const update = useUpdateContestant(tournamentId)
     const remove = useRemoveContestant(tournamentId)
-    const activate = useActivateContestant(tournamentId)
-    const issueCode = useIssueEntryCode(tournamentId)
+    const reset = useResetPassword(tournamentId)
 
     /** Adding is a dialog, like every other create on this page. */
     const [adding, setAdding] = useState(false)
@@ -49,10 +40,14 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
     const [editing, setEditing] = useState<ContestantRow | null>(null)
     const [editName, setEditName] = useState("")
     const [editEmail, setEditEmail] = useState("")
-    /** An entry code just issued — shown ONCE, to the operator who asked for it. */
-    const [issued, setIssued] = useState<{ displayName: string; code: string; expiresAt: string } | null>(null)
+    /** The row whose password is being (re)set — the other panel, same rule. */
+    const [resetting, setResetting] = useState<ContestantRow | null>(null)
+    const [newPassword, setNewPassword] = useState("")
 
     const startEdit = (row: ContestantRow) => {
+        setResetting(null)
+        setNewPassword("")
+        reset.reset()
         setEditing(row)
         setEditName(row.displayName)
         setEditEmail(row.email ?? "")
@@ -70,7 +65,7 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
             {
                 userId: editing.userId,
                 displayName: trimmed,
-                // "" detaches the address: back to a show-floor identity
+                // "" detaches the address: Google stops finding this row
                 email: address === "" ? null : address,
             },
             { onSuccess: () => setEditing(null) }
@@ -81,25 +76,29 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
         remove.mutate(row.userId)
     }
 
-    /** The desk vouches for the address: the player can log in now. */
-    const verify = (row: ContestantRow) => {
-        setIssued(null)
-        activate.mutate(row.userId)
+    /** Forgotten password — or a row that never had one (created before step 8). */
+    const startReset = (row: ContestantRow) => {
+        setEditing(null)
+        setResetting(row)
+        setNewPassword("")
+        reset.reset()
     }
 
-    /** Forgotten password: one code, this player, one use — no password held. */
-    const giveEntryCode = (row: ContestantRow) => {
-        activate.reset()
-        issueCode.mutate(row.userId, {
-            onSuccess: (data) => setIssued({ displayName: row.displayName, ...data }),
-        })
+    const savePassword = (event: FormEvent) => {
+        event.preventDefault()
+        if (!resetting || reset.isPending || newPassword.length < PASSWORD_MIN) return
+        reset.mutate(
+            { userId: resetting.userId, password: newPassword },
+            { onSuccess: () => { setResetting(null); setNewPassword("") } }
+        )
     }
 
     if (roster.isPending) return <p className="text-sm text-muted-foreground">Loading the roster…</p>
     if (roster.isError) return <p role="alert" className="text-sm text-destructive">{roster.error.message}</p>
 
     const rows = roster.data.items
-    const withAccount = rows.filter((row) => row.email !== null).length
+    const withPassword = rows.filter((row) => row.hasPassword).length
+    const changing = rows.filter((row) => row.mustChangePassword).length
 
     return (
         <Card>
@@ -108,7 +107,7 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
                 <CardDescription>
                     {rows.length === 0
                         ? "No contestants yet — add the first one."
-                        : `${rows.length} contestant${rows.length === 1 ? "" : "s"} · ${withAccount} with an account, ${rows.length - withAccount} show-floor only.`}
+                        : `${rows.length} contestant${rows.length === 1 ? "" : "s"} · ${withPassword} có mật khẩu, ${rows.length - withPassword} chưa có${changing > 0 ? `, ${changing} chưa đổi mật khẩu` : ""}.`}
                 </CardDescription>
                 <CardAction>
                     <Button size="sm" variant="outline" onClick={() => setAdding(true)}>
@@ -122,32 +121,8 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
                 {remove.isError ? (
                     <p role="alert" className="px-6 pb-4 text-sm text-destructive">{remove.error.message}</p>
                 ) : null}
-                {activate.isError ? (
-                    <p role="alert" className="px-6 pb-4 text-sm text-destructive">{activate.error.message}</p>
-                ) : null}
-                {issueCode.isError ? (
-                    <p role="alert" className="px-6 pb-4 text-sm text-destructive">{issueCode.error.message}</p>
-                ) : null}
-
-                {/* The code exists to be READ OUT and then forgotten: it is on
-                    screen once, with its clock, and nowhere else. */}
-                {issued ? (
-                    <div
-                        role="status"
-                        className="mb-4 flex items-center justify-between gap-3 rounded-md border border-border bg-muted px-6 py-3"
-                    >
-                        <p className="font-sans text-sm">
-                            <span className="text-muted-foreground">Mã vào cho</span>{" "}
-                            <b>{issued.displayName}</b>:{" "}
-                            <b className="font-mono tracking-widest">{issued.code}</b>{" "}
-                            <span className="text-xs text-muted-foreground">
-                                — dùng một lần, hết hạn sau {minutesLeft(issued.expiresAt)} phút.
-                            </span>
-                        </p>
-                        <Button size="sm" variant="ghost" onClick={() => setIssued(null)}>
-                            Đóng
-                        </Button>
-                    </div>
+                {update.isError && !editing ? (
+                    <p role="alert" className="px-6 pb-4 text-sm text-destructive">{update.error.message}</p>
                 ) : null}
 
                 {rows.length === 0 ? (
@@ -161,7 +136,7 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
                                 <TableHead className="pl-6">Contestant</TableHead>
                                 <TableHead className="w-28">Nhóm</TableHead>
                                 <TableHead>Account</TableHead>
-                                <TableHead className="w-80 pr-6 text-right">Actions</TableHead>
+                                <TableHead className="w-72 pr-6 text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -181,16 +156,36 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
                                         )}
                                     </TableCell>
                                     <TableCell>
-                                        {row.email ? (
-                                            <span className="text-sm">{row.email}</span>
-                                        ) : (
+                                        <div className="flex flex-col gap-0.5">
                                             <span
-                                                className="text-sm text-muted-foreground"
-                                                title="Không có email: thí sinh chỉ thi tại chỗ, không đăng nhập được nên không giữ được lịch sử khi tự đăng nhập."
+                                                className="font-mono text-xs text-muted-foreground"
+                                                title="Tên đăng nhập — thí sinh gõ cái này ở trang Đăng nhập"
                                             >
-                                                chưa có tài khoản
+                                                {row.username}
                                             </span>
-                                        )}
+                                            <span className="text-sm">
+                                                {row.email ?? (
+                                                    <span className="text-muted-foreground">
+                                                        không có địa chỉ
+                                                    </span>
+                                                )}
+                                            </span>
+                                            {!row.hasPassword ? (
+                                                <span
+                                                    className="text-xs text-amber-700"
+                                                    title="Dòng này chưa từng có mật khẩu — chỉ đăng nhập Google được, hoặc bấm «Đặt mật khẩu» bên phải."
+                                                >
+                                                    chưa có mật khẩu
+                                                </span>
+                                            ) : row.mustChangePassword ? (
+                                                <span
+                                                    className="text-xs text-amber-700"
+                                                    title="Mật khẩu do bạn cấp vẫn còn hiệu lực — thí sinh phải tự đặt mật khẩu riêng ở lần đăng nhập đầu."
+                                                >
+                                                    chưa đổi mật khẩu
+                                                </span>
+                                            ) : null}
+                                        </div>
                                     </TableCell>
                                     <TableCell className="pr-6 text-right">
                                         <span className="flex flex-wrap justify-end gap-1">
@@ -203,32 +198,15 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
                                                 <Pencil className="size-3.5" />
                                                 Sửa
                                             </Button>
-                                            {row.email && !row.emailVerified ? (
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    disabled={activate.isPending}
-                                                    onClick={() => verify(row)}
-                                                    title="Xác thực tài khoản để thí sinh đăng nhập được (ban điều hành xác nhận địa chỉ)"
-                                                >
-                                                    <ShieldCheck className="size-3.5" />
-                                                    Xác thực
-                                                </Button>
-                                            ) : null}
-                                            {row.email ? (
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    disabled={issueCode.isPending}
-                                                    onClick={() => giveEntryCode(row)}
-                                                    title="Quên mật khẩu: cấp mã một lần cho thí sinh — bàn điều hành không giữ mật khẩu"
-                                                >
-                                                    <KeyRound className="size-3.5" />
-                                                    {issueCode.isPending && issueCode.variables === row.userId
-                                                        ? "Đang cấp…"
-                                                        : "Mã vào"}
-                                                </Button>
-                                            ) : null}
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => startReset(row)}
+                                                title="Quên mật khẩu (hoặc chưa từng có): cấp lại mật khẩu đầu — thí sinh tự đổi ngay lần đăng nhập sau"
+                                            >
+                                                <KeyRound className="size-3.5" />
+                                                Đặt mật khẩu
+                                            </Button>
                                             <Button
                                                 size="sm"
                                                 variant="ghost"
@@ -271,7 +249,7 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
                             />
                         </label>
                         <label className="flex flex-col gap-1">
-                            <span className="text-xs text-muted-foreground">Email (bỏ trống = không có tài khoản)</span>
+                            <span className="text-xs text-muted-foreground">Email (bỏ trống = không có địa chỉ)</span>
                             <Input
                                 value={editEmail}
                                 onChange={(event) => setEditEmail(event.target.value)}
@@ -295,6 +273,51 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
                     </form>
                     {update.isError ? (
                         <p role="alert" className="pt-2 text-sm text-destructive">{update.error.message}</p>
+                    ) : null}
+                </div>
+            ) : null}
+
+            {resetting ? (
+                <div className="border-t px-6 py-4">
+                    <form onSubmit={savePassword} className="flex flex-wrap items-end gap-2">
+                        <label className="flex flex-col gap-1">
+                            <span className="text-xs text-muted-foreground">
+                                Mật khẩu đầu cho {resetting.displayName}
+                            </span>
+                            <Input
+                                value={newPassword}
+                                onChange={(event) => setNewPassword(event.target.value)}
+                                type="text"
+                                autoComplete="off"
+                                maxLength={256}
+                                minLength={PASSWORD_MIN}
+                                placeholder="tối thiểu 8 ký tự"
+                                aria-label="New password"
+                                className="h-8 w-56"
+                            />
+                        </label>
+                        <Button
+                            size="sm"
+                            type="submit"
+                            disabled={reset.isPending || newPassword.length < PASSWORD_MIN}
+                        >
+                            {reset.isPending ? "Đang lưu…" : "Cấp lại"}
+                        </Button>
+                        <Button
+                            size="sm"
+                            type="button"
+                            variant="ghost"
+                            onClick={() => { setResetting(null); setNewPassword(""); reset.reset() }}
+                        >
+                            Huỷ
+                        </Button>
+                        <p className="text-xs text-muted-foreground">
+                            Thí sinh sẽ tự đặt mật khẩu riêng ở lần đăng nhập kế — mọi phiên cũ bằng mật
+                            khẩu này đều bị khoá.
+                        </p>
+                    </form>
+                    {reset.isError ? (
+                        <p role="alert" className="pt-2 text-sm text-destructive">{reset.error.message}</p>
                     ) : null}
                 </div>
             ) : null}

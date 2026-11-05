@@ -149,7 +149,7 @@ beforeAll(async () => {
         .values([
             { role: "ADMIN", username: "mcp-admin", displayName: "Admin" },
             { role: "OPERATOR", username: "mcp-owner", displayName: "Owner" },
-            { role: "PLAYER", email: "mcp-player@example.test", displayName: "Player" }
+            { role: "PLAYER", username: "mcp-player", email: "mcp-player@example.test", displayName: "Player" }
         ])
         .returning({ id: users.id });
 

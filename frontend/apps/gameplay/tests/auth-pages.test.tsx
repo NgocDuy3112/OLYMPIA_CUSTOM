@@ -4,8 +4,8 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom"
 import { describe, expect, it, vi } from "vitest"
+import { ChangePasswordPage } from "@/pages/ChangePasswordPage"
 import { LoginPage } from "@/pages/LoginPage"
-import { RegisterPage } from "@/pages/RegisterPage"
 
 /** Where the router actually landed — the assertion for every ?next= test. */
 function WhereAmI() {
@@ -13,13 +13,14 @@ function WhereAmI() {
     return <p>landed at {location.pathname}</p>
 }
 
-// The player's own door, mounted for real: register says "go read your mail",
-// login honours ?verify= and ?next=, and both keep the SERVER's message (the
-// backend answers the same thing for a wrong password and an unknown address).
+// The two doors of step 8, mounted for real: the desk ISSUES the account
+// (handle + first password), the player signs in with that handle, and the
+// forced change is where the desk's password stops being the desk's. There is
+// no register page any more, and these tests are where that is asserted.
 
 interface StubRoute { body: unknown; status?: number }
 
-function draw(routes: Record<string, StubRoute>, entry = "/register") {
+function draw(routes: Record<string, StubRoute>, entry = "/login") {
     const mock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const key = `${init?.method ?? "GET"} ${String(input)}`
         const route = routes[key]
@@ -40,81 +41,51 @@ function draw(routes: Record<string, StubRoute>, entry = "/register") {
             <MemoryRouter initialEntries={[entry]}>
                 <Routes>
                     <Route path="/login" element={<LoginPage />} />
-                    <Route path="/register" element={<RegisterPage />} />
-                    <Route path="*" element={<WhereAmI />} />                </Routes>
+                    <Route path="/password" element={<ChangePasswordPage />} />
+                    <Route path="*" element={<WhereAmI />} />
+                </Routes>
             </MemoryRouter>
         </QueryClientProvider>
     )
     return { ...result, fetchMock: mock }
 }
 
-describe("RegisterPage", () => {
-    it("creates no session — it says to go read the mail", async () => {
-        draw({
-            "POST /gameplay/auth/register": { body: { pendingVerification: true, to: "ban@example.test" } },
-        })
+const ME = "GET /gameplay/auth/me"
+const LOGIN = "POST /gameplay/auth/login"
+const CHANGE = "POST /gameplay/auth/change-password"
 
-        await userEvent.type(screen.getByLabelText("Email"), "ban@example.test")
-        await userEvent.type(screen.getByLabelText("Mật khẩu"), "mat-khau-42")
-        await userEvent.click(screen.getByRole("button", { name: "Đăng ký" }))
-
-        expect(await screen.findByText("Kiểm tra email")).toBeTruthy()
-        expect(screen.getByText(/ban@example\.test/)).toBeTruthy()
-        expect(screen.getByText(/24 giờ/)).toBeTruthy()
-    })
-
-    it("sends the name only when one was given", async () => {
-        const { fetchMock } = draw({
-            "POST /gameplay/auth/register": { body: { pendingVerification: true, to: "an@example.test" } },
-        })
-
-        await userEvent.type(screen.getByLabelText("Email"), "an@example.test")
-        await userEvent.type(screen.getByLabelText("Mật khẩu"), "mat-khau-42")
-        await userEvent.click(screen.getByRole("button", { name: "Đăng ký" }))
-
-        await waitFor(() => expect(screen.findByText("Kiểm tra email")).toBeTruthy())
-        const call = fetchMock.mock.calls.find(([input]) => String(input).includes("/register"))
-        expect(JSON.parse(String(call![1]?.body))).toEqual({ email: "an@example.test", password: "mat-khau-42" })
-    })
-
-    it("keeps the server's refusal on the form", async () => {
-        draw({
-            "POST /gameplay/auth/register": { body: { message: "Email này đã có tài khoản — hãy đăng nhập." }, status: 409 },
-        })
-
-        await userEvent.type(screen.getByLabelText("Email"), "co-san@example.test")
-        await userEvent.type(screen.getByLabelText("Mật khẩu"), "mat-khau-42")
-        await userEvent.click(screen.getByRole("button", { name: "Đăng ký" }))
-
-        expect(await screen.findByRole("alert")).toHaveTextContent(/đã có tài khoản/)
-        // the form stays — the player can try another address
-        expect(screen.getByLabelText("Email")).toBeTruthy()
-    })
-})
+const signedIn = { [ME]: { body: { id: "u1", displayName: "Ngọc Duy", username: "ngoc-duy", role: "PLAYER" } } }
+const signedOut = { [ME]: { status: 401, body: { message: "no session" } } }
 
 describe("LoginPage", () => {
-    const LOGIN = "POST /gameplay/auth/login"
+    it("asks for the HANDLE the desk issued — no email field, no signup link", () => {
+        draw({})
 
-    it("carries the verify=ok verdict the mail link came back with", () => {
-        draw({}, "/login?verify=ok")
-        expect(screen.getByRole("status")).toHaveTextContent(/đã được xác thực/)
+        expect(screen.getByLabelText("Tên đăng nhập")).toBeTruthy()
+        expect(screen.getByLabelText("Mật khẩu")).toBeTruthy()
+        // Step 8: accounts are created at the desk, so the door says so instead
+        // of offering a form.
+        expect(screen.queryByRole("link", { name: "Đăng ký" })).toBeNull()
+        expect(screen.getByText(/thí sinh không tự đăng ký/)).toBeTruthy()
     })
 
-    it("says an expired verify link is expired", () => {
-        draw({}, "/login?verify=expired")
-        expect(screen.getByRole("status")).toHaveTextContent(/đã hết hạn/)
+    it("sends { username, password } — the key the backend looks up", async () => {
+        const { fetchMock } = draw({ [LOGIN]: { body: { id: "u1", username: "ngoc-duy", displayName: "Ngọc Duy", mustChangePassword: false } } })
+
+        await userEvent.type(screen.getByLabelText("Tên đăng nhập"), "  Ngoc-Duy ")
+        await userEvent.type(screen.getByLabelText("Mật khẩu"), "mat-khau-cua-toi")
+        await userEvent.click(screen.getByRole("button", { name: "Đăng nhập" }))
+
+        await waitFor(() => expect(screen.getByText("landed at /")).toBeTruthy())
+        const call = fetchMock.mock.calls.find(([input]) => String(input).includes("/auth/login"))
+        expect(JSON.parse(String(call![1]?.body))).toEqual({ username: "Ngoc-Duy", password: "mat-khau-cua-toi" })
     })
 
-    it("says a garbage verify link is invalid", () => {
-        draw({}, "/login?verify=invalid")
-        expect(screen.getByRole("status")).toHaveTextContent(/không hợp lệ/)
-    })
-
-    it("goes to ?next= after a successful sign-in", async () => {
-        draw({ [LOGIN]: { body: { id: "u1", displayName: "An", email: "an@example.test" } } },
+    it("goes to ?next= after a sign-in that is already the player's own", async () => {
+        draw({ [LOGIN]: { body: { id: "u1", username: "an", displayName: "An", mustChangePassword: false } } },
             "/login?next=%2Fs%2Fcup%2Fmatches%2Fm1")
 
-        await userEvent.type(screen.getByLabelText("Email"), "an@example.test")
+        await userEvent.type(screen.getByLabelText("Tên đăng nhập"), "an")
         await userEvent.type(screen.getByLabelText("Mật khẩu"), "mat-khau-42")
         await userEvent.click(screen.getByRole("button", { name: "Đăng nhập" }))
 
@@ -122,10 +93,10 @@ describe("LoginPage", () => {
     })
 
     it("refuses a //host next= — it can only send a player inside this app", async () => {
-        draw({ [LOGIN]: { body: { id: "u1", displayName: "An", email: "an@example.test" } } },
+        draw({ [LOGIN]: { body: { id: "u1", username: "an", displayName: "An", mustChangePassword: false } } },
             "/login?next=%2F%2Fevil.example")
 
-        await userEvent.type(screen.getByLabelText("Email"), "an@example.test")
+        await userEvent.type(screen.getByLabelText("Tên đăng nhập"), "an")
         await userEvent.type(screen.getByLabelText("Mật khẩu"), "mat-khau-42")
         await userEvent.click(screen.getByRole("button", { name: "Đăng nhập" }))
 
@@ -133,76 +104,98 @@ describe("LoginPage", () => {
         await waitFor(() => expect(screen.getByText("landed at /")).toBeTruthy())
     })
 
-    it("shows the server's single message for a wrong password or unknown address", async () => {
+    it("sends the DESK's first password straight to /password, carrying ?next=", async () => {
         draw({
-            [LOGIN]: { body: { message: "Email hoặc mật khẩu không đúng." }, status: 401 },
+            ...signedIn,
+            [LOGIN]: { body: { id: "u1", username: "moi", displayName: "Mới", mustChangePassword: true } },
+        }, "/login?next=%2Fcode")
+
+        await userEvent.type(screen.getByLabelText("Tên đăng nhập"), "moi")
+        await userEvent.type(screen.getByLabelText("Mật khẩu"), "mat-khau-ban-2026")
+        await userEvent.click(screen.getByRole("button", { name: "Đăng nhập" }))
+
+        // The forced change is not a suggestion: /password is the only way on,
+        // and the code box the player asked for waits behind it as ?next=.
+        await waitFor(() => expect(screen.getByLabelText("Mật khẩu ban điều hành cấp")).toBeTruthy())
+    })
+
+    it("shows the server's single message for a wrong password or unknown handle", async () => {
+        draw({
+            [LOGIN]: { body: { message: "Tên đăng nhập hoặc mật khẩu không đúng." }, status: 401 },
         }, "/login")
 
-        await userEvent.type(screen.getByLabelText("Email"), "sai@example.test")
+        await userEvent.type(screen.getByLabelText("Tên đăng nhập"), "sai-cai-nay")
         await userEvent.type(screen.getByLabelText("Mật khẩu"), "sai-het")
         await userEvent.click(screen.getByRole("button", { name: "Đăng nhập" }))
 
-        expect(await screen.findByRole("alert")).toHaveTextContent(/Email hoặc mật khẩu không đúng/)
+        expect(await screen.findByRole("alert")).toHaveTextContent(/Tên đăng nhập hoặc mật khẩu không đúng/)
     })
 
-    it("says why an unverified account cannot sign in yet", async () => {
-        draw({
-            [LOGIN]: { body: { message: "Email chưa được xác thực — mở liên kết trong email đăng ký rồi thử lại." }, status: 403 },
-        }, "/login")
-
-        await userEvent.type(screen.getByLabelText("Email"), "chua-xac-thuc@example.test")
-        await userEvent.type(screen.getByLabelText("Mật khẩu"), "mat-khau-42")
-        await userEvent.click(screen.getByRole("button", { name: "Đăng nhập" }))
-
-        expect(await screen.findByRole("alert")).toHaveTextContent(/chưa được xác thực/)
+    it("explains a Google link that could not start", () => {
+        draw({}, "/login?notice=google-off")
+        expect(screen.getByText(/chưa được cấu hình/)).toBeTruthy()
     })
 })
 
-describe("LoginPage — the desk's one-time entry code", () => {
-    const ENTRY = "POST /gameplay/auth/entry-code"
+describe("ChangePasswordPage — where the desk's password ends", () => {
+    it("asks for the current password, the new one, and a repeat", () => {
+        draw({ ...signedIn }, "/password")
 
-    it("offers the code door under the password one, and swaps the fields", async () => {
-        draw({}, "/login")
-        expect(screen.getByLabelText("Email")).toBeTruthy()
-
-        await userEvent.click(screen.getByRole("button", { name: /Quên mật khẩu/ }))
-        // one card, one form: the password fields are gone, not stacked
-        expect(screen.queryByLabelText("Email")).toBeNull()
-        expect(screen.getByLabelText("Mã một lần")).toBeTruthy()
-        expect(screen.getByText(/dùng một lần, hết hạn sau 15 phút/)).toBeTruthy()
-        expect(screen.getByText(/Mật khẩu không ai biết cả/)).toBeTruthy()
+        expect(screen.getByLabelText("Mật khẩu ban điều hành cấp")).toBeTruthy()
+        expect(screen.getByLabelText("Mật khẩu mới")).toBeTruthy()
+        expect(screen.getByLabelText("Nhập lại mật khẩu mới")).toBeTruthy()
+        expect(screen.getByText(/ban điều hành cấp mật khẩu đầu tiên/)).toBeTruthy()
     })
 
-    it("redeems the code into the player's own session, honouring ?next=", async () => {
-        const { fetchMock } = draw({ [ENTRY]: { body: { id: "u1", displayName: "An" } } }, "/login?next=%2Fcode")
+    it("refuses a repeat that does not match, without sending anything", async () => {
+        const { fetchMock } = draw({ ...signedIn }, "/password")
 
-        await userEvent.click(screen.getByRole("button", { name: /Quên mật khẩu/ }))
-        await userEvent.type(screen.getByLabelText("Mã một lần"), "ABC234")
-        await userEvent.click(screen.getByRole("button", { name: "Vào" }))
+        await userEvent.type(screen.getByLabelText("Mật khẩu ban điều hành cấp"), "mat-khau-ban-2026")
+        await userEvent.type(screen.getByLabelText("Mật khẩu mới"), "mat-khau-moi-123")
+        await userEvent.type(screen.getByLabelText("Nhập lại mật khẩu mới"), "khac-nhau-het")
+        await userEvent.click(screen.getByRole("button", { name: "Đặt mật khẩu" }))
 
-        await waitFor(() => expect(screen.getByText("landed at /code")).toBeTruthy())
-        const call = fetchMock.mock.calls.find(([input]) => String(input).includes("/entry-code"))
-        expect(JSON.parse(String(call![1]?.body))).toEqual({ code: "ABC234" })
+        expect(await screen.findByRole("alert")).toHaveTextContent(/chưa giống nhau/)
+        expect(fetchMock.mock.calls.some(([input]) => String(input).includes("/change-password"))).toBe(false)
     })
 
-    it("keeps the server's refusal on the form", async () => {
-        draw({ [ENTRY]: { body: { message: "Mã không hợp lệ hoặc đã hết hạn." }, status: 404 } }, "/login")
+    it("saves the player's own password and goes back to where the gate found them", async () => {
+        draw({ ...signedIn, [CHANGE]: { body: { ok: true, displayName: "Ngọc Duy" } } },
+            "/password?next=%2Fs%2Fcup%2Fmatches%2Fm1")
 
-        await userEvent.click(screen.getByRole("button", { name: /Quên mật khẩu/ }))
-        await userEvent.type(screen.getByLabelText("Mã một lần"), "HET234")
-        await userEvent.click(screen.getByRole("button", { name: "Vào" }))
+        await userEvent.type(screen.getByLabelText("Mật khẩu ban điều hành cấp"), "mat-khau-ban-2026")
+        await userEvent.type(screen.getByLabelText("Mật khẩu mới"), "mat-khau-moi-123")
+        await userEvent.type(screen.getByLabelText("Nhập lại mật khẩu mới"), "mat-khau-moi-123")
+        await userEvent.click(screen.getByRole("button", { name: "Đặt mật khẩu" }))
 
-        expect(await screen.findByRole("alert")).toHaveTextContent(/không hợp lệ hoặc đã hết hạn/)
-        expect(screen.getByLabelText("Mã một lần")).toBeTruthy()
+        await waitFor(() => expect(screen.getByText("landed at /s/cup/matches/m1")).toBeTruthy())
     })
 
-    it("walks back to the password door", async () => {
-        draw({}, "/login")
+    it("keeps the SERVER's refusal to the current password on the form", async () => {
+        draw({
+            ...signedIn,
+            [CHANGE]: { body: { message: "Mật khẩu hiện tại không đúng." }, status: 401 },
+        }, "/password")
 
-        await userEvent.click(screen.getByRole("button", { name: /Quên mật khẩu/ }))
-        await userEvent.click(screen.getByRole("button", { name: /Quay lại đăng nhập/ }))
+        await userEvent.type(screen.getByLabelText("Mật khẩu ban điều hành cấp"), "sai-het")
+        await userEvent.type(screen.getByLabelText("Mật khẩu mới"), "mat-khau-moi-123")
+        await userEvent.type(screen.getByLabelText("Nhập lại mật khẩu mới"), "mat-khau-moi-123")
+        await userEvent.click(screen.getByRole("button", { name: "Đặt mật khẩu" }))
 
-        expect(screen.getByLabelText("Email")).toBeTruthy()
-        expect(screen.queryByLabelText("Mã một lần")).toBeNull()
+        // A wrong current password is NOT "your session is gone": the form stays.
+        expect(await screen.findByRole("alert")).toHaveTextContent(/Mật khẩu hiện tại không đúng/)
+        expect(screen.getByLabelText("Mật khẩu mới")).toBeTruthy()
+    })
+
+    it("sends an expired session back to the login door, carrying both hops", async () => {
+        draw({ ...signedOut }, "/password?next=%2Fcode")
+
+        const door = await screen.findByRole("link", { name: "Đăng nhập" })
+        const href = door.getAttribute("href") ?? ""
+        expect(href).toContain("/login?next=")
+        // two encodings, two hops: /password, itself carrying next=/code
+        expect(decodeURIComponent(decodeURIComponent(href))).toContain("/password?next=/code")
+        expect(screen.getByText(/đăng nhập lại bằng mật khẩu ban điều hành cấp/)).toBeTruthy()
+        expect(screen.queryByLabelText("Mật khẩu mới")).toBeNull()
     })
 })

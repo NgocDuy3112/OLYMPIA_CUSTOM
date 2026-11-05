@@ -23,7 +23,7 @@ beforeAll(async () => {
         .insert(users)
         .values([
             { role: "ADMIN", username: "sess-admin", displayName: "Admin" },
-            { role: "PLAYER", email: "sess-player@example.test", displayName: "Player" }
+            { role: "PLAYER", username: "sess-player", email: "sess-player@example.test", displayName: "Player" }
         ])
         .returning({ id: users.id });
 

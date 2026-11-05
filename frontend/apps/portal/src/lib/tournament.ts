@@ -262,20 +262,21 @@ export function useGroups(tournamentId: string) {
 }
 
 /**
- * Make a show-floor contestant: a PLAYER with only a display name, enrolled on
- * the spot. A contestant who never registers an account of their own still needs
- * a seat, so the console creates the identity a seat points at. The backend
- * rejects a duplicate name, because seats, rail cards and verdicts are read by
- * name on the projector.
+ * A contestant as the players tab reads them: the name on the board, the handle
+ * they sign in with, whether a password exists yet, and whether they are still
+ * on the desk's first one. The address is only where Google finds this row.
  */
-/** A contestant as the players tab lists them: name, address (or none), group. */
 export interface ContestantRow {
     userId: string
     displayName: string
-    /** null for a show-floor identity (a placeholder address) — they cannot sign in */
+    /** The login handle — what the desk tells this player to type. */
+    username: string
+    /** null when no address was ever given (the handle is the identity). */
     email: string | null
-    /** Has the player opened their mail link? Drives the desk's «Xác thực». */
-    emailVerified: boolean
+    /** No password at all: they can only get in through Google, or a reset. */
+    hasPassword: boolean
+    /** Still on the desk's first password — they must set their own before play. */
+    mustChangePassword: boolean
     group: "A" | "B" | null
     enrolledAt: string
 }
@@ -335,11 +336,12 @@ export function useCreateContestant(tournamentId: string) {
     const queryClient = useQueryClient()
 
     return useMutation({
-        // The optional address lets the player's own sign-in attach to this SAME
-        // row later, so their history was never elsewhere. Blank → a placeholder
-        // that plays at the show floor and never signs in.
-        mutationFn: (input: { displayName: string; email?: string }) =>
-            api<{ userId: string; displayName: string; group: "A" | "B" | null }>(
+        // Step 8: the desk types the name and the FIRST PASSWORD. The server
+        // derives the handle from the name and flags the password as the desk's
+        // to be replaced — the player keeps their own from that first sign-in.
+        // The optional address is only ever "where Google will find this row".
+        mutationFn: (input: { displayName: string; password: string; email?: string }) =>
+            api<{ userId: string; displayName: string; username: string; group: "A" | "B" | null }>(
                 `/portal/tournaments/${tournamentId}/players/new`,
                 { method: "POST", body: JSON.stringify(input) }
             ),
@@ -352,13 +354,12 @@ export function useCreateContestant(tournamentId: string) {
 }
 
 /**
- * Enroll an account the PLAYER registered themselves, by its address. The
- * operator never learns the password — there is none to learn. The server
- * refuses an address nobody registered (404), a disabled account (403), and
- * one already on this roster (409). An address that has NOT opened its mail
- * link is accepted: the row lands unverified and the roster's «Xác thực»
- * button (step 7) activates it — on a floor without SMTP the link may never
- * arrive, and refusing it here would keep the account out of the roster.
+ * Enroll an EXISTING account by its address — for an account that exists but is
+ * not on this roster: one made at the desk for another tournament, or by the
+ * player's first Google sign-in (which matches on the address). The operator
+ * never learns the password — whoever holds it chose it. The server refuses an
+ * address no account has ever used (404), a disabled account (403), and one
+ * already on this roster (409).
  */
 export function useEnrollByEmail(tournamentId: string) {
     const queryClient = useQueryClient()
@@ -395,42 +396,27 @@ export function useAssignGroup(tournamentId: string) {
     })
 }
 
-// ── the desk's two account actions ───────────────────────────────────────────────
+// ── the desk's password actions ─────────────────────────────────────────────────
 
 /**
- * ACTIVATE an account: the operator vouches for the address the player
- * registered, so the mail link stops being a gate on a floor without SMTP.
- * The refusal for a show-floor identity comes back as the row's own error.
+ * FORGOTTEN PASSWORD: the desk types a first password again, and the row goes
+ * back to `mustChangePassword` — this one stops being the desk's at the
+ * player's next sign-in too, and every session the old password minted dies
+ * with the version bump. Also how a row from before step 8 (no password at all)
+ * is given a way in.
  */
-export function useActivateContestant(tournamentId: string) {
+export function useResetPassword(tournamentId: string) {
     const queryClient = useQueryClient()
 
     return useMutation({
-        mutationFn: (userId: string) =>
-            api<{ userId: string; email: string; emailVerified: boolean }>(
-                `/portal/tournaments/${tournamentId}/players/${userId}/verify`,
-                { method: "POST" }
+        mutationFn: (input: { userId: string; password: string }) =>
+            api<{ userId: string; username: string }>(
+                `/portal/tournaments/${tournamentId}/players/${input.userId}/password`,
+                { method: "POST", body: JSON.stringify({ password: input.password }) }
             ),
         onSuccess: () => {
-            // The roster carries the flag the button reads.
             void queryClient.invalidateQueries({ queryKey: ["enrolled", tournamentId] })
-            void queryClient.invalidateQueries({ queryKey: ["groups", tournamentId] })
         },
-    })
-}
-
-/**
- * FORGOTTEN PASSWORD: a one-time entry code bound to this player's own
- * account — the desk never holds a password, because there is none to hold.
- * The value comes back once, to this screen, and is never cached anywhere.
- */
-export function useIssueEntryCode(tournamentId: string) {
-    return useMutation({
-        mutationFn: (userId: string) =>
-            api<{ userId: string; email: string; code: string; expiresAt: string }>(
-                `/portal/tournaments/${tournamentId}/players/${userId}/entry-code`,
-                { method: "POST" }
-            ),
     })
 }
 

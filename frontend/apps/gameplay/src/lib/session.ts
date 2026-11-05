@@ -29,16 +29,13 @@ export function isUnauthorized(error: unknown): boolean {
 }
 
 /**
- * The player's own door: email + password they chose when they registered.
- * Google is the secondary link, offered only when the deployment configured it.
+ * The player's own door: the handle the desk issued, and the password they
+ * chose at their first sign-in. Google is the secondary link, offered only when
+ * the deployment configured it.
  */
 export function loginLink(next?: string): string {
     const suffix = next ? `?next=${encodeURIComponent(next)}` : ""
     return `/login${suffix}`
-}
-
-export function registerLink(): string {
-    return "/register"
 }
 
 /** Google's door — only worth rendering when `useAuthMethods().google`. */
@@ -72,18 +69,25 @@ export function useLogout() {
 }
 
 /**
- * Sign in. On success the session cookie exists but EVERYTHING cached was read
- * without it — the `me` query above most of all, which is what puts the player's
- * name in the navbar.
+ * Sign in with the handle the desk issued. On success the session cookie exists
+ * but EVERYTHING cached was read without it — the `me` query above most of all,
+ * which is what puts the player's name in the navbar.
+ *
+ * `mustChangePassword` says the desk's first password is still in place: the
+ * caller sends the player to /password instead of wherever they were going —
+ * and the API gate would send them there on the next request anyway.
  */
 export function useLogin() {
     const queryClient = useQueryClient()
     return useMutation({
-        mutationFn: (input: { email: string; password: string }) =>
-            api<{ id: string; displayName: string; email: string }>("/gameplay/auth/login", {
-                method: "POST",
-                body: JSON.stringify(input),
-            }),
+        mutationFn: (input: { username: string; password: string }) =>
+            api<{ id: string; username: string; displayName: string; mustChangePassword: boolean }>(
+                "/gameplay/auth/login",
+                {
+                    method: "POST",
+                    body: JSON.stringify(input),
+                }
+            ),
         onSuccess: () => {
             void queryClient.invalidateQueries()
         },
@@ -91,16 +95,22 @@ export function useLogin() {
 }
 
 /**
- * Register: creates an UNVERIFIED account and mails the link. No session is
- * minted — the success screen says to go read the mail, nothing else.
+ * Set my OWN password — the door the forced change walks through. The response
+ * re-issues this browser's session (the one the desk's password minted dies with
+ * the tokenVersion bump), so the player carries straight on instead of logging
+ * in again with a password they typed ten seconds ago.
  */
-export function useRegister() {
+export function useChangePassword() {
+    const queryClient = useQueryClient()
     return useMutation({
-        mutationFn: (input: { email: string; password: string; displayName?: string }) =>
-            api<{ pendingVerification: true; to: string }>("/gameplay/auth/register", {
+        mutationFn: (input: { currentPassword: string; newPassword: string }) =>
+            api<{ ok: true; displayName: string }>("/gameplay/auth/change-password", {
                 method: "POST",
                 body: JSON.stringify(input),
             }),
+        onSuccess: () => {
+            void queryClient.invalidateQueries()
+        },
     })
 }
 
@@ -131,24 +141,6 @@ export function useClaimCode() {
             }),
         onSuccess: () => {
             // The seat is new: "which match am I in" was read without it.
-            void queryClient.invalidateQueries()
-        },
-    })
-}
-
-/**
- * Redeem the desk's one-time entry code (a forgotten password) — it answers
- * with the player's OWN session, so every cached read was made without it.
- */
-export function useEntryCode() {
-    const queryClient = useQueryClient()
-    return useMutation({
-        mutationFn: (code: string) =>
-            api<{ id: string; displayName: string }>("/gameplay/auth/entry-code", {
-                method: "POST",
-                body: JSON.stringify({ code }),
-            }),
-        onSuccess: () => {
             void queryClient.invalidateQueries()
         },
     })

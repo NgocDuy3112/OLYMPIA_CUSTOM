@@ -7,7 +7,7 @@ import { StandingsPage } from "@/pages/StandingsPage"
 import { NotFoundPage } from "@/pages/NotFoundPage"
 import { PrivacyPage } from "@/pages/PrivacyPage"
 import { LoginPage } from "@/pages/LoginPage"
-import { RegisterPage } from "@/pages/RegisterPage"
+import { ChangePasswordPage } from "@/pages/ChangePasswordPage"
 import { CodePage } from "@/pages/CodePage"
 import { PlayerShell } from "@/components/player-shell"
 import { CameraPanel } from "@/components/live/CameraPanel"
@@ -159,9 +159,12 @@ function App() {
                     <Route path="/privacy" element={<PrivacyPage />} />
                     {/* The player's own door. Inside the shell on purpose: the
                         navbar is where a signed-in player sees their name, so the
-                        pages that lead there sit under it too. */}
+                        pages that lead there sit under it too. There is no
+                        /register any more: accounts are created at the desk, and
+                        /password is where their first password stops being the
+                        desk's. */}
                     <Route path="/login" element={<LoginPage />} />
-                    <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/password" element={<ChangePasswordPage />} />
                     {/* The walk-in's door: a room code, half of an entrance —
                         the session (from the doors above) is the other half. */}
                     <Route path="/code" element={<CodePage />} />

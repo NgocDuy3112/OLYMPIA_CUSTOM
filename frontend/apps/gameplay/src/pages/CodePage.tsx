@@ -5,7 +5,7 @@ import { Card, CardContent } from "@shared/ui/card"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@shared/ui/field"
 import { Input } from "@shared/ui/input"
 import { ApiError } from "@shared/lib/api"
-import { isUnauthorized, loginLink, registerLink, useClaimCode, useMe } from "@/lib/session"
+import { isUnauthorized, loginLink, useClaimCode, useMe } from "@/lib/session"
 
 /** Only a path inside this app — the same rule LoginPage applies to ?next=. */
 function isGone(error: unknown): boolean {
@@ -69,14 +69,8 @@ export function CodePage() {
                             Đăng nhập
                         </Link>
                         <p className="font-sans text-xs text-muted-foreground">
-                            Chưa có tài khoản?{" "}
-                            <Link
-                                to={registerLink()}
-                                className="underline underline-offset-4 hover:text-foreground"
-                            >
-                                Đăng ký
-                            </Link>{" "}
-                            rồi lấy mã lại từ ban điều hành.
+                            Chưa có tài khoản? Thí sinh không tự đăng ký — ban điều hành cấp tài khoản,
+                            rồi bạn đăng nhập và lấy mã ở đây.
                         </p>
                     </CardContent>
                 </Card>

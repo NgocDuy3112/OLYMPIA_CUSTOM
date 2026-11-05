@@ -48,8 +48,8 @@ beforeAll(async () => {
     ownerCookie = signToken(app, "PORTAL", { sub: owner.id, role: "OPERATOR", tokenVersion: 0 });
 
     const playerRows = await db.insert(users).values([
-        { role: "PLAYER", email: "vd1@example.com", displayName: "VD1", tokenVersion: 0 },
-        { role: "PLAYER", email: "vd2@example.com", displayName: "VD2", tokenVersion: 0 }
+        { role: "PLAYER", username: "vd1", email: "vd1@example.com", displayName: "VD1", tokenVersion: 0 },
+        { role: "PLAYER", username: "vd2", email: "vd2@example.com", displayName: "VD2", tokenVersion: 0 }
     ]).returning();
     playerIds = playerRows.map((u) => u.id);
     playerCookies = playerRows.map((u) => signToken(app, "GAMEPLAY", { sub: u.id, role: "PLAYER", tokenVersion: 0 }));

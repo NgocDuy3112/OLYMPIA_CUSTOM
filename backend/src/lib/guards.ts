@@ -1,4 +1,4 @@
-import type { FastifyRequest } from "fastify";
+import type { FastifyReply, FastifyRequest } from "fastify";
 import { eq } from "drizzle-orm";
 import { db } from "../db/pool.js";
 import { users } from "../db/schema/auth.js";
@@ -38,9 +38,37 @@ async function authenticate(request: FastifyRequest, surface: Surface) {
     return user;
 }
 
+/**
+ * The routes a player reaches while `mustChangePassword` is still set — exactly
+ * the three that let them clear it, learn who they are, or leave. Anything else
+ * is play, and play waits for their own password.
+ */
+const PASSWORD_CHANGE_EXEMPT = new Set([
+    "/gameplay/auth/me",
+    "/gameplay/auth/logout",
+    "/gameplay/auth/change-password",
+]);
+
 export function requireAuth(surface: Surface) {
-    return async (request: FastifyRequest) => {
-        request.sessionUser = await authenticate(request, surface);
+    return async (request: FastifyRequest, reply: FastifyReply) => {
+        const user = await authenticate(request, surface);
+
+        // THE GATE (step 8): while the player is still on the desk's first
+        // password, every authenticated route except these three answers 409 —
+        // and those three are exactly the ones that let them clear it (change
+        // it, find out who they are, or leave). Sending the reply here stops the
+        // lifecycle, so no handler underneath can be reached by skipping a UI.
+        if (user.mustChangePassword) {
+            const path = request.url.split("?")[0] ?? request.url;
+            if (!PASSWORD_CHANGE_EXEMPT.has(path)) {
+                return reply.code(409).send({
+                    error: "PASSWORD_CHANGE_REQUIRED",
+                    message: "Hãy đặt mật khẩu của bạn trước khi tiếp tục.",
+                });
+            }
+        }
+
+        request.sessionUser = user;
     };
 }
 

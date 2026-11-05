@@ -1,7 +1,6 @@
-// The two doors a CODE opens — and neither one opens an identity.
+// The door a ROOM CODE opens — and the one thing it never opens: an identity.
 //
 //   POST /gameplay/join/claim            session + room code  → a seat
-//   POST /gameplay/auth/entry-code       entry code (once)    → a session
 //   GET  /portal/tournaments/:t/match-codes                   → the live codes
 //   POST /portal/tournaments/:t/matches/:m/code               → mint / rotate
 //
@@ -12,8 +11,6 @@
 // untouched — a seat still references `user.id`.
 import type { FastifyInstance } from "fastify";
 import { requireAuth } from "../../lib/guards.js";
-import { setSessionCookie } from "../../lib/cookies.js";
-import { signToken } from "../../lib/jwt.js";
 import { auditFromRequest } from "../audit/service.js";
 import {
     tournamentGuards,
@@ -25,7 +22,6 @@ import { CodeError, toHttpStatus } from "./errors.js";
 import {
     activeRoomCodes,
     claimSeat,
-    redeemEntryCode,
     rotateRoomCode
 } from "./service.js";
 
@@ -100,28 +96,6 @@ export async function matchCodeRoutes(app: FastifyInstance) {
             });
 
             return result;
-        }
-    );
-
-    // The desk's password-reset path: one code, one account, one session. This
-    // is the ONLY pre-session route here, so it carries the login rate limit.
-    app.post(
-        "/gameplay/auth/entry-code",
-        { ...perIp, schema: { body: codeBody } },
-        async (request, reply) => {
-            const { code } = request.body as { code: string };
-
-            const player = await redeemEntryCode(code);
-
-            // The SAME cookie a password login mints — the player's own
-            // tokenVersion, so a redeem cannot resurrect a revoked session.
-            setSessionCookie(reply, "GAMEPLAY", signToken(app, "GAMEPLAY", {
-                sub: player.id,
-                role: player.role,
-                tokenVersion: player.tokenVersion
-            }));
-
-            return { id: player.id, displayName: player.displayName };
         }
     );
 

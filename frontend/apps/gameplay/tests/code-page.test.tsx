@@ -64,9 +64,11 @@ describe("CodePage — signed out", () => {
         expect(screen.getByText(/mã nói trận nào mở, tài khoản nói bạn là ai/)).toBeTruthy()
     })
 
-    it("still points at registration — the venue's walk-in has no account yet", async () => {
+    it("sends an account-less walk-in to the DESK, not to a form — signup is gone", async () => {
         draw({ ...signedOut })
-        expect((await screen.findByRole("link", { name: "Đăng ký" })).getAttribute("href")).toBe("/register")
+        await screen.findByRole("link", { name: "Đăng nhập" })
+        expect(screen.queryByRole("link", { name: "Đăng ký" })).toBeNull()
+        expect(screen.getByText(/không tự đăng ký/)).toBeInTheDocument()
     })
 })
 

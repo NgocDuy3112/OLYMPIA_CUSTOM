@@ -41,6 +41,7 @@ import {
     users
 } from "../src/db/schema/index.js";
 import { rotateRoomCode } from "../src/modules/match-codes/service.js";
+import { pickUsername } from "../src/lib/username.js";
 import type { MatchQuestion } from "../src/game/contracts/index.js";
 
 const SLUG = "fixture-cup";
@@ -150,22 +151,32 @@ async function main() {
         })
         .returning();
 
+    // Accounts the desk issues — this fixture IS the operator. Handles are
+    // picked one at a time (pickUsername de-duplicates against the table, so
+    // parallel calls would race for the same name): "Ngọc Duy" → "ngoc-duy",
+    // exactly what the roster's own create button derives.
+    const usernames: string[] = [];
+    const playerValues = [];
+    for (const [i, name] of PLAYERS.entries()) {
+        usernames.push(await pickUsername(db, name));
+        playerValues.push({
+            role: "PLAYER" as const,
+            username: usernames[i]!,
+            email: `fixture-player-${i + 1}@example.com`,
+            displayName: name,
+            // Passworded by the fixture (it holds the first password the way the
+            // desk does), so a dev logs in on /login — and is asked, like every
+            // player, to set their own at that first sign-in.
+            emailVerified: true,
+            passwordHash: await argon2.hash(PLAYER_PASSWORD),
+            mustChangePassword: true,
+            tokenVersion: 0
+        });
+    }
+
     const playerRows = await db
         .insert(users)
-        .values(
-            await Promise.all(
-                PLAYERS.map(async (name, i) => ({
-                    role: "PLAYER" as const,
-                    email: `fixture-player-${i + 1}@example.com`,
-                    displayName: name,
-                    // Real accounts: verified and passworded, so a dev can log in
-                    // on /login the same way a player would after registering.
-                    emailVerified: true,
-                    passwordHash: await argon2.hash(PLAYER_PASSWORD),
-                    tokenVersion: 0
-                }))
-            )
-        )
+        .values(playerValues)
         .returning();
 
     await db.insert(tournaments).values({
@@ -226,13 +237,14 @@ tournament   ${TOURNAMENT_ID}  (slug: ${SLUG})
 match        ${MATCH_ID}       status LIVE
 seated       ${PLAYERS.slice(0, WALK_IN).join(", ")}
 room code    ${room.code}      → http://localhost:5175/code
-             (sign in as fixture-player-${WALK_IN + 1}@example.com / ${PLAYER_PASSWORD},
-              then type the code — that is the 4th seat)
+             (sign in as ${usernames[WALK_IN]} / ${PLAYER_PASSWORD} — first sign-in asks
+              you to set your own password — then type the code: the 4th seat)
 questions    6 oral (phase 1) + 12 typed (phase 2), all khởi động
 
 console      http://localhost:5173/tournaments/${TOURNAMENT_ID}/matches/${MATCH_ID}/stage
   sign in    http://localhost:5173/login   ${OPERATOR.username} / ${OPERATOR.password}
-players      http://localhost:5175/login   fixture-player-N@example.com / ${PLAYER_PASSWORD}
+players      http://localhost:5175/login   ${usernames.join(" / ")} · password ${PLAYER_PASSWORD}
+             (username is the handle; the first sign-in swaps it for their own)
   deck       http://localhost:5175/s/${SLUG}/matches/${MATCH_ID}
 
 session      npx tsx --env-file=../configs/.env scripts/dev-fixture.ts --session

@@ -1,13 +1,18 @@
-// A player's OWN account: register, verify the address, log in.
+// A player's account: the handle they sign in with, and the one password that
+// is theirs.
 //
-// The identity is theirs, not the operator's: an email and a password the player
-// chooses (nobody at the desk ever sees it), verified by a link before the account
-// can be used. The operator's job becomes ENROLLING a known address, and seating
-// that account — which is why the roster grew "enroll by email" beside "create a
-// show-floor identity" (a contestant who never signs in).
+// Step 8 inverted who creates it. The DESK creates the account — username
+// derived from the name it typed (`lib/username.ts`), first password typed by
+// the operator — and that first password stops being the desk's the moment the
+// player sets their own. `mustChangePassword` is the promise, and
+// `lib/guards.ts` keeps it: every authenticated route except whoami, logout and
+// change-password answers 409 PASSWORD_CHANGE_REQUIRED until it clears, so a
+// password the operator knows works for exactly as long as the player hasn't
+// shown up.
 //
-// No secrets are stored beyond the argon2 hash, and the verification token is a
-// 24-hour JWT with one purpose, so a leaked link cannot be replayed as a session.
+// Self-registration and the verification mail went with the old model (there is
+// no mail flow left to verify an address with). Google sign-in stays a
+// secondary door and vouches for its own address.
 import argon2 from "argon2";
 import { and, desc, eq, or, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
@@ -15,108 +20,17 @@ import { db } from "../../db/pool.js";
 import { matches, tournaments, users } from "../../db/schema/index.js";
 import { requireAuth } from "../../lib/guards.js";
 import { setSessionCookie } from "../../lib/cookies.js";
-import { signToken, signVerifyEmail, verifyEmailToken } from "../../lib/jwt.js";
-import { sendMail } from "../../lib/mailer.js";
+import { signToken } from "../../lib/jwt.js";
 
 const PASSWORD_MIN = 8;
-const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 const perIp = { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } };
 
-const normalizeEmail = (raw: string) => raw.trim().toLowerCase();
-
-/** The absolute URL a link in a mail must carry — derived from the request. */
-function originOf(request: { protocol: string; headers: Record<string, unknown> }): string {
-    return `${request.protocol}://${request.headers.host}`;
-}
-
 export async function playerAccountRoutes(app: FastifyInstance) {
-    // ── register ──────────────────────────────────────────────────────────────
-    app.post(
-        "/gameplay/auth/register",
-        {
-            ...perIp,
-            schema: {
-                body: {
-                    type: "object",
-                    required: ["email", "password"],
-                    additionalProperties: false,
-                    properties: {
-                        email: { type: "string", maxLength: 255 },
-                        password: { type: "string", minLength: PASSWORD_MIN, maxLength: 256 },
-                        displayName: { type: "string", minLength: 1, maxLength: 100 },
-                    },
-                },
-            },
-        },
-        async (request) => {
-            const body = request.body as { email: string; password: string; displayName?: string };
-            const email = normalizeEmail(body.email);
-
-            if (!EMAIL_SHAPE.test(email)) throw app.httpErrors.badRequest("Địa chỉ email không hợp lệ.");
-            if (body.password.length < PASSWORD_MIN) {
-                throw app.httpErrors.badRequest(`Mật khẩu cần ít nhất ${PASSWORD_MIN} ký tự.`);
-            }
-
-            const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
-            if (existing) throw app.httpErrors.conflict("Email này đã có tài khoản — hãy đăng nhập.");
-
-            const displayName = (body.displayName ?? email.split("@")[0] ?? "Thí sinh").trim().slice(0, 100);
-            const [created] = await db
-                .insert(users)
-                .values({
-                    role: "PLAYER",
-                    email,
-                    displayName,
-                    passwordHash: await argon2.hash(body.password),
-                    // verified by the link below, never by the act of registering
-                    emailVerified: false,
-                    tokenVersion: 0,
-                })
-                .returning({ id: users.id });
-
-            const link = `${originOf(request)}/gameplay/auth/verify?token=${encodeURIComponent(signVerifyEmail(app, created!.id))}`;
-            await sendMail(request.log, {
-                to: email,
-                subject: "Xác thực tài khoản thi đấu Olympia Custom",
-                text: [
-                    `Chào ${displayName},`,
-                    "",
-                    "Bấm vào liên kết dưới đây để xác thực email và dùng được tài khoản (liên kết hết hạn sau 24 giờ):",
-                    link,
-                    "",
-                    "Nếu bạn không đăng ký tài khoản này, hãy bỏ qua email.",
-                ].join("\n"),
-            });
-
-            // 201 with no session: the account is not usable until the link is opened.
-            return { pendingVerification: true, to: email };
-        }
-    );
-
-    // ── verify (the link in the mail) ─────────────────────────────────────────
-    app.get("/gameplay/auth/verify", async (request, reply) => {
-        const { token } = request.query as { token?: string };
-        const back = (query: string) => reply.redirect(`/login?${query}`);
-        if (!token) return back("verify=invalid");
-
-        let payload;
-        try {
-            payload = verifyEmailToken(app, token);
-        } catch {
-            return back("verify=expired");
-        }
-        if (payload.purpose !== "verify") return back("verify=invalid");
-
-        await db
-            .update(users)
-            .set({ emailVerified: true, updatedAt: new Date() })
-            .where(eq(users.id, payload.sub));
-
-        return back("verify=ok");
-    });
-
     // ── log in ────────────────────────────────────────────────────────────────
+    // The same key staff use (username + password), without the TOTP step.
+    // Handles are stored lower-case but SPEAKABLE, so the lookup folds case:
+    // "Ngoc-Duy" and "ngoc-duy" are one player, not two.
     app.post(
         "/gameplay/auth/login",
         {
@@ -124,39 +38,113 @@ export async function playerAccountRoutes(app: FastifyInstance) {
             schema: {
                 body: {
                     type: "object",
-                    required: ["email", "password"],
+                    required: ["username", "password"],
                     additionalProperties: false,
                     properties: {
-                        email: { type: "string", maxLength: 255 },
+                        username: { type: "string", minLength: 1, maxLength: 50 },
                         password: { type: "string", minLength: 1, maxLength: 256 },
                     },
                 },
             },
         },
         async (request, reply) => {
-            const body = request.body as { email: string; password: string };
-            const email = normalizeEmail(body.email);
+            const body = request.body as { username: string; password: string };
+            const handle = body.username.trim().toLowerCase();
 
-            const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-            // One message for "unknown address" and "wrong password": no enumeration.
-            const invalid = () => app.httpErrors.unauthorized("Email hoặc mật khẩu không đúng.");
+            const [user] = await db
+                .select()
+                .from(users)
+                .where(sql`lower(${users.username}) = ${handle}`)
+                .limit(1);
+
+            // One message for "unknown handle" and "wrong password": no enumeration.
+            const invalid = () =>
+                app.httpErrors.unauthorized("Tên đăng nhập hoặc mật khẩu không đúng.");
             if (!user?.passwordHash) throw invalid();
 
             const ok = await argon2.verify(user.passwordHash, body.password);
             if (!ok) throw invalid();
             if (user.disabledAt) throw app.httpErrors.forbidden("Tài khoản đã bị khoá.");
-            if (!user.emailVerified) {
-                throw app.httpErrors.forbidden(
-                    "Email chưa được xác thực — mở liên kết trong email đăng ký rồi thử lại."
-                );
-            }
 
             setSessionCookie(reply, "GAMEPLAY", signToken(app, "GAMEPLAY", {
                 sub: user.id,
                 role: user.role,
                 tokenVersion: user.tokenVersion,
             }));
-            return { id: user.id, displayName: user.displayName, email: user.email };
+
+            // The flag rides along so the client can go STRAIGHT to the change
+            // form instead of waiting for the first request to bounce with 409.
+            return {
+                id: user.id,
+                username: user.username,
+                displayName: user.displayName,
+                mustChangePassword: user.mustChangePassword,
+            };
+        }
+    );
+
+    // ── set my own password ──────────────────────────────────────────────────
+    // The door the forced change walks through. `currentPassword` is required
+    // when one exists (proof the caller is the player who just typed it), and
+    // skipped for an account that has none yet — a Google-created player whose
+    // session is the only proof there is.
+    app.post(
+        "/gameplay/auth/change-password",
+        {
+            ...perIp,
+            onRequest: [requireAuth("GAMEPLAY")],
+            schema: {
+                body: {
+                    type: "object",
+                    required: ["newPassword"],
+                    additionalProperties: false,
+                    properties: {
+                        currentPassword: { type: "string", minLength: 1, maxLength: 256 },
+                        newPassword: { type: "string", minLength: PASSWORD_MIN, maxLength: 256 },
+                    },
+                },
+            },
+        },
+        async (request, reply) => {
+            const body = request.body as { currentPassword?: string; newPassword: string };
+            const user = request.sessionUser!;
+
+            if (body.newPassword.length < PASSWORD_MIN) {
+                throw app.httpErrors.badRequest(`Mật khẩu cần ít nhất ${PASSWORD_MIN} ký tự.`);
+            }
+            if (user.passwordHash) {
+                if (!body.currentPassword) {
+                    throw app.httpErrors.badRequest("Hãy nhập mật khẩu hiện tại.");
+                }
+                const ok = await argon2.verify(user.passwordHash, body.currentPassword);
+                if (!ok) throw app.httpErrors.unauthorized("Mật khẩu hiện tại không đúng.");
+                if (body.currentPassword === body.newPassword) {
+                    throw app.httpErrors.badRequest("Mật khẩu mới phải khác mật khẩu hiện tại.");
+                }
+            }
+
+            // Bumping the version kills every session the OLD password minted —
+            // including any the desk opened while it still knew the password —
+            // and the one below re-issues this browser's, so the player walks
+            // straight into the app instead of back to the login form.
+            const tokenVersion = user.tokenVersion + 1;
+            await db
+                .update(users)
+                .set({
+                    passwordHash: await argon2.hash(body.newPassword),
+                    mustChangePassword: false,
+                    tokenVersion,
+                    updatedAt: new Date(),
+                })
+                .where(eq(users.id, user.id));
+
+            setSessionCookie(reply, "GAMEPLAY", signToken(app, "GAMEPLAY", {
+                sub: user.id,
+                role: user.role,
+                tokenVersion,
+            }));
+
+            return { ok: true as const, displayName: user.displayName };
         }
     );
 

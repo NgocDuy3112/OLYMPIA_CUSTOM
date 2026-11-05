@@ -1,19 +1,33 @@
-# Player accounts (login-first) — replacing the PIN door
+# Player accounts — how a player gets in
 
-**Status: all seven steps are DONE.** Step 1 = `b093114`, steps 2–6 = `8729b9e`,
-step 7 (room codes) = `22abc99` — the build recorded at the bottom of this file.
-The approved shape, as built: players register themselves (email + password they
-choose), verify by email, log in, and "Vào trận" opens the match they are seated
-in. The operator **enrolls a known email** instead of creating identities. **The
-PIN path is removed**, and what came back in step 7 is a ROOM CODE that says
-which room is open — never who the player is.
+**Status: all eight steps are DONE.** 1 = `b093114`, 2–6 = `8729b9e`,
+7 = `22abc99`, 8 = the build at the bottom of this file.
 
-Why self-registration and not "operator types the password": an operator-chosen
-password is a password the operator knows. The desk has no business holding one.
+**Step 8 reverses the shape steps 1–7 were built on** (decided 04/11, after the
+room-code work landed): the **DESK creates the account** — handle derived from
+the name ("Ngọc Duy" → `ngoc-duy`), first password typed by the operator — and
+identity is the **USERNAME**, with email optional. Self-registration, the
+verification mail, and the one-time entry code are deleted. Google sign-in and
+the room codes stay: a claim is still session + code, and "Vào trận" still opens
+the seat the player holds.
+
+The old rule — *"an operator-chosen password is a password the operator knows"* —
+survives in weakened, enforced form: the desk's password works for **exactly one
+sign-in**. The player sets their own on a gated screen, every session the desk's
+password minted dies with the change (`token_version` bump), and from then on the
+desk's only forgotten-password tool is a reset that hands the player straight back
+to that same screen.
+
+*(Steps 1–7 below are kept as the record of how each piece was built; where step 8
+removed or changed something, the section says so.)*
 
 ---
 
-## 1. DONE — backend account loop (`b093114`)
+## 1. DONE — backend account loop (`b093114`) — *half removed in step 8*
+
+> **Step 8 removed `register` and `verify`** (and with them `nodemailer`, `SMTP_*`,
+> `signVerifyEmail`): accounts are created at the desk now. `login` and
+> `me/match` below survive — login keyed by **username** since step 8.
 
 | Endpoint | Behaviour |
 |---|---|
@@ -268,9 +282,119 @@ claim).
    winner's write).
 3. **`verify` in the roster is a trust action:** the operator vouches for the
    address. It should be audited (the audit log already records roster writes).
-   *Addressed:* audited as `tournament_updated` with `details.activated` +
-   `targetId`, asserted in `roster.routes.test.ts`.
+   *Was addressed* by auditing it as `tournament_updated` with `details.activated`
+   — and *superseded by step 8*, which removed the button: an address the desk
+   types at creation is vouched for on the spot, and there is no mail left to wait
+   for. Password writes carry the same audit treatment (`details.passwordResetFor`).
 4. **One-time codes are also bearer secrets**, but bound to a user and single-use —
    strictly narrower than the old standing PIN.
-   *Addressed:* consumed by a conditional UPDATE (one winner), 15-minute life,
-   replaced on re-issue, and never written to the audit trail.
+   *Superseded by step 8:* the entry code is deleted (a forgotten password is now
+   a desk reset + forced change), and `0010` drops `match_codes.user_id` and
+   `used_at` with it. Room codes — the other half of this table — are untouched.
+
+---
+
+## 8. DONE — The desk issues accounts: the USERNAME is the identity
+
+**The decision (04/11):** the shape approved in step 1 — "players register
+themselves" — is replaced by the staff model. The operator creates the account
+and types the first password, and that password stops being theirs at the
+player's first sign-in, **enforced by the API** rather than by intent.
+
+| | Before (steps 1–7) | After (step 8) |
+|---|---|---|
+| Who creates the account | the player, at `/register` | **the desk**, `POST …/players/new` |
+| Identity key | email, verified by a mail link | **username**, derived from the name (`ngoc-duy`) |
+| First password | chosen by the player | typed by the operator → `must_change_password=true` |
+| Verification | 24 h mail link + roster «Xác thực» | gone — Google asserts its own address; the desk vouches for what it types |
+| Forgotten password | one-time entry code (15 min, single use) | desk reset → the **same** forced change |
+| Player without an address | `player-<uuid>@players.invalid` placeholder | none: `email` is nullable, every row has a handle |
+
+### What was built
+
+- **Schema (`0010_username_identity.sql`)** — `users.username` **NOT NULL** for
+  every role (backfilled by slugifying `display_name` with `unaccent`, de-duped
+  case-insensitively: `An` keeps `an` from being handed to a second player),
+  `users_role_identity_check` dropped (it encoded the model this replaces),
+  `+ must_change_password`. `match_codes` loses its second kind (`user_id`,
+  `used_at`) and becomes NOT NULL on `match_id` — one table, one meaning.
+  `src/lib/username.ts` is the single derivation rule, and the SQL backfill is
+  byte-identical to it.
+- **The gate** — `requireAuth` itself: while `mustChangePassword` is set, every
+  authenticated route answers **409 `PASSWORD_CHANGE_REQUIRED`** except
+  `/gameplay/auth/me`, `/logout` and `/change-password`. One choke point, so no
+  route can forget it; `shared/lib/api.ts` turns that code into a redirect to
+  `/password?next=…` (the portal never sees it — staff never carry the flag).
+- **`POST /gameplay/auth/login { username, password }`** — the staff key, no
+  TOTP; lookup folds case (`Ngoc-Duy` = `ngoc-duy`), refuses a disabled account,
+  and answers `mustChangePassword` so the client goes straight to `/password`.
+- **`POST /gameplay/auth/change-password { current?, next }`** — verifies the
+  current one when it exists (a Google-only account has none, and its session is
+  proof enough), refuses `next === current`, clears the flag, bumps
+  `token_version` and **re-issues this browser's cookie** — every session the
+  desk's password minted dies, the player never logs in twice.
+- **Roster** — `POST …/players/new` gains `password` (+ optional email):
+  handle derived, enrolled in the same call, born `mustChangePassword=true`;
+  `POST …/players/:userId/password` is the reset (bumps `token_version` too, so
+  an old password's sessions die with it); `listEnrolled` now answers
+  `username`, `hasPassword`, `mustChangePassword` — the states the roster shows.
+- **Gameplay UI** — `/password` (current, new, repeat; the desk's password
+  named, not hidden), `LoginPage` keyed by **Tên đăng nhập**, `useLogin` sending
+  the player there when the flag is set.
+- **Portal UI** — the create dialog's default tab is **Tạo tài khoản thí sinh**
+  (name + first password + a live handle preview: "Ngọc Duy" → `ngoc-duy`), the
+  roster's Account column shows handle / address / password state, and **Đặt
+  mật khẩu** is the reset panel. Google and enroll-by-email keep their doors.
+
+### What was deleted
+
+`POST /gameplay/auth/register` + `/register` page · `GET …/verify` and the whole
+mail path (`mailer.ts`, `nodemailer`, `SMTP_*`, `signVerifyEmail`) · roster
+`…/verify` («Xác thực») · **the one-time entry code** end to end (`…/entry-code`
+routes, the login page's «Quên mật khẩu?» door) · every `@players.invalid`
+placeholder (creation no longer makes one; the roster still maps legacy rows to
+"không có địa chỉ") · the privacy policy's self-registration and verification-mail
+promises (section 3 rewritten to what the code does) · `Đăng ký` links everywhere.
+
+**Unchanged:** Google sign-in (and `oauth_accounts`, `email`, `email_verified` —
+it still has a consumer: Google asserts its own address, and an address the desk
+types is vouched for on the spot) · room codes, `/code`, the claim, eject ·
+`Vào trận`, `me/match` · enroll-by-email, now the door for an account that
+EXISTS (Google-made, or another tournament's) — its 404 copy points at what makes
+an account instead of "ask them to register".
+
+### Superseded from earlier steps
+
+- **Step 1** (register) and **step 2** (the register page): removed outright.
+- **Step 4**: enroll-by-email no longer refuses an unverified address (step 7's
+  amendment) *and* no longer finds registrants — see above.
+- **Step 6**: the privacy policy's account section rewritten.
+- **Step 7 decisions 2 and 3** (operator clicks «Xác thực», one-time entry code):
+  both replaced by the reset + forced change; the audit treatment carries over
+  (`details.passwordResetFor`, values never written).
+
+**Tests:** backend **842** integration + **469** unit (`player-account.test.ts`
+rewritten around the desk-issued flow and the gate, `harness.test.ts` asserting
+the NOT NULL handle, `match-codes` walking create → sign-in → change → claim);
+frontend **342** (`/password` and the username door in `auth-pages.test.tsx`,
+the roster's password states and reset panel in `players-tab.test.tsx`).
+Typecheck and lint green on both sides.
+
+### Risks (step 8)
+
+1. **The desk knows the first password — briefly.** Accepted, because it ends on
+   a screen the player cannot skip: the gate blocks play until `mustChangePassword`
+   clears, and the change bumps `token_version`, so the desk's sessions die with
+   the desk's password. Residual window: between creation and the player's first
+   sign-in, whoever has that password could sign in FIRST. A venue where the
+   operator hands the slip to the player in person keeps that window seconds-long.
+2. **A handle is spoken and typed.** De-duplication reads with `lower()` and the
+   login lookup folds case, so `An` and `an` can never be two players who share
+   one login; the unique index underneath stays case-sensitive by design (the
+   app never mints two that differ only by case).
+3. **Backfill collisions** (`0010`) resolve to `-2`, `-3`… — a pre-existing
+   duplicate handle becomes visible as `name` / `name-2` rather than silently
+   pointing two rows at one login.
+4. **Existing passwordless rows** (created before step 8) still cannot sign in —
+   the roster says «chưa có mật khẩu», and **Đặt mật khẩu** is the way in. No
+   account is stranded.

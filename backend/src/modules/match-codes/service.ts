@@ -1,21 +1,19 @@
-// The two codes, and what each one is FOR.
+// A ROOM code — the walk-in's half of an entrance.
 //
-//   · a ROOM code names a match — it answers "which room is open". It is held by
-//     the operator, rotatable (leaked → mint a new one) and expiring, and it is
-//     only ever HALF of a claim: the session says who the player is, the code
-//     says where they may sit. This inverts the PIN deleted in step 5, which
-//     minted a session FROM the code — code as identity — and is why a claim
-//     here runs authenticated.
-//   · an ENTRY code names ONE account, once. It is the desk's answer to a
-//     forgotten password: the operator issues it from the roster, the player
-//     redeems it for their own session, and the desk never holds a password.
+// It answers ONE question: WHICH ROOM is open. It never says who is typing it —
+// the account is the only identity, and a claim needs a session AND this row.
+// This is the inversion of the PIN door deleted in step 5, which minted a
+// session FROM the code (code as identity): here the claim runs authenticated,
+// and the code buys a seat and nothing else.
 //
-// Neither code carries identity. Seats keep referencing `user.id`; accounts stay
-// the only thing that says who somebody is.
+// The table started with a second secret (a one-time ENTRY code bound to one
+// account — the forgotten-password path). Step 8 removed it: the desk now
+// issues passwords itself and forces the player to change the first one, so a
+// forgotten password is a reset at the roster, not a code to hand out.
 import { randomInt } from "node:crypto";
-import { and, eq, gt, isNotNull, isNull, ne } from "drizzle-orm";
+import { and, eq, gt, isNull, ne } from "drizzle-orm";
 import { db } from "../../db/pool.js";
-import { matchCodes, matches, tournaments, users } from "../../db/schema/index.js";
+import { matchCodes, matches, tournaments } from "../../db/schema/index.js";
 import { allowedSeatCounts, type Seat } from "../../game/contracts/index.js";
 import { CodeError } from "./errors.js";
 
@@ -23,9 +21,6 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /** A room code lives a day: long enough for the show, short enough that a leaked one dies. */
 const ROOM_CODE_TTL_MS = 24 * 60 * 60 * 1000;
-
-/** An entry code is handed to a player standing at the desk: minutes, not hours. */
-const ENTRY_CODE_TTL_MS = 15 * 60 * 1000;
 
 // No I, L, O, 0, 1: the desk reads this code aloud across a noisy floor, and a
 // character nobody can mistake is worth more than one extra bit of entropy.
@@ -105,7 +100,6 @@ export async function rotateRoomCode(
 
         const row = await insertCode(tx, {
             matchId,
-            userId: null,
             expiresAt: new Date(Date.now() + ROOM_CODE_TTL_MS),
             createdBy
         });
@@ -116,8 +110,7 @@ export async function rotateRoomCode(
             .delete(matchCodes)
             .where(and(
                 eq(matchCodes.matchId, matchId),
-                ne(matchCodes.id, row.id),
-                isNull(matchCodes.usedAt)
+                ne(matchCodes.id, row.id)
             ));
 
         return { matchId, code: row.code, expiresAt: row.expiresAt };
@@ -136,7 +129,6 @@ export async function activeRoomCodes(tournamentId: string): Promise<RoomCode[]>
             eq(matches.tournamentId, tournamentId),
             isNull(matches.deletedAt),
             ne(matches.status, "FINISHED"),
-            isNull(matchCodes.usedAt),
             gt(matchCodes.expiresAt, new Date())
         ));
 }
@@ -168,14 +160,11 @@ export async function claimSeat(userId: string, rawCode: string): Promise<ClaimR
         .from(matchCodes)
         .where(and(
             eq(matchCodes.code, code),
-            // A room code only: an entry code names a user and is not a door.
-            isNotNull(matchCodes.matchId),
-            isNull(matchCodes.usedAt),
             gt(matchCodes.expiresAt, new Date())
         ))
         .limit(1);
 
-    // Unknown, expired, or an entry code — one answer, so a probe learns nothing.
+    // Unknown or expired — one answer, so a probe learns nothing.
     if (!row?.matchId) {
         throw new CodeError("NOT_FOUND", "Mã không đúng hoặc đã hết hạn — xin hỏi lại ban điều hành.");
     }
@@ -231,118 +220,4 @@ export async function claimSeat(userId: string, rawCode: string): Promise<ClaimR
     });
 
     return { matchId, slug: tournament.slug, label: match.label };
-}
-
-// ── the one-time entry code ──────────────────────────────────────────────────
-
-/**
- * Issue the desk's password-reset path: a single-use code bound to ONE
- * account. The operator never learns a password — there is none to learn — and
- * the code dies on use or after 15 minutes, whichever comes first.
- *
- * Any earlier live code for the same player is replaced: two live entry codes
- * would be two doors where the desk believes there is one.
- */
-export async function issueEntryCode(userId: string, createdBy: string): Promise<{ code: string; expiresAt: Date }> {
-    // ONE transaction behind a lock on the account: two desk clerks clicking
-    // at once must end with ONE live code, not with each deleting the other's
-    // (insert-then-delete interleaved leaves the player with none at all).
-    return db.transaction(async (tx) => {
-        const [user] = await tx
-            .select({ id: users.id, emailVerified: users.emailVerified, disabledAt: users.disabledAt })
-            .from(users)
-            .where(eq(users.id, userId))
-            .for("update")
-            .limit(1);
-
-        if (!user) throw new CodeError("NOT_FOUND", "không tìm thấy tài khoản này");
-        if (user.disabledAt) throw new CodeError("FORBIDDEN", "tài khoản đã bị khoá");
-        // Login refuses an unverified address, and so does redeeming this code:
-        // activating the account is the roster's own button, one row above.
-        if (!user.emailVerified) {
-            throw new CodeError("FORBIDDEN", "tài khoản chưa được xác thực — bấm «Xác thực» trước khi cấp mã");
-        }
-
-        // The replacement is minted FIRST: a failed insert must not leave the
-        // player with no way in at all.
-        const row = await insertCode(tx, {
-            userId,
-            matchId: null,
-            expiresAt: new Date(Date.now() + ENTRY_CODE_TTL_MS),
-            createdBy
-        });
-
-        await tx
-            .delete(matchCodes)
-            .where(and(
-                eq(matchCodes.userId, userId),
-                ne(matchCodes.id, row.id),
-                isNull(matchCodes.usedAt)
-            ));
-
-        return { code: row.code, expiresAt: row.expiresAt };
-    });
-}
-
-/**
- * Turn a live entry code into the player's OWN session — the same GAMEPLAY
- * cookie a password login mints, so every seated-player route works unchanged.
- *
- * The consume is a conditional UPDATE, so two simultaneous redemptions cannot
- * both succeed: one wins the row, the other finds it spent and gets the same
- * "not valid" answer an expired code gets.
- */
-export async function redeemEntryCode(rawCode: string): Promise<{
-    id: string;
-    displayName: string;
-    role: "ADMIN" | "OPERATOR" | "PLAYER";
-    tokenVersion: number;
-}> {
-    const code = normalizeCode(rawCode);
-
-    const [row] = await db
-        .select({ id: matchCodes.id, userId: matchCodes.userId })
-        .from(matchCodes)
-        .where(and(
-            eq(matchCodes.code, code),
-            isNotNull(matchCodes.userId),
-            isNull(matchCodes.usedAt),
-            gt(matchCodes.expiresAt, new Date())
-        ))
-        .limit(1);
-
-    const invalid = () => new CodeError("NOT_FOUND", "Mã không hợp lệ hoặc đã hết hạn.");
-    if (!row?.userId) throw invalid();
-
-    const [user] = await db
-        .select({
-            id: users.id,
-            displayName: users.displayName,
-            role: users.role,
-            tokenVersion: users.tokenVersion,
-            emailVerified: users.emailVerified,
-            disabledAt: users.disabledAt
-        })
-        .from(users)
-        .where(eq(users.id, row.userId))
-        .limit(1);
-
-    if (!user || user.disabledAt) throw new CodeError("FORBIDDEN", "Tài khoản này không còn dùng được — gặp ban điều hành.");
-    if (!user.emailVerified) {
-        throw new CodeError("FORBIDDEN", "Tài khoản chưa được xác thực — gặp ban điều hành để kích hoạt.");
-    }
-
-    const consumed = await db
-        .update(matchCodes)
-        .set({ usedAt: new Date() })
-        .where(and(eq(matchCodes.id, row.id), isNull(matchCodes.usedAt)))
-        .returning({ id: matchCodes.id });
-    if (consumed.length === 0) throw invalid();
-
-    return {
-        id: user.id,
-        displayName: user.displayName,
-        role: user.role,
-        tokenVersion: user.tokenVersion
-    };
 }

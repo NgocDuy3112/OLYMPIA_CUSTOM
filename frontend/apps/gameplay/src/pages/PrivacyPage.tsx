@@ -65,9 +65,9 @@ export function PrivacyPage() {
                                 <b>Danh tính khi vào trận</b>: tên hiển thị, ghế bạn ngồi, thời điểm vào.
                             </>,
                             <>
-                                <b>Tài khoản</b> (nếu bạn đăng ký): email và băm mật khẩu (Argon2 —
-                                mật khẩu gốc không bao giờ được lưu), trạng thái xác thực email, và
-                                liên kết xác thực trong email gửi cho bạn. Xem mục 3.
+                                <b>Tài khoản</b> (do ban điều hành tạo): tên đăng nhập, tên hiển thị,
+                                băm mật khẩu (Argon2 — mật khẩu gốc không bao giờ được lưu) và địa
+                                chỉ email nếu có. Xem mục 3.
                             </>,
                             <>
                                 <b>Dữ liệu thi đấu</b>: câu trả lời và đáp án bạn chọn, thời điểm nộp,
@@ -87,35 +87,44 @@ export function PrivacyPage() {
 
                 <Section title="3. Tài khoản thí sinh">
                     <p>
-                        Bạn có thể tự đăng ký tài khoản (email + mật khẩu do bạn chọn) để giữ lịch sử
-                        thi đấu của mình qua nhiều giải. Ban điều hành chỉ ghi danh địa chỉ email của
-                        bạn vào giải — không bao giờ biết hay đặt mật khẩu cho bạn.
+                        Thí sinh không tự đăng ký: ban điều hành tạo tài khoản — tên đăng nhập lấy từ
+                        tên của bạn (Ngọc Duy → <span className="font-mono">ngoc-duy</span>) cùng một
+                        mật khẩu đầu tiên do ban điều hành cấp, và đăng nhập Google là cửa còn lại.
+                        Phần quan trọng là đây: mật khẩu đầu tiên CHỈ có hiệu lực đến lần đăng nhập
+                        đầu của bạn — tại đó bạn phải đặt mật khẩu riêng, và từ sau đó không ai ở ban
+                        điều hành còn biết mật khẩu của bạn.
                     </p>
                     <Bullets
                         items={[
                             <>
-                                <b>Chúng tôi lưu gì</b>: email, tên hiển thị, và băm mật khẩu theo
-                                Argon2. Mật khẩu gốc không bao giờ được lưu dưới bất kỳ hình thức
-                                nào — nhân viên không thể đọc được nó.
+                                <b>Chúng tôi lưu gì</b>: tên đăng nhập, tên hiển thị, băm mật khẩu theo
+                                Argon2 (mật khẩu gốc không bao giờ được lưu dưới bất kỳ hình thức nào),
+                                địa chỉ email nếu có, và ảnh đại diện khi bạn đăng nhập Google.
                             </>,
                             <>
-                                <b>Email xác thực</b>: khi đăng ký, chúng tôi gửi một liên kết xác thực
-                                (hết hạn sau 24 giờ) tới địa chỉ của bạn. Tài khoản chưa xác thực
-                                không đăng nhập được và không được ghi danh vào giải.
+                                <b>Mật khẩu đầu tiên</b>: ban điều hành cấp và chỉ giữ được đến khi bạn
+                                tự đặt mật khẩu riêng ở lần đăng nhập đầu. Mọi phiên được tạo bằng mật
+                                khẩu đầu tiên đều bị khoá ngay lúc bạn đổi.
+                            </>,
+                            <>
+                                <b>Địa chỉ email (nếu có)</b>: chỉ để đăng nhập Google tìm thấy đúng
+                                bạn. Hệ thống không gửi thư xác thực — không có liên kết nào để chờ.
                             </>,
                             <>
                                 <b>Cookie phiên</b>: sau khi đăng nhập, một cookie giữ phiên của bạn
                                 (không đọc được bằng JavaScript, tự hết hạn). Đăng xuất sẽ xoá nó ngay.
                             </>,
                             <>
-                                <b>Không dùng làm mật khẩu dự phòng</b>: nếu bạn quên mật khẩu, ban
-                                điều hành không thể đọc lại mật khẩu cũ của bạn.
+                                <b>Quên mật khẩu</b>: ban điều hành cấp lại một mật khẩu đầu — không phải
+                                mật khẩu cũ của bạn, vì họ chưa bao giờ biết nó — và bạn lại tự đặt mật
+                                khẩu riêng ngay lần đăng nhập sau.
                             </>,
                         ]}
                     />
                     <p>
-                        <b>Xoá tài khoản</b>: bạn có thể yêu cầu ban tổ chức xoá tài khoản (email,
-                        băm mật khẩu, phiên đăng nhập). Kết quả thi đấu của bạn — câu trả lời, điểm,
+                        <b>Xoá tài khoản</b>: bạn có thể yêu cầu ban tổ chức xoá tài khoản (tên đăng
+                        nhập, băm mật khẩu, email nếu có, phiên đăng nhập). Kết quả thi đấu của bạn —
+                        câu trả lời, điểm,
                         thứ hạng — <b>giữ lại</b>: chúng là biên bản của kỳ thi và không thể xoá riêng
                         lẻ (mục 9).
                     </p>
@@ -164,7 +173,7 @@ export function PrivacyPage() {
                         items={[
                             "Tổ chức, điều hành và phát sóng trận đấu; tính điểm và xếp hạng.",
                             "Xác định bạn là ai trong trận để gán câu trả lời và điểm cho đúng người.",
-                            "Giữ lịch sử thi đấu của bạn qua các giải (khi có email).",
+                            "Giữ lịch sử thi đấu của bạn qua các giải (khi có tài khoản).",
                             "Chống lạm dụng và xử lý sự cố kỹ thuật.",
                         ]}
                     />
@@ -200,8 +209,7 @@ export function PrivacyPage() {
                     <Bullets
                         items={[
                             "Dữ liệu thi đấu (câu trả lời, điểm, kết quả) được giữ cùng với giải, vì đó là biên bản của kỳ thi.",
-                            "Tài khoản thí sinh chỉ chơi tại chỗ (không email) chỉ tồn tại trong phạm vi giải đó.",
-                            "Tài khoản tự đăng ký được giữ cho tới khi bạn yêu cầu xoá (mục 3); kết quả thi đấu vẫn ở lại.",
+                            "Tài khoản thí sinh được giữ cho tới khi bạn yêu cầu xoá (mục 3); kết quả thi đấu vẫn ở lại.",
                             "Hình và tiếng không được lưu trên máy chủ của chúng tôi.",
                             "Nhật ký máy chủ được giữ trong thời gian cần thiết để điều tra sự cố.",
                         ]}
@@ -215,7 +223,7 @@ export function PrivacyPage() {
                             "Yêu cầu sửa tên hiển thị hoặc email (ban điều hành sửa trực tiếp trong tab Thí sinh).",
                             "Từ chối hoặc thu hồi quyền camera/micro bất cứ lúc nào.",
                             "Yêu cầu xoá khỏi danh sách thí sinh khi chưa thi đấu.",
-                            "Yêu cầu xoá tài khoản tự đăng ký của bạn — kết quả thi đấu vẫn được giữ (mục 3).",
+                            "Yêu cầu xoá tài khoản của bạn — kết quả thi đấu vẫn được giữ (mục 3).",
                             "Khiếu nại về việc xử lý dữ liệu với ban tổ chức.",
                         ]}
                     />

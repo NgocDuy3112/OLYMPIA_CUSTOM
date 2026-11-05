@@ -36,12 +36,12 @@ beforeAll(async () => {
     ownerCookie = signToken(app, "PORTAL", { sub: owner.id, role: "OPERATOR", tokenVersion: 0 });
 
     const [player] = await db.insert(users).values({
-        role: "PLAYER", email: `lobby-player-${randomUUID().slice(0, 8)}@example.test`, displayName: "Seated Player", tokenVersion: 0
+        role: "PLAYER", username: `lobby-player-${randomUUID().slice(0, 8)}`, email: `lobby-player-${randomUUID().slice(0, 8)}@example.test`, displayName: "Seated Player", tokenVersion: 0
     }).returning();
     seatedCookie = signToken(app, "GAMEPLAY", { sub: player.id, role: "PLAYER", tokenVersion: 0 });
 
     const [outsider] = await db.insert(users).values({
-        role: "PLAYER", email: `lobby-outsider-${randomUUID().slice(0, 8)}@example.test`, displayName: "Outsider", tokenVersion: 0
+        role: "PLAYER", username: `lobby-outsider-${randomUUID().slice(0, 8)}`, email: `lobby-outsider-${randomUUID().slice(0, 8)}@example.test`, displayName: "Outsider", tokenVersion: 0
     }).returning();
     outsiderCookie = signToken(app, "GAMEPLAY", { sub: outsider.id, role: "PLAYER", tokenVersion: 0 });
 

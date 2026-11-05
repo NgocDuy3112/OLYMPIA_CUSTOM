@@ -40,8 +40,8 @@ beforeAll(async () => {
     ownerCookie = signToken(app, "PORTAL", { sub: owner.id, role: "OPERATOR", tokenVersion: 0 });
 
     const playerRows = await db.insert(users).values([
-        { role: "PLAYER", email: "kd1@example.com", displayName: "KD1", tokenVersion: 0 },
-        { role: "PLAYER", email: "kd2@example.com", displayName: "KD2", tokenVersion: 0 }
+        { role: "PLAYER", username: "kd1", email: "kd1@example.com", displayName: "KD1", tokenVersion: 0 },
+        { role: "PLAYER", username: "kd2", email: "kd2@example.com", displayName: "KD2", tokenVersion: 0 }
     ]).returning();
     playerIds = playerRows.map((u) => u.id);
     playerCookies = playerRows.map((u) => signToken(app, "GAMEPLAY", { sub: u.id, role: "PLAYER", tokenVersion: 0 }));
@@ -236,7 +236,7 @@ describe("khoi-dong — phase 2: the buzz race", () => {
 
     it("a player who is not seated cannot buzz", async () => {
         const [outsider] = await db.insert(users).values({
-            role: "PLAYER", email: "kd-buzz-outsider@example.com", displayName: "Out", tokenVersion: 0
+            role: "PLAYER", username: "kd-buzz-outsider", email: "kd-buzz-outsider@example.com", displayName: "Out", tokenVersion: 0
         }).returning();
         const cookie = signToken(app, "GAMEPLAY", { sub: outsider.id, role: "PLAYER", tokenVersion: 0 });
         const res = await buzz(cookie);

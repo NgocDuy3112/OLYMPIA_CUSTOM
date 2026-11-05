@@ -19,6 +19,7 @@ import {
 } from "../../lib/jwt.js";
 import { setSessionCookie } from "../../lib/cookies.js";
 import { safeNextPath } from "../../lib/redirect.js";
+import { pickUsername } from "../../lib/username.js";
 import { db } from "../../db/pool.js";
 import { oauthAccounts, users } from "../../db/schema/auth.js";
 
@@ -130,25 +131,41 @@ async function provisionPlayer(claims: GoogleClaims) {
         return byEmail;
     }
 
-    return await db.transaction(async (tx) => {
-        const [created] = await tx
-            .insert(users)
-            .values({
-                role: "PLAYER",
-                email,
-                emailVerified: true,
-                displayName: claims.name ?? email,
-                avatarUrl: claims.picture,
-            })
-            .returning();
+    // A handle for the new player, derived the same way the desk's own accounts
+    // derive theirs (`lib/username.ts`). Two first sign-ins racing for one name
+    // is rare, but a retry costs nothing and "Sign-in failed" for a collision
+    // would be a confusing way to learn about it.
+    for (let attempt = 1; ; attempt += 1) {
+        try {
+            return await db.transaction(async (tx) => {
+                const displayName = claims.name ?? email;
+                const username = await pickUsername(tx, claims.name ?? email.split("@")[0] ?? displayName);
 
-        await tx.insert(oauthAccounts).values({
-            userId: created!.id,
-            provider: "google",
-            sub: claims.sub,
-        });
-        return created!;
-    });
+                const [created] = await tx
+                    .insert(users)
+                    .values({
+                        role: "PLAYER",
+                        username,
+                        email,
+                        // Google asserted the address itself, so this account is
+                        // born verified — no mail link exists to wait for.
+                        emailVerified: true,
+                        displayName,
+                        avatarUrl: claims.picture,
+                    })
+                    .returning();
+
+                await tx.insert(oauthAccounts).values({
+                    userId: created!.id,
+                    provider: "google",
+                    sub: claims.sub,
+                });
+                return created!;
+            });
+        } catch (error) {
+            if (attempt >= 2 || !isUniqueViolation(error)) throw error;
+        }
+    }
 }
 
 

@@ -13,7 +13,6 @@ import { useTournamentList } from "@/lib/api"
 import {
     isUnauthorized,
     loginLink,
-    registerLink,
     useLogout,
     useMe,
     useMyMatches,
@@ -145,8 +144,8 @@ export function NavBar() {
                     </Link>
                 </nav>
                 {signedOut ? (
-                    // The player's own door: they registered an account, so the
-                    // navbar offers both ends of it (`?next=` remembered here).
+                    // The desk issued this player an account, so the navbar
+                    // offers the door it leads to (`?next=` remembered here).
                     // "Nhập mã" goes to the login door FIRST — a room code only
                     // works with the session that says who is typing it — and
                     // carries the code box back as ?next=.
@@ -156,12 +155,6 @@ export function NavBar() {
                             className={cn(buttonVariants({ variant: "ghost", size: "lg" }))}
                         >
                             Nhập mã
-                        </Link>
-                        <Link
-                            to={registerLink()}
-                            className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
-                        >
-                            Đăng ký
                         </Link>
                         <Link
                             to={loginLink(pathname)}

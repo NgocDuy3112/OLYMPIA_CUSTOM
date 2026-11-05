@@ -86,7 +86,7 @@ beforeAll(async () => {
 
     const players = await db.insert(users).values(
         Array.from({ length: 5 }, (_, i) => ({
-            role: "PLAYER" as const,
+            role: "PLAYER" as const, username: `grp${i}`,
             email: `grp${i}@example.com`,
             displayName: `GRP${i}`,
             tokenVersion: 0
@@ -141,7 +141,7 @@ describe("the draw", () => {
 
     it("404s for a player who is not enrolled — the draw is the roster's, not anyone's", async () => {
         const [stranger] = await db.insert(users).values({
-            role: "PLAYER", email: "grp-stranger@example.com", displayName: "Stranger", tokenVersion: 0
+            role: "PLAYER", username: "grp-stranger", email: "grp-stranger@example.com", displayName: "Stranger", tokenVersion: 0
         }).returning();
 
         const res = await drawPlayer(stranger.id, "B");

@@ -87,7 +87,7 @@ beforeAll(async () => {
     const players = await db
         .insert(users)
         .values(Array.from({ length: 4 }, (_, i) => ({
-            role: "PLAYER" as const,
+            role: "PLAYER" as const, username: `gr${i}`,
             email: `gr${i}@example.test`,
             displayName: ["A. Voss", "D. Chen", "P. Okafor", "R. Lindqvist"][i],
             tokenVersion: 0

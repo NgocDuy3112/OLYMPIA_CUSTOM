@@ -24,7 +24,7 @@ beforeAll(async () => {
     const [player] = await db
         .insert(users)
         .values([
-            { role: "PLAYER", email: "gauth-player@example.test", displayName: "GAuth Player", tokenVersion: 0 },
+            { role: "PLAYER", username: "gauth-player", email: "gauth-player@example.test", displayName: "GAuth Player", tokenVersion: 0 },
             { role: "ADMIN", username: "gauth-admin", displayName: "GAuth Admin", tokenVersion: 0 }
         ])
         .returning({ id: users.id, role: users.role });
@@ -64,7 +64,7 @@ describe("GET /gameplay/auth/me", () => {
         expect(res.statusCode).toBe(200);
 
         const body = res.json();
-        expect(body).toMatchObject({ id: playerId, role: "PLAYER" });
+        expect(body).toMatchObject({ id: playerId, role: "PLAYER", username: "gauth-player" });
         // The public shape — never the secrets it is built from.
         expect(body).not.toHaveProperty("passwordHash");
         expect(body).not.toHaveProperty("totpSecret");

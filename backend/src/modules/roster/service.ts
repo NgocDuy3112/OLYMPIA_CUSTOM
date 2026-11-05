@@ -1,11 +1,10 @@
 // The tournament's roster: who may take a seat in a match. Admin-enrolled, free-form.
-import { randomUUID } from "node:crypto";
+import argon2 from "argon2";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "../../db/pool.js";
 import { answers, matchStats, scoreAdjustments, tournamentPlayers, users } from "../../db/schema/index.js";
+import { pickUsername } from "../../lib/username.js";
 import { TournamentError } from "../tournaments/errors.js";
-import { CodeError } from "../match-codes/errors.js";
-import { issueEntryCode } from "../match-codes/service.js";
 
 export async function enrollPlayers(tournamentId: string, userIds: string[]): Promise<number> {
     if (userIds.length === 0) return 0;
@@ -20,23 +19,34 @@ export async function enrollPlayers(tournamentId: string, userIds: string[]): Pr
 /** A rough guard so a typo cannot become an account nobody can ever claim. */
 const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
+/** The same floor the old registration form had: a password is a password. */
+const PASSWORD_MIN = 8;
+
+/**
+ * The 404 of enroll-by-email — one sentence, whatever the reason underneath:
+ * with registration gone in step 8, an address nothing has ever produced has no
+ * account behind it, and the DESK is what makes one (or Google, once).
+ */
+const noAccountYet = (email: string) =>
+    `no account exists for ${email} yet — have the desk create them (or sign in with Google once), then enroll the address here`;
+
 /**
  * Enroll an EXISTING account by its address — the operator never learns the
- * password, because there is none to learn: the player registered it themselves.
+ * password, because there is none to learn: whoever holds it chose it (at the
+ * desk, or at Google).
+ *
+ * This is the door for an account that EXISTS but is not on this roster yet:
+ * one created for another tournament, or made by the player's first Google
+ * sign-in (which matches on the address).
  *
  * The refusals are each a different mistake at the desk, and each one says
  * what to DO instead:
- *  · nobody registered that address → 404, ask the player to register first;
+ *  · no account for that address → 404, pointing at what makes one;
  *  · a disabled account → 403, it cannot come back by itself;
  *  · already on this roster → 409, nothing to do.
  *
- * UNVERIFIED accounts are enrolled (step 7, decision 2): on a floor without
- * SMTP the player may never open the mail link, and refusing them here would
- * keep them OUT of the roster — which is exactly where the operator's
- * «Xác thực» button lives. The row lands unverified, the button is right
- * there, and only then can the player log in.
- *
- * A `@players.invalid` placeholder answers the same 404: nobody registered it.
+ * A `@players.invalid` placeholder answers the same 404: it is pre-step-8 data,
+ * never an account.
  */
 export async function enrollByEmail(
     tournamentId: string,
@@ -46,13 +56,10 @@ export async function enrollByEmail(
     if (!EMAIL_SHAPE.test(email)) {
         throw new TournamentError("VALIDATION", `"${rawEmail}" does not look like an email address`);
     }
-    // A show-floor placeholder is a system-made address nobody ever registered:
+    // A show-floor placeholder is pre-step-8 data, not an address anybody owns:
     // enrolling it would be the 404 below wearing a costume.
     if (email.endsWith(PLACEHOLDER_DOMAIN)) {
-        throw new TournamentError(
-            "NOT_FOUND",
-            `no contestant has registered with ${email} yet — ask them to register first, then enroll the address here`
-        );
+        throw new TournamentError("NOT_FOUND", noAccountYet(email));
     }
 
     const [user] = await db
@@ -60,7 +67,6 @@ export async function enrollByEmail(
             id: users.id,
             displayName: users.displayName,
             email: users.email,
-            emailVerified: users.emailVerified,
             role: users.role,
             disabledAt: users.disabledAt
         })
@@ -69,10 +75,7 @@ export async function enrollByEmail(
         .limit(1);
 
     if (!user || user.role !== "PLAYER") {
-        throw new TournamentError(
-            "NOT_FOUND",
-            `no contestant has registered with ${email} yet — ask them to register first, then enroll the address here`
-        );
+        throw new TournamentError("NOT_FOUND", noAccountYet(email));
     }
     if (user.disabledAt) {
         throw new TournamentError("FORBIDDEN", `${email} belongs to a disabled account`);
@@ -87,119 +90,31 @@ export async function enrollByEmail(
 }
 
 /**
- * ACTIVATE an account: the operator vouches for the address and sets
- * `emailVerified` themselves.
+ * Create a contestant AND their account, in one step — the desk's only door.
  *
- * This is the floor's answer to SMTP being optional — the desk can SEE the
- * account exists (the player registered it a minute ago), so the mail link is a
- * convenience rather than a gate. It is a TRUST action: the operator is asserting
- * the address is real, which is why the route audits it, and why it refuses a
- * show-floor identity (there is no account behind it to activate) and a disabled
- * one (activation would not un-disable it, and saying so beats a silent no-op).
- */
-export async function activateAccount(
-    tournamentId: string,
-    userId: string
-): Promise<{ userId: string; email: string; emailVerified: boolean }> {
-    if (!(await enrolledRow(tournamentId, userId))) {
-        throw new TournamentError("NOT_ENROLLED", "this player is not enrolled in the tournament");
-    }
-
-    const [user] = await db
-        .select({ id: users.id, email: users.email, emailVerified: users.emailVerified, disabledAt: users.disabledAt })
-        .from(users)
-        .where(eq(users.id, userId))
-        .limit(1);
-
-    if (!user) throw new TournamentError("NOT_FOUND", "no such account");
-    if (!user.email || user.email.endsWith(PLACEHOLDER_DOMAIN)) {
-        throw new TournamentError(
-            "VALIDATION",
-            "this is a show-floor identity with no account behind it — attach an email first"
-        );
-    }
-    if (user.disabledAt) throw new TournamentError("FORBIDDEN", `${user.email} belongs to a disabled account`);
-
-    if (!user.emailVerified) {
-        await db
-            .update(users)
-            .set({ emailVerified: true, updatedAt: new Date() })
-            .where(eq(users.id, userId));
-    }
-
-    return { userId, email: user.email, emailVerified: true };
-}
-
-/**
- * Issue this contestant's ONE-TIME entry code — the desk's answer to a
- * forgotten password, so the operator never holds (or resets) a password.
+ * Step 8: the operator types the name and the FIRST PASSWORD, the server
+ * derives the login handle from the name (`ngoc-duy`), and the row is born with
+ * `mustChangePassword` — the desk's password stops being the desk's the moment
+ * the player sets their own (enforced by `lib/guards.ts`, not by good
+ * intentions). Enrolled in the same call, like always.
  *
- * The roster decides WHO may get one — enrolled here, with a real account
- * behind the row — and `match-codes` mints and expires it.
- */
-export async function issueEntryCodeFor(
-    tournamentId: string,
-    userId: string,
-    createdBy: string
-): Promise<{ userId: string; email: string; code: string; expiresAt: Date }> {
-    if (!(await enrolledRow(tournamentId, userId))) {
-        throw new TournamentError("NOT_ENROLLED", "this player is not enrolled in the tournament");
-    }
-
-    const [user] = await db
-        .select({ id: users.id, email: users.email })
-        .from(users)
-        .where(eq(users.id, userId))
-        .limit(1);
-
-    if (!user) throw new TournamentError("NOT_FOUND", "no such account");
-    if (!user.email || user.email.endsWith(PLACEHOLDER_DOMAIN)) {
-        throw new TournamentError(
-            "VALIDATION",
-            "this is a show-floor identity with no account to sign in to — attach an email first"
-        );
-    }
-
-    // Disabled / unverified refusals live in match-codes: they are properties
-    // of the ACCOUNT, not of this roster row. Their vocabulary is this
-    // module's, so a refused code answers the roster's own error shape.
-    try {
-        const issued = await issueEntryCode(userId, createdBy);
-        return { userId, email: user.email, ...issued };
-    } catch (error) {
-        if (error instanceof CodeError) {
-            throw new TournamentError(error.code, error.message, error.details);
-        }
-        throw error;
-    }
-}
-
-/**
- * Create a contestant and enroll them in one step.
- *
- * A contestant with no account is a show-floor identity: the console MAKES the
- * identity a seat points at, because they never registered one. The display name
- * is what every surface shows.
- *
- * EMAIL decides whether the identity can ever be theirs for good:
- *  · given → the row carries that address, so the player's own Google sign-in
- *    finds it (`provisionPlayer` matches by email) and ATTACHES to this very
- *    user. Their matches, answers and standings are already on it: nothing moves.
- *  · omitted → a `@players.invalid` placeholder, unique by construction and never
- *    mailed. A show-floor identity: it plays, it never signs in.
- *
- * An address that already belongs to somebody is refused, not merged: the honest
- * move is to enroll THAT account (`POST …/players`), so one person never ends up
- * as two rows — which is the same stats-splitting bug in another costume.
+ * EMAIL is optional and only ever means "this address is where Google sign-in
+ * will find this same row" (`provisionPlayer` matches by email, so the player's
+ * matches, answers and standings are already on it — nothing moves). An address
+ * that already belongs to somebody is refused, not merged: the honest move is to
+ * enroll THAT account, so one person never ends up as two rows — which is the
+ * same stats-splitting bug in another costume.
  */
 export async function createContestant(
     tournamentId: string,
-    displayName: string,
-    email?: string
-): Promise<{ userId: string; displayName: string; group: GroupLabel | null }> {
-    const name = displayName.trim();
+    input: { displayName: string; password: string; email?: string }
+): Promise<{ userId: string; displayName: string; username: string; group: GroupLabel | null }> {
+    const name = input.displayName.trim();
     if (name.length === 0) {
         throw new TournamentError("VALIDATION", "a contestant needs a display name");
+    }
+    if (input.password.length < PASSWORD_MIN) {
+        throw new TournamentError("VALIDATION", `a first password needs at least ${PASSWORD_MIN} characters`);
     }
 
     // Two "An"s on one roster is an operator mistake, not a feature: the seats,
@@ -213,9 +128,9 @@ export async function createContestant(
         );
     }
 
-    const address = email?.trim().toLowerCase() || null;
+    const address = input.email?.trim().toLowerCase() || null;
     if (address !== null && !EMAIL_SHAPE.test(address)) {
-        throw new TournamentError("VALIDATION", `"${email}" does not look like an email address`);
+        throw new TournamentError("VALIDATION", `"${input.email}" does not look like an email address`);
     }
 
     if (address !== null) {
@@ -236,41 +151,97 @@ export async function createContestant(
         }
     }
 
+    const username = await pickUsername(db, name);
     const [user] = await db
         .insert(users)
         .values({
             role: "PLAYER",
+            username,
             displayName: name,
-            // With an address the player can later claim this very row through
-            // Google; without one this is a placeholder the schema requires for
-            // the PLAYER role — never routed, never mailed.
-            email: address ?? `player-${randomUUID()}@players.invalid`,
-            tokenVersion: 0
+            email: address,
+            // The desk typed this address, so it is vouched for the way the old
+            // «Xác thực» button vouched for it — there is no mail left to open.
+            emailVerified: address !== null,
+            passwordHash: await argon2.hash(input.password),
+            mustChangePassword: true,
+            tokenVersion: 0,
         })
-        .returning({ id: users.id, displayName: users.displayName });
+        .returning({ id: users.id, displayName: users.displayName, username: users.username });
 
     await enrollPlayers(tournamentId, [user.id]);
-    return { userId: user.id, displayName: user.displayName, group: null };
+    return { userId: user!.id, displayName: user!.displayName, username: user!.username, group: null };
 }
-
 /** Which group a contestant banks for, or null while they are still to be drawn. */
 export type GroupLabel = "A" | "B";
 
 /**
+ * Set — or RESET — a contestant's password: the forgotten-password path, now
+ * that the desk issues credentials itself.
+ *
+ * The operator types a first password again, and the row goes straight back to
+ * `mustChangePassword`, so this password stops being the desk's at the player's
+ * next sign-in exactly like the original one did. Bumping `tokenVersion` closes
+ * the other half: every session the forgotten password ever minted dies here,
+ * including any opened on a machine that is no longer theirs.
+ *
+ * This is also how a row from before step 8 (no password at all, nothing to
+ * forget) is given a way in.
+ */
+export async function resetPassword(
+    tournamentId: string,
+    userId: string,
+    password: string
+): Promise<{ userId: string; username: string }> {
+    if (!(await enrolledRow(tournamentId, userId))) {
+        throw new TournamentError("NOT_ENROLLED", "this player is not enrolled in the tournament");
+    }
+    if (password.length < PASSWORD_MIN) {
+        throw new TournamentError("VALIDATION", `a first password needs at least ${PASSWORD_MIN} characters`);
+    }
+
+    const [user] = await db
+        .select({ id: users.id, username: users.username, disabledAt: users.disabledAt, tokenVersion: users.tokenVersion })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+    if (!user) throw new TournamentError("NOT_FOUND", "no such account");
+    if (user.disabledAt) throw new TournamentError("FORBIDDEN", `${user.username} belongs to a disabled account`);
+
+    await db
+        .update(users)
+        .set({
+            passwordHash: await argon2.hash(password),
+            mustChangePassword: true,
+            tokenVersion: user.tokenVersion + 1,
+            updatedAt: new Date(),
+        })
+        .where(eq(users.id, userId));
+
+    return { userId, username: user.username };
+}
+
+/**
  * The roster, as the console's players tab reads it.
  *
- * `email` is null for a show-floor identity (a `@players.invalid` placeholder):
- * the operator sees "no account", which is the truth that matters — that person
- * cannot sign in and claim their history.
+ * What the desk reads here now IS the account: the handle the player signs in
+ * with, whether they have a password at all (rows created before step 8 never
+ * got one), and whether they are still on the desk's first password. `email` is
+ * null for a contestant who was never given an address — an address is only
+ * where Google sign-in finds this row, never the identity.
  */
 export async function listEnrolled(
     tournamentId: string
 ): Promise<Array<{
     userId: string;
     displayName: string;
+    /** The login handle — what the desk tells this player to type. */
+    username: string;
     email: string | null;
-    /** Has the player opened their mail link? The desk's «Xác thực» button acts on this. */
-    emailVerified: boolean;
+    /** No password at all (a row from before step 8): they cannot sign in yet. */
+    hasPassword: boolean;
+    /** Still on the desk's first password — theirs must be set before play. */
+    mustChangePassword: boolean;
     group: GroupLabel | null;
     enrolledAt: Date;
 }>> {
@@ -278,8 +249,10 @@ export async function listEnrolled(
         .select({
             userId: tournamentPlayers.userId,
             displayName: users.displayName,
+            username: users.username,
             email: users.email,
-            emailVerified: users.emailVerified,
+            hasPassword: sql<boolean>`${users.passwordHash} IS NOT NULL`,
+            mustChangePassword: users.mustChangePassword,
             group: tournamentPlayers.group,
             enrolledAt: tournamentPlayers.enrolledAt
         })
@@ -289,6 +262,8 @@ export async function listEnrolled(
 
     return rows.map((row) => ({
         ...row,
+        // A placeholder address is pre-step-8 data, never an identity: the
+        // roster shows it as the absence it is.
         email: row.email && !row.email.endsWith(PLACEHOLDER_DOMAIN) ? row.email : null
     }));
 }
@@ -331,7 +306,7 @@ export async function updateContestant(
         throw new TournamentError("NOT_ENROLLED", "this player is not enrolled in the tournament");
     }
 
-    const patch: { displayName?: string; email?: string } = {};
+    const patch: { displayName?: string; email?: string | null } = {};
 
     if (edit.displayName !== undefined) {
         const name = edit.displayName.trim();
@@ -350,8 +325,10 @@ export async function updateContestant(
 
     if (edit.email !== undefined) {
         if (edit.email === null || edit.email.trim() === "") {
-            // Detach: back to a show-floor identity that can never sign in.
-            patch.email = `player-${randomUUID()}${PLACEHOLDER_DOMAIN}`;
+            // Detach: no address — Google sign-in stops finding this row, which
+            // is the operator's call. The handle and password still work: an
+            // address stopped being the identity in step 8.
+            patch.email = null;
         } else {
             const address = edit.email.trim().toLowerCase();
             if (!EMAIL_SHAPE.test(address)) {

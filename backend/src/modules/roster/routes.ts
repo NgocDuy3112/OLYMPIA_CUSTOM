@@ -8,14 +8,13 @@ import {
     UUID_PATTERN
 } from "../tournament-shared.js";
 import {
-    activateAccount,
     assignGroup,
     createContestant,
     enrollByEmail,
     enrollPlayers,
-    issueEntryCodeFor,
     listEnrolled,
     removeContestant,
+    resetPassword,
     updateContestant,
     type GroupLabel
 } from "./service.js";
@@ -26,6 +25,16 @@ const playerParams = {
     properties: {
         tournamentId: { type: "string", pattern: UUID_PATTERN },
         userId: { type: "string", pattern: UUID_PATTERN }
+    }
+} as const;
+
+/** The desk's FIRST password again — typed, never generated, never audited. */
+const passwordBody = {
+    type: "object",
+    required: ["password"],
+    additionalProperties: false,
+    properties: {
+        password: { type: "string", minLength: 8, maxLength: 256 }
     }
 } as const;
 
@@ -104,44 +113,6 @@ export async function rosterRoutes(app: FastifyInstance) {
         }
     );
 
-    // Make the identity a seat points at: a PLAYER with a display name, enrolled
-    // in the same call. This is the SHOW-FLOOR identity — a contestant who never
-    // registers an account of their own (the by-email route above enrolls those).
-    app.post(
-        "/portal/tournaments/:tournamentId/players/new",
-        {
-            onRequest: staff,
-            schema: {
-                params: tournamentParams,
-                body: {
-                    type: "object",
-                    required: ["displayName"],
-                    additionalProperties: false,
-                    properties: {
-                        displayName: { type: "string", minLength: 1, maxLength: 100 },
-                        // Optional: with an address the player's own Google sign-in
-                        // attaches to this row later, keeping their history.
-                        email: { type: "string", maxLength: 255 }
-                    }
-                }
-            }
-        },
-        async (request) => {
-            const user = request.sessionUser!;
-            const { tournamentId } = request.params as { tournamentId: string };
-            const { displayName, email } = request.body as { displayName: string; email?: string };
-
-            await assertWrite(tournamentId, user.id, user.role);
-            const contestant = await createContestant(tournamentId, displayName, email);
-
-            await auditFromRequest(request, "tournament_updated", {
-                details: { tournamentId, contestantId: contestant.userId, displayName: contestant.displayName }
-            });
-
-            return contestant;
-        }
-    );
-
     // Edit a contestant: a typo in the name, or the address that lets their own
     // Google sign-in attach to this same row later (their history never moves).
     app.patch(
@@ -178,53 +149,79 @@ export async function rosterRoutes(app: FastifyInstance) {
         }
     );
 
-    // ACTIVATE: the operator vouches for the address and the account can log in.
-    // This is what keeps SMTP optional on the floor — the desk can see the
-    // account exists, so the mail link stops being a gate. A trust action, so it
-    // is audited like every other roster write.
+    // Make the identity a seat points at: a PLAYER with a display name, a handle
+    // derived from it, and the FIRST PASSWORD the desk types. The player owns it
+    // from their first sign-in (the server forces the change), so what the desk
+    // holds is a password that stops being theirs — never one they keep.
     app.post(
-        "/portal/tournaments/:tournamentId/players/:userId/verify",
-        { onRequest: staff, schema: { params: playerParams } },
+        "/portal/tournaments/:tournamentId/players/new",
+        {
+            onRequest: staff,
+            schema: {
+                params: tournamentParams,
+                body: {
+                    type: "object",
+                    required: ["displayName", "password"],
+                    additionalProperties: false,
+                    properties: {
+                        displayName: { type: "string", minLength: 1, maxLength: 100 },
+                        // The desk's first password, typed for the player to
+                        // change at their first sign-in. Never the player's own:
+                        // they choose that themselves, one screen later.
+                        password: { type: "string", minLength: 8, maxLength: 256 },
+                        // Optional, and only ever "where Google sign-in will
+                        // find this same row" — it is not the identity.
+                        email: { type: "string", maxLength: 255 }
+                    }
+                }
+            }
+        },
         async (request) => {
             const user = request.sessionUser!;
-            const { tournamentId, userId } = request.params as { tournamentId: string; userId: string };
+            const { tournamentId } = request.params as { tournamentId: string };
+            const { displayName, password, email } = request.body as {
+                displayName: string;
+                password: string;
+                email?: string;
+            };
 
             await assertWrite(tournamentId, user.id, user.role);
-            const activated = await activateAccount(tournamentId, userId);
+            const contestant = await createContestant(tournamentId, { displayName, password, email });
 
             await auditFromRequest(request, "tournament_updated", {
-                targetId: userId,
-                details: { tournamentId, activated: userId, email: activated.email }
-            });
-
-            return activated;
-        }
-    );
-
-    // FORGOTTEN PASSWORD: a one-time entry code bound to this player's own
-    // account. The desk never holds a password — there is none to hand out —
-    // and the code dies on use or in 15 minutes. The VALUE is returned to the
-    // operator's screen and never written to the audit trail.
-    app.post(
-        "/portal/tournaments/:tournamentId/players/:userId/entry-code",
-        { onRequest: staff, schema: { params: playerParams } },
-        async (request) => {
-            const user = request.sessionUser!;
-            const { tournamentId, userId } = request.params as { tournamentId: string; userId: string };
-
-            await assertWrite(tournamentId, user.id, user.role);
-            const issued = await issueEntryCodeFor(tournamentId, userId, user.id);
-
-            await auditFromRequest(request, "tournament_updated", {
-                targetId: userId,
                 details: {
                     tournamentId,
-                    entryCodeFor: userId,
-                    expiresAt: issued.expiresAt.toISOString()
+                    contestantId: contestant.userId,
+                    displayName: contestant.displayName,
+                    username: contestant.username
                 }
             });
 
-            return issued;
+            return contestant;
+        }
+    );
+
+    // FORGOTTEN PASSWORD: the desk types a first password again, and the row
+    // goes back to `mustChangePassword` — this one stops being the desk's at the
+    // player's next sign-in too, and every session the old password minted dies
+    // with the bump. The VALUE never leaves this request; it is not audited.
+    app.post(
+        "/portal/tournaments/:tournamentId/players/:userId/password",
+        { onRequest: staff, schema: { params: playerParams, body: passwordBody } },
+        async (request) => {
+            const user = request.sessionUser!;
+            const { tournamentId, userId } = request.params as { tournamentId: string; userId: string };
+            const { password } = request.body as { password: string };
+
+            await assertWrite(tournamentId, user.id, user.role);
+            const reset = await resetPassword(tournamentId, userId, password);
+
+            await auditFromRequest(request, "tournament_updated", {
+                targetId: userId,
+                details: { tournamentId, passwordResetFor: userId }
+            });
+
+            return reset;
         }
     );
 

@@ -75,25 +75,26 @@ export const matches = pgTable(
 );
 
 
-// Room codes and one-time entry codes — TWO secrets, split by what they answer.
+// A ROOM code: the walk-in's half of an entrance.
 //
-//   * a ROOM code names a match (`match_id`): it says WHICH room is open, it is
-//     held by the operator, rotatable and expiring;
-//   * an ENTRY code names an account (`user_id`): the desk's password-reset
-//     path, single use, so the desk never holds a password.
+// It answers ONE question — WHICH ROOM is open — and never who is typing it:
+// the account is the only identity, and a claim needs a session AND this row.
+// Rotation and expiry are the whole point, so the code is a row with a clock
+// instead of a column that lives forever (the `join_code` column 0008 dropped
+// could neither expire nor be rotated).
 //
-// Neither ever says WHO the player is — the account is the only identity, and a
-// claim needs a session AND the code. Exactly one target per row is a CHECK,
-// because a code that meant two things would be the old PIN again.
+// Step 8 removed the second kind this table started with (the one-time ENTRY
+// code): with the desk issuing passwords directly, a forgotten one is fixed by
+// a reset + forced change, and a table with one meaning needs no target CHECK.
 export const matchCodes = pgTable(
     "match_codes",
     {
         id: uuid("id").primaryKey().defaultRandom(),
         code: varchar("code", { length: 6 }).notNull(),
-        matchId: uuid("match_id").references(() => matches.id, { onDelete: "cascade" }),
-        userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+        matchId: uuid("match_id")
+            .notNull()
+            .references(() => matches.id, { onDelete: "cascade" }),
         expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-        usedAt: timestamp("used_at", { withTimezone: true }),
         // A "who minted it" reference, like audit_events.actor_id: the trail
         // outlives the user, and the room does not care who asked.
         createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
@@ -101,12 +102,7 @@ export const matchCodes = pgTable(
     },
     (table) => [
         uniqueIndex("match_codes_code_unique").on(table.code),
-        index("match_codes_match_idx").on(table.matchId),
-        index("match_codes_user_idx").on(table.userId),
-        check(
-            "match_codes_target_check",
-            sql`(${table.matchId} IS NULL) <> (${table.userId} IS NULL)`
-        )
+        index("match_codes_match_idx").on(table.matchId)
     ]
 );
 
