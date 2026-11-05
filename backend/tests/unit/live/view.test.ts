@@ -28,6 +28,11 @@ const base = (over: Partial<Parameters<typeof buildPlayerView>[0]>) => ({
     state: {}, submitted: [] as SubmittedAnswer[], ...over
 });
 
+// The show's board carries NO category labels — a cell IS its score; the
+// ordinal tells the same-score cells apart ("40-1" … "40-4").
+const cells = (value: number, count: number): VeDichQuestion[] =>
+    Array.from({ length: count }, (_, i) => ({ id: `${value}-${i + 1}`, value, timeLimit: 30 }));
+
 describe("player view — giai-ma", () => {
     const H = ["h1", "h2", "h3", "h4", "h5", "h6", "h7", "h8"];
     const state = openHint(startGiaiMa(["p0", "p1"], H), "h2", NOW);
@@ -217,14 +222,7 @@ describe("player view — an unknown round", () => {
 });
 
 describe("player view — ve-dich", () => {
-    const VQ = (label: string, value: number): VeDichQuestion => ({ id: `${label}-${value}`, value, timeLimit: 30 });
-    // The show's board: 6×20, 6×30, 4×40, 4×50 (createVeDich refuses anything else).
-    const POOL = [
-        VQ("THTH", 20), VQ("TNSS", 20), VQ("A", 20), VQ("B", 20), VQ("C", 20), VQ("D", 20),
-        VQ("THTH", 30), VQ("TNSS", 30), VQ("E", 30), VQ("F", 30), VQ("G", 30), VQ("H", 30),
-        VQ("THTH", 40), VQ("TNSS", 40), VQ("I", 40), VQ("J", 40),
-        VQ("THTH", 50), VQ("TNSS", 50), VQ("K", 50), VQ("L", 50)
-    ];
+    const POOL = [...cells(20, 6), ...cells(30, 6), ...cells(40, 4), ...cells(50, 4)];
     const P = (id: string): PlayerState => ({ id, score: 0, powersLeft: ["STAR", "ASSIGN"] });
 
     const phase1 = () => createVeDich(POOL, [P("p0"), P("p1")]);
@@ -418,13 +416,7 @@ describe("player view — oral for everyone (G2)", () => {
 });
 
 describe("player view — ve-dich board (G3)", () => {
-    const VQ = (label: string, value: number): VeDichQuestion => ({ id: `${label}-${value}`, value, timeLimit: 30 });
-    const POOL = [
-        VQ("THTH", 20), VQ("XHPL", 20), VQ("A", 20), VQ("B", 20), VQ("C", 20), VQ("D", 20),
-        VQ("TNTT", 30), VQ("TNSS", 30), VQ("E", 30), VQ("F", 30), VQ("G", 30), VQ("H", 30),
-        VQ("THTH", 40), VQ("TNSS", 40), VQ("I", 40), VQ("J", 40),
-        VQ("THTH", 50), VQ("TNSS", 50), VQ("K", 50), VQ("L", 50)
-    ];
+    const POOL = [...cells(20, 6), ...cells(30, 6), ...cells(40, 4), ...cells(50, 4)];
     const P = (id: string): PlayerState => ({ id, score: 0, powersLeft: ["STAR", "ASSIGN"] });
 
     // The board is built from the FROZEN set now — give the view one.
@@ -440,25 +432,25 @@ describe("player view — ve-dich board (G3)", () => {
         const view = buildPlayerView(base({ roundId: "ve-dich", state, userId: "p0", questions: veFrozen(POOL) }));
 
         expect(view.board).toHaveLength(POOL.length);                 // one entry per frozen cell
-        expect(view.board).toContainEqual({ questionId: "TNTT-30", value: 30, where: "free" });
-        expect(view.board).toContainEqual({ questionId: "XHPL-20", value: 20, where: "free" });
+        expect(view.board).toContainEqual({ questionId: "30-1", value: 30, where: "free" });
+        expect(view.board).toContainEqual({ questionId: "20-2", value: 20, where: "free" });
         // Chung: the 40/50s are on the table but waiting upstairs (deferred)
-        expect(view.board).toContainEqual({ questionId: "THTH-50", value: 50, where: "deferred" });
-        expect(view.board).toContainEqual({ questionId: "THTH-40", value: 40, where: "deferred" });
+        expect(view.board).toContainEqual({ questionId: "50-1", value: 50, where: "deferred" });
+        expect(view.board).toContainEqual({ questionId: "40-1", value: 40, where: "deferred" });
         expect(view.board?.filter((c) => c.where === "free").every((c) => c.value <= 30)).toBe(true);
     });
 
     it("a picked cell STAYS on the board — open now, taken (black) from the next turn", () => {
         let state = createVeDich(POOL, [P("p0"), P("p1")]);
         const view = () => buildPlayerView(base({ roundId: "ve-dich", state, userId: "p0", questions: veFrozen(POOL) }));
-        state = pickPhase1(state, "p0", "TNTT-30");   // opens a 30 (either band)
+        state = pickPhase1(state, "p0", "30-1");   // opens a 30 (either band)
         expect(view().board)
-            .toContainEqual({ questionId: "TNTT-30", value: 30, where: "open" });
+            .toContainEqual({ questionId: "30-1", value: 30, where: "open" });
 
         state = resolveQuestion(state, { answerer: true });
         state = advanceTurn(state);                     // this turn is over
         expect(view().board)
-            .toContainEqual({ questionId: "TNTT-30", value: 30, where: "taken" });
+            .toContainEqual({ questionId: "30-1", value: 30, where: "taken" });
     });
 
     it("marks the open question and this turn's picks, each cell exactly once", () => {
@@ -475,7 +467,7 @@ describe("player view — ve-dich board (G3)", () => {
         expect(view.board?.find((cell) => cell.where === "open")?.questionId).toBe(ids[0]);
         expect(view.board?.some((cell) => cell.where === "free")).toBe(true);
         // the deferred 40/50s joined the pool when phase 2 began
-        expect(cellIds).toContain("THTH-50");
+        expect(cellIds).toContain("50-1");
     });
 });
 
@@ -573,14 +565,7 @@ describe("player view — Hiện đáp án (the revealed answer)", () => {
     });
 
     it("về đích chung: shown while the question is open, gone once the turn closes it", () => {
-        const VQ = (label: string, value: number): VeDichQuestion => ({ id: `${label}-${value}`, value, timeLimit: 30 });
-        // the show's fixed board: 6×20, 6×30, 4×40, 4×50
-        const POOL = [
-            VQ("A", 20), VQ("B", 20), VQ("C", 20), VQ("D", 20), VQ("E", 20), VQ("F", 20),
-            VQ("G", 30), VQ("H", 30), VQ("I", 30), VQ("J", 30), VQ("K", 30), VQ("L", 30),
-            VQ("M", 40), VQ("N", 40), VQ("O", 40), VQ("P", 40),
-            VQ("Q", 50), VQ("R", 50), VQ("S", 50), VQ("T", 50)
-        ];
+        const POOL = [...cells(20, 6), ...cells(30, 6), ...cells(40, 4), ...cells(50, 4)];
         const players: PlayerState[] = [
             { id: "p0", score: 0, powersLeft: ["STAR", "ASSIGN"] },
             { id: "p1", score: 0, powersLeft: ["STAR", "ASSIGN"] }
@@ -588,10 +573,10 @@ describe("player view — Hiện đáp án (the revealed answer)", () => {
         const questions = frozen(POOL.map((q) => q.id));
 
         let state = createVeDich(POOL, players);
-        state = pickPhase1(state, "p0", "G-30");                   // opens a free cell (20s and 30s both fair game)
-        state = { ...state, revealedAnswer: "G-30" };
+        state = pickPhase1(state, "p0", "30-1");                   // opens a free cell (20s and 30s both fair game)
+        state = { ...state, revealedAnswer: "30-1" };
         expect(buildPlayerView(base({ roundId: "ve-dich", state, questions })).revealed)
-            .toEqual({ questionId: "G-30", answer: "A" });
+            .toEqual({ questionId: "30-1", answer: "A" });
 
         state = resolveQuestion(state, { answerer: true });        // Hết lượt closes it
         expect(buildPlayerView(base({ roundId: "ve-dich", state, questions })).revealed)

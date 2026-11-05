@@ -10,12 +10,6 @@ import { VeDichChungAOCPlayer } from "@shared/deck/screens/VeDichChungAOCPlayer"
 import { VeDichPickAOCPlayer } from "@shared/deck/screens/VeDichPickAOCPlayer"
 import { VeDichRiengAOCPlayer } from "@shared/deck/screens/VeDichRiengAOCPlayer"
 
-// The audience's deck: the PLAYER's screens, read-only.
-//
-// Not the console's pages — an audience has no ledger, no verdict controls and no
-// power buttons; it watches the same round a contestant sees, plus the scoreboard
-// (`table` comes in the projection). The routing rule is the kit's
-// (`playerScreenOf`), so a new round appears here the day it appears on a deck.
 
 export function AudienceScreen({ view }: { view: PlayerView }) {
     const ctx = audienceCtx(view)
@@ -23,8 +17,6 @@ export function AudienceScreen({ view }: { view: PlayerView }) {
 
     switch (screen) {
         case "lobby":
-            // Between rounds the audience waits on a plain gate: the scoreboard is
-            // already on screen in every round's rail, so there is nothing to add.
             return <Gate title="Chờ lên sân khấu" body="Vòng thi chưa bắt đầu — màn hình tự cập nhật." />
         case "khoi-dong-chung":
             return <KhoiDongChungAOCPlayer ctx={ctx} />

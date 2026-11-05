@@ -12,12 +12,14 @@ import type { MatchQuestion } from "../../src/game/contracts/index.js";
 // with a buzz window and powers.
 
 // The show's board — 6×20, 6×30, 4×40, 4×50 — and the engine refuses anything
-// else at start, so this fixture IS the round's composition.
-const BOARD: Array<[string, number]> = [
-    ["THTH", 20], ["TNSS", 20], ["XHPL", 20], ["VHNT", 20], ["TTGT", 20], ["KTTH", 20],
-    ["THTH", 30], ["TNSS", 30], ["XHPL", 30], ["VHNT", 30], ["TTGT", 30], ["KTTH", 30],
-    ["THTH", 40], ["TNSS", 40], ["XHPL", 40], ["VHNT", 40],
-    ["THTH", 50], ["TNSS", 50], ["XHPL", 50], ["VHNT", 50]
+// else at start, so this fixture IS the round's composition. NO category
+// labels: a cell is its score, and the ordinal tells the four 40s apart
+// (40-1 … 40-4), assigned in board order.
+const BOARD: number[] = [
+    20, 20, 20, 20, 20, 20,
+    30, 30, 30, 30, 30, 30,
+    40, 40, 40, 40,
+    50, 50, 50, 50
 ];
 
 let app: FastifyInstance;
@@ -26,14 +28,14 @@ let playerCookies: string[];
 let tournamentId: string;
 let matchId: string;
 let playerIds: string[];
-const qid = new Map<string, string>();     // "THTH-50" -> question id
+const qid = new Map<string, string>();     // "50-1" -> question id
 
 const auth = (cookie: string) => ({ cookie: `portal_session=${cookie}` });
 const asPlayer = (cookie: string) => ({ cookie: `gameplay_session=${cookie}` });
 
-const question = (label: string, value: number, position: number): MatchQuestion => ({
+const question = (value: number, position: number): MatchQuestion => ({
     _id: randomUUID(), roundId: "ve-dich", turnId: "grid", position, mode: "text", kind: "TEXT",
-    questionText: `${label} ${value}`, media: null, timeLimit: null, points: value,
+    questionText: `${value}`, media: null, timeLimit: null, points: value, 
     payload: { acceptedAnswers: ["x"], normalize: { caseSensitive: false, trim: true, stripAccents: true } },
     sourceId: randomUUID()
 });
@@ -70,10 +72,12 @@ beforeAll(async () => {
 
     const questions: MatchQuestion[] = [];
     let position = 0;
-    for (const [label, value] of BOARD) {
-        const q = question(label, value, position++);
+    const seen: Record<number, number> = {};
+    for (const value of BOARD) {
+        seen[value] = (seen[value] ?? 0) + 1;
+        const q = question(value, position++);
         questions.push(q);
-        qid.set(`${label}-${value}`, q._id);
+        qid.set(`${value}-${seen[value]}`, q._id);
     }
 
     const [match] = await db.insert(matches).values({
@@ -141,17 +145,17 @@ describe("ve-dich — start", () => {
 
 describe("ve-dich — phase 1 (typed, one pick each)", () => {
     it("only the current player may be picked for — the console cannot claim another", async () => {
-        const res = await act({ kind: "ve-dich.pick", playerId: playerIds[1], questionId: qid.get("THTH-50") });
+        const res = await act({ kind: "ve-dich.pick", playerId: playerIds[1], questionId: qid.get("50-1") });
         expect(res.statusCode).toBe(409);
         expect(res.json().error).toBe("NOT_YOUR_TURN");
     });
 
     it("the console picks for player 0, they answer, and the controller finalizes it", async () => {
-        const picked = await act({ kind: "ve-dich.pick", playerId: playerIds[0], questionId: qid.get("THTH-30") });
+        const picked = await act({ kind: "ve-dich.pick", playerId: playerIds[0], questionId: qid.get("30-1") });
         expect(picked.statusCode).toBe(200);
-        expect(picked.json().state.open.question.id).toBe(qid.get("THTH-30"));
+        expect(picked.json().state.open.question.id).toBe(qid.get("30-1"));
 
-        const drafted = await answer(playerCookies[0], qid.get("THTH-30")!, "x");
+        const drafted = await answer(playerCookies[0], qid.get("30-1")!, "x");
         expect(drafted.statusCode).toBe(200);
         expect(drafted.json()).toEqual({ drafted: true });            // opinion stays server-side
 
@@ -161,7 +165,7 @@ describe("ve-dich — phase 1 (typed, one pick each)", () => {
 
         const [row] = await db.select().from(answers).where(and(
             eq(answers.matchId, matchId),
-            eq(answers.questionId, qid.get("THTH-30")!),
+            eq(answers.questionId, qid.get("30-1")!),
             eq(answers.userId, playerIds[0])
         ));
         expect(row).toMatchObject({ judged: true, verdict: "CORRECT", pointsAwarded: 30 });
@@ -169,7 +173,7 @@ describe("ve-dich — phase 1 (typed, one pick each)", () => {
 
     it("the console picks for player 1, who never answers and is still scored for it", async () => {
         expect((await act({ kind: "ve-dich.advanceTurn" })).statusCode).toBe(200);
-        expect((await act({ kind: "ve-dich.pick", playerId: playerIds[1], questionId: qid.get("TNSS-30") })).statusCode).toBe(200);
+        expect((await act({ kind: "ve-dich.pick", playerId: playerIds[1], questionId: qid.get("30-2") })).statusCode).toBe(200);
 
         const resolved = await act({ kind: "ve-dich.resolve", answerer: false });
         expect(resolved.statusCode).toBe(200);
@@ -177,7 +181,7 @@ describe("ve-dich — phase 1 (typed, one pick each)", () => {
 
         const [row] = await db.select().from(answers).where(and(
             eq(answers.matchId, matchId),
-            eq(answers.questionId, qid.get("TNSS-30")!),
+            eq(answers.questionId, qid.get("30-2")!),
             eq(answers.userId, playerIds[1])
         ));
         // no typed answer: the verdict is recorded as an operator row, not a judge of a draft
@@ -206,7 +210,7 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
         const res = await act({
             kind: "ve-dich.pickBatch",
             playerId: playerIds[1],
-            questionIds: [qid.get("THTH-40"), qid.get("TNSS-40"), qid.get("XHPL-40")]
+            questionIds: [qid.get("40-1"), qid.get("40-2"), qid.get("40-3")]
         });
         expect(res.statusCode).toBe(200);
         expect(res.json().state.pendingPicks).toHaveLength(3);
@@ -233,10 +237,10 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
     });
 
     it("the answerer and the buzzer are scored independently", async () => {
-        expect((await act({ kind: "ve-dich.openQuestion", questionId: qid.get("THTH-40") })).statusCode).toBe(200);
+        expect((await act({ kind: "ve-dich.openQuestion", questionId: qid.get("40-1") })).statusCode).toBe(200);
         expect((await act({ kind: "ve-dich.closeCurrentAnswer" })).statusCode).toBe(200);
 
-        const buzzed = await command(playerCookies[0], { type: "buzz", questionId: qid.get("THTH-40") });
+        const buzzed = await command(playerCookies[0], { type: "buzz", questionId: qid.get("40-1") });
         expect(buzzed.statusCode).toBe(200);
         expect(buzzed.json()).toEqual({ applied: "buzz" });
 
@@ -248,7 +252,7 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
 
     it("a buzzer who buzzes twice, or a non-buzzer, is rejected", async () => {
         // The window is still open on this question; the engine allows only one buzzer.
-        const again = await command(playerCookies[1], { type: "buzz", questionId: qid.get("THTH-40") });
+        const again = await command(playerCookies[1], { type: "buzz", questionId: qid.get("40-1") });
         expect(again.statusCode).toBeGreaterThanOrEqual(400);
     });
 
@@ -261,7 +265,7 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
             power: "STAR"
         });
         expect(staged.statusCode).toBe(200);
-        expect((await act({ kind: "ve-dich.openQuestion", questionId: qid.get("TNSS-40") })).statusCode).toBe(200);
+        expect((await act({ kind: "ve-dich.openQuestion", questionId: qid.get("40-2") })).statusCode).toBe(200);
 
         expect((await act({ kind: "ve-dich.closeCurrentAnswer" })).statusCode).toBe(200);
 
@@ -280,10 +284,10 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
             targetId: playerIds[0]
         });
         expect(assigned.statusCode).toBe(200);
-        expect((await act({ kind: "ve-dich.openQuestion", questionId: qid.get("XHPL-40") })).statusCode).toBe(200);
+        expect((await act({ kind: "ve-dich.openQuestion", questionId: qid.get("40-3") })).statusCode).toBe(200);
 
         // Only the two halves may buzz; the partner takes it.
-        const buzzed = await command(playerCookies[0], { type: "buzz", questionId: qid.get("XHPL-40") });
+        const buzzed = await command(playerCookies[0], { type: "buzz", questionId: qid.get("40-3") });
         expect(buzzed.statusCode).toBe(200);
 
         const resolved = await act({ kind: "ve-dich.resolve", answerer: false, buzzer: true });

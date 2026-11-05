@@ -27,17 +27,17 @@ import {
 const NOW = "2026-01-01T00:00:00.000Z";
 const at = (sec: number) => new Date(Date.parse(NOW) + sec * 1000).toISOString();
 
-// The board's cells are identified by their frozen id and sized by their value;
-// the label is only a test handle ("THTH-40" reads better than a uuid).
-const Q = (label: string, value: number, timeLimit: number | null = 30): VeDichQuestion => ({ id: `${label}-${value}`, value, timeLimit });
+// The show's board carries NO category labels — a cell IS its score, and the
+// ordinal tells the same-score cells apart ("40-1" reads better than a uuid).
+const cell = (value: number, n: number, timeLimit: number | null = 30): VeDichQuestion =>
+    ({ id: `${value}-${n}`, value, timeLimit });
+const cells = (value: number, count: number, timeLimit: number | null = 30): VeDichQuestion[] =>
+    Array.from({ length: count }, (_, i) => cell(value, i + 1, timeLimit));
 
 // A REAL board: 6×20, 6×30, 4×40, 4×50 — createVeDich refuses anything else, so
 // a fixture that is not the show's composition cannot even build a round.
 const board = (): VeDichQuestion[] => [
-    Q("THTH", 20), Q("TNSS", 20), Q("A", 20), Q("B", 20), Q("C", 20), Q("D", 20),
-    Q("THTH", 30), Q("TNSS", 30), Q("E", 30), Q("F", 30), Q("G", 30), Q("H", 30),
-    Q("THTH", 40), Q("TNSS", 40), Q("I", 40), Q("J", 40),
-    Q("THTH", 50), Q("TNSS", 50), Q("K", 50), Q("L", 50)
+    ...cells(20, 6), ...cells(30, 6), ...cells(40, 4), ...cells(50, 4)
 ];
 const POOL: VeDichQuestion[] = board();
 const countOf = (qs: VeDichQuestion[], value: number) => qs.filter((q) => q.value === value).length;
@@ -65,7 +65,7 @@ const stageOpen = (
     playerId: string,
     power: "STAR" | "ASSIGN",
     targetId?: string,
-    questionId = "THTH-40"
+    questionId = "40-1"
 ): VeDichState =>
     openPhase2Question(
         declarePower(picked, playerId, power, targetId ? { targetId } : {}),
@@ -100,15 +100,13 @@ describe("the board's composition", () => {
     });
 
     it("refuses a board with the wrong counts — the classic 24-cell grid is no longer a round", () => {
-        const sixByFour = [20, 30, 40, 50].flatMap((value) =>
-            ["THTH", "TNSS", "XHPL", "VHNT", "TTGT", "KTTH"].map((label) => Q(label, value))
-        );
+        const sixByFour = [20, 30, 40, 50].flatMap((value) => cells(value, 6));
         expect(sixByFour).toHaveLength(24);
         expect(codeOf(() => createVeDich(sixByFour, players_))).toBe("BOARD_COMPOSITION");
     });
 
     it("refuses a face value the board never holds, and says what it got", () => {
-        const odd = [...board().slice(0, 19), Q("ODD", 60)];
+        const odd = [...board().slice(0, 19), cell(60, 1)];
         expect(codeOf(() => createVeDich(odd, players_))).toBe("BOARD_COMPOSITION");
         try {
             createVeDich(odd, players_);
@@ -122,31 +120,31 @@ describe("the board's composition", () => {
 describe("Phase 1 picks", () => {
     it("the current player takes the highest-value question", () => {
         const state = createVeDich(POOL, [player("a", 0), player("b", 0)]);
-        const next = pickPhase1(state, "a", "THTH-30");
-        expect(next.open?.question.id).toBe("THTH-30");
-        expect(next.remaining.find((q) => q.id === "THTH-30")).toBeUndefined();
+        const next = pickPhase1(state, "a", "30-1");
+        expect(next.open?.question.id).toBe("30-1");
+        expect(next.remaining.find((q) => q.id === "30-1")).toBeUndefined();
     });
 
     it("picks either band: a 20 while 30s are still free (the show's rule)", () => {
         const state = createVeDich(POOL, [player("a", 0)]);
-        const next = pickPhase1(state, "a", "THTH-20");
-        expect(next.open?.question.id).toBe("THTH-20");
-        expect(next.remaining.find((q) => q.id === "THTH-20")).toBeUndefined();
+        const next = pickPhase1(state, "a", "20-1");
+        expect(next.open?.question.id).toBe("20-1");
+        expect(next.remaining.find((q) => q.id === "20-1")).toBeUndefined();
     });
 
     it("allows any of several tied top-value questions", () => {
         const state = createVeDich(POOL, [player("a", 0)]);
-        expect(codeOf(() => pickPhase1(state, "a", "TNSS-30"))).toBe("NO_ERROR");
+        expect(codeOf(() => pickPhase1(state, "a", "30-2"))).toBe("NO_ERROR");
     });
 
     it("rejects a pick from a player whose turn it is not", () => {
         const state = createVeDich(POOL, [player("a", 90), player("b", 0)]);
-        expect(codeOf(() => pickPhase1(state, "b", "THTH-50"))).toBe("NOT_YOUR_TURN");
+        expect(codeOf(() => pickPhase1(state, "b", "50-1"))).toBe("NOT_YOUR_TURN");
     });
 
     it("rejects a pick in Phase 2 mode", () => {
         const state = { ...createVeDich(POOL, [player("a", 0)]), phase: 2 as const };
-        expect(codeOf(() => pickPhase1(state, "a", "THTH-50"))).toBe("WRONG_PHASE");
+        expect(codeOf(() => pickPhase1(state, "a", "50-1"))).toBe("WRONG_PHASE");
     });
 });
 
@@ -162,8 +160,8 @@ describe("Chung is a 20/30 table — the partition rule", () => {
 
     it("a 40/50 cell can never open in phase 1 — not even by id", () => {
         const state = createVeDich(POOL, [player("a", 0)]);
-        expect(codeOf(() => pickPhase1(state, "a", "THTH-50"))).toBe("INVALID_QUESTION");
-        expect(codeOf(() => pickPhase1(state, "a", "THTH-40"))).toBe("INVALID_QUESTION");
+        expect(codeOf(() => pickPhase1(state, "a", "50-1"))).toBe("INVALID_QUESTION");
+        expect(codeOf(() => pickPhase1(state, "a", "40-1"))).toBe("INVALID_QUESTION");
     });
 
     it("the summit pool = deferred 40/50 PLUS every unplayed 20/30", () => {
@@ -178,14 +176,14 @@ describe("Chung is a 20/30 table — the partition rule", () => {
 describe("Phase 1 scoring", () => {
     it("correct on a 30-pt question: +30", () => {
         const state = createVeDich(POOL, [player("a", 0)]);
-        const opened = pickPhase1(state, "a", "THTH-30");
+        const opened = pickPhase1(state, "a", "30-1");
         const after = resolveQuestion(opened, { answerer: true });
         expect(after.players[0].score).toBe(30);
     });
 
     it("wrong on a 30-pt question: −15", () => {
         const state = createVeDich(POOL, [player("a", 0)]);
-        const opened = pickPhase1(state, "a", "THTH-30");
+        const opened = pickPhase1(state, "a", "30-1");
         const after = resolveQuestion(opened, { answerer: false });
         expect(after.players[0].score).toBe(-15);
     });
@@ -194,12 +192,12 @@ describe("Phase 1 scoring", () => {
 describe("powers — STAR", () => {
     const riengOpen = () => {
         let s = beginPhase2(createVeDich(POOL, [player("a", 0), player("b", 0)]));
-        s = pickPhase2(s, s.players[0].id, ["THTH-40", "THTH-50", "THTH-30"]);
+        s = pickPhase2(s, s.players[0].id, ["40-1", "50-1", "30-1"]);
         return { state: s, a: s.players[0].id };
     };
 
     it("is a RIÊNG rule — Chung refuses every power", () => {
-        const chung = pickPhase1(createVeDich(POOL, [player("a", 0)]), "a", "THTH-30");
+        const chung = pickPhase1(createVeDich(POOL, [player("a", 0)]), "a", "30-1");
         expect(codeOf(() => declarePower(chung, "a", "STAR"))).toBe("WRONG_PHASE_FOR_POWER");
     });
 
@@ -240,12 +238,12 @@ describe("powers — STAR", () => {
 describe("powers — ASSIGN", () => {
     const twoUp = () => {
         let s = beginPhase2(createVeDich(POOL, [player("a", 0), player("b", 0), player("c", 0)]));
-        s = pickPhase2(s, s.players[0].id, ["THTH-40", "THTH-50", "THTH-30"]);
+        s = pickPhase2(s, s.players[0].id, ["40-1", "50-1", "30-1"]);
         return s;
     };
 
     it("is Riêng only — Chung refuses it", () => {
-        const chung = pickPhase1(createVeDich(POOL, [player("a", 0), player("b", 0)]), "a", "THTH-30");
+        const chung = pickPhase1(createVeDich(POOL, [player("a", 0), player("b", 0)]), "a", "30-1");
         expect(codeOf(() => declarePower(chung, "a", "ASSIGN", { targetId: "b" })))
             .toBe("WRONG_PHASE_FOR_POWER");
     });
@@ -261,7 +259,7 @@ describe("powers — ASSIGN", () => {
     it("a question that is ALREADY OPEN is too late — the row is pre-open only", () => {
         const s = twoUp();
         const a = s.players[0].id;
-        const opened = openPhase2Question(s, "THTH-40");
+        const opened = openPhase2Question(s, "40-1");
         expect(codeOf(() => declarePower(opened, a, "STAR"))).toBe("ALREADY_OPEN");
     });
 
@@ -282,7 +280,7 @@ describe("powers — ASSIGN", () => {
         const s = twoUp();
         const a = s.players[0].id;
         const b = s.players[1].id;
-        // THTH-40 carries a 30 s limit in the fixture
+        // 40-1 carries a 30 s limit in the fixture
         const after = stageOpen(s, a, "ASSIGN", b);
         expect(buzzWindowSeconds(after)).toBe(30);
         expect(isBuzzOpen(after, at(20))).toBe(true);
@@ -409,7 +407,7 @@ describe("powers — ASSIGN", () => {
     it("a fresh question starts unlocked", () => {
         const s = twoUp();
         const a = s.players[0].id;
-        const locked = lockBuzzWindow(closeCurrentAnswer(openPhase2Question(s, "THTH-40"), NOW));
+        const locked = lockBuzzWindow(closeCurrentAnswer(openPhase2Question(s, "40-1"), NOW));
         const nextTurn = advanceTurn(resolveQuestion(locked, { answerer: true }));
         // The lock belonged to that question, not to the round.
         expect(nextTurn.buzzLocked).toBe(false);
@@ -430,79 +428,79 @@ describe("Phase 2 flow", () => {
 
     it("the current player picks exactly 3 distinct questions", () => {
         const state = beginPhase2(createVeDich(POOL, players));
-        expect(codeOf(() => pickPhase2(state, "c", ["THTH-50", "THTH-40"]))).toBe("INVALID_QUESTION");
-        expect(codeOf(() => pickPhase2(state, "c", ["THTH-50", "THTH-50", "THTH-40"]))).toBe("INVALID_QUESTION");
-        expect(codeOf(() => pickPhase2(state, "c", ["THTH-50", "THTH-40", "THTH-30"]))).toBe("NO_ERROR");
+        expect(codeOf(() => pickPhase2(state, "c", ["50-1", "40-1"]))).toBe("INVALID_QUESTION");
+        expect(codeOf(() => pickPhase2(state, "c", ["50-1", "50-1", "40-1"]))).toBe("INVALID_QUESTION");
+        expect(codeOf(() => pickPhase2(state, "c", ["50-1", "40-1", "30-1"]))).toBe("NO_ERROR");
     });
 
     it("the buzz window opens after the current answer, whatever its correctness", () => {
-        let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["THTH-50", "THTH-40", "THTH-30"]);
-        state = openPhase2Question(state, "THTH-50");
+        let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["50-1", "40-1", "30-1"]);
+        state = openPhase2Question(state, "50-1");
         state = closeCurrentAnswer(state, NOW);
         expect(state.open?.stage).toBe("buzz");
     });
 
     it("the fastest buzzer answers; later buzzes are blocked", () => {
-        let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["THTH-50", "THTH-40", "THTH-30"]);
-        state = closeCurrentAnswer(openPhase2Question(state, "THTH-50"), NOW);
+        let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["50-1", "40-1", "30-1"]);
+        state = closeCurrentAnswer(openPhase2Question(state, "50-1"), NOW);
         state = buzz(state, "a", NOW);
         expect(state.open?.buzzer).toBe("a");
         expect(codeOf(() => buzz(state, "b", NOW))).toBe("ALREADY_OPEN");
     });
 
     it("the current player cannot buzz on their own question", () => {
-        let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["THTH-50", "THTH-40", "THTH-30"]);
-        state = closeCurrentAnswer(openPhase2Question(state, "THTH-50"), NOW);
+        let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["50-1", "40-1", "30-1"]);
+        state = closeCurrentAnswer(openPhase2Question(state, "50-1"), NOW);
         expect(codeOf(() => buzz(state, "c", NOW))).toBe("NOT_YOUR_TURN");
     });
 
     it("buzzing is impossible before the buzz window", () => {
-        let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["THTH-50", "THTH-40", "THTH-30"]);
-        state = openPhase2Question(state, "THTH-50");
+        let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["50-1", "40-1", "30-1"]);
+        state = openPhase2Question(state, "50-1");
         expect(codeOf(() => buzz(state, "a", NOW))).toBe("ALREADY_OPEN");
     });
 
     it("the question cannot be resolved before the buzz window closes", () => {
-        let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["THTH-50", "THTH-40", "THTH-30"]);
-        state = openPhase2Question(state, "THTH-50");
+        let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["50-1", "40-1", "30-1"]);
+        state = openPhase2Question(state, "50-1");
         expect(codeOf(() => resolveQuestion(state, { answerer: true }))).toBe("ALREADY_OPEN");
     });
 
     it("both correct: current and buzzer each get face value (+50 each)", () => {
-        let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["THTH-50", "THTH-40", "THTH-30"]);
-        state = buzz(closeCurrentAnswer(openPhase2Question(state, "THTH-50"), NOW), "a", NOW);
+        let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["50-1", "40-1", "30-1"]);
+        state = buzz(closeCurrentAnswer(openPhase2Question(state, "50-1"), NOW), "a", NOW);
         state = resolveQuestion(state, { answerer: true, buzzer: true });
         expect(state.players.find((p) => p.id === "c")!.score).toBe(10 + 50);
         expect(state.players.find((p) => p.id === "a")!.score).toBe(40 + 50);
     });
 
     it("current wrong, buzzer correct: current −25, buzzer +50", () => {
-        let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["THTH-50", "THTH-40", "THTH-30"]);
-        state = buzz(closeCurrentAnswer(openPhase2Question(state, "THTH-50"), NOW), "a", NOW);
+        let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["50-1", "40-1", "30-1"]);
+        state = buzz(closeCurrentAnswer(openPhase2Question(state, "50-1"), NOW), "a", NOW);
         state = resolveQuestion(state, { answerer: false, buzzer: true });
         expect(state.players.find((p) => p.id === "c")!.score).toBe(10 - 25);
         expect(state.players.find((p) => p.id === "a")!.score).toBe(40 + 50);
     });
 
     it("no buzz, current correct: scores once", () => {
-        let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["THTH-50", "THTH-40", "THTH-30"]);
-        state = resolveQuestion(closeCurrentAnswer(openPhase2Question(state, "THTH-50"), NOW), { answerer: true });
+        let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["50-1", "40-1", "30-1"]);
+        state = resolveQuestion(closeCurrentAnswer(openPhase2Question(state, "50-1"), NOW), { answerer: true });
         expect(state.players.find((p) => p.id === "c")!.score).toBe(10 + 50);
     });
 
     it("a buzzer verdict is required when someone buzzed, and forbidden when nobody did", () => {
-        let withBuzz = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["THTH-50", "THTH-40", "THTH-30"]);
-        withBuzz = buzz(closeCurrentAnswer(openPhase2Question(withBuzz, "THTH-50"), NOW), "a", NOW);
+        let withBuzz = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["50-1", "40-1", "30-1"]);
+        withBuzz = buzz(closeCurrentAnswer(openPhase2Question(withBuzz, "50-1"), NOW), "a", NOW);
         expect(codeOf(() => resolveQuestion(withBuzz, { answerer: true }))).toBe("NOT_YOUR_TURN");
 
-        let noBuzz = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["THTH-50", "THTH-40", "THTH-30"]);
-        noBuzz = closeCurrentAnswer(openPhase2Question(noBuzz, "THTH-50"), NOW);
+        let noBuzz = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["50-1", "40-1", "30-1"]);
+        noBuzz = closeCurrentAnswer(openPhase2Question(noBuzz, "50-1"), NOW);
         expect(codeOf(() => resolveQuestion(noBuzz, { answerer: true, buzzer: true }))).toBe("NOT_YOUR_TURN");
     });
 
     it("nobody declares mid-question — the row is pre-open only, buzzers included", () => {
-        let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["THTH-50", "THTH-40", "THTH-30"]);
-        state = openPhase2Question(state, "THTH-50");
+        let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["50-1", "40-1", "30-1"]);
+        state = openPhase2Question(state, "50-1");
         state = closeCurrentAnswer(state, NOW);
         state = buzz(state, "a", NOW);
         // Too late for ANYONE once the question is open — a buzzer, and even
@@ -512,8 +510,8 @@ describe("Phase 2 flow", () => {
     });
 
     it("advanceTurn moves to the next player and clears the pending picks", () => {
-        let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["THTH-50", "THTH-40", "THTH-30"]);
-        state = resolveQuestion(closeCurrentAnswer(openPhase2Question(state, "THTH-50"), NOW), { answerer: true });
+        let state = pickPhase2(beginPhase2(createVeDich(POOL, players)), "c", ["50-1", "40-1", "30-1"]);
+        state = resolveQuestion(closeCurrentAnswer(openPhase2Question(state, "50-1"), NOW), { answerer: true });
         const next = advanceTurn(state);
         expect(next.turnIndex).toBe(1);
         expect(next.pendingPicks).toEqual([]);
@@ -585,7 +583,7 @@ describe("phase transitions", () => {
 
     it("endVeDich sets the round ended and clears the open question", () => {
         let s = createVeDich(POOL, [player("a", 0)]);
-        s = pickPhase1(s, "a", "THTH-30");
+        s = pickPhase1(s, "a", "30-1");
         const ended = endVeDich(s);
         expect(ended.ended).toBe(true);
         expect(ended.open).toBeNull();
@@ -597,16 +595,16 @@ describe("the 5 s buzz window", () => {
 
     function buzzing() {
         let s: VeDichState = beginPhase2(createVeDich(POOL, players));
-        s = pickPhase2(s, "c", ["THTH-50", "THTH-40", "THTH-30"]);
-        s = openPhase2Question(s, "THTH-50");
+        s = pickPhase2(s, "c", ["50-1", "40-1", "30-1"]);
+        s = openPhase2Question(s, "50-1");
         return closeCurrentAnswer(s, NOW);
     }
 
     it("is closed before the current answer is closed", () => {
         expect(isBuzzOpen(openPhase2Question(
             pickPhase2(beginPhase2(createVeDich(POOL, players)),
-                "c", ["THTH-50", "THTH-40", "THTH-30"]),
-            "THTH-50"
+                "c", ["50-1", "40-1", "30-1"]),
+            "50-1"
         ), NOW)).toBe(false);
     });
 
@@ -632,7 +630,7 @@ describe("powers — staged on the pick board BEFORE the question opens", () => 
     // năng — pressed pre-open; the question then opens ALREADY powered.
     const riengStaged = () => {
         let s = beginPhase2(createVeDich(POOL, [player("a", 0), player("b", 0)]));
-        s = pickPhase2(s, s.players[0].id, ["THTH-40", "THTH-50", "THTH-30"]);
+        s = pickPhase2(s, s.players[0].id, ["40-1", "50-1", "30-1"]);
         return { state: s, a: s.players[0].id, b: s.players[1].id };
     };
 
@@ -642,7 +640,7 @@ describe("powers — staged on the pick board BEFORE the question opens", () => 
         expect(staged.stagedPower).toEqual({ power: "STAR" });
         expect(staged.players.find((p) => p.id === a)!.powersLeft).toEqual(["STAR", "ASSIGN"]); // not yet
 
-        const opened = openPhase2Question(staged, "THTH-40", NOW);
+        const opened = openPhase2Question(staged, "40-1", NOW);
         expect(opened.open?.power).toBe("STAR");
         expect(opened.stagedPower ?? null).toBeNull();
         expect(opened.players.find((p) => p.id === a)!.powersLeft).toEqual(["ASSIGN"]);         // spent now
@@ -654,7 +652,7 @@ describe("powers — staged on the pick board BEFORE the question opens", () => 
         expect(cleared.stagedPower ?? null).toBeNull();
         expect(cleared.players.find((p) => p.id === a)!.powersLeft).toEqual(["STAR", "ASSIGN"]);
 
-        const opened = openPhase2Question(cleared, "THTH-40", NOW);
+        const opened = openPhase2Question(cleared, "40-1", NOW);
         expect(opened.open?.power).toBeNull();
         expect(opened.open?.stage).toBe("current");
     });
@@ -677,7 +675,7 @@ describe("powers — staged on the pick board BEFORE the question opens", () => 
     it("a staged ASSIGN opens the RACE with the question — nobody answers first", () => {
         const { state, a, b } = riengStaged();
         const staged = declarePower(state, a, "ASSIGN", { targetId: b });
-        const opened = openPhase2Question(staged, "THTH-40", at(5));
+        const opened = openPhase2Question(staged, "40-1", at(5));
         expect(opened.open).toMatchObject({ stage: "buzz", power: "ASSIGN", assignedTo: b });
         expect(opened.buzzOpenedAt).toBe(at(5));
         expect(opened.players.find((p) => p.id === a)!.powersLeft).toEqual(["STAR"]); // ASSIGN spent
