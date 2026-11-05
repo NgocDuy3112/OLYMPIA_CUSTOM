@@ -196,6 +196,17 @@ export const RoundGoToAction = Type.Object({
 });
 export type RoundGoToAction = Static<typeof RoundGoToAction>;
 
+// Hiện đáp án — the console reveals one question's CORRECT ANSWER to every
+// screen (players, audience, console). Display-only: the state records WHICH
+// answer is showing, and the view exposes its text only while that question is
+// still the one in play. Match-level like round.goTo (no round prefix), but the
+// question must belong to the ACTIVE round — the route refuses anything else.
+export const RevealAnswer = Type.Object({
+    kind: Type.Literal("reveal.answer"),
+    questionId: Type.String({ minLength: 1 })
+});
+export type RevealAnswer = Static<typeof RevealAnswer>;
+
 // Match-level score correction — NOT bound to a round (handled like round.goTo,
 // before the round guard): the controller's audited delta lands in the
 // score_adjustments ledger and folds into the scoreboard and final results.
@@ -240,6 +251,7 @@ export const LiveActionSchema = Type.Union([
     VeDichEndRound,
     VeDichDeclarePower,
     RoundGoToAction,
+    RevealAnswer,
     ScoreAdjustActionSchema
 ]);
 export type LiveAction = Static<typeof LiveActionSchema>;

@@ -14,6 +14,7 @@ export type AuditAction =
     | "paused"
     | "answer_drafted"
     | "answer_judged"
+    | "answer_revealed"
     | "match_ended"
     | "tournament_closed"
     | "tournament_tie_accepted"

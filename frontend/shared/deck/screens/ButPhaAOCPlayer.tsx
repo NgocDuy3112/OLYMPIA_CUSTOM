@@ -49,6 +49,7 @@ export function ButPhaAOCPlayer({ ctx }: { ctx: ButPhaPlayerCtx }) {
                 }
                 question={openQ?.question?.questionText ?? null}
                 media={openQ?.question?.media ?? null}
+                answer={v.revealed?.answer}
             />
         </PlayerStage>
     )

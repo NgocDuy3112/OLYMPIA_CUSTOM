@@ -90,12 +90,32 @@ export function KeywordLengthBanner({ length }: { length: number | null }) {
 }
 
 /**
+ * Hiện đáp án: the console revealed this question's correct answer — one line
+ * under the question, on every screen showing it. The server only ever sends
+ * `revealed` while the question is still in play, so this renders nothing on
+ * its own once the round moves on.
+ */
+export function AnswerReveal({ answer }: { answer?: string | null }) {
+    if (!answer) return null
+    return (
+        <div className="flex shrink-0 flex-wrap items-baseline gap-x-[1cqw] gap-y-[0.3cqw] rounded-xl bg-emerald-50 px-[1.4cqw] py-[0.8cqw] ring-1 ring-emerald-200">
+            <span className="font-sans font-bold uppercase tracking-wide text-emerald-700" style={{ fontSize: pt(12) }}>
+                Đáp án
+            </span>
+            <span className="min-w-0 font-sans font-semibold text-foreground" style={{ fontSize: pt(14) }}>
+                {answer}
+            </span>
+        </div>
+    )
+}
+
+/**
  * The whole question card: the round badge (clickable on the console's deck), the
  * optional middle chips, the clock/progress on the right, then the question
  * itself. Screens that need a different body (giai-ma's hint grid, the vé-đích
  * board) build their own MainCard — this is for the five that don't.
  */
-export function QuestionFrame({ round, mode, size, onRoundClick, mid, right, question, media }: {
+export function QuestionFrame({ round, mode, size, onRoundClick, mid, right, question, media, answer }: {
     round: string
     mode?: string
     size?: number
@@ -104,6 +124,8 @@ export function QuestionFrame({ round, mode, size, onRoundClick, mid, right, que
     right?: ReactNode
     question: string | null
     media?: { url: string; type: string } | null
+    /** The console's Hiện đáp án — rendered under the question when present. */
+    answer?: string | null
 }) {
     return (
         <MainCard>
@@ -113,6 +135,7 @@ export function QuestionFrame({ round, mode, size, onRoundClick, mid, right, que
                 right={right}
             />
             <QuestionBlock question={question} media={media} />
+            <AnswerReveal answer={answer} />
         </MainCard>
     )
 }

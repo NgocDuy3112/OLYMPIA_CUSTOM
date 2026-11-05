@@ -31,6 +31,12 @@ export interface KhoiDongState {
     activeIndex: number;                    // whose phase-1 run is active
     runs: Record<string, Phase1State>;      // one run per player
     phase2: Phase2State | null;             // created when phase 2 begins
+    /**
+     * The console's Hiện đáp án: the question whose CORRECT ANSWER every screen
+     * is showing. Display-only; the view exposes the text only while that
+     * question is still the one in play. Optional on pre-reveal states.
+     */
+    revealedAnswer?: string | null;
 }
 
 export function startKhoiDong(

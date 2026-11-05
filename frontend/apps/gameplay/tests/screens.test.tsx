@@ -123,6 +123,23 @@ describe("player screens render from a plain fixture", () => {
         expect(getByLabelText("Câu trả lời của bạn")).toBeDisabled()
     })
 
+    it("Hiện đáp án — the revealed answer rides under the question", () => {
+        const v = view({
+            roundId: "khoi-dong",
+            open: [openQ],
+            revealed: { questionId: "q1", answer: "Hà Nội" },
+        })
+        const { getByText } = render(<KhoiDongChungAOCPlayer ctx={ctx({ v, remaining: 0 })} />)
+        expect(getByText("Đáp án")).toBeTruthy()
+        expect(getByText("Hà Nội")).toBeTruthy()
+    })
+
+    it("Hiện đáp án — nothing revealed means no banner", () => {
+        const v = view({ roundId: "khoi-dong", open: [openQ] })
+        const { queryByText } = render(<KhoiDongChungAOCPlayer ctx={ctx({ v, remaining: 0 })} />)
+        expect(queryByText("Đáp án")).toBeNull()
+    })
+
     it("khởi động · lượt cá nhân — the run pill names who is playing", () => {
         const v = view({
             roundId: "khoi-dong",
@@ -146,6 +163,17 @@ describe("player screens render from a plain fixture", () => {
         const { getByText } = render(<GiaiMaAOCPlayer ctx={ctx({ v })} />)
         expect(getByText(/Mật mã gồm có 7 chữ cái/)).toBeTruthy()
         expect(getByText("Giải mã")).toBeTruthy()
+    })
+
+    it("giải mã — Hiện đáp án puts the revealed answer on the card", () => {
+        const v = view({
+            roundId: "giai-ma",
+            keyword: { questionId: "kw", question: null },
+            revealed: { questionId: "kw", answer: "CHUNGKET" },
+        })
+        const { getByText } = render(<GiaiMaAOCPlayer ctx={ctx({ v })} />)
+        expect(getByText("Đáp án")).toBeTruthy()
+        expect(getByText("CHUNGKET")).toBeTruthy()
     })
 
     it("về đích · câu hỏi chung — the typed band", () => {

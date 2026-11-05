@@ -59,6 +59,8 @@ export type LiveAction =
     // ── match-level (not bound to a round) ─────────────────────────────────────
     | { kind: "round.goTo"; roundId: string }
     | { kind: "score.adjust"; userId: string; delta: number; reason: string }
+    /** Hiện đáp án — reveal one question's correct answer to every screen. */
+    | { kind: "reveal.answer"; questionId: string }
 
 /**
  * The `start` action for a round — the ONE dynamic action: the kind is

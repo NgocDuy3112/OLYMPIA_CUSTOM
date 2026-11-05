@@ -51,6 +51,8 @@ export interface Projection {
         budgetS: number
     } | null
     board?: Array<{ questionId: string; value: number; where: "free" | "pending" | "open" | "taken" | "deferred" }>
+    /** The console's Hiện đáp án — the revealed answer, while its question is in play. */
+    revealed?: { questionId: string; answer: string }
 }
 
 export interface GiaiMaConsole {
@@ -82,6 +84,12 @@ export interface KhoiDongConsole {
     questionCount: number
     /** Is the window Bấm giờ opened running RIGHT NOW? */
     windowOpen: boolean
+}
+export interface ButPhaConsole {
+    /** The cursor's question — its id survives the 30 s that clears `projection.open`. */
+    questionId: string | null
+    /** Has the current question been ASKED (its clock started at least once)? */
+    opened: boolean
 }
 
 export interface LiveResponse {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildPlayerView, type SubmittedAnswer } from "../../../src/modules/live/view.js";
-import { openHint, startGiaiMa } from "../../../src/game/engine/turns/giai-ma.js";
-import { openCurrentQuestion, startButPha, submitAnswer } from "../../../src/game/engine/turns/but-pha.js";
+import { openHint, resolveOpenHint, startGiaiMa } from "../../../src/game/engine/turns/giai-ma.js";
+import { closeQuestion, openCurrentQuestion, startButPha, submitAnswer } from "../../../src/game/engine/turns/but-pha.js";
 import { endKhoiDong, nextQuestion, openWindow, startKhoiDong } from "../../../src/game/engine/turns/khoi-dong-round.js";
 import {
     advanceTurn,
@@ -355,6 +355,8 @@ describe("player view — payloads (G1)", () => {
         const wire = JSON.stringify(view);
         expect(wire).not.toContain("correctSet");
         expect(wire).not.toContain("acceptedAnswers");
+        // …and nothing revealed it: no console press, no answer on the wire
+        expect(view.revealed).toBeUndefined();
     });
 
     it("an unknown id degrades to null instead of throwing", () => {
@@ -494,5 +496,98 @@ describe("player view — shared scoreboard (G4)", () => {
         const state = openHint(startGiaiMa(["p0"], ["h1"]), "h1", NOW);
         const view = buildPlayerView(base({ roundId: "giai-ma", state }));
         expect(view.table).toEqual([]);
+    });
+});
+
+describe("player view — Hiện đáp án (the revealed answer)", () => {
+    const Q4 = ["q1", "q2", "q3", "q4"];
+
+    it("bứt phá: the answer rides while the cursor's question is in play", () => {
+        const state = { ...openCurrentQuestion(startButPha(Q4), NOW), revealedAnswer: "q1" };
+        const view = buildPlayerView(base({ roundId: "but-pha", state, questions: frozen(Q4) }));
+        // frozen's CHOICE correctSet is ["a"] → the option's TEXT, never the id
+        expect(view.revealed).toEqual({ questionId: "q1", answer: "A" });
+    });
+
+    it("bứt phá: the advance hides it — the next question carries no answer, no undo sent", () => {
+        const asked = { ...openCurrentQuestion(startButPha(Q4), NOW), revealedAnswer: "q1" };
+        const moved = closeQuestion(asked);                       // cursor → q2
+        const view = buildPlayerView(base({ roundId: "but-pha", state: moved, questions: frozen(Q4) }));
+        expect(view.revealed).toBeUndefined();
+    });
+
+    it("khởi động chung: revealed for the six's question in play, gone after the strip moves", () => {
+        const P1 = ["a1", "a2", "a3", "a4", "a5", "a6"];
+        const P2 = ["b1", "b2", "b3", "b4", "b5", "b6"];
+        const questions = frozen([...P1, ...P2], "TEXT");
+        let state = beginPhase2(finishSetup(["p0", "p1"], P1, P2), P2);
+        state = { ...state, revealedAnswer: "b1" };
+        expect(buildPlayerView(base({ roundId: "khoi-dong", state, questions })).revealed)
+            .toEqual({ questionId: "b1", answer: "x" });
+
+        state = nextQuestion(openWindow(state, NOW));             // the strip advances
+        expect(buildPlayerView(base({ roundId: "khoi-dong", state, questions })).revealed)
+            .toBeUndefined();
+    });
+
+    it("giải mã: the hint's answer shows in its window AND after judging, until the next hint", () => {
+        const H = ["h1", "h2", "h3"];
+        const questions = frozen(H, "TEXT");
+        let state = openHint(startGiaiMa(["p0"], H), "h1", NOW);
+        state = { ...state, revealedAnswer: "h1" };
+        expect(buildPlayerView(base({ roundId: "giai-ma", state, questions })).revealed)
+            .toEqual({ questionId: "h1", answer: "x" });
+
+        // judged: the window closes, the picked tail keeps the answer in play
+        state = resolveOpenHint(state, {});
+        expect(buildPlayerView(base({ roundId: "giai-ma", state, questions })).revealed)
+            .toEqual({ questionId: "h1", answer: "x" });
+
+        // the NEXT hint opens → the old answer is off screen until re-revealed
+        state = openHint(state, "h2", NOW);
+        expect(buildPlayerView(base({ roundId: "giai-ma", state, questions })).revealed)
+            .toBeUndefined();
+    });
+
+    it("giải mã: the keyword's answer shows whenever the desk reveals it", () => {
+        const H = ["h1"];
+        const keyword = {
+            _id: "kw", roundId: "r", turnId: "t", position: 9, mode: "text", kind: "KEYWORD",
+            questionText: "Từ khoá", media: null, timeLimit: null,
+            payload: { code: "CHUNGKET" }, sourceId: "src"
+        } as unknown as MatchQuestion;
+        // mid-hint-window: the keyword question is on every screen all round,
+        // so its reveal has no window to wait for
+        const state = { ...openHint(startGiaiMa(["p0"], H), "h1", NOW), revealedAnswer: "kw" };
+        const view = buildPlayerView(base({
+            roundId: "giai-ma", state, questions: [...frozen(H, "TEXT"), keyword]
+        }));
+        expect(view.revealed).toEqual({ questionId: "kw", answer: "CHUNGKET" });
+    });
+
+    it("về đích chung: shown while the question is open, gone once the turn closes it", () => {
+        const VQ = (label: string, value: number): VeDichQuestion => ({ id: `${label}-${value}`, value, timeLimit: 30 });
+        // the show's fixed board: 6×20, 6×30, 4×40, 4×50
+        const POOL = [
+            VQ("A", 20), VQ("B", 20), VQ("C", 20), VQ("D", 20), VQ("E", 20), VQ("F", 20),
+            VQ("G", 30), VQ("H", 30), VQ("I", 30), VQ("J", 30), VQ("K", 30), VQ("L", 30),
+            VQ("M", 40), VQ("N", 40), VQ("O", 40), VQ("P", 40),
+            VQ("Q", 50), VQ("R", 50), VQ("S", 50), VQ("T", 50)
+        ];
+        const players: PlayerState[] = [
+            { id: "p0", score: 0, powersLeft: ["STAR", "ASSIGN"] },
+            { id: "p1", score: 0, powersLeft: ["STAR", "ASSIGN"] }
+        ];
+        const questions = frozen(POOL.map((q) => q.id));
+
+        let state = createVeDich(POOL, players);
+        state = pickPhase1(state, "p0", "G-30");                   // opens the highest free cell
+        state = { ...state, revealedAnswer: "G-30" };
+        expect(buildPlayerView(base({ roundId: "ve-dich", state, questions })).revealed)
+            .toEqual({ questionId: "G-30", answer: "A" });
+
+        state = resolveQuestion(state, { answerer: true });        // Hết lượt closes it
+        expect(buildPlayerView(base({ roundId: "ve-dich", state, questions })).revealed)
+            .toBeUndefined();
     });
 });

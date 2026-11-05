@@ -43,6 +43,7 @@ export function VeDichChungAOCPlayer({ ctx }: { ctx: VeDichChungPlayerCtx }) {
                 right={<Timer remaining={openQ ? remaining : null} fallback="—" />}
                 question={openQ.question?.questionText ?? null}
                 media={openQ.question?.media ?? null}
+                answer={v.revealed?.answer}
             />
         </PlayerStage>
     )

@@ -355,7 +355,18 @@ function consoleFacts(roundId: string, raw: unknown): Record<string, unknown> | 
             windowOpen: p2 !== null && isPhase2WindowOpen(p2, new Date().toISOString())
         };
     }
-    return {};  // but-pha: the shared projection (stage/open/deadlines) says it all
+    if (roundId === "but-pha") {
+        const state = parseButPhaState(raw);
+        return {
+            // The cursor's question and whether it has been ASKED — the
+            // controller needs both for Hiện đáp án: after the 30 s the shared
+            // projection drops its `open`, which is exactly when the desk
+            // reveals the answer.
+            questionId: openQuestionId(state),
+            opened: state.questionOpenedAt !== null
+        };
+    }
+    return {};  // unknown round: the shared projection says what it can
 }
 
 /**
@@ -489,6 +500,35 @@ export async function liveRoutes(app: FastifyInstance) {
                                 facts: [],
                                 roundId: action.roundId,
                                 archive: { ...(current.archive ?? {}), [current.roundId]: current.state }
+                            };
+                        }
+
+                        // Hiện đáp án — display-only: record WHICH answer every
+                        // screen is showing (the view gates its text to the
+                        // question still in play). The question must belong to
+                        // the ACTIVE round; anything else is a client bug.
+                        if (action.kind === "reveal.answer") {
+                            if (Object.keys(current.state).length === 0) {
+                                throw new RuleError(
+                                    "NOT_STARTED",
+                                    "start the round before revealing an answer"
+                                );
+                            }
+                            const question = match.questions.find(
+                                (q) => q._id === action.questionId && q.roundId === current.roundId
+                            );
+                            if (!question) {
+                                throw new RuleError(
+                                    "INVALID_QUESTION",
+                                    `question ${action.questionId} is not a question of round ${current.roundId}`
+                                );
+                            }
+                            return {
+                                state: {
+                                    ...(current.state as Record<string, unknown>),
+                                    revealedAnswer: question._id
+                                },
+                                facts: []
                             };
                         }
 
@@ -652,6 +692,13 @@ export async function liveRoutes(app: FastifyInstance) {
                 await auditFromRequest(request, "answer_judged", {
                     matchId,
                     details: { roundId: next.roundId, playerId: action.playerId, correct: action.correct }
+                });
+            }
+
+            if (action.kind === "reveal.answer") {
+                await auditFromRequest(request, "answer_revealed", {
+                    matchId,
+                    details: { roundId: next.roundId, questionId: action.questionId }
                 });
             }
 

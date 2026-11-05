@@ -79,6 +79,7 @@ export function KhoiDongChungAOCPlayer({ ctx }: { ctx: KhoiDongChungPlayerCtx })
                 }
                 question={openQ?.question?.questionText ?? "Chờ mở câu tiếp theo…"}
                 media={openQ?.question?.media ?? null}
+                answer={v.revealed?.answer}
             />
         </PlayerStage>
     )

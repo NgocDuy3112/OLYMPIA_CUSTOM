@@ -76,6 +76,12 @@ export interface VeDichState {
      */
     buzzLocked?: boolean;
     ended: boolean;
+    /**
+     * The console's Hiện đáp án: the question whose CORRECT ANSWER every screen
+     * is showing. Display-only; the view exposes the text only while that
+     * question is still open. Optional on pre-reveal states.
+     */
+    revealedAnswer?: string | null;
 }
 
 export interface OpenQuestion {

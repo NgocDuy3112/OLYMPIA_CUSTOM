@@ -18,6 +18,12 @@ export interface ButPhaState {
     answers: Record<string, Answer[]>;             // questionId → answers in arrival order
     points: Record<string, Record<string, number>>; // questionId → playerId → points
     ended: boolean;
+    /**
+     * The console's Hiện đáp án: the question whose CORRECT ANSWER every screen
+     * is showing. Display-only; the view exposes the text only while that
+     * question is still the cursor's. Optional on pre-reveal states.
+     */
+    revealedAnswer?: string | null;
 }
 
 export function startButPha(questionIds: string[], rules: ButPhaRules = BUT_PHA_DEFAULTS): ButPhaState {

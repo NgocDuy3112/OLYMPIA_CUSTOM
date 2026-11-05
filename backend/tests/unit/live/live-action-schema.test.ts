@@ -53,6 +53,7 @@ const consoleSent: unknown[] = [
     // match-level
     { kind: "round.goTo", roundId: "khoi-dong" },
     { kind: "score.adjust", userId: "p1", delta: -10, reason: "Correction" },
+    { kind: "reveal.answer", questionId: "q1" },
 ];
 
 // Built ONLY by ve-dich-player.ts from a player's own websocket command —

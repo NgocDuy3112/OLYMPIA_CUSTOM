@@ -35,6 +35,11 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
         .filter((q) => q.roundId === "giai-ma" && q.kind !== "KEYWORD")
         .sort((a, b) => a.position - b.position)
     const openHintId = consoleGiaiMa?.openHintId ?? null
+    // The hint Hiện đáp án gợi ý targets: the open window, else the last one
+    // judged (picked tail) — null before the first hint, so the button is off.
+    const pickedHints = consoleGiaiMa?.hintsPicked ?? []
+    const hintTarget = openHintId
+        ?? (pickedHints.length > 0 ? pickedHints[pickedHints.length - 1] : null)
     const tileState = (qid: string): HintTile =>
         qid === openHintId ? "open" : consoleGiaiMa?.hintsPicked.includes(qid) ? "used" : "free"
     const openHint = (qid: string) => ctx.send({ kind: "giai-ma.openHint", hintId: qid })
@@ -57,6 +62,23 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
                 // Đúng từ khoá: one press judges every keyword draft — selected
                 // correct, the rest of the submitters wrong.
                 { label: COPY.judgeKeyword, onClick: ctx.commitKeywordReady ? () => ctx.commitKeyword() : undefined },
+                {
+                    label: "Hiện đáp án gợi ý",
+                    // The hint in play — its window, or the last one judged
+                    // (the server gates the text the same way). Disabled until
+                    // a hint has actually been on the table.
+                    onClick: hintTarget
+                        ? () => ctx.send({ kind: "reveal.answer", questionId: hintTarget })
+                        : undefined,
+                },
+                {
+                    label: "Hiện đáp án từ khoá",
+                    // The keyword is on every screen all round, so its reveal
+                    // has no window to wait for — the desk decides when.
+                    onClick: keywordQ
+                        ? () => ctx.send({ kind: "reveal.answer", questionId: keywordQ._id })
+                        : undefined,
+                },
                 backToLobbyAction(ctx.backToLobby),
             ]}
             flash={flash}

@@ -4,7 +4,7 @@ import { COPY } from "@shared/deck/copy"
 
 // Bứt phá (S4): four typed questions, one open at a time — Tính giờ opens the
 // next, Đúng/Sai stage the verdict, Hết lượt's finalize is the round's own plan.
-import type { ConsoleQuestion } from "@/lib/live"
+import type { ConsoleQuestion, ButPhaConsole } from "@/lib/live"
 import type { ScreenCore } from "../types"
 
 /** Bứt phá: four typed questions, one open at a time. */
@@ -15,14 +15,18 @@ export type ButPhaCtx = ScreenCore & {
     setVerdict: (correct: boolean) => void
     setSelectedPlayer: (userId: string) => void
     byId: (id: string) => ConsoleQuestion | null
+    /** The cursor's question + whether it has been asked — Hiện đáp án's target. */
+    consoleButPha: ButPhaConsole | null
 }
 
 export function ButPhaAOCController({ ctx }: { ctx: ButPhaCtx }) {
-    const { v, remaining, baseCards, flash, openRounds } = ctx
+    const { v, remaining, baseCards, flash, openRounds, consoleButPha } = ctx
     const open = v.projection.open
     const openQ = open[0] ?? null
     const pos = openQ ? (ctx.byId(openQ.questionId)?.position ?? 0) : null
     const done = pos ?? 0
+    // Asked at least once (open now, or expired) → its id is revealable.
+    const revealId = consoleButPha?.opened === true ? consoleButPha.questionId : null
 
     return (
         <ConsoleStage
@@ -30,6 +34,15 @@ export function ButPhaAOCController({ ctx }: { ctx: ButPhaCtx }) {
             actions={[
                 { label: COPY.startClock, onClick: ctx.pickQuestion },
                 ...verdictActions({ canVerdict: ctx.target !== null && openQ !== null, onVerdict: ctx.setVerdict }),
+                {
+                    label: "Hiện đáp án",
+                    // The cursor's question — the console facts keep its id
+                    // after the 30 s drop `projection.open`, which is exactly
+                    // when the desk reveals. Off until the clock has started.
+                    onClick: revealId
+                        ? () => ctx.send({ kind: "reveal.answer", questionId: revealId })
+                        : undefined,
+                },
                 backToLobbyAction(ctx.backToLobby),
             ]}
             flash={flash}

@@ -25,6 +25,14 @@ export interface GiaiMaState {
     picked: string[];           // hint ids the console has picked, in pick order
     openHint: string | null;    // the hint whose answer window is open, or null
     openHintAt: string | null;  // ISO time the window opened
+    /**
+     * The console's Hiện đáp án: the question whose CORRECT ANSWER every screen
+     * is showing. Display-only — it never scores, never gates, and the view
+     * only exposes the text while that question is still the one in play, so
+     * advancing hides it without this ever being "undone". Optional on states
+     * written before the reveal existed; the engine just carries it along.
+     */
+    revealedAnswer?: string | null;
 }
 
 export function startGiaiMa(

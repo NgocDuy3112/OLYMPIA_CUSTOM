@@ -194,6 +194,20 @@ describe("KhoiDongChung — S2, the timed batch", () => {
         await user.click(screen.getByRole("button", { name: "1" }))
         expect(f.send).toHaveBeenCalledTimes(1)
     })
+
+    it("Hiện đáp án reveals the question in play — inert with nothing on screen", async () => {
+        const user = userEvent.setup()
+        const mod = roundModuleOf("khoi-dong")!
+        const f = facts({ stage: "phase2" }, { open: [q1] }, batch())
+        const { rerender } = render(mod.render(f))
+
+        await user.click(screen.getByRole("button", { name: "Hiện đáp án" }))
+        expect(f.send).toHaveBeenCalledWith({ kind: "reveal.answer", questionId: "q1" })
+
+        // no question in play → the slot is a display chip, not a button
+        rerender(mod.render(facts({ stage: "phase2" }, { open: [] }, batch())))
+        expect(screen.queryByRole("button", { name: "Hiện đáp án" })).toBeNull()
+    })
 })
 
 describe("GiaiMa — S3", () => {
@@ -230,6 +244,35 @@ describe("GiaiMa — S3", () => {
         await user.click(screen.getByText("Đúng từ khoá", BUTTON))
         expect(f.commitKeyword).toHaveBeenCalledOnce()
         expect(f.commitHint).not.toHaveBeenCalled()
+    })
+
+    it("Hiện đáp án — gợi ý targets the hint on the table; từ khoá has its own", async () => {
+        const user = userEvent.setup()
+        const keyword = {
+            _id: "kw", roundId: "giai-ma", turnId: "keyword", position: 0,
+            kind: "KEYWORD" as const, questionText: "Từ khoá", timeLimit: null, points: 100,
+            payload: {},
+        }
+        const f = renderRound(
+            "giai-ma", {}, {},
+            { hintsRemaining: ["h2"], hintsPicked: ["h1"], openHintId: null, players: [] },
+            [keyword],
+        )
+
+        // the last judged hint is the one on the table → its answer reveals
+        await user.click(screen.getByRole("button", { name: "Hiện đáp án gợi ý" }))
+        expect(f.send).toHaveBeenCalledWith({ kind: "reveal.answer", questionId: "h1" })
+
+        // …and the keyword has no window to wait for — the desk decides
+        await user.click(screen.getByRole("button", { name: "Hiện đáp án từ khoá" }))
+        expect(f.send).toHaveBeenCalledWith({ kind: "reveal.answer", questionId: "kw" })
+    })
+
+    it("Hiện đáp án gợi ý is inert before the first hint", () => {
+        renderRound("giai-ma", {}, {}, {
+            hintsRemaining: ["h1"], hintsPicked: [], openHintId: null, players: [],
+        })
+        expect(screen.queryByRole("button", { name: "Hiện đáp án gợi ý" })).toBeNull()
     })
 
     it("draws the fixed EIGHT-tile board, whatever the round's hint count", () => {
@@ -351,6 +394,19 @@ describe("ButPha — S4", () => {
         await user.click(screen.getByRole("button", { name: "Về sảnh" }))
         expect(f.backToLobby).toHaveBeenCalledOnce()
     })
+
+    it("Hiện đáp án reveals the cursor's question once it has been asked", async () => {
+        const user = userEvent.setup()
+        const f = renderRound("but-pha", { send: vi.fn() }, {}, { questionId: "q1", opened: true })
+
+        await user.click(screen.getByRole("button", { name: "Hiện đáp án" }))
+        expect(f.send).toHaveBeenCalledWith({ kind: "reveal.answer", questionId: "q1" })
+    })
+
+    it("…and stays inert before the clock ever starts", () => {
+        renderRound("but-pha", {}, {}, { questionId: "q1", opened: false })
+        expect(screen.queryByRole("button", { name: "Hiện đáp án" })).toBeNull()
+    })
 })
 
 describe("VeDichPick — S5/S6, the board", () => {
@@ -396,6 +452,14 @@ describe("VeDichChung — S7, phase 1 question", () => {
         // tooltips are gone (user decision): the buttons carry no title
         expect(het).not.toHaveAttribute("title")
         expect(screen.getByRole("button", { name: "Về sảnh" })).not.toHaveAttribute("title")
+    })
+
+    it("Hiện đáp án reveals the open question's answer", async () => {
+        const user = userEvent.setup()
+        const f = renderRound("ve-dich", {}, { open: [openQ] }, veDichMc({ phase: 1 }))
+
+        await user.click(screen.getByRole("button", { name: "Hiện đáp án" }))
+        expect(f.send).toHaveBeenCalledWith({ kind: "reveal.answer", questionId: "q1" })
     })
 })
 

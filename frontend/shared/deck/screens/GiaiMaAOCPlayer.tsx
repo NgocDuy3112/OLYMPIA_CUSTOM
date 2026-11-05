@@ -1,4 +1,4 @@
-import { AnswerBand, Badges, CardHeader, KeywordBox, KeywordLengthBanner, MainCard, PlayerStage, Rail, Timer, VerdictIcon, type PlayerCore } from "../player-deck"
+import { AnswerBand, AnswerReveal, Badges, CardHeader, KeywordBox, KeywordLengthBanner, MainCard, PlayerStage, Rail, Timer, VerdictIcon, type PlayerCore } from "../player-deck"
 import { DECK_PAD, STRIP_R, pt } from "../geometry"
 import { HINT_TILES, playerHintTileClass } from "../cells"
 import type { AnswerValue } from "../types"
@@ -83,6 +83,8 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
                         ? hintWindow.question?.questionText ?? ""
                         : keyword?.question?.questionText ?? "Chờ điều hành mở gợi ý"}
                 </p>
+                {/* Hiện đáp án — the revealed hint's answer, or the keyword */}
+                <AnswerReveal answer={v.revealed?.answer} />
             </MainCard>
         </PlayerStage>
     )

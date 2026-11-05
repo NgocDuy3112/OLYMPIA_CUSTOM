@@ -24,7 +24,10 @@ export const GiaiMaStateSchema = Type.Object({
     hintIds: Type.Array(Type.String()),
     picked: Type.Array(Type.String()),
     openHint: Type.Union([Type.String(), Type.Null()]),
-    openHintAt: Type.Union([Type.String(), Type.Null()])
+    openHintAt: Type.Union([Type.String(), Type.Null()]),
+    // The console's Hiện đáp án — display-only (see the engine's state docs).
+    // Optional: states written before the reveal exist without it.
+    revealedAnswer: Type.Optional(Type.Union([Type.String(), Type.Null()]))
 });
 
 export class LiveStateError extends Error {
@@ -58,7 +61,9 @@ export const ButPhaStateSchema = Type.Object({
     questionOpenedAt: Type.Union([Type.String(), Type.Null()]),
     answers: Type.Record(Type.String(), Type.Array(ButPhaAnswerSchema)),
     points: Type.Record(Type.String(), Type.Record(Type.String(), Type.Integer())),
-    ended: Type.Boolean()
+    ended: Type.Boolean(),
+    // The console's Hiện đáp án — display-only; optional on archived states.
+    revealedAnswer: Type.Optional(Type.Union([Type.String(), Type.Null()]))
 });
 
 export function parseButPhaState(raw: unknown): ButPhaState {
@@ -105,7 +110,9 @@ export const KhoiDongStateSchema = Type.Object({
     order: Type.Array(Type.String()),
     activeIndex: Type.Integer({ minimum: 0 }),
     runs: Type.Record(Type.String(), KhoiDongPhase1RunSchema),
-    phase2: Type.Union([KhoiDongPhase2Schema, Type.Null()])
+    phase2: Type.Union([KhoiDongPhase2Schema, Type.Null()]),
+    // The console's Hiện đáp án — display-only; optional on archived states.
+    revealedAnswer: Type.Optional(Type.Union([Type.String(), Type.Null()]))
 });
 
 export function parseKhoiDongState(raw: unknown): KhoiDongState {
@@ -161,7 +168,9 @@ export const VeDichStateSchema = Type.Object({
     buzzOpenedAt: Type.Union([Type.String(), Type.Null()]),
     // Optional: states written before the operator lock carry none.
     buzzLocked: Type.Optional(Type.Boolean()),
-    ended: Type.Boolean()
+    ended: Type.Boolean(),
+    // The console's Hiện đáp án — display-only; optional on archived states.
+    revealedAnswer: Type.Optional(Type.Union([Type.String(), Type.Null()]))
 });
 
 export function parseVeDichState(raw: unknown): VeDichState {

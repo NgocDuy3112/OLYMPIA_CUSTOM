@@ -1,6 +1,6 @@
 import type { ConsoleFacts } from "@/components/stage/deck"
 import { ButPhaAOCController, type ButPhaCtx } from "./ButPhaAOCController"
-import { mergedVerdicts } from "@/lib/live"
+import { mergedVerdicts, type ButPhaConsole } from "@/lib/live"
 import { screenCore, type RoundAction, type RoundModule, type RoundPlanInput } from "../types"
 
 
@@ -16,6 +16,7 @@ function butPhaCtx(f: ConsoleFacts): ButPhaCtx {
         setVerdict: f.setVerdict,
         setSelectedPlayer: f.setSelectedPlayer,
         byId: f.byId,
+        consoleButPha: (f.v.console ?? null) as ButPhaConsole | null,
     }
 }
 

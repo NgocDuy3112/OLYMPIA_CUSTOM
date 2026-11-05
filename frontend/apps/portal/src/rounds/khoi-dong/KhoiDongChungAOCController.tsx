@@ -45,6 +45,15 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
                         : undefined,
                 },
                 ...verdictActions({ canVerdict: target !== null && openNow !== null, onVerdict: judge }),
+                {
+                    label: "Hiện đáp án",
+                    // Reveal the question in play's answer to every screen; the
+                    // strip's advance hides it again (the server's gate) — no
+                    // undo press, the next question simply replaces it.
+                    onClick: openNow
+                        ? () => ctx.send({ kind: "reveal.answer", questionId: openNow.questionId })
+                        : undefined,
+                },
                 backToLobbyAction(ctx.backToLobby),
             ]}
             flash={flash}

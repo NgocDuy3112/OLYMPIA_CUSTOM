@@ -33,6 +33,14 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
             rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} />}
             actions={[
                 ...verdictActions({ canVerdict: ctx.target !== null, onVerdict: ctx.setVerdict }),
+                {
+                    label: "Hiện đáp án",
+                    // The open question's answer, on every screen — before Hết
+                    // lượt closes it (the server hides the text at that point).
+                    onClick: openNow
+                        ? () => ctx.send({ kind: "reveal.answer", questionId: openNow.questionId })
+                        : undefined,
+                },
                 { label: COPY.endTurn, onClick: needsVerdict ? undefined : () => ctx.hetLuot() },
                 backToLobbyAction(ctx.backToLobby),
             ]}

@@ -21,7 +21,7 @@ export {
     VerdictIcon,
 } from "./primitives"
 
-export { KeywordLengthBanner, QuestionFrame } from "./question"
+export { AnswerReveal, KeywordLengthBanner, QuestionFrame } from "./question"
 
 export { VeDichStripCells } from "./strip"
 

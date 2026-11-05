@@ -37,3 +37,28 @@ export function sanitizeQuestion(question: MatchQuestion): SanitizedQuestion {
               : {}
     };
 }
+
+/**
+ * The MIRROR of sanitizeQuestion: what the correct answer READS on screen when
+ * the console reveals it (Hiện đáp án). That one strips the answer from every
+ * screen; this one words it — only ever called for a reveal the console asked
+ * for, never as part of an ordinary question payload.
+ *
+ * CHOICE → the correct options' texts; TEXT/HINT → the accepted answers;
+ * KEYWORD → the code itself. Empty/null when the payload carries nothing
+ * showable — a reveal of nothing is not a reveal.
+ */
+export function answerDisplayOf(question: MatchQuestion): string | null {
+    const payload = question.payload as Record<string, unknown>;
+    if (question.kind === "CHOICE") {
+        const options = (payload.options ?? []) as Array<{ id: string; text: string }>;
+        const correct = new Set((payload.correctSet ?? []) as string[]);
+        const texts = options.filter((option) => correct.has(option.id)).map((option) => option.text);
+        return texts.length > 0 ? texts.join(", ") : null;
+    }
+    if (question.kind === "TEXT" || question.kind === "HINT") {
+        const accepted = (payload.acceptedAnswers ?? []) as string[];
+        return accepted.length > 0 ? accepted.join(" / ") : null;
+    }
+    return typeof payload.code === "string" && payload.code.length > 0 ? payload.code : null;
+}

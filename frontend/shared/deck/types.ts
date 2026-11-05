@@ -100,6 +100,12 @@ export interface PlayerView {
         userId: string
         verdict: "CORRECT" | "INCORRECT"
     }>
+    /**
+     * The console's Hiện đáp án: one question's correct answer, on every
+     * screen. The server includes it only while that question is still the
+     * one in play — advancing hides it, with no undo ever sent.
+     */
+    revealed?: { questionId: string; answer: string }
 }
 
 export type AnswerValue = { picked?: string[]; text?: string }

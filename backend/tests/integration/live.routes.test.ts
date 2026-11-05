@@ -118,7 +118,7 @@ async function live(): Promise<{
     version: number;
     roundId: string;
     state: Record<string, unknown>;
-    projection: { stage: string; open: Array<Record<string, unknown>>; table: Array<{ points: number }> };
+    projection: { stage: string; open: Array<Record<string, unknown>>; table: Array<{ points: number }>; revealed?: { questionId: string; answer: string } };
     questions: unknown[];
     mc?: unknown;
     roundEnded?: boolean;
@@ -564,6 +564,25 @@ describe("but-pha round — draft, then finalize", () => {
         expect(res.json().state.questionOpenedAt).not.toBeNull();
     });
 
+    it("Hiện đáp án puts the question's answer on every screen", async () => {
+        const res = await act({ kind: "reveal.answer", questionId: butPhaIds[0] });
+        expect(res.statusCode).toBe(200);
+        expect(res.json().state.revealedAnswer).toBe(butPhaIds[0]);
+
+        const view = await live();
+        expect(view.projection.revealed).toEqual({ questionId: butPhaIds[0], answer: "Hà Nội" });
+    });
+
+    it("a reveal cannot cross rounds — another round's question is refused", async () => {
+        const other = await act({ kind: "reveal.answer", questionId: hintIds[0] });
+        expect(other.statusCode).toBe(409);
+        expect(other.json().error).toBe("INVALID_QUESTION");
+
+        const unknown = await act({ kind: "reveal.answer", questionId: randomUUID() });
+        expect(unknown.statusCode).toBe(409);
+        expect(unknown.json().error).toBe("INVALID_QUESTION");
+    });
+
     it("a typed answer becomes a draft carrying its submission time", async () => {
         await backdateQuestionClock(3_000);
         const res = await answer(playerCookies[0], butPhaIds[0], "Hà Nội");
@@ -612,6 +631,11 @@ describe("but-pha round — draft, then finalize", () => {
         expect(res.statusCode).toBe(200);
         expect(res.json().state.cursor).toBe(1);
         expect(res.json().state.questionOpenedAt).toBeNull();
+
+        // …and the reveal did NOT follow the cursor: q2 is on screen now,
+        // so q1's answer is off every screen (no undo is ever sent)
+        const view = await live();
+        expect(view.projection.revealed).toBeUndefined();
     });
 
     it("closing a question with an unjudged answer is blocked", async () => {

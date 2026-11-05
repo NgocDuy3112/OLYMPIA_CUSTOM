@@ -20,7 +20,7 @@ import {
 } from "../../game/engine/turns/khoi-dong-round.js";
 import { isBuzzOpen, mayBuzz, type VeDichState } from "../../game/engine/turns/ve-dich.js";
 import { isPhase2WindowOpen, phase2QuestionId } from "../../game/engine/turns/khoi-dong.js";
-import { sanitizeQuestion, type SanitizedQuestion } from "../../lib/question-view.js";
+import { sanitizeQuestion, answerDisplayOf, type SanitizedQuestion } from "../../lib/question-view.js";
 import type { MatchQuestion } from "../../game/contracts/index.js";
 
 export interface SubmittedAnswer {
@@ -99,6 +99,13 @@ export interface PlayerView {
         userId: string;
         verdict: "CORRECT" | "INCORRECT";
     }>;
+    /**
+     * The console's Hiện đáp án: one question's CORRECT ANSWER, on every screen
+     * (players and audience alike). Present only while that question is still
+     * the one in play — advancing hides it, without the reveal ever being
+     * "undone". The gate lives here, so no client can read an answer early.
+     */
+    revealed?: { questionId: string; answer: string };
     me: Record<string, unknown>;
 }
 
@@ -373,7 +380,7 @@ function veDichView(input: ViewInput, state: VeDichState): PlayerView {
 }
 
 export function buildPlayerView(input: ViewInput): PlayerView {
-    const view = roundViewOf(input);
+    const view = withReveal(input, roundViewOf(input));
     if (!PUBLISHES_VERDICTS.has(input.roundId)) return view;
     const judged = (input.judged ?? []).filter((row) => row.verdict !== null);
     return judged.length === 0 ? view : {
@@ -384,6 +391,63 @@ export function buildPlayerView(input: ViewInput): PlayerView {
             verdict: row.verdict as "CORRECT" | "INCORRECT"
         }))
     };
+}
+
+/**
+ * Attach the console's revealed answer (Hiện đáp án), if it still qualifies.
+ * The state remembers WHICH answer was revealed; this decides whether that
+ * question is still the one on screen:
+ *
+ *   khởi động / bứt phá / về đích — the question in play (the cursor / the
+ *   open question), so the advance hides it;
+ *   giải mã — the hint whose window is open or was just judged (the picked
+ *   tail), or the KEYWORD, which is on every screen all round.
+ *
+ * Unknown question ids and unshowable payloads degrade to no reveal — a view
+ * must never crash, and never leak, over a display nicety.
+ */
+function withReveal(input: ViewInput, view: PlayerView): PlayerView {
+    const marker = input.state as { revealedAnswer?: string | null } | null | undefined;
+    const questionId = marker?.revealedAnswer;
+    if (!questionId) return view;
+
+    let stillShowing = false;
+    switch (input.roundId) {
+        case "khoi-dong": {
+            const state = input.state as KhoiDongState;
+            if (state.stage === "phase2") {
+                stillShowing = state.phase2 !== null && phase2QuestionId(state.phase2) === questionId;
+                break;
+            }
+            const activeId = activePlayerId(state);
+            const run = activeId !== null ? state.runs[activeId] : null;
+            stillShowing = run !== null && !run.ended
+                && run.cursor < run.questionIds.length
+                && run.questionIds[run.cursor] === questionId;
+            break;
+        }
+        case "but-pha":
+            stillShowing = openQuestionId(input.state as ButPhaState) === questionId;
+            break;
+        case "ve-dich":
+            stillShowing = (input.state as VeDichState).open?.question.id === questionId;
+            break;
+        case "giai-ma": {
+            const state = input.state as GiaiMaState;
+            const keywordId = (input.questions ?? []).find((q) => q.kind === "KEYWORD")?._id;
+            const currentHint = state.openHint ?? state.picked.at(-1);
+            stillShowing = questionId === keywordId
+                || (currentHint !== undefined && currentHint === questionId);
+            break;
+        }
+        default:
+            stillShowing = false;
+    }
+    if (!stillShowing) return view;
+
+    const question = (input.questions ?? []).find((item) => item._id === questionId);
+    const answer = question ? answerDisplayOf(question) : null;
+    return answer === null ? view : { ...view, revealed: { questionId, answer } };
 }
 
 function roundViewOf(input: ViewInput): PlayerView {
