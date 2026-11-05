@@ -17,6 +17,9 @@ function pickCtx(f: ConsoleFacts): VeDichPickCtx {
         ...screenCore(f),
         questions: f.v.questions,
         consoleVeDich: (f.v.console ?? null) as VeDichConsole | null,
+        // The rail's selected card — the staged ASSIGN's target.
+        target: f.target,
+        setSelectedPlayer: f.setSelectedPlayer,
     }
 }
 

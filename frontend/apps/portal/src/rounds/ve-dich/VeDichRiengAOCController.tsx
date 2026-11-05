@@ -35,23 +35,9 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
         consoleVeDich?.buzzerId ? ctx.verdictOf(qid, consoleVeDich.buzzerId) === null : false
     const turnOpen = needsVerdict || buzzerMissing
 
-    // The console declares the powers for the player whose question it is (the show's
-    // deck is the operator's): STAR on their own answer, ASSIGN to the SELECTED
-    // card. Both are Riêng-only rules, and both need a question about to open.
-    const declarer = consoleVeDich?.turnPlayerId ?? null
-    const canDeclare = declarer !== null && consoleVeDich?.openStage === "current" && consoleVeDich.power === null
-    const declare = (power: "STAR" | "ASSIGN") => {
-        if (!declarer) return
-        ctx.send({
-            kind: "ve-dich.declarePower",
-            playerId: declarer,
-            power,
-            ...(power === "ASSIGN" ? { targetId: ctx.target ?? "" } : {})
-        })
-    }
-
     // A duel runs on the QUESTION's clock, so there is no answer to close: the
-    // engine would refuse it. Keep the slot inert while the pair races.
+    // engine would refuse it. Keep the slot inert while the pair races. (The
+    // power ITSELF was decided earlier — on the pick board, before the open.)
     const racing = consoleVeDich?.power === "ASSIGN"
     // …but a race needs an exit: the operator stops the clock and locks BOTH
     // halves out. Then the question resolves as the nobody-buzzed case.
@@ -76,15 +62,6 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
                     label: "Chuông",
                     content: formatBuzzMs(consoleVeDich?.buzzerMs ?? null),
                     muted: true
-                },
-                {
-                    label: COPY.powerStar,
-                    onClick: canDeclare ? () => declare("STAR") : undefined,
-                },
-                {
-                    label: COPY.powerAssign,
-                    // The target is the card the console clicked — no card, no button.
-                    onClick: canDeclare && ctx.target ? () => declare("ASSIGN") : undefined,
                 },
                 ...verdictActions({ canVerdict: ctx.target !== null, onVerdict: ctx.setVerdict }),
                 { label: COPY.endTurn, onClick: turnOpen ? undefined : () => ctx.hetLuot() },

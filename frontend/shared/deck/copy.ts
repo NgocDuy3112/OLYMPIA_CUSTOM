@@ -21,8 +21,10 @@ export const COPY = {
     send: "Gửi",
     submit: "Nộp",
     buzz: "Bấm chuông",
-    powerStar: "Ngôi sao",
-    powerAssign: "Chỉ định",
+    /** The power row — the console's pick-board decision (before the open). */
+    powerStar: "Ngôi sao hy vọng",
+    powerAssign: "Chỉ định đối kháng",
+    powerNone: "Không dùng quyền năng",
 
     /** Shared placeholders. */
     waitingForMc: "Đang chờ điều hành…",

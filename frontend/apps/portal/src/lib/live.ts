@@ -73,6 +73,10 @@ export interface VeDichConsole {
     /** ASSIGN only: the player the question was handed to. */
     assignedToId: string | null
     pendingQuestionId: string | null
+    /** The pick board's staged power decision (pre-open): which of the three —
+     *  Ngôi sao hy vọng / Chỉ định đối kháng / Không dùng quyền năng — the
+     *  console chose for this turn, before the question opens. */
+    stagedPower: { power: "STAR" | "ASSIGN"; targetId?: string } | null
 }
 export interface KhoiDongConsole {
     stage: "phase1" | "phase2"

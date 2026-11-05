@@ -98,12 +98,25 @@ export function applyVeDichAction(
         }
 
         case "ve-dich.declarePower": {
-            const questionId = state.open?.question.id;
-            if (questionId === undefined) fail("NOTHING_OPEN", "no question is open");
+            // PRE-OPEN (the pick board): a STAGED choice — the POWER event
+            // lands when the question opens with it, because that is when it
+            // is spent. Nothing recorded, nothing spent here.
+            if (state.open === null) {
+                return {
+                    state: declarePower(state, action.playerId, action.power, {
+                        targetId: action.targetId,
+                        nowIso: ctx.now
+                    }),
+                    facts: []
+                };
+            }
+            const questionId = state.open.question.id;
             const next = declarePower(state, action.playerId, action.power, {
                 targetId: action.targetId,
                 nowIso: ctx.now                     // ASSIGN opens the race HERE
             });
+            // An explicit "no power" records nothing — and spends nothing.
+            if (action.power === null) return { state: next, facts: [] };
             return {
                 state: next,
                 facts: [{
@@ -121,8 +134,29 @@ export function applyVeDichAction(
             };
         }
 
-        case "ve-dich.openQuestion":
-            return { state: openPhase2Question(state, action.questionId), facts: [] };
+        case "ve-dich.openQuestion": {
+            // ctx.now rides along for a staged ASSIGN: the race opens with the
+            // question (nobody answers first). The staged POWER event lands
+            // HERE — the question opens WITH the power, so this is its spend.
+            const staged = state.stagedPower ?? null;
+            const next = openPhase2Question(state, action.questionId, ctx.now);
+            if (staged === null) return { state: next, facts: [] };
+            return {
+                state: next,
+                facts: [{
+                    type: "event",
+                    questionId: action.questionId,
+                    userId: next.open!.answerer,
+                    roundId: ctx.roundId,
+                    kind: "POWER",
+                    payload: {
+                        kind: "POWER",
+                        power: staged.power,
+                        ...(staged.targetId ? { targetId: staged.targetId } : {})
+                    }
+                }]
+            };
+        }
 
         case "ve-dich.lockBuzz":
             // Operator lock: no facts, no scoring — the resolve decides the outcome.

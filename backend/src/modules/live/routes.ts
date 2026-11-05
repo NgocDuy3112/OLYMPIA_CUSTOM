@@ -335,7 +335,11 @@ function consoleFacts(roundId: string, raw: unknown): Record<string, unknown> | 
             power: state.open?.power ?? null,
             // ASSIGN names the partner: the console badges THAT card.
             assignedToId: state.open?.assignedTo ?? null,
-            pendingQuestionId: state.pendingPicks[0]?.id ?? null
+            pendingQuestionId: state.pendingPicks[0]?.id ?? null,
+            // The pick board's staged power decision — which of the three
+            // (Ngôi sao hy vọng / Chỉ định đối kháng / Không dùng) is chosen
+            // for this turn, before the question opens.
+            stagedPower: state.stagedPower ?? null
         };
     }
     if (roundId === "khoi-dong") {

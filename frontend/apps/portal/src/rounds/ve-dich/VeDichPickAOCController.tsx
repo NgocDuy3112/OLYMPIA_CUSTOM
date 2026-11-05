@@ -3,12 +3,13 @@ import { Badges, CardHeader, ConsoleStage, MainCard, Rail } from "@/components/s
 import { backToLobbyAction } from "@/components/stage/actions"
 import { pt, DECK_PAD } from "@shared/deck/geometry"
 import { playerCellClass, type CellWhere } from "@shared/deck/cells"
+import { COPY } from "@shared/deck/copy"
 import { VE_GRID_COLUMNS, boardRows } from "@shared/deck/ve-dich-board"
 
 // Về đích — bảng chọn câu (S5 = phase 2 bốc 3 câu · S6 = phase 1 chọn 1 câu).
 // THE CONSOLE PICKS: the desk stages cells on the board and confirms in the
-// strip — the engine still checks the pick is made for the TURN player and (in
-// Chung) on the top free band. No question is open; the grid is the SHOW'S
+// strip — the engine still checks the pick is made for the TURN player (Chung:
+// any free 20/30, either band). No question is open; the grid is the SHOW'S
 // board: 6×20, 6×30, 4×40, 4×50 — rows are the bands, and the higher bands are
 // WIDER cells (span 3 of 12) so every row is the same width.
 import type { ConsoleQuestion, VeDichConsole } from "@/lib/live"
@@ -18,6 +19,9 @@ import type { ScreenCore } from "../types"
 export type VeDichPickCtx = ScreenCore & {
     questions: ConsoleQuestion[]
     consoleVeDich: VeDichConsole | null
+    /** the rail's selected card — the staged ASSIGN's target */
+    target: string | null
+    setSelectedPlayer: (userId: string) => void
 }
 
 /** What each cell's title says — the state in the console's words. */
@@ -75,13 +79,53 @@ function VeDichPickBoard({ ctx }: { ctx: VeDichPickCtx }) {
         else ctx.send({ kind: "ve-dich.pick", playerId: turnPlayer, questionId: chosen[0] })
     }
 
+    // ── the power row (Riêng only): pressed BEFORE Bắt đầu opens the question ──
+    // Three slots — Ngôi sao hy vọng / Chỉ định đối kháng / Không dùng quyền
+    // năng. The choice STAGES (nothing spent); the open spends and applies it.
+    const staged = consoleVeDich?.stagedPower ?? null
+    const canStage = phase2 && turnPlayer !== null && pendingCount > 0
+    const stage = (power: "STAR" | "ASSIGN" | null) => {
+        if (!turnPlayer) return
+        ctx.send({
+            kind: "ve-dich.declarePower",
+            playerId: turnPlayer,
+            power,
+            ...(power === "ASSIGN" && ctx.target ? { targetId: ctx.target } : {})
+        })
+    }
+
     return (
         <ConsoleStage
-            rail={<Rail variant={phase2 ? "compact" : "answers"} cards={baseCards} />}
+            rail={<Rail variant={phase2 ? "compact" : "answers"} cards={baseCards} onSelect={ctx.setSelectedPlayer} />}
             actions={[
                 {
                     label: phase2 ? `Chốt ${need} câu` : "Chọn câu này",
                     onClick: picking && chosen.length === need ? confirm : undefined,
+                },
+                // the pre-open decision: live only while a pick can still happen
+                {
+                    label: "Quyền năng",
+                    content: staged
+                        ? `Đã chọn: ${staged.power === "STAR" ? COPY.powerStar : COPY.powerAssign}`
+                        : "chưa chọn",
+                    muted: true,
+                    empty: !canStage,
+                },
+                {
+                    label: COPY.powerStar,
+                    onClick: canStage ? () => stage("STAR") : undefined,
+                    empty: !phase2,
+                },
+                {
+                    label: COPY.powerAssign,
+                    // The target is the card the console clicked — no card, no button.
+                    onClick: canStage && ctx.target ? () => stage("ASSIGN") : undefined,
+                    empty: !phase2,
+                },
+                {
+                    label: COPY.powerNone,
+                    onClick: canStage ? () => stage(null) : undefined,
+                    empty: !phase2,
                 },
                 {
                     label: "Bắt đầu",

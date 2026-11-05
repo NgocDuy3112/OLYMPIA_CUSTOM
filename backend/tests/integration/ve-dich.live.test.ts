@@ -216,6 +216,22 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
         expect(events).toHaveLength(5);                    // 2 from phase 1 + 3 now
     });
 
+    it("the console stages the turn's power BEFORE the open — and may clear it", async () => {
+        // Ngôi sao hy vọng on the pick board: staged, NOT spent yet
+        const staged = await act({ kind: "ve-dich.declarePower", playerId: playerIds[1], power: "STAR" });
+        expect(staged.statusCode).toBe(200);
+        expect(staged.json().state.stagedPower).toEqual({ power: "STAR" });
+        expect(staged.json().state.players.find((p: { id: string }) => p.id === playerIds[1]).powersLeft)
+            .toEqual(["STAR", "ASSIGN"]);                    // nothing spent before the open
+
+        // Không dùng quyền năng: the explicit none clears it — still unspent
+        const cleared = await act({ kind: "ve-dich.declarePower", playerId: playerIds[1], power: null });
+        expect(cleared.statusCode).toBe(200);
+        expect(cleared.json().state.stagedPower).toBeNull();
+        expect(cleared.json().state.players.find((p: { id: string }) => p.id === playerIds[1]).powersLeft)
+            .toEqual(["STAR", "ASSIGN"]);
+    });
+
     it("the answerer and the buzzer are scored independently", async () => {
         expect((await act({ kind: "ve-dich.openQuestion", questionId: qid.get("THTH-40") })).statusCode).toBe(200);
         expect((await act({ kind: "ve-dich.closeCurrentAnswer" })).statusCode).toBe(200);

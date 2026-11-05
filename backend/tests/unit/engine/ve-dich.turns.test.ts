@@ -604,3 +604,76 @@ describe("the 5 s buzz window", () => {
         expect(isBuzzOpen(s, NOW)).toBe(false);
     });
 });
+
+describe("powers — staged on the pick board BEFORE the question opens", () => {
+    // The show's row: Ngôi sao hy vọng / Chỉ định đối kháng / Không dùng quyền
+    // năng — pressed pre-open; the question then opens ALREADY powered.
+    const riengStaged = () => {
+        let s = beginPhase2(createVeDich(POOL, [player("a", 0), player("b", 0)]));
+        s = pickPhase2(s, s.players[0].id, ["THTH-40", "THTH-50", "THTH-30"]);
+        return { state: s, a: s.players[0].id, b: s.players[1].id };
+    };
+
+    it("stages STAR without spending; the open spends it and powers the question", () => {
+        const { state, a } = riengStaged();
+        const staged = declarePower(state, a, "STAR");
+        expect(staged.stagedPower).toEqual({ power: "STAR" });
+        expect(staged.players.find((p) => p.id === a)!.powersLeft).toEqual(["STAR", "ASSIGN"]); // not yet
+
+        const opened = openPhase2Question(staged, "THTH-40", NOW);
+        expect(opened.open?.power).toBe("STAR");
+        expect(opened.stagedPower ?? null).toBeNull();
+        expect(opened.players.find((p) => p.id === a)!.powersLeft).toEqual(["ASSIGN"]);         // spent now
+    });
+
+    it("\"Không dùng quyền năng\" clears a staged choice — nothing spent, no power", () => {
+        const { state, a } = riengStaged();
+        const cleared = declarePower(declarePower(state, a, "STAR"), a, null);
+        expect(cleared.stagedPower ?? null).toBeNull();
+        expect(cleared.players.find((p) => p.id === a)!.powersLeft).toEqual(["STAR", "ASSIGN"]);
+
+        const opened = openPhase2Question(cleared, "THTH-40", NOW);
+        expect(opened.open?.power).toBeNull();
+        expect(opened.open?.stage).toBe("current");
+    });
+
+    it("may only be staged by the current player, after the turn's picks", () => {
+        const { state, a, b } = riengStaged();
+        expect(codeOf(() => declarePower(state, b, "STAR"))).toBe("NOT_YOUR_TURN");
+
+        const bare = beginPhase2(createVeDich(POOL, [player("a", 0), player("b", 0)]));
+        expect(codeOf(() => declarePower(bare, a, "STAR"))).toBe("NOTHING_OPEN");
+    });
+
+    it("re-staging replaces the choice — nothing is spent until the open", () => {
+        const { state, a, b } = riengStaged();
+        const assign = declarePower(declarePower(state, a, "STAR"), a, "ASSIGN", { targetId: b });
+        expect(assign.stagedPower).toEqual({ power: "ASSIGN", targetId: b });
+        expect(assign.players.find((p) => p.id === a)!.powersLeft).toEqual(["STAR", "ASSIGN"]);
+    });
+
+    it("a staged ASSIGN opens the RACE with the question — nobody answers first", () => {
+        const { state, a, b } = riengStaged();
+        const staged = declarePower(state, a, "ASSIGN", { targetId: b });
+        const opened = openPhase2Question(staged, "THTH-40", at(5));
+        expect(opened.open).toMatchObject({ stage: "buzz", power: "ASSIGN", assignedTo: b });
+        expect(opened.buzzOpenedAt).toBe(at(5));
+        expect(opened.players.find((p) => p.id === a)!.powersLeft).toEqual(["STAR"]); // ASSIGN spent
+    });
+
+    it("abandoning the turn clears the staging unspent", () => {
+        const { state, a } = riengStaged();
+        const moved = advanceTurn(declarePower(state, a, "STAR"));
+        expect(moved.stagedPower ?? null).toBeNull();
+        expect(moved.players.find((p) => p.id === a)!.powersLeft).toEqual(["STAR", "ASSIGN"]);
+    });
+
+    it("staging refuses a power already spent", () => {
+        const { state, a } = riengStaged();
+        const spent = {
+            ...state,
+            players: state.players.map((p) => p.id === a ? { ...p, powersLeft: ["ASSIGN" as const] } : p)
+        };
+        expect(codeOf(() => declarePower(spent, a, "STAR"))).toBe("POWER_UNAVAILABLE");
+    });
+});

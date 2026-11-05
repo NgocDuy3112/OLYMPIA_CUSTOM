@@ -124,6 +124,39 @@ describe("ve-dich powers and buzz", () => {
         expect(res.state.open?.power).toBe("STAR");
     });
 
+    it("a PRE-OPEN choice is staged only — the POWER event lands at the open", () => {
+        let s = beginPhase2(phase1Done());
+        s = pickPhase2(s, s.players[0].id, ["THTH-40", "THTH-50", "THTH-30"]);
+
+        const staged = applyVeDichAction(s, {
+            kind: "ve-dich.declarePower", playerId: s.players[0].id, power: "STAR"
+        }, ctx());
+        expect(staged.facts).toEqual([]);                       // nothing spent, nothing recorded
+        expect(staged.state.stagedPower).toEqual({ power: "STAR" });
+
+        const opened = applyVeDichAction(staged.state, {
+            kind: "ve-dich.openQuestion", questionId: "THTH-40"
+        }, ctx());
+        expect(opened.state.open?.power).toBe("STAR");
+        expect(opened.facts[0]).toMatchObject({
+            type: "event", kind: "POWER", payload: { kind: "POWER", power: "STAR" }
+        });
+    });
+
+    it("\"Không dùng quyền năng\" (power: null) clears the staging without a fact", () => {
+        let s = beginPhase2(phase1Done());
+        s = pickPhase2(s, s.players[0].id, ["THTH-40", "THTH-50", "THTH-30"]);
+        s = applyVeDichAction(s, {
+            kind: "ve-dich.declarePower", playerId: s.players[0].id, power: "STAR"
+        }, ctx()).state;
+
+        const cleared = applyVeDichAction(s, {
+            kind: "ve-dich.declarePower", playerId: s.players[0].id, power: null
+        }, ctx());
+        expect(cleared.state.stagedPower ?? null).toBeNull();
+        expect(cleared.facts).toEqual([]);
+    });
+
     it("a buzz records how long it took, measured from the window opening", () => {
         let s = phase2Open("p0", "THTH-50");
         s = applyVeDichAction(s, { kind: "ve-dich.closeCurrentAnswer" }, ctx({ now: at(0) })).state;

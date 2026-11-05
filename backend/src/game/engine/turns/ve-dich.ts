@@ -70,6 +70,13 @@ export interface VeDichState {
     open: OpenQuestion | null;
     buzzOpenedAt: string | null;   // ISO time the buzz window opened
     /**
+     * The console's power decision for the turn — made on the pick board BEFORE
+     * the question opens (the show's rule: star / assign / none). Staged, not
+     * yet spent: `openPhase2Question` spends it and applies it; a turn change
+     * (advanceTurn) clears it unspent. Optional on pre-reveal states.
+     */
+    stagedPower?: StagedPower | null;
+    /**
      * The operator ended the race: the clock stops and EVERY buzz is locked out
      * from here on, whatever the time limit says. Optional — states written
      * before the lock existed carry none.
@@ -82,6 +89,12 @@ export interface VeDichState {
      * question is still open. Optional on pre-reveal states.
      */
     revealedAnswer?: string | null;
+}
+
+/** A staged (pre-open) power decision: what the question will open with. */
+export interface StagedPower {
+    power: Power;
+    targetId?: string;
 }
 
 export interface OpenQuestion {
@@ -278,7 +291,38 @@ export function declarePower(
     power: Power | null,
     options: { targetId?: string; nowIso?: string } = {}
 ): VeDichState {
-    if (!state.open) fail("NOTHING_OPEN", "no question is open");
+    // PRE-OPEN — the show's rule: the decision comes BEFORE the question opens.
+    // Stage it on the pick board; nothing is spent until the question opens
+    // with it (a turn change clears it unspent). `power: null` is the explicit
+    // "Không dùng quyền năng" — it clears a staged choice.
+    if (!state.open) {
+        if (state.phase !== 2) {
+            fail("WRONG_PHASE_FOR_POWER", "powers only exist in Về đích Riêng (phase 2)");
+        }
+        if (currentPlayer(state).id !== playerId) {
+            fail("NOT_YOUR_TURN", "only the current player's power may be staged");
+        }
+        if (state.pendingPicks.length === 0) {
+            fail("NOTHING_OPEN", "pick the turn's questions first");
+        }
+        if (power === null) return { ...state, stagedPower: null };
+
+        const player = state.players.find((p) => p.id === playerId)!;
+        if (!player.powersLeft.includes(power)) {
+            fail("POWER_UNAVAILABLE", `${power} already spent`);
+        }
+        if (power === "ASSIGN") {
+            const targetId = options.targetId;
+            if (!targetId) fail("INVALID_TARGET", "ASSIGN needs a player to hand the question to");
+            if (targetId === playerId) fail("INVALID_TARGET", "you cannot assign the question to yourself");
+            if (!state.players.some((p) => p.id === targetId)) {
+                fail("INVALID_TARGET", `${targetId} is not playing this round`);
+            }
+            return { ...state, stagedPower: { power, targetId } };
+        }
+        return { ...state, stagedPower: { power } };
+    }
+
     if (state.open.answerer !== playerId) {
         fail("NOT_YOUR_TURN", "only the current player may declare a power");
     }
@@ -339,25 +383,42 @@ export function declarePower(
 
 // Phase 2 opens the question for the current player. Declaration happens here,
 // then the answer is recorded and the buzz window opens.
-export function openPhase2Question(state: VeDichState, questionId: string): VeDichState {
+export function openPhase2Question(state: VeDichState, questionId: string, nowIso?: string): VeDichState {
     if (state.phase !== 2) fail("WRONG_PHASE", "openPhase2Question only applies in Phase 2");
     if (state.open) fail("ALREADY_OPEN", "a question is already open");
 
     const question = state.pendingPicks.find((q) => q.id === questionId);
     if (!question) fail("INVALID_QUESTION", `question ${questionId} is not one of this turn's picks`);
 
+    // The staged decision lands with the question: SPEND it here (the show's
+    // rule: a power is spent the moment the question opens with it) and apply
+    // it. An ASSIGN opens the race at once — nobody answers first.
+    const staged = state.stagedPower ?? null;
+    const isAssign = staged?.power === "ASSIGN";
+    if (isAssign && !nowIso) fail("INVALID_TARGET", "ASSIGN needs the server clock to open the race");
+    const answerer = currentPlayer(state).id;
+    const players = staged === null
+        ? state.players
+        : state.players.map((p) =>
+              p.id === answerer
+                  ? { ...p, powersLeft: p.powersLeft.filter((x) => x !== staged.power) }
+                  : p
+          );
+
     return {
         ...state,
+        players,
+        stagedPower: null,
         pendingPicks: state.pendingPicks.filter((q) => q.id !== questionId),
         open: {
             question,
-            answerer: currentPlayer(state).id,
-            power: null,
-            stage: "current",
+            answerer,
+            power: staged?.power ?? null,
+            stage: isAssign ? "buzz" : "current",
             buzzer: null,
-            assignedTo: null
+            assignedTo: isAssign ? staged!.targetId! : null
         },
-        buzzOpenedAt: null,
+        buzzOpenedAt: isAssign ? nowIso! : null,
         buzzLocked: false
     };
 }
@@ -529,7 +590,8 @@ function applyDeltas(state: VeDichState, deltas: Array<[string, number]>): VeDic
 export function advanceTurn(state: VeDichState): VeDichState {
     if (state.open) fail("ALREADY_OPEN", "finish the open question first");
     const next = state.turnIndex + 1;
-    return { ...state, turnIndex: next, pendingPicks: [] };
+    // A new turn = a new decision: any staged power dies unspent here.
+    return { ...state, turnIndex: next, pendingPicks: [], stagedPower: null };
 }
 
 export { veDichPoints };

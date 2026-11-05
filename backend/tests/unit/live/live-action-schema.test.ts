@@ -50,6 +50,8 @@ const consoleSent: unknown[] = [
     // this was missing from the union and every declare button 400'd)
     { kind: "ve-dich.declarePower", playerId: "p1", power: "STAR" },
     { kind: "ve-dich.declarePower", playerId: "p1", power: "ASSIGN", targetId: "p2" },
+    // "Không dùng quyền năng" — the explicit no-power choice (pre-open row)
+    { kind: "ve-dich.declarePower", playerId: "p1", power: null },
     // the console picks for the turn player (the engine guards the playerId)
     { kind: "ve-dich.pick", playerId: "p1", questionId: "q1" },
     { kind: "ve-dich.pickBatch", playerId: "p1", questionIds: ["a", "b", "c"] },

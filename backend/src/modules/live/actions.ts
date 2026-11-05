@@ -174,7 +174,9 @@ export const VeDichPickBatch = Type.Object({
 export const VeDichDeclarePower = Type.Object({
     kind: Type.Literal("ve-dich.declarePower"),
     playerId: Type.String(),
-    power: Type.Union([Type.Literal("STAR"), Type.Literal("ASSIGN")]),
+    // null = "Không dùng quyền năng" — the explicit no-power choice, which
+    // clears a staged one. Pressed on the pick board, BEFORE the question opens.
+    power: Type.Union([Type.Literal("STAR"), Type.Literal("ASSIGN"), Type.Null()]),
     // ASSIGN hands the question to someone: required for it, ignored otherwise.
     targetId: Type.Optional(Type.String())
 });

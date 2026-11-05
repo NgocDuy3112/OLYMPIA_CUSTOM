@@ -56,8 +56,10 @@ export type LiveAction =
     | { kind: "ve-dich.resolve"; answerer: boolean; buzzer?: boolean }
     | { kind: "ve-dich.advanceTurn" }
     | { kind: "ve-dich.endRound" }
-    /** The console declares a power for the player whose turn it is. */
-    | { kind: "ve-dich.declarePower"; playerId: string; power: "STAR" | "ASSIGN"; targetId?: string }
+    /** The console declares a power for the player whose turn it is — pressed on
+     *  the pick board BEFORE the question opens; `power: null` is the explicit
+     *  "Không dùng quyền năng" (clears a staged choice). */
+    | { kind: "ve-dich.declarePower"; playerId: string; power: "STAR" | "ASSIGN" | null; targetId?: string }
     /** The console picks for the turn player — the engine guards the playerId. */
     | { kind: "ve-dich.pick"; playerId: string; questionId: string }
     | { kind: "ve-dich.pickBatch"; playerId: string; questionIds: string[] }

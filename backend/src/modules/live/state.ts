@@ -169,6 +169,15 @@ export const VeDichStateSchema = Type.Object({
     // Optional: states written before the operator lock carry none.
     buzzLocked: Type.Optional(Type.Boolean()),
     ended: Type.Boolean(),
+    // The console's PRE-OPEN power decision (pick board): staged, spent when the
+    // question opens with it. Optional: states written before it carry none.
+    stagedPower: Type.Optional(Type.Union([
+        Type.Object({
+            power: Type.Union([Type.Literal("STAR"), Type.Literal("ASSIGN")]),
+            targetId: Type.Optional(Type.String())
+        }),
+        Type.Null()
+    ])),
     // The console's Hiện đáp án — display-only; optional on archived states.
     revealedAnswer: Type.Optional(Type.Union([Type.String(), Type.Null()]))
 });

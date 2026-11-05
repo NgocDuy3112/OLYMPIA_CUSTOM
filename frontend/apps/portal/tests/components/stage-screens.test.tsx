@@ -94,6 +94,7 @@ const veDichMc = (over: Partial<VeDichConsole> = {}): VeDichConsole => ({
     assignedToId: null,
     power: null,
     pendingQuestionId: null,
+    stagedPower: null,
     ...over,
 })
 
@@ -328,29 +329,69 @@ describe("VeDichRieng — the powers and the duel", () => {
     const BUTTON = { selector: "button" } as const
     const opened = { open: [openQ] }
 
-    it("the console declares STAR for the player whose question it is", async () => {
-        const user = userEvent.setup()
-        const f = renderRound("ve-dich", {}, opened, veDichMc({ phase: 2, turnPlayerId: "u1" }))
+    // The pick board with the turn's three already staged (pending) — the state
+    // the power row is live in: pre-open, one decision to make.
+    const pickBoard = {
+        open: [],
+        board: [{ questionId: "a", value: 40, where: "pending" as const }],
+    }
+    const stagedQuestion = {
+        _id: "a", roundId: "ve-dich", turnId: "phase-2", position: 1,
+        kind: "TEXT" as const, questionText: "câu a", timeLimit: 30, points: 40, payload: {},
+    }
 
-        await user.click(screen.getByText("Ngôi sao", BUTTON))
+    it("the power row lives on the pick board — pressed BEFORE the question opens", async () => {
+        const user = userEvent.setup()
+        const f = renderRound(
+            "ve-dich", {}, pickBoard,
+            veDichMc({ phase: 2, turnPlayerId: "u1", pendingQuestionId: "a" }),
+            [stagedQuestion],
+        )
+
+        // Ngôi sao hy vọng stages for the turn player — nothing spent yet
+        await user.click(screen.getByText("Ngôi sao hy vọng", BUTTON))
         expect(f.send).toHaveBeenCalledWith({
-            kind: "ve-dich.declarePower",
-            playerId: "u1",
-            power: "STAR"
+            kind: "ve-dich.declarePower", playerId: "u1", power: "STAR",
+        })
+
+        // Không dùng quyền năng: the explicit none clears a staged choice
+        await user.click(screen.getByText("Không dùng quyền năng", BUTTON))
+        expect(f.send).toHaveBeenCalledWith({
+            kind: "ve-dich.declarePower", playerId: "u1", power: null,
         })
     })
 
-    it("ASSIGN needs a target: no selected card, no button", async () => {
-        const user = userEvent.setup()
-        const f = renderRound("ve-dich", { target: "u2" }, opened, veDichMc({ phase: 2, turnPlayerId: "u1" }))
+    it("Chỉ định đối kháng is inert without the selected card", () => {
+        renderRound(
+            "ve-dich", {}, pickBoard,
+            veDichMc({ phase: 2, turnPlayerId: "u1", pendingQuestionId: "a" }),
+            [stagedQuestion],
+        )
+        expect(screen.queryByText("Chỉ định đối kháng", BUTTON)).toBeNull()
+        expect(screen.getByText("Chỉ định đối kháng")).toBeInTheDocument()   // still drawn, as a slot
+    })
 
-        await user.click(screen.getByText("Chỉ định", BUTTON))
+    it("Chỉ định đối kháng sends the SELECTED card as the target", async () => {
+        const user = userEvent.setup()
+        const f = renderRound(
+            "ve-dich", { target: "u2" }, pickBoard,
+            veDichMc({ phase: 2, turnPlayerId: "u1", pendingQuestionId: "a" }),
+            [stagedQuestion],
+        )
+        await user.click(screen.getByText("Chỉ định đối kháng", BUTTON))
         expect(f.send).toHaveBeenCalledWith({
-            kind: "ve-dich.declarePower",
-            playerId: "u1",
-            power: "ASSIGN",
-            targetId: "u2"
+            kind: "ve-dich.declarePower", playerId: "u1", power: "ASSIGN", targetId: "u2",
         })
+    })
+
+    it("the row is absent before the turn's picks are staged (nothing to power)", () => {
+        renderRound(
+            "ve-dich", {}, { open: [], board: [{ questionId: "a", value: 40, where: "free" as const }] },
+            veDichMc({ phase: 2, turnPlayerId: "u1" }),
+            [stagedQuestion],
+        )
+        expect(screen.queryByText("Ngôi sao hy vọng", BUTTON)).toBeNull()
+        expect(screen.queryByText("Không dùng quyền năng", BUTTON)).toBeNull()
     })
 
     it("during a duel the buzz slot is inert — an ASSIGN question has nothing to close", () => {
