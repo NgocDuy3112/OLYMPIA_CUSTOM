@@ -349,13 +349,22 @@ describe("VeDichRieng — the powers and the duel", () => {
             [stagedQuestion],
         )
 
-        // Ngôi sao hy vọng stages for the turn player — nothing spent yet
+        // Ngôi sao hy vọng stages for the turn player — the turn's ONE pick,
+        // nothing spent yet (the server locks the row after this press)
         await user.click(screen.getByText("Ngôi sao hy vọng", BUTTON))
         expect(f.send).toHaveBeenCalledWith({
             kind: "ve-dich.declarePower", playerId: "u1", power: "STAR",
         })
+    })
 
-        // Không dùng quyền năng: the explicit none clears a staged choice
+    it("Không dùng quyền năng is the turn's first pick too", async () => {
+        const user = userEvent.setup()
+        const f = renderRound(
+            "ve-dich", {}, pickBoard,
+            veDichMc({ phase: 2, turnPlayerId: "u1", pendingQuestionId: "a" }),
+            [stagedQuestion],
+        )
+
         await user.click(screen.getByText("Không dùng quyền năng", BUTTON))
         expect(f.send).toHaveBeenCalledWith({
             kind: "ve-dich.declarePower", playerId: "u1", power: null,
@@ -405,7 +414,7 @@ describe("VeDichRieng — the powers and the duel", () => {
         expect(screen.queryByRole("button", { name: "Chỉ định đối kháng" })).toBeNull()
         expect(screen.queryByRole("button", { name: "Không dùng quyền năng" })).toBeNull()
         // …and the chip says why: the turn is done spending
-        expect(screen.getByText("đã dùng lượt này")).toBeInTheDocument()
+        expect(screen.getByText("đã chốt lượt này")).toBeInTheDocument()
     })
 
     it("during a duel the buzz slot is inert — an ASSIGN question has nothing to close", () => {

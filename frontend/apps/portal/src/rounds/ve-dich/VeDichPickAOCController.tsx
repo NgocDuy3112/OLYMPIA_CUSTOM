@@ -111,7 +111,7 @@ function VeDichPickBoard({ ctx }: { ctx: VeDichPickCtx }) {
                     content: staged
                         ? `Đã chọn: ${staged.power === "STAR" ? COPY.powerStar : COPY.powerAssign}`
                         : usedThisTurn
-                            ? "đã dùng lượt này"
+                            ? "đã chốt lượt này"
                             : "chưa chọn",
                     muted: true,
                     empty: !canStage && !usedThisTurn,

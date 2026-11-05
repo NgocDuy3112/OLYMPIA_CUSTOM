@@ -317,13 +317,13 @@ export function declarePower(
     if (state.pendingPicks.length === 0) {
         fail("NOTHING_OPEN", "pick the turn's questions first");
     }
-    if (power === null) return { ...state, stagedPower: null };
-
-    // One power per turn: this turn already spent one — the player's OTHER
-    // power stays theirs for a later turn.
+    // ONE pick per turn: the first press stands — any of the three, including
+    // the explicit none — and the choice locks until the turn advances. The
+    // power itself is SPENT when the question opens with it.
     if (state.turnPowerUsed === true) {
-        fail("ONE_POWER_PER_TURN", "only one power may be used per turn");
+        fail("ONE_POWER_PER_TURN", "the turn has already chosen its power");
     }
+    if (power === null) return { ...state, stagedPower: null, turnPowerUsed: true };
 
     const player = state.players.find((p) => p.id === playerId)!;
     if (!player.powersLeft.includes(power)) {
@@ -336,9 +336,9 @@ export function declarePower(
         if (!state.players.some((p) => p.id === targetId)) {
             fail("INVALID_TARGET", `${targetId} is not playing this round`);
         }
-        return { ...state, stagedPower: { power, targetId } };
+        return { ...state, stagedPower: { power, targetId }, turnPowerUsed: true };
     }
-    return { ...state, stagedPower: { power } };
+    return { ...state, stagedPower: { power }, turnPowerUsed: true };
 }
 
 // Phase 2 opens the question for the current player. Declaration happens here,

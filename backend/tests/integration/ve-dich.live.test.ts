@@ -220,22 +220,6 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
         expect(events).toHaveLength(5);                    // 2 from phase 1 + 3 now
     });
 
-    it("the console stages the turn's power BEFORE the open — and may clear it", async () => {
-        // Ngôi sao hy vọng on the pick board: staged, NOT spent yet
-        const staged = await act({ kind: "ve-dich.declarePower", playerId: playerIds[1], power: "STAR" });
-        expect(staged.statusCode).toBe(200);
-        expect(staged.json().state.stagedPower).toEqual({ power: "STAR" });
-        expect(staged.json().state.players.find((p: { id: string }) => p.id === playerIds[1]).powersLeft)
-            .toEqual(["STAR", "ASSIGN"]);                    // nothing spent before the open
-
-        // Không dùng quyền năng: the explicit none clears it — still unspent
-        const cleared = await act({ kind: "ve-dich.declarePower", playerId: playerIds[1], power: null });
-        expect(cleared.statusCode).toBe(200);
-        expect(cleared.json().state.stagedPower).toBeNull();
-        expect(cleared.json().state.players.find((p: { id: string }) => p.id === playerIds[1]).powersLeft)
-            .toEqual(["STAR", "ASSIGN"]);
-    });
-
     it("the answerer and the buzzer are scored independently", async () => {
         expect((await act({ kind: "ve-dich.openQuestion", questionId: qid.get("40-1") })).statusCode).toBe(200);
         expect((await act({ kind: "ve-dich.closeCurrentAnswer" })).statusCode).toBe(200);
@@ -256,15 +240,20 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
         expect(again.statusCode).toBeGreaterThanOrEqual(400);
     });
 
-    it("STAR (wrong) costs -100% of face value", async () => {
-        // The choice comes FIRST — the console's pick-board row, before the open
-        // (the engine still checks NOT_YOUR_TURN for the turn player).
+    it("STAR (wrong) costs -100% of face value — the turn's ONE pick, staged first", async () => {
+        // Ngôi sao hy vọng on the pick board: the turn's single choice —
+        // staged, NOT spent yet (the engine still checks NOT_YOUR_TURN).
         const staged = await act({
             kind: "ve-dich.declarePower",
             playerId: playerIds[1],
             power: "STAR"
         });
         expect(staged.statusCode).toBe(200);
+        expect(staged.json().state.stagedPower).toEqual({ power: "STAR" });
+        expect(staged.json().state.turnPowerUsed).toBe(true);
+        expect(staged.json().state.players.find((p: { id: string }) => p.id === playerIds[1]).powersLeft)
+            .toEqual(["STAR", "ASSIGN"]);                    // spent only AT the open
+
         expect((await act({ kind: "ve-dich.openQuestion", questionId: qid.get("40-2") })).statusCode).toBe(200);
 
         expect((await act({ kind: "ve-dich.closeCurrentAnswer" })).statusCode).toBe(200);
@@ -274,7 +263,7 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
         expect(await score(playerIds[1])).toBe(-75);       // -35 - 40
     });
 
-    it("one power per turn: the turn already spent STAR — a second is refused", async () => {
+    it("one pick per turn: the turn already chose STAR — a second press is refused", async () => {
         const again = await act({
             kind: "ve-dich.declarePower",
             playerId: playerIds[1],

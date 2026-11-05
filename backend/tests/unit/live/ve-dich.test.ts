@@ -138,18 +138,21 @@ describe("ve-dich powers and buzz", () => {
         });
     });
 
-    it("\"Không dùng quyền năng\" (power: null) clears the staging without a fact", () => {
+    it("\"Không dùng quyền năng\" (power: null) IS the turn's pick — one press, no fact", () => {
         let s = beginPhase2(phase1Done());
         s = pickPhase2(s, s.players[0].id, ["40-1", "50-1", "30-1"]);
-        s = applyVeDichAction(s, {
-            kind: "ve-dich.declarePower", playerId: s.players[0].id, power: "STAR"
-        }, ctx()).state;
 
-        const cleared = applyVeDichAction(s, {
+        const none = applyVeDichAction(s, {
             kind: "ve-dich.declarePower", playerId: s.players[0].id, power: null
         }, ctx());
-        expect(cleared.state.stagedPower ?? null).toBeNull();
-        expect(cleared.facts).toEqual([]);
+        expect(none.state.stagedPower ?? null).toBeNull();
+        expect(none.state.turnPowerUsed).toBe(true);          // the pick is MADE
+        expect(none.facts).toEqual([]);
+
+        // one press per turn — the next one is refused, whatever it says
+        expect(() => applyVeDichAction(none.state, {
+            kind: "ve-dich.declarePower", playerId: s.players[0].id, power: "STAR"
+        }, ctx())).toThrow(VeDichRuleError);
     });
 
     it("a buzz records how long it took, measured from the window opening", () => {

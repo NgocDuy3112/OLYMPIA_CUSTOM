@@ -646,13 +646,17 @@ describe("powers — staged on the pick board BEFORE the question opens", () => 
         expect(opened.players.find((p) => p.id === a)!.powersLeft).toEqual(["ASSIGN"]);         // spent now
     });
 
-    it("\"Không dùng quyền năng\" clears a staged choice — nothing spent, no power", () => {
+    it("\"Không dùng quyền năng\" is the turn's pick too — one press, then locked", () => {
         const { state, a } = riengStaged();
-        const cleared = declarePower(declarePower(state, a, "STAR"), a, null);
-        expect(cleared.stagedPower ?? null).toBeNull();
-        expect(cleared.players.find((p) => p.id === a)!.powersLeft).toEqual(["STAR", "ASSIGN"]);
+        const none = declarePower(state, a, null);
+        expect(none.stagedPower ?? null).toBeNull();
+        expect(none.turnPowerUsed).toBe(true);
+        expect(none.players.find((p) => p.id === a)!.powersLeft).toEqual(["STAR", "ASSIGN"]); // nothing spent
 
-        const opened = openPhase2Question(cleared, "40-1", NOW);
+        // the pick is made — STAR has to wait for the NEXT turn
+        expect(codeOf(() => declarePower(none, a, "STAR"))).toBe("ONE_POWER_PER_TURN");
+
+        const opened = openPhase2Question(none, "40-1", NOW);
         expect(opened.open?.power).toBeNull();
         expect(opened.open?.stage).toBe("current");
     });
@@ -665,11 +669,17 @@ describe("powers — staged on the pick board BEFORE the question opens", () => 
         expect(codeOf(() => declarePower(bare, a, "STAR"))).toBe("NOTHING_OPEN");
     });
 
-    it("re-staging replaces the choice — nothing is spent until the open", () => {
+    it("one pick per turn: the first press stands — a second is refused", () => {
         const { state, a, b } = riengStaged();
-        const assign = declarePower(declarePower(state, a, "STAR"), a, "ASSIGN", { targetId: b });
-        expect(assign.stagedPower).toEqual({ power: "ASSIGN", targetId: b });
-        expect(assign.players.find((p) => p.id === a)!.powersLeft).toEqual(["STAR", "ASSIGN"]);
+        const star = declarePower(state, a, "STAR");
+        expect(star.stagedPower).toEqual({ power: "STAR" });
+        expect(star.turnPowerUsed).toBe(true);
+        expect(star.players.find((p) => p.id === a)!.powersLeft).toEqual(["STAR", "ASSIGN"]); // not yet spent
+
+        // no swapping — and not even the explicit none undoes the turn's pick
+        expect(codeOf(() => declarePower(star, a, "ASSIGN", { targetId: b }))).toBe("ONE_POWER_PER_TURN");
+        expect(codeOf(() => declarePower(star, a, null))).toBe("ONE_POWER_PER_TURN");
+        expect(star.stagedPower).toEqual({ power: "STAR" });            // the first pick stands
     });
 
     it("a staged ASSIGN opens the RACE with the question — nobody answers first", () => {
@@ -685,7 +695,7 @@ describe("powers — staged on the pick board BEFORE the question opens", () => 
         const { state, a } = riengStaged();
         const moved = advanceTurn(declarePower(state, a, "STAR"));
         expect(moved.stagedPower ?? null).toBeNull();
-        expect(moved.turnPowerUsed).toBe(false);           // never spent → no cap
+        expect(moved.turnPowerUsed).toBe(false);           // the pick died with the turn — no cap
         expect(moved.players.find((p) => p.id === a)!.powersLeft).toEqual(["STAR", "ASSIGN"]);
     });
 
@@ -698,16 +708,16 @@ describe("powers — staged on the pick board BEFORE the question opens", () => 
         expect(codeOf(() => declarePower(spent, a, "STAR"))).toBe("POWER_UNAVAILABLE");
     });
 
-    it("ONE power per turn: a spent power caps the rest of the turn", () => {
+    it("ONE pick per turn: the turn's choice caps everything after it", () => {
         const { state, a, b } = riengStaged();
         let s = openPhase2Question(declarePower(state, a, "STAR"), "40-1", NOW);
         s = resolveQuestion(closeCurrentAnswer(s, NOW), { answerer: true });
 
-        // the turn still has picks left — but the cap holds…
+        // the turn still has picks left — but the pick already stands…
         expect(s.pendingPicks.length).toBeGreaterThan(0);
         expect(codeOf(() => declarePower(s, a, "ASSIGN", { targetId: b }))).toBe("ONE_POWER_PER_TURN");
-        // …the explicit none stays a legal no-op, and the held ASSIGN is still theirs
-        expect(codeOf(() => declarePower(s, a, null))).toBe("NO_ERROR");
+        // …and not even the explicit none undoes it: one press per turn
+        expect(codeOf(() => declarePower(s, a, null))).toBe("ONE_POWER_PER_TURN");
         expect(s.players.find((p) => p.id === a)!.powersLeft).toEqual(["ASSIGN"]);
     });
 
