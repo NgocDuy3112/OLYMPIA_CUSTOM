@@ -56,8 +56,6 @@ export function audienceCtx(view: PlayerView): PlayerCtx {
         s2Q: view.open[0],
         s2Idx: 0,
         pickS2: noop,
-        pickedCells: [],
-        setPickedCells: noop,
         answerBusy: false,
         submitAnswer: noop,
         keywordBusy: false,

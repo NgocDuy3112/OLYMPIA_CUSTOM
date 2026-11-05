@@ -208,9 +208,8 @@ export function useLiveLobby(matchId: string, enabled: boolean) {
 // ── the three commands ───────────────────────────────────────────────────────
 
 // ve-dich's player vocabulary, exactly as /live/commands validates it.
+// (No pick: the console sends ve-dich.pick / pickBatch through /live/actions.)
 export type LivePlayerCommand =
-    | { type: "pick"; questionId: string }
-    | { type: "pickBatch"; questionIds: string[] }
     | { type: "power"; power: "STAR" | "ASSIGN"; targetId?: string }
     | { type: "buzz"; questionId: string }
 

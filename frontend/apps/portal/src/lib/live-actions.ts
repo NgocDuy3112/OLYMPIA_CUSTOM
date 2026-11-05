@@ -9,10 +9,12 @@
 //   - frontend: add it here; every send site becomes a compiler error until
 //               it knows the new shape — that is the point of this file.
 //
-// Deliberately ABSENT: ve-dich.pick / pickBatch / buzz. Those are player-door
-// actions, built server-side from a player's own command — the route refuses
-// them (see the backend contract test), and so does this union: a console
-// screen cannot claim a playerId through them.
+// Deliberately ABSENT: ve-dich.buzz. It is a player-door action, built
+// server-side from a player's own command — the route refuses it (see the
+// backend contract test), and so does this union: a console screen cannot
+// claim a playerId through it. (PICKING is console-side: ve-dich.pick /
+// pickBatch ARE here — the desk picks for the turn player, and the engine
+// guards the playerId.)
 import type { ConsoleQuestion } from "./live"
 
 /** One player's verdict, as the judging commits send it. */
@@ -56,6 +58,9 @@ export type LiveAction =
     | { kind: "ve-dich.endRound" }
     /** The console declares a power for the player whose turn it is. */
     | { kind: "ve-dich.declarePower"; playerId: string; power: "STAR" | "ASSIGN"; targetId?: string }
+    /** The console picks for the turn player — the engine guards the playerId. */
+    | { kind: "ve-dich.pick"; playerId: string; questionId: string }
+    | { kind: "ve-dich.pickBatch"; playerId: string; questionIds: string[] }
     // ── match-level (not bound to a round) ─────────────────────────────────────
     | { kind: "round.goTo"; roundId: string }
     | { kind: "score.adjust"; userId: string; delta: number; reason: string }

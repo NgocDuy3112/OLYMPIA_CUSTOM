@@ -130,8 +130,11 @@ export const KhoiDongActionSchema = Type.Union([
 export type KhoiDongAction = Static<typeof KhoiDongActionSchema>;
 
 // ── ve-dich ───────────────────────────────────────────────────────────────────
-// Controller actions drive the phases; players pick, declare powers, and buzz. Those
-// arrive as server-built actions, never from a client claiming a playerId.
+// Controller actions drive the phases. PICKING is the console's — the desk picks
+// for the player whose turn it is (prod parity: the player's board only watches),
+// and the engine still checks that playerId IS the turn player. Players declare
+// powers and buzz: those arrive as server-built actions, never from a client
+// claiming a playerId.
 export const VeDichStart = Type.Object({
     kind: Type.Literal("ve-dich.start"),
     /** 2 = start straight at Riêng: the summit runs on untouched scores. */
@@ -250,6 +253,9 @@ export const LiveActionSchema = Type.Union([
     VeDichAdvanceTurn,
     VeDichEndRound,
     VeDichDeclarePower,
+    // The console picks for the turn player — the engine guards the playerId.
+    VeDichPick,
+    VeDichPickBatch,
     RoundGoToAction,
     RevealAnswer,
     ScoreAdjustActionSchema

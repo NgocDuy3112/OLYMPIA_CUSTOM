@@ -410,6 +410,67 @@ describe("ButPha — S4", () => {
 })
 
 describe("VeDichPick — S5/S6, the board", () => {
+    const veQuestion = (id: string, points: number) => ({
+        _id: id,
+        roundId: "ve-dich",
+        turnId: "phase-1",
+        position: 1,
+        kind: "TEXT" as const,
+        questionText: `Câu ${id}`,
+        timeLimit: null,
+        points,
+        payload: {},
+    })
+    const freeCell = (id: string, value: number) => ({ questionId: id, value, where: "free" as const })
+
+    it("the console picks for the turn player — stage the top cell, confirm sends the pick", async () => {
+        const user = userEvent.setup()
+        const f = renderRound(
+            "ve-dich",
+            {},
+            { open: [], board: [freeCell("q30", 30), freeCell("q20", 20)] },
+            veDichMc({ phase: 1, turnPlayerId: "u1" }),
+            [veQuestion("q30", 30), veQuestion("q20", 20)],
+        )
+
+        // the 20 sits out this turn (the top-band rule), the 30 is stageable
+        expect(screen.getByTitle("lượt này không chọn được")).toBeInTheDocument()
+        await user.click(screen.getByTitle("Chọn câu này"))          // the cell
+        await user.click(screen.getByRole("button", { name: "Chọn câu này" }))  // the strip confirm
+        expect(f.send).toHaveBeenCalledWith({ kind: "ve-dich.pick", playerId: "u1", questionId: "q30" })
+    })
+
+    it("phase 2: stage three cells — Chốt sends the batch for the turn player", async () => {
+        const user = userEvent.setup()
+        const f = renderRound(
+            "ve-dich",
+            {},
+            { open: [], board: [freeCell("a", 40), freeCell("b", 40), freeCell("c", 40)] },
+            veDichMc({ phase: 2, turnPlayerId: "u1" }),
+            [veQuestion("a", 40), veQuestion("b", 40), veQuestion("c", 40)],
+        )
+
+        for (const cell of screen.getAllByTitle("Chọn câu này")) {
+            await user.click(cell)
+        }
+        await user.click(screen.getByRole("button", { name: "Chốt 3 câu" }))
+        expect(f.send).toHaveBeenCalledWith({
+            kind: "ve-dich.pickBatch", playerId: "u1", questionIds: ["a", "b", "c"],
+        })
+    })
+
+    it("no turn player, no pick — the confirm slot stays inert", () => {
+        renderRound(
+            "ve-dich",
+            {},
+            { open: [], board: [freeCell("q30", 30)] },
+            veDichMc({ phase: 1, turnPlayerId: null }),
+            [veQuestion("q30", 30)],
+        )
+        expect(screen.queryByRole("button", { name: "Chọn câu này" })).toBeNull()
+        expect(screen.getByTitle("còn trống")).toBeInTheDocument()
+    })
+
     it("phase 1: Bắt đầu jumps to phase 2, Chọn lại skips the pick", async () => {
         const user = userEvent.setup()
         const f = renderRound("ve-dich", { send: vi.fn() }, {}, veDichMc({ phase: 1 }))

@@ -1,5 +1,4 @@
 // ── the player deck's wire contract ──────────────────────────────────────────
-import type { Dispatch, SetStateAction } from "react"
 import type { RemoteVideoTrack } from "livekit-client"
 // The PLAYER-facing shape of the live view (docs/live-surface.md § L3). This is
 // the backend's contract, so it lives with the shared deck instead of inside
@@ -124,9 +123,10 @@ export type LayoutKey =
     | "ve-dich-chung"
     | "ve-dich-rieng"
 
+// The player's ve-dich vocabulary. PICKING is NOT in it — the console sends
+// ve-dich.pick / pickBatch (the desk picks for the turn player); a player's
+// board only watches.
 export type VeDichCommand =
-    | { type: "pick"; questionId: string }
-    | { type: "pickBatch"; questionIds: string[] }
     | { type: "power"; power: "STAR" | "ASSIGN"; targetId?: string }
     | { type: "buzz"; questionId: string }
 
@@ -185,9 +185,6 @@ export interface PlayerCtx {
     s2Q: PlayerView["open"][number] | undefined
     s2Idx: number
     pickS2: (questionId: string, idx: number) => void
-    /** ve-dich board picks (the screen derives toggle/confirm from these). */
-    pickedCells: string[]
-    setPickedCells: Dispatch<SetStateAction<string[]>>
     /** transport — one wrapper per mutation, versions owned by their hooks. */
     answerBusy: boolean
     submitAnswer: (questionId: string, value: AnswerValue) => void

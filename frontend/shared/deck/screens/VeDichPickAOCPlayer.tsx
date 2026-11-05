@@ -1,88 +1,52 @@
 import { Badges, CardHeader, MainCard, PlayerStage, Rail, type PlayerCore } from "../player-deck"
 import { DECK_PAD, STRIP_R, pt } from "../geometry"
-import { playerCellClass, type CellWhere } from "../cells"
+import { mcCellClass, type CellWhere } from "../cells"
 import { VE_GRID_COLUMNS, boardRows } from "../ve-dich-board"
-import type { VeDichCommand } from "../types"
 
-// Về đích — bảng chọn câu (S6 = phase 1 chọn 1 · S5 = phase 2 bốc 3): the cells
-// ARE the picker. The board is the show's — 6×20, 6×30, 4×40, 4×50 — rows are
-// the bands and the higher bands are wider (span 3 of 12), so the grid stays
-// balanced without any category columns.
-type VeDichPickPlayerCtx = PlayerCore & {
-    pickedCells: string[]
-    setPickedCells: (update: (current: string[]) => string[]) => void
-    cmdBusy: boolean
-    command: (action: VeDichCommand) => void
+// Về đích — bảng chọn câu (S6 = phase 1 · S5 = phase 2): the CONSOLE picks for
+// the player whose turn it is (prod parity — the desk drives the board), so this
+// screen is DISPLAY-ONLY: it shows the show's grid, whose turn it is, and what
+// has been staged — the cells are never clickable here. The board is the show's —
+// 6×20, 6×30, 4×40, 4×50 — rows are the bands and the higher bands are wider
+// (span 3 of 12), so the grid stays balanced without any category columns.
+type VeDichPickPlayerCtx = PlayerCore
+
+/** What a cell says — the console's words; free cells note the top-band rule. */
+const CELL_TITLE: Record<Exclude<CellWhere, "free">, string> = {
+    taken: "đã dùng",
+    pending: "thí sinh đã chọn — chờ mở",
+    open: "đang mở",
+    deferred: "dành cho Lượt cá nhân",
 }
 
-const NEED_PER_PHASE = { 1: 1, 2: 3 } as const
-
-/** The picker's own title text, keyed by what the player may do right now. */
-function cellTitle(where: CellWhere, picking: boolean, actionable: boolean): string {
-    if (where !== "free") {
-        if (where === "pending") return "đã có thí sinh chọn"
-        if (where === "open") return "đang mở"
-        if (where === "deferred") return "dành cho Lượt cá nhân"
-        return "đã dùng"
-    }
-    if (!picking) return "chưa tới lượt bạn"
-    return actionable ? "Chọn câu này" : "lượt này không chọn được"
-}
-
-/** The band's status line, keyed by turn state. */
-function turnLabel(v: { pendingPicks?: string[]; isMyTurn?: boolean }, picked: number, phase2: boolean, need: number): string {
+/** The status line, keyed by turn state — the picking itself happens upstairs. */
+function boardLabel(v: { pendingPicks?: string[]; isMyTurn?: boolean }, phase2: boolean, need: number): string {
+    const pending = (v.pendingPicks ?? []).length
+    if (pending > 0) return `Đã chốt ${pending} câu — chờ điều hành mở`
     if (v.isMyTurn !== true) return "Đến lượt thí sinh khác"
-    if ((v.pendingPicks ?? []).length > 0) return `Đã chốt ${v.pendingPicks?.length} câu — chờ điều hành mở`
-    if (picked > 0) return `Đã chọn ${picked}/${need}`
-    return phase2 ? `Chọn ${need} câu trên bảng` : "Chọn một câu trên bảng"
+    return phase2 ? `Đến lượt bạn — điều hành bốc ${need} câu` : "Đến lượt bạn — điều hành chọn câu"
 }
 
 export function VeDichPickAOCPlayer({ ctx }: { ctx: VeDichPickPlayerCtx }) {
-    const { v, myId, flash, pickedCells, setPickedCells, cmdBusy, command } = ctx
+    const { v, myId, flash } = ctx
     const phase2 = ctx.stage === "phase2"
     const board = v.board ?? []
     const rows = boardRows(board, (cell) => cell.value)
-    // Chung: only the TOP free band is pickable this turn — everything lower fades.
+    // Chung: only the TOP free band is in play this turn — everything lower fades.
     const maxFree = Math.max(-1, ...board.filter((c) => c.where === "free").map((c) => c.value))
-    const pending = new Set(v.me.pendingPicks ?? [])
-    const picking = v.me.isMyTurn === true && pending.size === 0
-    const need = phase2 ? NEED_PER_PHASE[2] : NEED_PER_PHASE[1]
-
-    const toggle = (id: string) => {
-        if (!picking) return
-        setPickedCells((current) => {
-            if (current.includes(id)) return current.filter((x) => x !== id)
-            if (!phase2) return [id]
-            return current.length >= need ? current : [...current, id]
-        })
-    }
-    const confirm = () => {
-        if (phase2 && pickedCells.length === need) command({ type: "pickBatch", questionIds: pickedCells })
-        if (!phase2 && pickedCells.length === need) command({ type: "pick", questionId: pickedCells[0] })
-    }
+    const need = phase2 ? 3 : 1
 
     return (
         <PlayerStage
             rail={<Rail variant={phase2 ? "compact" : "answers"} view={v} myId={myId} />}
             band={
-                <>
-                    <span className="flex h-[3.3cqw] items-center rounded-lg bg-muted px-[1.2cqw] font-sans font-semibold text-foreground ring-1 ring-border" style={{ fontSize: pt(12), borderRadius: STRIP_R }}>
-                        {!picking && pending.size > 0
-                            ? `Đã chốt ${pending.size} câu — chờ điều hành mở`
-                            : turnLabel(v.me, pickedCells.length, phase2, need)}
-                    </span>
-                    <button
-                        type="button"
-                        onClick={confirm}
-                        disabled={cmdBusy || pickedCells.length !== need}
-                        className="flex h-[3.3cqw] items-center rounded-lg bg-primary px-[1.6cqw] font-sans text-sm font-semibold text-primary-foreground shadow-sm transition hover:brightness-110 disabled:opacity-50"
-                        style={{ borderRadius: STRIP_R }}
-                    >
-                        {cmdBusy ? "Đang chốt…" : phase2 ? `Chốt ${need} câu` : "Chọn câu này"}
-                    </button>
-                </>
+                <span
+                    className="flex h-[3.3cqw] items-center rounded-lg bg-muted px-[1.2cqw] font-sans font-semibold text-foreground ring-1 ring-border"
+                    style={{ fontSize: pt(12), borderRadius: STRIP_R }}
+                >
+                    {boardLabel(v.me, phase2, need)}
+                </span>
             }
-            hint={picking ? "bấm Ô để chọn" : undefined}
             flash={flash}
         >
             <MainCard>
@@ -95,22 +59,20 @@ export function VeDichPickAOCPlayer({ ctx }: { ctx: VeDichPickPlayerCtx }) {
                             style={{ gridTemplateColumns: `repeat(${VE_GRID_COLUMNS}, minmax(0, 1fr))` }}
                         >
                             {row.cells.map((cell) => {
-                                const chosen = pickedCells.includes(cell.questionId)
-                                const pickableNow = phase2 || cell.value === maxFree
-                                const actionable = picking && cell.where === "free" && pickableNow
+                                const where = cell.where
+                                const faded = where === "deferred" || (where === "free" && cell.value < maxFree)
+                                const title = where === "free"
+                                    ? faded ? "lượt này không chọn được" : "còn trống"
+                                    : CELL_TITLE[where]
                                 return (
-                                    <button
+                                    <div
                                         key={cell.questionId}
-                                        type="button"
-                                        disabled={!actionable}
-                                        aria-pressed={chosen}
-                                        onClick={() => toggle(cell.questionId)}
-                                        title={cellTitle(cell.where, picking, actionable)}
-                                        className={playerCellClass({ where: cell.where, chosen, actionable })}
+                                        title={title}
+                                        className={mcCellClass(where, faded)}
                                         style={{ ...DECK_PAD, gridColumn: `span ${row.span}` }}
                                     >
                                         <b className="font-display leading-none" style={{ fontSize: pt(20) }}>{cell.value}</b>
-                                    </button>
+                                    </div>
                                 )
                             })}
                         </div>

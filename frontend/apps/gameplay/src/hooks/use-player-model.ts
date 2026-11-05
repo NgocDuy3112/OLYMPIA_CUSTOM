@@ -65,7 +65,6 @@ export function usePlayerModel(matchId: string): PlayerModel {
     const cmd = useLivePlayerCommand(matchId)
 
     const [view2, setView2] = useState({ qid: "", idx: 0 })       // the S2 walk's remembered click
-    const [pickedCells, setPickedCells] = useState<string[]>([])  // ve-dich board picks
 
     const v = live.view
     const open = v?.open ?? []
@@ -107,8 +106,6 @@ export function usePlayerModel(matchId: string): PlayerModel {
         flash,
         selection,
         pickS2: (questionId: string, idx: number) => setView2({ qid: questionId, idx }),
-        pickedCells,
-        setPickedCells,
         answer: {
             busy: answer.isPending,
             submit: (questionId: string, value: AnswerValue) => answer.mutate({ questionId, value }),

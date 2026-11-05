@@ -50,6 +50,9 @@ const consoleSent: unknown[] = [
     // this was missing from the union and every declare button 400'd)
     { kind: "ve-dich.declarePower", playerId: "p1", power: "STAR" },
     { kind: "ve-dich.declarePower", playerId: "p1", power: "ASSIGN", targetId: "p2" },
+    // the console picks for the turn player (the engine guards the playerId)
+    { kind: "ve-dich.pick", playerId: "p1", questionId: "q1" },
+    { kind: "ve-dich.pickBatch", playerId: "p1", questionIds: ["a", "b", "c"] },
     // match-level
     { kind: "round.goTo", roundId: "khoi-dong" },
     { kind: "score.adjust", userId: "p1", delta: -10, reason: "Correction" },
@@ -57,10 +60,9 @@ const consoleSent: unknown[] = [
 ];
 
 // Built ONLY by ve-dich-player.ts from a player's own websocket command —
-// a client claiming a playerId must not reach the console door.
+// a client claiming a playerId must not reach the console door. (Picking is
+// NOT here: it moved to the console door — the desk picks for the turn player.)
 const playerDoorOnly: unknown[] = [
-    { kind: "ve-dich.pick", playerId: "p1", questionId: "q1" },
-    { kind: "ve-dich.pickBatch", playerId: "p1", questionIds: ["a", "b", "c"] },
     { kind: "ve-dich.buzz", playerId: "p1" },
 ];
 

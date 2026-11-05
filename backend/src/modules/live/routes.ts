@@ -1044,16 +1044,6 @@ export async function liveRoutes(app: FastifyInstance) {
                                 ...base, questionId: message.data.questionId, value: message.data.value
                             }), message.requestId));
                             break;
-                        case "pick":
-                            reply(ackMessage("pick", await submitVeDichCommand({
-                                ...base, command: { type: "pick", questionId: message.data.questionId }
-                            }), message.requestId));
-                            break;
-                        case "pickBatch":
-                            reply(ackMessage("pickBatch", await submitVeDichCommand({
-                                ...base, command: { type: "pickBatch", questionIds: message.data.questionIds }
-                            }), message.requestId));
-                            break;
                         case "power":
                             reply(ackMessage("power", await submitVeDichCommand({
                                 ...base, command: { type: "power", power: message.data.power, targetId: message.data.targetId }
@@ -1195,7 +1185,6 @@ export async function liveRoutes(app: FastifyInstance) {
             const body = request.body as {
                 type: string;
                 questionId?: string;
-                questionIds?: string[];
                 power?: "STAR" | "ASSIGN";
                 targetId?: string;
             };
@@ -1207,15 +1196,12 @@ export async function liveRoutes(app: FastifyInstance) {
                 userAgent: request.headers["user-agent"] ?? null
             };
 
-            if (body.type === "pick" || body.type === "buzz") {
+            // The pick is NOT a player command — the console sends ve-dich.pick /
+            // pickBatch through POST /live/actions (the desk picks for the turn
+            // player; a player's board only watches).
+            if (body.type === "buzz") {
                 if (!body.questionId) throw app.httpErrors.badRequest("questionId is required");
-                return submitVeDichCommand({ ...base, command: { type: body.type, questionId: body.questionId } });
-            }
-            if (body.type === "pickBatch") {
-                if (!body.questionIds || body.questionIds.length !== 3) {
-                    throw app.httpErrors.badRequest("questionIds must contain exactly 3 ids");
-                }
-                return submitVeDichCommand({ ...base, command: { type: "pickBatch", questionIds: body.questionIds } });
+                return submitVeDichCommand({ ...base, command: { type: "buzz", questionId: body.questionId } });
             }
             if (body.type === "power") {
                 if (body.power !== "STAR" && body.power !== "ASSIGN") {

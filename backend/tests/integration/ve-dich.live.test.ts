@@ -140,15 +140,16 @@ describe("ve-dich — start", () => {
 });
 
 describe("ve-dich — phase 1 (typed, one pick each)", () => {
-    it("only the current player may pick", async () => {
-        const res = await command(playerCookies[1], { type: "pick", questionId: qid.get("THTH-50") });
+    it("only the current player may be picked for — the console cannot claim another", async () => {
+        const res = await act({ kind: "ve-dich.pick", playerId: playerIds[1], questionId: qid.get("THTH-50") });
         expect(res.statusCode).toBe(409);
+        expect(res.json().error).toBe("NOT_YOUR_TURN");
     });
 
-    it("player 0 picks, answers, and the controller finalizes it", async () => {
-        const picked = await command(playerCookies[0], { type: "pick", questionId: qid.get("THTH-30") });
+    it("the console picks for player 0, they answer, and the controller finalizes it", async () => {
+        const picked = await act({ kind: "ve-dich.pick", playerId: playerIds[0], questionId: qid.get("THTH-30") });
         expect(picked.statusCode).toBe(200);
-        expect(picked.json()).toEqual({ applied: "pick" });
+        expect(picked.json().state.open.question.id).toBe(qid.get("THTH-30"));
 
         const drafted = await answer(playerCookies[0], qid.get("THTH-30")!, "x");
         expect(drafted.statusCode).toBe(200);
@@ -166,9 +167,9 @@ describe("ve-dich — phase 1 (typed, one pick each)", () => {
         expect(row).toMatchObject({ judged: true, verdict: "CORRECT", pointsAwarded: 30 });
     });
 
-    it("player 1 picks, never answers, and is still scored for it", async () => {
+    it("the console picks for player 1, who never answers and is still scored for it", async () => {
         expect((await act({ kind: "ve-dich.advanceTurn" })).statusCode).toBe(200);
-        expect((await command(playerCookies[1], { type: "pick", questionId: qid.get("TNSS-30") })).statusCode).toBe(200);
+        expect((await act({ kind: "ve-dich.pick", playerId: playerIds[1], questionId: qid.get("TNSS-30") })).statusCode).toBe(200);
 
         const resolved = await act({ kind: "ve-dich.resolve", answerer: false });
         expect(resolved.statusCode).toBe(200);
@@ -201,13 +202,14 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
         expect(res.json().state.players.map((p: { id: string }) => p.id)).toEqual([playerIds[1], playerIds[0]]);
     });
 
-    it("the current player picks three questions", async () => {
-        const res = await command(playerCookies[1], {
-            type: "pickBatch",
+    it("the console picks three questions for the current player", async () => {
+        const res = await act({
+            kind: "ve-dich.pickBatch",
+            playerId: playerIds[1],
             questionIds: [qid.get("THTH-40"), qid.get("TNSS-40"), qid.get("XHPL-40")]
         });
         expect(res.statusCode).toBe(200);
-        expect(res.json()).toEqual({ applied: "pickBatch" });
+        expect(res.json().state.pendingPicks).toHaveLength(3);
 
         const events = await db.select().from(matchEvents)
             .where(and(eq(matchEvents.matchId, matchId), eq(matchEvents.kind, "PICK")));

@@ -7,7 +7,6 @@
 //
 // Pure: same parts, same ctx. That is what lets `screens.test.tsx` render a
 // screen from a literal ctx without mounting the transport.
-import type { Dispatch, SetStateAction } from "react"
 import type { PlayerCtx, PlayerView } from "@shared/deck/types"
 import type { AnswerValue, LivePlayerCommand } from "@/lib/live"
 import type { S2Question } from "./s2"
@@ -20,12 +19,9 @@ interface PlayerCtxParts {
     myId: string | null
     /** the refusal line for the Status slot */
     flash: string | null
-    /** the S2 walk's on-screen question + marked square */
+    /** S2 walk's on-screen question + marked square */
     selection: S2Question
     pickS2: (questionId: string, idx: number) => void
-    /** ve-dich board picks (the screen derives toggle/confirm) */
-    pickedCells: string[]
-    setPickedCells: Dispatch<SetStateAction<string[]>>
     answer: { busy: boolean; submit: (questionId: string, value: AnswerValue) => void }
     keyword: { busy: boolean; submit: (questionId: string, text: string) => void }
     cmd: { busy: boolean; run: (action: LivePlayerCommand) => void }
@@ -49,8 +45,6 @@ export function playerCtxOf(parts: PlayerCtxParts): PlayerCtx {
         s2Q: parts.selection.question,
         s2Idx: parts.selection.idx,
         pickS2: parts.pickS2,
-        pickedCells: parts.pickedCells,
-        setPickedCells: parts.setPickedCells,
         answerBusy: parts.answer.busy,
         submitAnswer: parts.answer.submit,
         keywordBusy: parts.keyword.busy,

@@ -62,8 +62,6 @@ function ctx(over: Partial<PlayerCtx> = {}): PlayerCtx {
         s2Q: v.open[0],
         s2Idx: 0,
         pickS2: vi.fn(),
-        pickedCells: [],
-        setPickedCells: vi.fn(),
         answerBusy: false,
         submitAnswer: vi.fn(),
         keywordBusy: false,
@@ -194,5 +192,14 @@ describe("player screens render from a plain fixture", () => {
         // the badge, and the mode line under it — both say the round's name
         expect(getAllByText("Về đích").length).toBeGreaterThan(0)
         expect(getByTitle("đã dùng")).toBeTruthy()
+    })
+
+    it("về đích · the board — display-only: the console picks, the player watches", () => {
+        const v = view({ roundId: "ve-dich", stage: "phase2", me: { isMyTurn: true } })
+        const { queryByText, getByText } = render(<VeDichPickAOCPlayer ctx={ctx({ v })} />)
+        // no confirm button ever — picking happens on the console (prod parity)
+        expect(queryByText("Chốt 3 câu")).toBeNull()
+        expect(queryByText("Chọn câu này")).toBeNull()
+        expect(getByText(/điều hành bốc 3 câu/)).toBeTruthy()
     })
 })
