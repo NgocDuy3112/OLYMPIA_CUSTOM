@@ -317,13 +317,16 @@ export function declarePower(
     if (state.pendingPicks.length === 0) {
         fail("NOTHING_OPEN", "pick the turn's questions first");
     }
-    // ONE pick per turn: the first press stands — any of the three, including
-    // the explicit none — and the choice locks until the turn advances. The
-    // power itself is SPENT when the question opens with it.
+    // "Không dùng quyền năng" is NOT a pick — excluded from the one-pick rule:
+    // it never locks the row and never clears one. A statement, not a choice.
+    if (power === null) return state;
+
+    // ONE pick per turn: the first press — STAR or ASSIGN — stands, and the
+    // choice locks until the turn advances. The power itself is SPENT when the
+    // question opens with it.
     if (state.turnPowerUsed === true) {
         fail("ONE_POWER_PER_TURN", "the turn has already chosen its power");
     }
-    if (power === null) return { ...state, stagedPower: null, turnPowerUsed: true };
 
     const player = state.players.find((p) => p.id === playerId)!;
     if (!player.powersLeft.includes(power)) {

@@ -357,7 +357,7 @@ describe("VeDichRieng — the powers and the duel", () => {
         })
     })
 
-    it("Không dùng quyền năng is the turn's first pick too", async () => {
+    it("Không dùng quyền năng sends the explicit none — never a pick", async () => {
         const user = userEvent.setup()
         const f = renderRound(
             "ve-dich", {}, pickBoard,

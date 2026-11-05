@@ -138,7 +138,7 @@ describe("ve-dich powers and buzz", () => {
         });
     });
 
-    it("\"Không dùng quyền năng\" (power: null) IS the turn's pick — one press, no fact", () => {
+    it("\"Không dùng quyền năng\" (power: null) is NOT a pick — no flag, no fact", () => {
         let s = beginPhase2(phase1Done());
         s = pickPhase2(s, s.players[0].id, ["40-1", "50-1", "30-1"]);
 
@@ -146,12 +146,19 @@ describe("ve-dich powers and buzz", () => {
             kind: "ve-dich.declarePower", playerId: s.players[0].id, power: null
         }, ctx());
         expect(none.state.stagedPower ?? null).toBeNull();
-        expect(none.state.turnPowerUsed).toBe(true);          // the pick is MADE
+        expect(none.state.turnPowerUsed).toBe(false);         // excluded from the one-pick rule
         expect(none.facts).toEqual([]);
 
-        // one press per turn — the next one is refused, whatever it says
-        expect(() => applyVeDichAction(none.state, {
+        // the row stays live: the REAL pick follows and locks it — the second
+        // POWER press is what gets refused
+        const star = applyVeDichAction(none.state, {
             kind: "ve-dich.declarePower", playerId: s.players[0].id, power: "STAR"
+        }, ctx());
+        expect(star.state.stagedPower).toEqual({ power: "STAR" });
+        expect(star.state.turnPowerUsed).toBe(true);
+
+        expect(() => applyVeDichAction(star.state, {
+            kind: "ve-dich.declarePower", playerId: s.players[0].id, power: "ASSIGN", targetId: s.players[1].id
         }, ctx())).toThrow(VeDichRuleError);
     });
 

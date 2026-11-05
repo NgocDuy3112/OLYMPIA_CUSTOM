@@ -272,6 +272,14 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
         });
         expect(again.statusCode).toBe(409);
         expect(again.json().error).toBe("ONE_POWER_PER_TURN");
+
+        // none is EXCLUDED from the rule — always legal, and it changes nothing:
+        // the lock holds and the spent STAR stays spent
+        const none = await act({ kind: "ve-dich.declarePower", playerId: playerIds[1], power: null });
+        expect(none.statusCode).toBe(200);
+        expect(none.json().state.turnPowerUsed).toBe(true);
+        expect(none.json().state.players.find((p: { id: string }) => p.id === playerIds[1]).powersLeft)
+            .toEqual(["ASSIGN"]);
     });
 
     it("the turn ends: the cap lifts with it, and the next player picks", async () => {
