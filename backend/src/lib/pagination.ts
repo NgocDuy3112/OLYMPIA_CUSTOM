@@ -1,8 +1,3 @@
-// Offset pagination shared by list endpoints.
-//
-// Note: ajv runs with coerceTypes: false, so query values arrive as strings —
-// the parse happens here rather than in route schemas.
-
 export const DEFAULT_LIMIT = 20;
 export const MAX_LIMIT = 100;
 
@@ -35,14 +30,14 @@ function parseCount(raw: unknown, field: string, fallback: number): number {
     return Number(raw);
 }
 
-export function parsePage(query: unknown): Page {
+export function parsePage(query: unknown, maxLimit: number = MAX_LIMIT): Page {
     const q = (query ?? {}) as { limit?: unknown; offset?: unknown };
 
     const limit = parseCount(q.limit, "limit", DEFAULT_LIMIT);
     const offset = parseCount(q.offset, "offset", 0);
 
-    if (limit < 1 || limit > MAX_LIMIT) {
-        throw new PaginationError(`limit must be between 1 and ${MAX_LIMIT}`);
+    if (limit < 1 || limit > maxLimit) {
+        throw new PaginationError(`limit must be between 1 and ${maxLimit}`);
     }
 
     return { limit, offset };

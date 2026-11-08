@@ -227,7 +227,6 @@ describe("matches — assembly (explicit)", () => {
         expect(question.turnId).toBe("turn-1");
         expect(question.mode).toBe("oral");
         expect(question.points).toBe(10);
-        // the frozen copy carries no category: the board is sized by points
         expect(question._id).not.toBe(sourceId);
         expect(question.payload.correctSet).toEqual(["A"]);
     });
@@ -324,6 +323,36 @@ describe("matches — re-assembly & freeze", () => {
         expect(res.statusCode).toBe(200);
         expect(res.json().questions).toHaveLength(1);
         expect(res.json().questions[0].sourceId).toBe(second);
+    });
+
+    it("PATCH assemble swaps the set through the bucket guard", async () => {
+        const s = await makeTournament("m-patch-asm");
+        const first = await makeBankQuestion("patch first");
+        const second = await makeBankQuestion("patch second");
+
+        const created = await createMatch(s.id, matchBody());
+        expect(created.statusCode).toBe(201);
+        const matchId = created.json().id;
+
+        const res = await app.inject({
+            method: "PATCH",
+            url: matchUrl(s.id, `/${matchId}/assemble`),
+            headers: auth(ownerCookie),
+            payload: {
+                baseRevision: 0,
+                questions: [{ roundId: "r1", turnId: "turn-1", sourceId: second }]
+            }
+        });
+        expect(res.statusCode).toBe(200);
+        expect(res.json().assemblyRevision).toBe(1);
+
+        const after = await app.inject({
+            method: "GET",
+            url: matchUrl(s.id, `/${matchId}`),
+            headers: auth(ownerCookie),
+        });
+        expect(after.json().questions).toHaveLength(1);
+        expect(after.json().questions[0].sourceId).toBe(second);
     });
 
     it("derive points from the round's scoring template", async () => {
