@@ -9,6 +9,7 @@ import { users } from "./db/schema/index.js";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import cookie from "@fastify/cookie";
+import multipart from "@fastify/multipart";
 import { env } from "./config/env.js";
 import jwt from "@fastify/jwt";
 import sensible from "@fastify/sensible";
@@ -20,7 +21,9 @@ import { googleAuthRoutes } from "./modules/auth/google.js";
 import { adminRoutes } from "./modules/admin/routes.js";
 import { tournamentRoutes } from "./modules/tournaments/routes.js";
 import { questionRoutes } from "./modules/questions/routes.js";
+import { MEDIA_MAX_BYTES, MEDIA_MAX_FILES } from "./modules/questions/excel.js";
 import { matchRoutes } from "./modules/matches/routes.js";
+import { assemblePatchRoutes } from "./modules/matches/assemble-patch.js";
 import { liveRoutes } from "./modules/live/routes.js";
 import { rosterRoutes } from "./modules/roster/routes.js";
 import { matchCodeRoutes } from "./modules/match-codes/routes.js";
@@ -30,14 +33,6 @@ import { mcpKeyRoutes } from "./modules/mcp-keys/routes.js";
 import { mcpRoutes } from "./modules/mcp/index.js";
 import { rtcRoutes } from "./modules/rtc/routes.js";
 
-/**
- * Who may call this API cross-origin. In production each app is PATH-proxied on
- * its own host (portal.aoc… /portal/*, gameplay.aoc… /gameplay/*, aoc… /public/*),
- * so every browser request is same-origin and CORS never runs. This list exists
- * for the cases that are NOT same-origin: the Vite dev servers, a preview build,
- * and any split-origin experiment. Override per environment with CORS_ORIGINS
- * (comma-separated, exact origins — no wildcards: credentials are allowed).
- */
 const DEFAULT_ALLOWED_ORIGINS = [
     "http://localhost:5173",                 // portal (dev)
     "http://localhost:5175",                 // gameplay (dev)
@@ -60,9 +55,6 @@ export async function buildApp() {
         logger: env.isProduction
             ? true
             : { transport: { target: "pino-pretty" } },
-        // removeAdditional: false — a body that carries a field the route does not
-        // declare is rejected, not silently stripped. A client must not be able to
-        // send the server something it will quietly ignore.
         ajv: { customOptions: { coerceTypes: false, removeAdditional: false } },
     });
 
@@ -73,15 +65,14 @@ export async function buildApp() {
 
     await app.register(cookie);
     await app.register(sensible);
+    await app.register(multipart, {
+        limits: { fileSize: MEDIA_MAX_BYTES, files: MEDIA_MAX_FILES, fields: 10 },
+    });
     await app.register(jwt, { secret: env.gameplay.jwtSecret, namespace: "GAMEPLAY" });
     await app.register(jwt, { secret: env.portal.jwtSecret, namespace: "PORTAL" });
     await app.register(rateLimit, { global: false });
     await app.register(websocket, {
-        // Live messages are tiny; the ws default of 100 MiB is an unnecessary opening.
         options: { maxPayload: 16 * 1024 },
-        // Errors after the upgrade never reach onError or setErrorHandler: the plugin
-        // owns them here. Log at warn (not debug) so a genuine handler bug stays visible,
-        // and always terminate so the hub's subscriber is cleaned up via "close".
         errorHandler: (error, socket, request) => {
             request.log.warn({ err: error }, "websocket closed");
             try { socket.terminate(); } catch { /* already closed */ }
@@ -94,6 +85,7 @@ export async function buildApp() {
     await app.register(tournamentRoutes);
     await app.register(questionRoutes);
     await app.register(matchRoutes);
+    await app.register(assemblePatchRoutes);
     await app.register(liveRoutes);
     await app.register(rosterRoutes);
     await app.register(matchCodeRoutes);
