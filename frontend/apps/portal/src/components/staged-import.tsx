@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ChevronDown, ChevronRight, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react"
+import { Database, Eye, EyeOff, Link2, Pencil, Plus, RotateCcw, Save, Trash2, X } from "lucide-react"
 import { cn } from "cn"
 import { ApiError, api } from "@shared/lib/api"
 import { Badge } from "@shared/ui/badge"
@@ -144,16 +144,24 @@ function StagedRowItem({
                             <Button
                                 size="sm"
                                 variant="outline"
+                                aria-label="Hủy"
+                                title="Hủy"
                                 onClick={() => {
                                     setDraft(row.cells)
                                     setEditing(false)
                                     setError(null)
                                 }}
                             >
-                                Hủy
+                                <X className="size-3.5" aria-hidden />
                             </Button>
-                            <Button size="sm" disabled={patch.isPending} onClick={() => patch.mutate({ cells: draft })}>
-                                {patch.isPending ? "Đang lưu…" : "Lưu"}
+                            <Button
+                                size="sm"
+                                aria-label="Lưu"
+                                title="Lưu"
+                                disabled={patch.isPending}
+                                onClick={() => patch.mutate({ cells: draft })}
+                            >
+                                <Save className="size-3.5" aria-hidden />
                             </Button>
                         </div>
                         {error && <p className="text-xs text-destructive">{error}</p>}
@@ -198,28 +206,28 @@ function StagedRowItem({
                             <Button
                                 size="sm"
                                 variant="outline"
+                                aria-label="Sửa"
+                                title="Sửa"
                                 disabled={patch.isPending || row.dropped}
                                 onClick={() => {
                                     setDraft(row.cells)
                                     setEditing(true)
                                 }}
                             >
-                                <Pencil className="size-3.5" aria-hidden /> Sửa
+                                <Pencil className="size-3.5" aria-hidden />
                             </Button>
                             <Button
                                 size="sm"
                                 variant="ghost"
+                                aria-label={row.dropped ? "Trở lại" : "Bỏ"}
+                                title={row.dropped ? "Trở lại" : "Bỏ"}
                                 disabled={patch.isPending}
                                 onClick={toggleDrop}
                             >
                                 {row.dropped ? (
-                                    <>
-                                        <RotateCcw className="size-3.5" aria-hidden /> Trở lại
-                                    </>
+                                    <RotateCcw className="size-3.5" aria-hidden />
                                 ) : (
-                                    <>
-                                        <Trash2 className="size-3.5" aria-hidden /> Bỏ
-                                    </>
+                                    <Trash2 className="size-3.5" aria-hidden />
                                 )}
                             </Button>
                         </div>
@@ -256,8 +264,14 @@ function AddRowForm({ batchId, onAdded }: { batchId: string; onAdded: () => void
 
     if (!open) {
         return (
-            <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
-                <Plus className="size-3.5" aria-hidden /> Thêm row
+            <Button
+                size="sm"
+                variant="outline"
+                aria-label="Thêm row"
+                title="Thêm row"
+                onClick={() => setOpen(true)}
+            >
+                <Plus className="size-3.5" aria-hidden />
             </Button>
         )
     }
@@ -299,15 +313,23 @@ function AddRowForm({ batchId, onAdded }: { batchId: string; onAdded: () => void
             </div>
             {error && <p className="text-xs text-destructive">{error}</p>}
             <div className="flex justify-end gap-2">
-                <Button size="sm" variant="outline" onClick={() => { setOpen(false); setError(null) }}>
-                    Hủy
+                <Button
+                    size="sm"
+                    variant="outline"
+                    aria-label="Hủy"
+                    title="Hủy"
+                    onClick={() => { setOpen(false); setError(null) }}
+                >
+                    <X className="size-3.5" aria-hidden />
                 </Button>
                 <Button
                     size="sm"
+                    aria-label="Thêm"
+                    title="Thêm"
                     disabled={add.isPending || !sourceId.trim() || !draft.question.trim()}
                     onClick={() => add.mutate()}
                 >
-                    {add.isPending ? "Đang thêm…" : "Thêm"}
+                    <Plus className="size-3.5" aria-hidden />
                 </Button>
             </div>
         </div>
@@ -400,11 +422,16 @@ function CommitToMatchDialog({
                 </div>
 
                 <DialogFooter className="items-center gap-2">
-                    <Button variant="outline" onClick={onClose} disabled={commit.isPending}>
-                        Hủy
+                    <Button variant="outline" aria-label="Hủy" title="Hủy" onClick={onClose} disabled={commit.isPending}>
+                        <X className="size-4" aria-hidden />
                     </Button>
-                    <Button disabled={!ready || commit.isPending} onClick={() => commit.mutate()}>
-                        {commit.isPending ? "Đang commit…" : "Commit vào trận"}
+                    <Button
+                        aria-label="Commit vào trận"
+                        title="Commit vào trận"
+                        disabled={!ready || commit.isPending}
+                        onClick={() => commit.mutate()}
+                    >
+                        <Link2 className="size-4" aria-hidden />
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -485,20 +512,22 @@ function StagedGrid({ batch, onChanged }: { batch: StagedBatch; onChanged: () =>
 
             <div className="flex flex-wrap items-center gap-2">
                 <Button
+                    aria-label={`Commit ${live.length} câu vào bank (DRAFT)`}
+                    title={`Commit ${live.length} câu vào bank (DRAFT)`}
                     disabled={commit.isPending || live.length === 0 || toFix > 0}
                     onClick={() => commit.mutate()}
                 >
-                    {commit.isPending
-                        ? "Đang commit…"
-                        : `Commit ${live.length} câu vào bank (DRAFT)`}
+                    <Database className="size-4" aria-hidden />
                 </Button>
                 {me?.role === "ADMIN" && (
                     <Button
                         variant="outline"
+                        aria-label="Commit vào trận…"
+                        title="Commit vào trận…"
                         disabled={commit.isPending || live.length === 0 || toFix > 0}
                         onClick={() => setCommittingToMatch(true)}
                     >
-                        Commit vào trận…
+                        <Link2 className="size-4" aria-hidden />
                     </Button>
                 )}
             </div>
@@ -545,10 +574,6 @@ export function StagedImportBanner() {
     return (
         <div className="rounded-xl border border-amber-600/40 bg-amber-500/10 px-4 py-3">
             <div className="flex flex-wrap items-center gap-2">
-                <ChevronDown
-                    className={cn("size-4 transition-transform", !open && "-rotate-90")}
-                    aria-hidden
-                />
                 <span className="text-sm font-semibold">Staged import</span>
                 <span className="text-sm text-muted-foreground">
                     {active.sourceName ?? "workbook"} · {active.rowCount} rows
@@ -563,19 +588,28 @@ export function StagedImportBanner() {
                 )}
 
                 <div className="ml-auto flex items-center gap-2">
-                    <Button size="sm" variant="outline" onClick={() => setOpen((value) => !value)}>
-                        {open ? "Ẩn" : "Review"}
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        aria-label={open ? "Ẩn" : "Review"}
+                        title={open ? "Ẩn" : "Review"}
+                        onClick={() => setOpen((value) => !value)}
+                    >
                         {open ? (
-                            <ChevronRight className="size-3.5" aria-hidden />
-                        ) : null}
+                            <EyeOff className="size-4" aria-hidden />
+                        ) : (
+                            <Eye className="size-4" aria-hidden />
+                        )}
                     </Button>
                     <Button
                         size="sm"
                         variant="ghost"
+                        aria-label="Bỏ batch"
+                        title="Bỏ batch"
                         disabled={discard.isPending}
                         onClick={() => setConfirmDiscard(true)}
                     >
-                        <Trash2 className="size-3.5" aria-hidden /> Bỏ batch
+                        <Trash2 className="size-4" aria-hidden />
                     </Button>
                 </div>
             </div>
@@ -589,15 +623,22 @@ export function StagedImportBanner() {
                             <DialogTitle>Bỏ batch này?</DialogTitle>
                         </DialogHeader>
                         <DialogFooter className="items-center gap-2">
-                            <Button variant="outline" onClick={() => setConfirmDiscard(false)}>
-                                Hủy
+                            <Button
+                                variant="outline"
+                                aria-label="Hủy"
+                                title="Hủy"
+                                onClick={() => setConfirmDiscard(false)}
+                            >
+                                <X className="size-4" aria-hidden />
                             </Button>
                             <Button
                                 variant="destructive"
+                                aria-label="Bỏ batch"
+                                title="Bỏ batch"
                                 disabled={discard.isPending}
                                 onClick={() => discard.mutate(active.id)}
                             >
-                                {discard.isPending ? "Đang xóa…" : "Bỏ batch"}
+                                <Trash2 className="size-4" aria-hidden />
                             </Button>
                         </DialogFooter>
                     </DialogContent>

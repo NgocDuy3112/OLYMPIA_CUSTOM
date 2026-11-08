@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Download, FileText, Lightbulb, Pencil, Plus, X } from "lucide-react"
+import { Archive, Braces, Copy, Download, ExternalLink, EyeOff, FileText, Globe, Lightbulb, ListPlus, Pencil, Plus, Search, Send, ShieldCheck, Sheet, Undo2, X } from "lucide-react"
 import { cn } from "cn"
 import { ApiError, api } from "@shared/lib/api"
 import { Badge } from "@shared/ui/badge"
@@ -108,6 +108,16 @@ const TRANSITIONS: Record<Status, Array<{ to: Status; label: string; adminOnly?:
         { to: "ARCHIVED", label: "Archive" },
     ],
     ARCHIVED: [],
+}
+
+// Icon-only actions: the label lives in title/aria-label, so the Actions cell
+// stops wrapping — and the tests' role queries keep resolving.
+const TRANSITION_ICON: Record<string, typeof Pencil> = {
+    Submit: Send,
+    Publish: Globe,
+    Return: Undo2,
+    Unpublish: EyeOff,
+    Archive: Archive,
 }
 
 
@@ -282,37 +292,37 @@ function RowActions({
             <Button
                 variant="outline"
                 size="sm"
+                aria-label="Edit"
+                title="Edit"
                 disabled={row.status === "ARCHIVED" || busy}
-                title={row.status === "ARCHIVED" ? "Archived questions are immutable" : undefined}
                 onClick={() => onEdit(row)}
             >
-                <Pencil className="size-3.5" aria-hidden /> Edit
+                <Pencil className="size-3.5" aria-hidden />
             </Button>
             <Button
                 variant="outline"
                 size="sm"
+                aria-label="Thêm vào trận"
+                title="Thêm vào trận"
                 disabled={row.status !== "PUBLISHED" || busy}
-                title={
-                    row.status !== "PUBLISHED"
-                        ? "Chỉ câu PUBLISHED mới vào được trận"
-                        : "Chọn một trận UPCOMING và mở composer với câu này"
-                }
                 onClick={() => setAdding(true)}
             >
-                Thêm vào trận
+                <ListPlus className="size-3.5" aria-hidden />
             </Button>
             {TRANSITIONS[row.status].map((step) => {
                 const blocked = step.adminOnly && !isAdmin
+                const Icon = TRANSITION_ICON[step.label] ?? Pencil
                 return (
                     <Button
                         key={step.to}
                         variant={step.to === "ARCHIVED" ? "ghost" : "outline"}
                         size="sm"
+                        aria-label={step.label}
+                        title={step.label}
                         disabled={blocked || busy}
-                        title={blocked ? "Only an admin may publish" : `Move to ${STATUS_LABEL[step.to]}`}
                         onClick={() => onTransition(row, step.to)}
                     >
-                        {step.label}
+                        <Icon className="size-3.5" aria-hidden />
                     </Button>
                 )
             })}
@@ -401,9 +411,21 @@ function AddToMatchDialog({ rows, onClose }: { rows: BankQuestion[] | null; onCl
                     )}
                 </div>
                 <DialogFooter>
-                    <Button variant="outline" onClick={onClose}>Hủy</Button>
-                    <Button onClick={go} disabled={!ready} title={ready ? undefined : "Chọn giải và trận"}>
-                        Mở trận và thêm
+                    <Button
+                        variant="outline"
+                        aria-label="Hủy"
+                        title="Hủy"
+                        onClick={onClose}
+                    >
+                        <X className="size-4" aria-hidden />
+                    </Button>
+                    <Button
+                        aria-label="Mở trận và thêm"
+                        title="Mở trận và thêm"
+                        onClick={go}
+                        disabled={!ready}
+                    >
+                        <ExternalLink className="size-4" aria-hidden />
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -773,11 +795,12 @@ function KeywordSetCard({
                     <Button
                         variant="outline"
                         size="sm"
+                        aria-label="Add hint"
+                        title="Add hint"
                         disabled={hints.isPending || hintRows.length >= HINT_MAX}
-                        title={hintRows.length >= HINT_MAX ? `${HINT_MAX}/${HINT_MAX} hints used — convert or archive one first` : undefined}
                         onClick={() => onAddHint(row.id)}
                     >
-                        <Lightbulb className="size-3.5" aria-hidden /> Add hint
+                        <Lightbulb className="size-3.5" aria-hidden />
                     </Button>
                 </div>
             </div>
@@ -947,8 +970,8 @@ function InspectorDrawer({ row, onClose }: { row: BankQuestion | null; onClose: 
                 </div>
 
                 <div className="mt-auto pt-4">
-                    <Button variant="outline" className="w-full" onClick={onClose}>
-                        Đóng
+                    <Button variant="ghost" aria-label="Đóng" title="Đóng" onClick={onClose}>
+                        <X className="size-4" aria-hidden />
                     </Button>
                 </div>
             </aside>
@@ -991,9 +1014,11 @@ function ArchiveConfirmDialog({
                 </div>
                 {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
                 <DialogFooter>
-                    <Button variant="outline" onClick={onCancel} disabled={pending}>Cancel</Button>
-                    <Button onClick={onConfirm} disabled={pending}>
-                        {pending ? "Archiving…" : "Archive"}
+                    <Button variant="outline" aria-label="Cancel" title="Cancel" onClick={onCancel} disabled={pending}>
+                        <X className="size-4" aria-hidden />
+                    </Button>
+                    <Button aria-label="Archive" title="Archive" onClick={onConfirm} disabled={pending}>
+                        <Archive className="size-4" aria-hidden />
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -1185,16 +1210,20 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
                         <Button
                             size="sm"
                             variant={mode === "json" ? "secondary" : "ghost"}
+                            aria-label="JSON"
+                            title="JSON"
                             onClick={() => switchMode("json")}
                         >
-                            JSON
+                            <Braces className="size-4" aria-hidden />
                         </Button>
                         <Button
                             size="sm"
                             variant={mode === "excel" ? "secondary" : "ghost"}
+                            aria-label="Excel (.xlsx)"
+                            title="Excel (.xlsx)"
                             onClick={() => switchMode("excel")}
                         >
-                            Excel (.xlsx)
+                            <Sheet className="size-4" aria-hidden />
                         </Button>
                     </div>
 
@@ -1349,17 +1378,21 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
 
                 <DialogFooter className="items-center gap-2">
                     <span className="mr-auto text-xs text-muted-foreground">{reason}</span>
-                    <Button variant="outline" onClick={onClose} disabled={busy}>
-                        Cancel
+                    <Button variant="outline" aria-label="Cancel" title="Cancel" onClick={onClose} disabled={busy}>
+                        <X className="size-4" aria-hidden />
                     </Button>
                     <Button
                         variant="secondary"
+                        aria-label="Validate (dry run)"
+                        title="Validate (dry run)"
                         onClick={onValidate}
                         disabled={busy || (mode === "json" ? !text.trim() : !file)}
                     >
-                        {validate.isPending || validateExcel.isPending ? "Validating…" : "Validate (dry run)"}
+                        <ShieldCheck className="size-4" aria-hidden />
                     </Button>
                     <Button
+                        aria-label={willStage ? "Import & review" : "Import"}
+                        title={willStage ? "Import & review" : "Import"}
                         onClick={onImport}
                         disabled={
                             reason !== null ||
@@ -1367,13 +1400,8 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
                             (mode === "json" && currentReport.errors.length > 0) ||
                             busy
                         }
-                        title={reason ?? undefined}
                     >
-                        {runImport.isPending || runExcelImport.isPending
-                            ? "Importing…"
-                            : willStage
-                              ? "Import & review"
-                              : "Import"}
+                        <Download className="size-4" aria-hidden />
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -1496,9 +1524,11 @@ function GroupSection({
                         variant="ghost"
                         size="sm"
                         className="ml-auto"
+                        aria-label="Thêm"
+                        title="Thêm"
                         onClick={() => onAdd(group.bucket as string)}
                     >
-                        <Plus className="size-4" aria-hidden /> Thêm
+                        <Plus className="size-4" aria-hidden />
                     </Button>
                 )}
             </header>
@@ -1831,11 +1861,11 @@ export function QuestionsPage() {
                 title="Questions"
                 actions={
                     <div className="flex items-center gap-2">
-                        <Button variant="outline" onClick={() => setImportOpen(true)}>
-                            <Download className="size-4" aria-hidden /> Import
+                        <Button variant="outline" aria-label="Import" title="Import" onClick={() => setImportOpen(true)}>
+                            <Download className="size-4" aria-hidden />
                         </Button>
-                        <Button onClick={() => setEditing({ open: true, row: null })}>
-                            <Plus className="size-4" aria-hidden /> New question
+                        <Button aria-label="New question" title="New question" onClick={() => setEditing({ open: true, row: null })}>
+                            <Plus className="size-4" aria-hidden />
                         </Button>
                     </div>
                 }
@@ -1878,7 +1908,9 @@ export function QuestionsPage() {
                             className="h-8 w-56"
                         />
                     </label>
-                    <Button type="submit" variant="outline" size="sm" className="h-8">Search</Button>
+                    <Button type="submit" variant="outline" size="sm" className="h-8" aria-label="Search" title="Search">
+                        <Search className="size-4" aria-hidden />
+                    </Button>
                 </form>
 
                 {TABS.map((tab) => {
@@ -1983,22 +2015,32 @@ export function QuestionsPage() {
                             className="ml-auto"
                             size="sm"
                             variant="outline"
+                            aria-label="Nộp duyệt"
+                            title="Nộp duyệt"
                             disabled={bulkBusy}
                             onClick={() => bulkStatus("PENDING")}
                         >
-                            Nộp duyệt
+                            <Send className="size-4" aria-hidden />
                         </Button>
                         <Button
                             size="sm"
                             variant="outline"
+                            aria-label="Đăng"
+                            title="Đăng"
                             disabled={bulkBusy || !isAdmin}
-                            title={isAdmin ? undefined : "Chỉ admin mới được đăng"}
                             onClick={() => bulkStatus("PUBLISHED")}
                         >
-                            Đăng
+                            <Globe className="size-4" aria-hidden />
                         </Button>
-                        <Button size="sm" variant="outline" disabled={bulkBusy} onClick={bulkDuplicate}>
-                            Nhân bản
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            aria-label="Nhân bản"
+                            title="Nhân bản"
+                            disabled={bulkBusy}
+                            onClick={bulkDuplicate}
+                        >
+                            <Copy className="size-4" aria-hidden />
                         </Button>
                         <select
                             value=""
@@ -2024,13 +2066,22 @@ export function QuestionsPage() {
                         <Button
                             size="sm"
                             variant="outline"
+                            aria-label="Thêm vào trận"
+                            title="Thêm vào trận"
                             disabled={bulkBusy}
                             onClick={() => setAddRows([...selected.values()])}
                         >
-                            Thêm vào trận
+                            <ListPlus className="size-4" aria-hidden />
                         </Button>
-                        <Button size="sm" variant="ghost" disabled={bulkBusy} onClick={clearSelection}>
-                            Bỏ chọn
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            aria-label="Bỏ chọn"
+                            title="Bỏ chọn"
+                            disabled={bulkBusy}
+                            onClick={clearSelection}
+                        >
+                            <X className="size-4" aria-hidden />
                         </Button>
                         {bulkBusy && (
                             <span className="text-xs text-muted-foreground">Đang xử lý…</span>

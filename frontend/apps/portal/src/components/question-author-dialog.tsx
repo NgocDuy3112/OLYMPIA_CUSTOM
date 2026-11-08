@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Plus, X } from "lucide-react"
+import { Link2, Plus, Save, X } from "lucide-react"
 import { api } from "@shared/lib/api"
 import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
@@ -485,8 +485,15 @@ export function QuestionAuthorDialog({
                                     </Button>
                                 </div>
                             ))}
-                            <Button variant="outline" size="sm" className="justify-start" onClick={addOption}>
-                                <Plus className="size-4" /> Thêm lựa chọn
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="justify-start"
+                                aria-label="Thêm lựa chọn"
+                                title="Thêm lựa chọn"
+                                onClick={addOption}
+                            >
+                                <Plus className="size-4" />
                             </Button>
                         </div>
                     )}
@@ -551,9 +558,11 @@ export function QuestionAuthorDialog({
                             variant="outline"
                             size="sm"
                             className="justify-start"
+                            aria-label="Gắn vào bộ từ khóa (hint)"
+                            title="Gắn vào bộ từ khóa (hint)"
                             onClick={() => setLinking(true)}
                         >
-                            Gắn vào bộ từ khóa (hint)
+                            <Link2 className="size-4" />
                         </Button>
                     )}
 
@@ -606,11 +615,22 @@ export function QuestionAuthorDialog({
                             {problem}
                         </Badge>
                     )}
-                    <Button variant="ghost" onClick={onCancel} disabled={busy}>
-                        Cancel
+                    <Button
+                        variant="ghost"
+                        aria-label="Cancel"
+                        title="Cancel"
+                        onClick={onCancel}
+                        disabled={busy}
+                    >
+                        <X className="size-4" />
                     </Button>
-                    <Button onClick={save} disabled={problem !== null || busy} title={problem ?? undefined}>
-                        {busy ? "…" : "Save"}
+                    <Button
+                        aria-label="Save"
+                        title="Save"
+                        onClick={save}
+                        disabled={problem !== null || busy}
+                    >
+                        <Save className="size-4" />
                     </Button>
                 </DialogFooter>
             </DialogContent>
