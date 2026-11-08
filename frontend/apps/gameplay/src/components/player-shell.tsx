@@ -6,6 +6,7 @@ import { Badges, MainCard, Rail, StageLayout } from "@shared/deck/player-deck"
 import { ROUND_LABEL, pt } from "@shared/deck/geometry"
 import { gateOf } from "@/lib/player-gate"
 import { PlayerGateScreen } from "./player-gates"
+import { CameraPanel } from "@/components/live/CameraPanel"
 import { usePlayerModel } from "@/hooks/use-player-model"
 
 export function PlayerShell({ matchId }: { matchId: string }) {
@@ -27,29 +28,42 @@ export function PlayerShell({ matchId }: { matchId: string }) {
         if (model.lobby.data) {
             return (
                 <StageShell>
-                    <Lobby data={model.lobby.data} meId={model.myId} hint={model.lobbyHint} />
+                    <Lobby
+                        data={model.lobby.data}
+                        meId={model.myId}
+                        hint={model.lobbyHint}
+                        belowHint={<CameraPanel />}
+                    />
                 </StageShell>
             )
         }
         const v = model.v!
         return (
-            <StageShell>
-                <StageLayout rail={<Rail variant="compact" view={v} myId={model.myId} />}>
-                    <MainCard>
-                        <Badges round={ROUND_LABEL[v.roundId] ?? v.roundId} />
-                        <p className="font-sans leading-relaxed text-foreground" style={{ fontSize: pt(16) }}>
-                            {model.lobbyHint}
-                        </p>
-                        <p className="font-sans text-muted-foreground" style={{ fontSize: pt(13) }}>
-                            Điểm của bạn: <b className="tabular-nums text-foreground">{v.me.points ?? v.me.score ?? 0}</b>
-                        </p>
-                    </MainCard>
-                </StageLayout>
-            </StageShell>
+            <>
+                <StageShell>
+                    <StageLayout rail={<Rail variant="compact" view={v} myId={model.myId} />}>
+                        <MainCard>
+                            <Badges round={ROUND_LABEL[v.roundId] ?? v.roundId} />
+                            <p className="font-sans leading-relaxed text-foreground" style={{ fontSize: pt(16) }}>
+                                {model.lobbyHint}
+                            </p>
+                            <p className="font-sans text-muted-foreground" style={{ fontSize: pt(13) }}>
+                                Điểm của bạn: <b className="tabular-nums text-foreground">{v.me.points ?? v.me.score ?? 0}</b>
+                            </p>
+                        </MainCard>
+                    </StageLayout>
+                </StageShell>
+                <CameraPanel />
+            </>
         )
     }
 
     const body = model.render && model.ctx ? model.render(model.ctx) : null
-    return <StageShell>{body}</StageShell>
+    return (
+        <>
+            <StageShell>{body}</StageShell>
+            <CameraPanel />
+        </>
+    )
 }
 

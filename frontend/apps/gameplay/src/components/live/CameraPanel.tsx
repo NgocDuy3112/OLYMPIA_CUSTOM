@@ -43,7 +43,7 @@ export function CameraPanel() {
         <div
             role="region"
             aria-label="Điều khiển camera"
-            className="fixed bottom-4 right-4 z-50 overflow-hidden rounded-xl border border-border bg-card px-2 py-1.5 font-sans shadow-xl"
+            className="mx-auto mt-3 flex w-full max-w-sm flex-col gap-1 rounded-xl border border-border bg-card px-3 py-2 text-left font-sans shadow-sm"
         >
             <div className="flex items-center justify-between gap-3">
                 <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">

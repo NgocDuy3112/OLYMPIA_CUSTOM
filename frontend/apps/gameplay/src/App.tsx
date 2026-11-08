@@ -10,7 +10,6 @@ import { LoginPage } from "@/pages/LoginPage"
 import { ChangePasswordPage } from "@/pages/ChangePasswordPage"
 import { CodePage } from "@/pages/CodePage"
 import { PlayerShell } from "@/components/player-shell"
-import { CameraPanel } from "@/components/live/CameraPanel"
 import { SelfBroadcastContext, useSelfBroadcast } from "@shared/lib/rtc"
 import { useSchedule, useStandings, useTournament, useTournamentList, type TournamentDetail } from "@/lib/api"
 import { toMatch, toStandings } from "@/lib/adapters"
@@ -110,7 +109,6 @@ function MatchRoute() {
     return (
         <SelfBroadcastContext.Provider value={selfCam}>
             <PlayerShell matchId={row.id} />
-            <CameraPanel />
         </SelfBroadcastContext.Provider>
     )
 }

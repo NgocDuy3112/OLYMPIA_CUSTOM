@@ -26,6 +26,7 @@ export function Lobby({
     meId,
     mc,
     hint,
+    belowHint,
 }: {
     data: LobbyData
     meId?: string | null
@@ -36,6 +37,8 @@ export function Lobby({
         opensMatch?: boolean
     }
     hint?: ReactNode
+    /** Rendered directly under the hint — the player's camera controls live here. */
+    belowHint?: ReactNode
 }) {
     const selfCam = useSelfCam()
 
@@ -87,6 +90,8 @@ export function Lobby({
                     {hint}
                 </p>
             )}
+
+            {belowHint}
 
 
             {mc && data.rounds.length > 0 && (

@@ -4,6 +4,7 @@ import { Lobby } from "@shared/deck/lobby"
 import { Gate } from "@shared/deck/player-deck"
 import { Card, CardContent } from "@shared/ui/card"
 import { NOT_LIVE_HINT } from "@/lib/lobby-hint"
+import { CameraPanel } from "@/components/live/CameraPanel"
 import { loginLink } from "@/lib/session"
 import type { PlayerGate } from "@/lib/player-gate"
 import type { PlayerModel } from "@/hooks/use-player-model"
@@ -13,7 +14,7 @@ const actionClass = "rounded-lg bg-primary px-4 py-2 font-sans text-sm font-semi
 function SessionGate({ title, body, next }: { title: string; body: string; next: string }) {
     return (
         <StageShell fullHeight>
-            <div className="flex min-h-dvh items-center justify-center p-5">
+            <div className="flex min-h-dvh flex-col items-center justify-center gap-4 p-5">
                 <Card className="w-full max-w-[30rem]">
                     <CardContent className="flex flex-col gap-5">
                         <div className="flex flex-col gap-1 text-center">
@@ -27,6 +28,7 @@ function SessionGate({ title, body, next }: { title: string; body: string; next:
                         </Link>
                     </CardContent>
                 </Card>
+                <CameraPanel />
             </div>
         </StageShell>
     )
@@ -56,26 +58,40 @@ export function PlayerGateScreen({ gate, model }: { gate: PlayerGate; model: Pla
     }
 
     if (gate === "not-live") {
+        if (model.lobby.data) {
+            return (
+                <StageShell>
+                    <Lobby
+                        data={model.lobby.data}
+                        meId={model.myId}
+                        hint={NOT_LIVE_HINT}
+                        belowHint={<CameraPanel />}
+                    />
+                </StageShell>
+            )
+        }
         return (
-            <StageShell>
-                {model.lobby.data ? (
-                    <Lobby data={model.lobby.data} meId={model.myId} hint={NOT_LIVE_HINT} />
-                ) : (
+            <>
+                <StageShell>
                     <Gate title="Trận chưa bắt đầu" body="Điều hành chưa mở trận — trang tự cập nhật khi trận sang LIVE.">
                         <button onClick={model.retry} className={actionClass}>Thử lại</button>
                     </Gate>
-                )}
-            </StageShell>
+                </StageShell>
+                <CameraPanel />
+            </>
         )
     }
 
     return (
-        <StageShell>
-            <Gate title="Đang tải…" body={model.failureMessage ?? "Đọc trạng thái vòng thi"}>
-                {model.failureMessage ? (
-                    <button onClick={model.retry} className={actionClass}>Thử lại</button>
-                ) : null}
-            </Gate>
-        </StageShell>
+        <>
+            <StageShell>
+                <Gate title="Đang tải…" body={model.failureMessage ?? "Đọc trạng thái vòng thi"}>
+                    {model.failureMessage ? (
+                        <button onClick={model.retry} className={actionClass}>Thử lại</button>
+                    ) : null}
+                </Gate>
+            </StageShell>
+            <CameraPanel />
+        </>
     )
 }
