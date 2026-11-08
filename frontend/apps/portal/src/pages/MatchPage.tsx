@@ -4,6 +4,7 @@ import { SearchX } from "lucide-react"
 import { PageHeader, EmptyState, ErrorPanel } from "@/components/page"
 import { useMatches } from "@/lib/tournament"
 import { StandardMatchControl } from "@/components/standard-match-control"
+import { MatchQuestionSurface } from "@/components/match-question-surface"
 import { Controller } from "@/console/controller"
 
 
@@ -64,6 +65,7 @@ export function MatchPage() {
                 <Controller tournamentId={tournamentId!} matchId={match.id} />
             )}
             <StandardMatchControl tournamentId={tournamentId!} match={match} />
+            <MatchQuestionSurface tournamentId={tournamentId!} match={match} />
         </FullPage>
     )
 }

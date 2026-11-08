@@ -1,7 +1,3 @@
-// What a single player should see. The shared flow (which question or window is open)
-// plus that player's own private state (revealed hints, their keyword value, whether
-// they may still act). Pure: the caller supplies the parsed round state and the player's
-// own answer rows from the ledger.
 import {
     isWindowOpen as giaiMaWindowOpen,
     keywordValueFor,
@@ -26,16 +22,9 @@ import type { MatchQuestion } from "../../game/contracts/index.js";
 export interface SubmittedAnswer {
     questionId: string;
     judged: boolean;
-    // The player's OWN final verdict — null while the answer is only a draft. It
-    // never crosses seats: the view only ever exposes the rows it was given.
     verdict: "CORRECT" | "INCORRECT" | null;
 }
 
-/**
- * Rounds whose VERDICTS are public once judged: the whole field may see who got
- * the question right. giai-ma is deliberately absent — its hints and keyword are
- * private until the console reveals them, so its verdicts stay with the player.
- */
 const PUBLISHES_VERDICTS = new Set(["khoi-dong", "but-pha", "ve-dich"]);
 
 export interface ViewInput {
@@ -46,12 +35,8 @@ export interface ViewInput {
     userId: string;
     state: unknown;
     submitted: SubmittedAnswer[];
-    /** Every JUDGED row of the round in play (any player) — the public board. */
     judged?: Array<{ questionId: string; userId: string; verdict: "CORRECT" | "INCORRECT" | null }>;
-    // The match's frozen questions — the source of every payload in the view.
-    // Texts and options are shown; answers never are (sanitizeQuestion).
     questions?: MatchQuestion[];
-    // Caller-computed live totals (sum + display names); the view only ranks them.
     table?: ScoreRow[];
 }
 
@@ -67,13 +52,8 @@ export interface PlayerView {
     roundId: string;
     version: number;
     stage: string;
-    // the questions this player may answer right now: usually none, one, or (khoi-dong
-    // phase 2) a batch
     open: Array<{ questionId: string; deadlineAt: string | null; question: SanitizedQuestion | null }>;
-    // The shared live scoreboard — every screen (players and console) shows it.
     table: RankedScore[];
-    // khoi-dong phase 1: the question the ACTIVE oral run is on — sent to EVERYONE
-    // (decision 2310: the oral question is on every seated screen).
     oral?: {
         questionId: string;
         question: SanitizedQuestion | null;
@@ -83,28 +63,14 @@ export interface PlayerView {
         elapsedS: number;
         budgetS: number;
     } | null;
-    // ve-dich: the FULL show table — every frozen cell with its state: playable
-    // now, this turn's batch, picked (black), or (in Chung) waiting upstairs.
     board?: Array<{ questionId: string; value: number; where: "free" | "pending" | "open" | "taken" | "deferred" }>;
-    // giai-ma: THE keyword question — without it a player cannot submit the one
-    // thing the round is about. Sanitized like every other exposure.
     keyword?: { questionId: string; question: SanitizedQuestion | null } | null;
-    /**
-     * Who was judged RIGHT, once the console has judged — for rounds whose verdicts
-     * are public (khởi động, bứt phá, về đích; NOT giải mã, whose hints and the
-     * keyword stay private until the console reveals them).
-     */
     publicVerdicts?: Array<{
         questionId: string;
         userId: string;
         verdict: "CORRECT" | "INCORRECT";
     }>;
-    /**
-     * The console's Hiện đáp án: one question's CORRECT ANSWER, on every screen
-     * (players and audience alike). Present only while that question is still
-     * the one in play — advancing hides it, without the reveal ever being
-     * "undone". The gate lives here, so no client can read an answer early.
-     */
+    audioGate?: { allowed: string[] };
     revealed?: { questionId: string; answer: string };
     me: Record<string, unknown>;
 }
@@ -112,15 +78,11 @@ export interface PlayerView {
 const plusSeconds = (iso: string, seconds: number): string =>
     new Date(Date.parse(iso) + seconds * 1000).toISOString();
 
-// The frozen question behind an id — payload or null (never throws: a view must
-// degrade to the id rather than crash a live screen).
 const questionOf = (input: ViewInput, questionId: string): SanitizedQuestion | null => {
     const question = (input.questions ?? []).find((item) => item._id === questionId);
     return question ? sanitizeQuestion(question) : null;
 };
 
-// Equal points share a rank; the next rank counts positions (competition ranking).
-// Exported: the routes' hand-built pending view ranks with the same function.
 export const rankTable = (table: ScoreRow[] = []): RankedScore[] => {
     const sorted = [...table].sort((a, b) => b.points - a.points);
     let rank = 0;
@@ -134,16 +96,12 @@ export const rankTable = (table: ScoreRow[] = []): RankedScore[] => {
     });
 };
 
-// How much of the player's own answer has been finalized for a question.
 const stateOf = (submitted: SubmittedAnswer[], questionId: string): "none" | "draft" | "final" => {
     const row = submitted.find((s) => s.questionId === questionId);
     if (!row) return "none";
     return row.judged ? "final" : "draft";
 };
 
-// The player's own ✓/✗ per question — judged rows only, keyed by question. This
-// is THEIR ledger: the view receives only their rows, so the map can never leak
-// another seat's verdict.
 const verdictsOf = (submitted: SubmittedAnswer[]): Record<string, "CORRECT" | "INCORRECT"> =>
     Object.fromEntries(
         submitted
@@ -179,8 +137,6 @@ function giaiMaView(input: ViewInput, state: GiaiMaState): PlayerView {
             keywordLocked: player?.keywordLocked ?? false,
             eliminated: player?.eliminated ?? false,
             keywordValue: player ? keywordValueFor(state, input.userId) : null,
-            // The hints this player unlocked — with their content, so the screen
-            // can show what was revealed (G7).
             revealedHints: (player?.revealed ?? []).map((questionId) => ({
                 questionId,
                 question: questionOf(input, questionId)
@@ -237,15 +193,9 @@ function khoiDongView(input: ViewInput, state: KhoiDongState): PlayerView {
             matchId: input.matchId,
             roundId: input.roundId,
             version: input.version,
-            // endKhoiDong keeps state.stage — without this mapping the ended
-            // round still reads "phase1" and BOTH surfaces stay on the round
-            // screen ("Về sảnh" looks dead: the lobby's waiting gate never fires).
             stage: state.ended ? "ended" : "phase1",
             open: [],                                   // phase 1 is oral: nothing to type
             table: rankTable(input.table),
-            // The engine tracks the run as a consumed budget (elapsedS/budgetS),
-            // not a wall clock — the console's recording drives it, so this is a bar,
-            // never a fake countdown.
             oral: run && currentId !== null
                 ? {
                       questionId: currentId,
@@ -265,15 +215,10 @@ function khoiDongView(input: ViewInput, state: KhoiDongState): PlayerView {
         };
     }
 
-    // ── phase 2: the timed batch ─────────────────────────────────────────────
     const p2 = state.phase2;
     const questionId = p2 === null ? null : phase2QuestionId(p2);
     const windowOpen = p2 !== null && isPhase2WindowOpen(p2, input.now);
 
-    // The question in play is on screen as soon as it IS the question in play
-    // (the field may pre-read it); the DEADLINE only exists while the window
-    // runs — before Bấm giờ `deadlineAt` is null, so the countdown is empty and
-    // the answer field stays locked.
     const open: PlayerView["open"] = questionId === null || p2 === null
         ? []
         : [{
@@ -286,17 +231,13 @@ function khoiDongView(input: ViewInput, state: KhoiDongState): PlayerView {
         matchId: input.matchId,
         roundId: input.roundId,
         version: input.version,
-        // See the phase-1 branch: ended must surface as a waiting stage.
         stage: state.ended ? "ended" : "phase2",
         open,
         table: rankTable(input.table),
         me: {
             points: khoiDongPoints(state, input.userId),
             answerState: questionId === null ? "none" : stateOf(input.submitted, questionId),
-            // Is THIS player's field open right now — the window runs (a judged
-            // or drafted row shows its state instead of the input).
             windowOpen,
-            // the strip: which of the six is in play, and how many there are
             questionIndex: p2?.index ?? 0,
             questionCount: p2?.questionIds.length ?? 0,
             verdicts: verdictsOf(input.submitted)
@@ -312,18 +253,12 @@ function veDichView(input: ViewInput, state: VeDichState): PlayerView {
         ? []
         : [{
               questionId: open.question.id,
-              // the deadline is the buzz window while it is open, otherwise none
               deadlineAt: open.stage === "buzz" && state.buzzOpenedAt !== null
                   ? plusSeconds(state.buzzOpenedAt, 5)
                   : null,
               question: questionOf(input, open.question.id)
           }];
 
-    // The board the state knows: free cells, this turn's batch, the open question.
-    // The show table keeps EVERY cell visible: playable (free), this turn's
-    // batch (pending/open), already picked (taken — the black cells), and in
-    // Chung the 40/50s that haven't reached the table yet (deferred). One entry
-    // per frozen question — no duplicates by construction.
     const openId = open?.question.id ?? null;
     const pendingIds = new Set(state.pendingPicks.map((q) => q.id));
     const freeIds = new Set(state.remaining.map((q) => q.id));
@@ -335,12 +270,23 @@ function veDichView(input: ViewInput, state: VeDichState): PlayerView {
                 q._id === openId ? "open" as const
                 : pendingIds.has(q._id) ? "pending" as const
                 : freeIds.has(q._id) ? "free" as const
-                // pre-rule archives carry no deferred list: in Chung a big cell
-                // can only be waiting, never picked.
                 : deferredIds.has(q._id) || (state.phase === 1 && q.points > 30) ? "deferred" as const
                 : "taken" as const;
             return { questionId: q._id, value: q.points, where };
         });
+
+    const audioGate =
+        state.phase !== 2 || open === null
+            ? null
+            : {
+                  allowed: [
+                      ...new Set(
+                          [open.answerer, open.assignedTo ?? null, open.buzzer ?? null].filter(
+                              (id): id is string => Boolean(id)
+                          )
+                      ),
+                  ],
+              };
 
     const isMyTurn = !state.ended && open === null
         && state.players[state.turnIndex]?.id === input.userId;
@@ -360,21 +306,15 @@ function veDichView(input: ViewInput, state: VeDichState): PlayerView {
             pendingPicks: state.pendingPicks.map((q) => q.id),
             isAnswerer: open?.answerer === input.userId,
             canAnswer: open !== null && open.stage === "current" && open.answerer === input.userId,
-            // Powers are NOT the player's to declare — the console stages them
-            // on the pick board before the question opens (see declarePower).
-            // Who may buzz is the ENGINE's rule, not a re-derivation: everyone but
-            // the answerer on a normal question; ONLY the two halves of the duel on
-            // an ASSIGN question (where the answerer buzzes too). `isBuzzOpen` also
-            // carries the operator's lock, so a locked race offers nobody a buzz.
             canBuzz: open !== null && open.stage === "buzz" && open.buzzer === null
                 && mayBuzz(state, input.userId) && isBuzzOpen(state, input.now),
             power: open?.power ?? null,
             buzzer: open?.buzzer ?? null,
-            // The stopwatch: how fast the winning buzz was (ve-dich's windows).
             buzzerMs: open?.buzzerMs ?? null,
             answerState: open === null ? "none" : stateOf(input.submitted, open.question.id),
             verdicts: verdictsOf(input.submitted)
-        }
+        },
+        ...(audioGate ? { audioGate } : {})
     };
 }
 
@@ -392,19 +332,6 @@ export function buildPlayerView(input: ViewInput): PlayerView {
     };
 }
 
-/**
- * Attach the console's revealed answer (Hiện đáp án), if it still qualifies.
- * The state remembers WHICH answer was revealed; this decides whether that
- * question is still the one on screen:
- *
- *   khởi động / bứt phá / về đích — the question in play (the cursor / the
- *   open question), so the advance hides it;
- *   giải mã — the hint whose window is open or was just judged (the picked
- *   tail), or the KEYWORD, which is on every screen all round.
- *
- * Unknown question ids and unshowable payloads degrade to no reveal — a view
- * must never crash, and never leak, over a display nicety.
- */
 function withReveal(input: ViewInput, view: PlayerView): PlayerView {
     const marker = input.state as { revealedAnswer?: string | null } | null | undefined;
     const questionId = marker?.revealedAnswer;

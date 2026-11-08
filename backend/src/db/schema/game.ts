@@ -34,7 +34,6 @@ export const verdict = pgEnum("verdict", ["CORRECT", "INCORRECT"]);
 export const power = pgEnum("power", ["STAR", "ASSIGN"]);
 export const matchEventKind = pgEnum("match_event_kind", ["PICK", "BUZZ", "POWER"]);
 
-// A match is played for points.
 export const matchKind = pgEnum("match_kind", ["STANDARD"]);
 
 
@@ -54,6 +53,8 @@ export const matches = pgTable(
         players: jsonb("players").$type<Seat[]>().notNull(),
         roundConfigs: jsonb("round_configs").$type<Record<string, RoundConfig>>().notNull(),
         questions: jsonb("questions").$type<MatchQuestion[]>().notNull(),
+        assemblyRevision: integer("assembly_revision").notNull().default(0),
+        assembledAt: timestamp("assembled_at", { withTimezone: true }),
         live: jsonb("live").$type<MatchLive>(),
         discord: jsonb("discord").$type<MatchDiscord>(),
 
@@ -75,17 +76,6 @@ export const matches = pgTable(
 );
 
 
-// A ROOM code: the walk-in's half of an entrance.
-//
-// It answers ONE question — WHICH ROOM is open — and never who is typing it:
-// the account is the only identity, and a claim needs a session AND this row.
-// Rotation and expiry are the whole point, so the code is a row with a clock
-// instead of a column that lives forever (the `join_code` column 0008 dropped
-// could neither expire nor be rotated).
-//
-// Step 8 removed the second kind this table started with (the one-time ENTRY
-// code): with the desk issuing passwords directly, a forgotten one is fixed by
-// a reset + forced change, and a table with one meaning needs no target CHECK.
 export const matchCodes = pgTable(
     "match_codes",
     {
@@ -95,8 +85,6 @@ export const matchCodes = pgTable(
             .notNull()
             .references(() => matches.id, { onDelete: "cascade" }),
         expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-        // A "who minted it" reference, like audit_events.actor_id: the trail
-        // outlives the user, and the room does not care who asked.
         createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
     },
@@ -157,9 +145,6 @@ export const matchResults = pgTable(
     }
 );
 
-// The controller's manual score corrections — an append-only, audited ledger at
-// MATCH level (round engines keep their own points untouched). Rows fold into
-// the live scoreboard (scoreTable) and the frozen results (scoring.ts).
 export const scoreAdjustments = pgTable(
     "score_adjustments",
     {
@@ -177,8 +162,6 @@ export const scoreAdjustments = pgTable(
 );
 
 
-// A standing is a PLACE for a USER: one row per (tournament, user). Teams are
-// gone, so there is no second identity and no partial index guarding one.
 export const tournamentStandings = pgTable(
     "tournament_standings",
     {
@@ -227,7 +210,6 @@ export const matchStats = pgTable(
         uniqueIndex("match_stats_member_unique")
             .on(table.matchId, table.roundId, table.questionId, table.userId),
         index("match_stats_tournament_round_idx").on(table.tournamentId, table.roundId),
-        // Stats are per QUESTION: one row per player per frozen question instance.
         check(
             "match_stats_question_grain_check",
             sql`question_id IS NOT NULL`
@@ -258,8 +240,6 @@ export const matchEvents = pgTable(
         uniqueIndex("match_events_buzz_unique")
             .on(table.matchId, table.questionId, table.userId)
             .where(sql`kind = 'BUZZ'`),
-        // One STAR and one ASSIGN per player across all of ve-dich — so the key is the
-        // power itself, not the round. The old key allowed only one power per round.
         uniqueIndex("match_events_power_unique")
             .on(table.matchId, table.userId, sql`(payload->>'power')`)
             .where(sql`kind = 'POWER'`),
@@ -275,10 +255,6 @@ export const matchEvents = pgTable(
     ]
 );
 
-// Live round state for an in-progress match. One row per live match.
-// `version` is the optimistic-concurrency counter: every console action must name the version
-// it was based on, and a stale one is rejected (HTTP 409). `state` holds the round
-// engine's pure state as JSON. Public match rows (`matches.live`) are unaffected.
 export const matchLive = pgTable(
     "match_live",
     {
@@ -288,12 +264,30 @@ export const matchLive = pgTable(
         version: integer("version").notNull().default(0),
         roundId: text("round_id").notNull(),
         state: jsonb("state").$type<Record<string, unknown>>().notNull(),
-        // Rounds the controller has left — kept per round so any round can be
-        // re-opened later (no one-way doors for the console).
         archive: jsonb("archive").$type<Record<string, Record<string, unknown>>>().notNull().default(sql`'{}'::jsonb`),
         updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
     },
     (table) => [
         check("match_live_version_check", sql`version >= 0`)
     ]
+);
+
+export const matchAssemblyEvents = pgTable(
+    "match_assembly_events",
+    {
+        id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+        matchId: uuid("match_id")
+            .notNull()
+            .references(() => matches.id),
+        revision: integer("revision").notNull(),
+        actorId: uuid("actor_id")
+            .notNull()
+            .references(() => users.id),
+        mode: text("mode").notNull().default("replace"),
+        addedCount: integer("added_count").notNull().default(0),
+        removedCount: integer("removed_count").notNull().default(0),
+        sourceIds: text("source_ids").array().notNull(),
+        at: timestamp("at", { withTimezone: true }).notNull().defaultNow()
+    },
+    (table) => [index("match_assembly_events_match_idx").on(table.matchId, table.revision)]
 );

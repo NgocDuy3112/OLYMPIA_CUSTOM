@@ -18,6 +18,7 @@ import {
     deleteMatch,
     ejectSeat,
     getMatch,
+    getMatchAssemblyEvents,
     listMatches,
     requireMatchScope,
     setMatchResults,
@@ -148,7 +149,8 @@ export async function matchRoutes(app: FastifyInstance) {
             const scope = await requireMatchScope(tournamentId);
             assertView(scope, user, tournamentId);
 
-            return getMatch(tournamentId, matchId);
+            const match = await getMatch(tournamentId, matchId);
+            return { ...match, assemblyEvents: await getMatchAssemblyEvents(matchId) };
         }
     );
 
@@ -194,7 +196,6 @@ export async function matchRoutes(app: FastifyInstance) {
         }
     );
 
-    // Re-assembly while UPCOMING: replaces matches.questions[] entirely.
     app.post(
         "/portal/tournaments/:tournamentId/matches/:matchId/assemble",
         {
@@ -233,7 +234,6 @@ export async function matchRoutes(app: FastifyInstance) {
             const previous = await getMatch(tournamentId, matchId);
             const match = await transitionMatch(tournamentId, matchId, status);
 
-            // Only real transitions are audited; a same-status no-op is not an event.
             if (match.status !== previous.status) {
                 const action = match.status === "LIVE" ? "match_started" : "match_ended";
                 await auditFromRequest(request, action, {
@@ -251,10 +251,6 @@ export async function matchRoutes(app: FastifyInstance) {
         }
     );
 
-    // Take ONE seat back — the console's eject for a walk-in who claimed with
-    // the wrong code. A seat-level edit (not updateMatch's whole-array replace),
-    // so the format's seat count is not re-litigated here: it is checked when
-    // the match goes LIVE, which says what is missing.
     app.delete(
         "/portal/tournaments/:tournamentId/matches/:matchId/players/:userId",
         { onRequest: staff, schema: { params: seatParams } },
@@ -281,7 +277,6 @@ export async function matchRoutes(app: FastifyInstance) {
         }
     );
 
-    // Soft delete — ADMIN only, and only while the match is still UPCOMING.
     app.delete(
         "/portal/tournaments/:tournamentId/matches/:matchId",
         {

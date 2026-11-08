@@ -5,14 +5,6 @@ import { Input } from "@shared/ui/input"
 import { useEnrolled, useSetMatchResults, useTransitionMatch } from "@/lib/tournament"
 import type { MatchSummary } from "@/lib/tournament"
 
-// A standard match's page section: its identity, its assembly state, its one
-// operational transition (UPCOMING → LIVE), and result entry — all promoted off
-// dialogs onto the match's own page (the recorded 2310 decision).
-//
-// No re-assembly button here on purpose: assembleMatch requires an explicit
-// questions/autoPick payload (a pick UI), and the match's questions are frozen
-// the moment it exists — surfacing a half-pick would risk the show's data.
-// The page SHOWS the assembly state instead.
 
 export function StandardMatchControl({
     tournamentId,
@@ -46,7 +38,7 @@ export function StandardMatchControl({
 
     return (
         <div className="flex flex-col gap-6">
-            {/* identity + assembly state */}
+            
             <Section>
                 <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
                     <Fact label="Vòng thi">{match.stageId}</Fact>
@@ -57,14 +49,9 @@ export function StandardMatchControl({
                         })}
                     </Fact>
                 </dl>
-                <p className="mt-3 text-sm text-muted-foreground">
-                    {match.questions.length > 0
-                        ? `${match.questions.length} câu hỏi đã assembly và đóng băng cho trận này.`
-                        : "Chưa có câu hỏi — assembly diễn ra ngay khi tạo trận."}
-                </p>
             </Section>
 
-            {/* the transition: the first exposure of the status routes in the UI */}
+            
             {match.status === "UPCOMING" && (
                 <Section>
                     <div className="flex flex-wrap items-center justify-between gap-4">
@@ -97,7 +84,7 @@ export function StandardMatchControl({
                 </Section>
             )}
 
-            {/* result entry — promoted from the MatchResultDialog */}
+            
             {match.status !== "FINISHED" && (
                 <Section>
                     <h2 className="mb-1 text-lg font-semibold">Nhập kết quả</h2>

@@ -1,20 +1,5 @@
-/**
- * PlayerShell — StageShell in PLAYER mode: the OC3.pptm deck, but the drawn
- * control strip is replaced by the player's own ActionBar band — input box,
- * choice-option buttons, buzzer, keyword box, pick-confirm — exactly where the console's
- * buttons used to sit (ui-structure-plan.md ③, decision: same shell, input
- * replaces controls in the ActionBar region).
- *
- * STRUCTURE (Phase 3): this file is now ONLY the shell —
- *   1. the gate (401 / 403 / 409 / loading), drawn by `player-gates`;
- *   2. the waiting room, when `playerScreenOf` says this view is a lobby;
- *   3. one dispatch into the round's module (`src/rounds` owns the rules).
- * The hooks, the gates' facts and the whole `PlayerCtx` bag live in
- * `hooks/use-player-model`; the drawn primitives in `@shared/deck/player-deck`.
- *
- * Players reach the match through THIS app (gameplay), never the portal — the
- * login door is /login.
- */
+import { useEffect } from "react"
+import { useSelfCam } from "@shared/lib/rtc"
 import { StageShell } from "@shared/deck/stage-shell"
 import { Lobby } from "@shared/deck/lobby"
 import { Badges, MainCard, Rail, StageLayout } from "@shared/deck/player-deck"
@@ -26,11 +11,18 @@ import { usePlayerModel } from "@/hooks/use-player-model"
 export function PlayerShell({ matchId }: { matchId: string }) {
     const model = usePlayerModel(matchId)
 
-    // ── 1. the gate: a dead session, the wrong seat, or a match not LIVE yet ──
+    const setSpeakGate = useSelfCam()?.setSpeakGate
+    const audioGate = model.v?.audioGate
+    const speak = audioGate
+        ? Boolean(model.myId) && audioGate.allowed.includes(model.myId ?? "")
+        : null
+    useEffect(() => {
+        setSpeakGate?.(speak)
+    }, [setSpeakGate, speak])
+
     const gate = gateOf({ failureStatus: model.failureStatus, hasView: model.v !== undefined })
     if (gate) return <PlayerGateScreen gate={gate} model={model} />
 
-    // ── 2. the waiting room — where every ended / unknown / paused round lands ─
     if (model.screen === "lobby") {
         if (model.lobby.data) {
             return (
@@ -39,7 +31,6 @@ export function PlayerShell({ matchId }: { matchId: string }) {
                 </StageShell>
             )
         }
-        // Lobby still loading: the deck's own waiting card (never a blank canvas).
         const v = model.v!
         return (
             <StageShell>
@@ -58,7 +49,6 @@ export function PlayerShell({ matchId }: { matchId: string }) {
         )
     }
 
-    // ── 3. the round's own screen — one module, one dispatch ──────────────────
     const body = model.render && model.ctx ? model.render(model.ctx) : null
     return <StageShell>{body}</StageShell>
 }

@@ -6,13 +6,6 @@ import { questionBank, tournamentPlayers, tournaments, users } from "../../src/d
 import { signToken } from "../../src/lib/jwt.js";
 import type { RoundConfig } from "../../src/game/contracts/index.js";
 
-// The public read surface: what a spectator sees, with no session at all.
-//
-// The rules under test:
-//   - PUBLIC serves; PRIVATE and deleted are 404 — existence never leaks, so never 403.
-//   - The schedule resolves the display string ("<stage title> · <label>"), resolves
-//     names, and embeds results only for FINISHED matches.
-//   - The frozen questions — the bank with its answers — never reach the wire.
 
 let app: FastifyInstance;
 let ownerCookie: string;
@@ -24,7 +17,6 @@ let playerIds: string[];
 
 const auth = (cookie: string) => ({ cookie: `portal_session=${cookie}` });
 
-// The rulebook the tournament is played on — four console questions in one turn.
 const roundRules: Record<string, RoundConfig> = {
     "khoi-dong": {
         allowedKinds: ["CHOICE"],
@@ -95,7 +87,6 @@ beforeAll(async () => {
         .returning({ id: users.id });
     playerIds = players.map((row) => row.id);
 
-    // One PUBLIC and one PRIVATE tournament — the pair every visibility rule is read against.
     const created = await db
         .insert(tournaments)
         .values([
@@ -106,21 +97,16 @@ beforeAll(async () => {
     publicId = created.find((row) => row.visibility === "PUBLIC")!.id;
     privateId = created.find((row) => row.visibility === "PRIVATE")!.id;
 
-    // The roster is the tournament's field: places count it, and the standings read
-    // display names out of it. A player seated but never enrolled still gets a place —
-    // with the raw id for a name.
     await db.insert(tournamentPlayers).values(
         playerIds.map((userId) => ({ tournamentId: publicId, userId }))
     );
 
-    // The bank the matches assemble from. The question text is a canary: if it ever
-    // appears in a public response, the frozen copies have leaked.
     await db.insert(questionBank).values(
         Array.from({ length: 8 }, (_, i) => ({
             kind: "CHOICE" as const,
             questionText: `CANARY-QUESTION-${i}`,
             
-            payload: { options: [{ id: "a", text: "A" }, { id: "b", text: "B" }], correctSet: ["a"] },
+            payload: { type: "CHOICE" as const, options: [{ id: "a", text: "A" }, { id: "b", text: "B" }], correctSet: ["a"] },
             timeLimit: 30,
             status: "PUBLISHED" as const,
             createdBy: rows[0].id
@@ -128,7 +114,6 @@ beforeAll(async () => {
     );
 });
 
-// The shared tournament body, minus the identity the insert adds per row.
 function baseTournament() {
     return {
         
@@ -162,7 +147,6 @@ describe("GET /gameplay/tournaments — the list", () => {
         expect(row).toMatchObject({
             name: "GR Public",
             current: false,
-            // The window is the stage list's own strings, passed through as typed.
             start: "2026-01-01T00:00:00Z",
             end: "2026-02-15T00:00:00Z"
         });
@@ -218,8 +202,6 @@ describe("GET /gameplay/tournaments/:slug/matches — the schedule", () => {
     let finishedMatchId: string;
 
     beforeAll(async () => {
-        // Two matches placed by hand into the playoffs stage: one is played to a
-        // result, one is left upcoming.
         const finished = await createMatch(publicId, {
             slot: 1,
             label: "Quarterfinal 1",
@@ -336,7 +318,6 @@ describe("GET /gameplay/tournaments/:slug/standings — the places", () => {
 
 describe("a tournament that stops being public", () => {
     it("disappears from the public surface the moment it is soft-deleted", async () => {
-        // Create a third public tournament, read it once, then delete it as ADMIN.
         const created = await db
             .insert(tournaments)
             .values({ ownerId, slug: "gr-doomed", name: "GR Doomed", visibility: "PUBLIC", ...baseTournament() })

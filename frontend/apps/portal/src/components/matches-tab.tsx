@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { Link } from "react-router-dom"
 import { RefreshCw, X } from "lucide-react"
 import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
@@ -19,7 +20,6 @@ import { NewMatchDialog } from "./new-match-dialog"
 const short = (id: string) => id.slice(0, 8)
 
 
-// Every match of the tournament. The staff create them; the system plays and scores them.
 export function MatchesTab({
     tournamentId,
     tournament,
@@ -31,18 +31,12 @@ export function MatchesTab({
 }) {
     const matches = useMatches(tournamentId)
     const enrolled = useEnrolled(tournamentId)
-    // The room code: the walk-in's way in (gameplay's /code), shown where the
-    // old PIN used to be. Write-guarded on the server, so `codes.data` existing
-    // IS the permission to show these controls.
     const codes = useMatchCodes(tournamentId)
     const rotate = useRotateMatchCode(tournamentId)
     const eject = useEjectSeat(tournamentId)
-    // AOC: 3 or 4 seats per match — the format decides, the dialog offers.
     const allowedSeats = allowedSeatsOf(tournament.format)
 
     const [creating, setCreating] = useState(false)
-    // A match is played deck-first: Control opens the full-screen StageShell route
-    // (the console's own view), not the page around it. The list stays where it is.
     const openStage = (matchId: string) =>
         window.open(`/tournaments/${tournamentId}/matches/${matchId}/stage`, "_blank")
 
@@ -102,9 +96,33 @@ export function MatchesTab({
                                         <TableRow key={match.id}>
                                             <TableCell className="pl-6">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="font-medium">{match.label}</span>
+                                                    <Link
+                                                        to={`/tournaments/${tournamentId}/matches/${match.id}`}
+                                                        className="font-medium hover:underline"
+                                                        title="Mở trận — xem và thêm câu hỏi"
+                                                    >
+                                                        {match.label}
+                                                    </Link>
                                                 </div>
-                                                <div className="text-xs text-muted-foreground">{match.stageId}</div>
+                                                <div className="text-xs text-muted-foreground">
+                                                    {match.stageId}
+                                                </div>
+                                                
+                                                <div
+                                                    className={
+                                                        match.questions.length > 0
+                                                            ? "text-xs text-muted-foreground"
+                                                            : match.status === "UPCOMING"
+                                                              ? "text-xs text-amber-600 dark:text-amber-500"
+                                                              : "text-xs text-muted-foreground"
+                                                    }
+                                                >
+                                                    {match.questions.length > 0
+                                                        ? `${match.questions.length} câu hỏi`
+                                                        : match.status === "UPCOMING"
+                                                          ? "chưa có câu — nhấn để thêm"
+                                                          : "chưa có câu hỏi"}
+                                                </div>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex flex-wrap gap-1">

@@ -28,7 +28,6 @@ const playerParams = {
     }
 } as const;
 
-/** The desk's FIRST password again — typed, never generated, never audited. */
 const passwordBody = {
     type: "object",
     required: ["password"],
@@ -78,9 +77,6 @@ export async function rosterRoutes(app: FastifyInstance) {
         }
     );
 
-    // Enroll an account the PLAYER registered themselves (email + password of
-    // their own choosing): the operator types the address, never the password.
-    // 404 nobody registered it, 403 unverified, 409 already on the roster.
     app.post(
         "/portal/tournaments/:tournamentId/players/by-email",
         {
@@ -113,8 +109,6 @@ export async function rosterRoutes(app: FastifyInstance) {
         }
     );
 
-    // Edit a contestant: a typo in the name, or the address that lets their own
-    // Google sign-in attach to this same row later (their history never moves).
     app.patch(
         "/portal/tournaments/:tournamentId/players/:userId",
         {
@@ -127,8 +121,8 @@ export async function rosterRoutes(app: FastifyInstance) {
                     minProperties: 1,
                     properties: {
                         displayName: { type: "string", minLength: 1, maxLength: 100 },
-                        // null (or "") detaches the address: a show-floor identity
-                        email: { type: ["string", "null"], maxLength: 255 }
+                        email: { type: ["string", "null"], maxLength: 255 },
+                        discordId: { type: ["string", "null"], pattern: "^[0-9]{15,30}$" }
                     }
                 }
             }
@@ -136,7 +130,7 @@ export async function rosterRoutes(app: FastifyInstance) {
         async (request) => {
             const user = request.sessionUser!;
             const { tournamentId, userId } = request.params as { tournamentId: string; userId: string };
-            const edit = request.body as { displayName?: string; email?: string | null };
+            const edit = request.body as { displayName?: string; email?: string | null; discordId?: string | null };
 
             await assertWrite(tournamentId, user.id, user.role);
             const contestant = await updateContestant(tournamentId, userId, edit);
@@ -149,10 +143,6 @@ export async function rosterRoutes(app: FastifyInstance) {
         }
     );
 
-    // Make the identity a seat points at: a PLAYER with a display name, a handle
-    // derived from it, and the FIRST PASSWORD the desk types. The player owns it
-    // from their first sign-in (the server forces the change), so what the desk
-    // holds is a password that stops being theirs — never one they keep.
     app.post(
         "/portal/tournaments/:tournamentId/players/new",
         {
@@ -165,12 +155,7 @@ export async function rosterRoutes(app: FastifyInstance) {
                     additionalProperties: false,
                     properties: {
                         displayName: { type: "string", minLength: 1, maxLength: 100 },
-                        // The desk's first password, typed for the player to
-                        // change at their first sign-in. Never the player's own:
-                        // they choose that themselves, one screen later.
                         password: { type: "string", minLength: 8, maxLength: 256 },
-                        // Optional, and only ever "where Google sign-in will
-                        // find this same row" — it is not the identity.
                         email: { type: "string", maxLength: 255 }
                     }
                 }
@@ -201,10 +186,6 @@ export async function rosterRoutes(app: FastifyInstance) {
         }
     );
 
-    // FORGOTTEN PASSWORD: the desk types a first password again, and the row
-    // goes back to `mustChangePassword` — this one stops being the desk's at the
-    // player's next sign-in too, and every session the old password minted dies
-    // with the bump. The VALUE never leaves this request; it is not audited.
     app.post(
         "/portal/tournaments/:tournamentId/players/:userId/password",
         { onRequest: staff, schema: { params: playerParams, body: passwordBody } },
@@ -225,8 +206,6 @@ export async function rosterRoutes(app: FastifyInstance) {
         }
     );
 
-    // Off the roster. Refused once they have played, or while they still hold a
-    // seat: the record of the show is not a typo to correct.
     app.delete(
         "/portal/tournaments/:tournamentId/players/:userId",
         { onRequest: staff, schema: { params: playerParams } },
@@ -245,8 +224,6 @@ export async function rosterRoutes(app: FastifyInstance) {
         }
     );
 
-    // The DRAW: place an enrolled contestant in Nhóm A / Nhóm B (or clear it).
-    // The group tables are derived from this, so it is the only group write.
     app.patch(
         "/portal/tournaments/:tournamentId/players/:userId/group",
         {

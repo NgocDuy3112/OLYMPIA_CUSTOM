@@ -1,6 +1,6 @@
-import { and, asc, count, eq, isNull } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNull } from "drizzle-orm";
 import { db } from "../../db/pool.js";
-import { answers, matchLive, matchResults, matchStats, matches, scoreAdjustments, tournaments } from "../../db/schema/index.js";
+import { answers, matchAssemblyEvents, matchLive, matchResults, matchStats, matches, scoreAdjustments, tournaments } from "../../db/schema/index.js";
 import type { ResultEntry, RoundConfig, Seat } from "../../game/contracts/index.js";
 import { MatchError } from "./errors.js";
 import { buildQuestionCopies } from "./assembly.js";
@@ -41,8 +41,6 @@ async function scoreMatch(tx: Tx, match: MatchRow): Promise<void> {
         .filter((seat) => seat.kind === "user")
         .map((seat) => ({ userId: seat.userId }));
 
-    // Manual score corrections, read in the SAME transaction as the freeze —
-    // the frozen totals must equal what the live scoreboard showed.
     const adjustmentRows = await tx
         .select({ userId: scoreAdjustments.userId, delta: scoreAdjustments.delta })
         .from(scoreAdjustments)
@@ -62,7 +60,6 @@ async function scoreMatch(tx: Tx, match: MatchRow): Promise<void> {
         }))
     });
 
-    // A repeated transition must not duplicate frozen rows.
     await tx.insert(matchResults)
         .values({ matchId: match.id, tournamentId: match.tournamentId, results })
         .onConflictDoNothing();
@@ -149,8 +146,6 @@ function assertSeats(
     players: Seat[],
     format: TournamentRow["format"]
 ): void {
-    // A match holds one of the format's allowed seat counts: a fixed number
-    // (classic), or a set of them (AOC group stage — 3 or 4, per match).
     const counts = allowedSeatCounts(format);
     if (!counts.includes(players.length)) {
         throw new MatchError(
@@ -159,8 +154,6 @@ function assertSeats(
         );
     }
 
-    // Seat KIND is no longer a property of the format: every seat is a user
-    // (teams were removed), so there is nothing to compare against.
 
     const seeds = players.map((seat) => seat.seed);
     if (new Set(seeds).size !== seeds.length) {
@@ -169,8 +162,6 @@ function assertSeats(
 }
 
 
-// The format: the stage's rule decides what may sit in a match. The staff place the
-// matches; the engine refuses the ones that break the bracket.
 async function assertFollowsFormat(params: {
     tournamentId: string;
     stageId: string;
@@ -206,10 +197,6 @@ export async function createMatch(
 
     const { tournament } = await requireMatchScope(tournamentId);
 
-    // A match created by hand carries no rulebook: it takes the tournament's rules, and its
-    // questions are assembled from them.
-    // The tournament's stages are its order: a match names one of them, so the standings can
-    // tell how far each player got.
     const stages = tournament.stages ?? [];
     if (stages.length === 0) {
         throw new MatchError(
@@ -225,8 +212,6 @@ export async function createMatch(
         );
     }
 
-    // A match created by hand carries no rulebook: it takes the tournament's rules. A tournament
-    // without rules leaves the match empty — the staff assemble it later.
     const given = input.roundConfigs ?? {};
     const hasRules = Object.keys(tournament.roundRules ?? {}).length > 0;
     const roundConfigs = Object.keys(given).length > 0
@@ -245,9 +230,6 @@ export async function createMatch(
         });
     }
 
-    // The questions were chosen by whoever created the match (the New-match
-    // picker): nothing stages itself from the rulebook anymore. A match created
-    // without questions stays empty until staff assemble it.
     const entries = input.questions ?? [];
 
     const questions = await buildQuestionCopies({
@@ -308,7 +290,15 @@ export async function getMatch(tournamentId: string, matchId: string): Promise<M
     return requireMatch(tournamentId, matchId);
 }
 
-// Lookup by match id alone: the player surface knows its match, not the tournament.
+export async function getMatchAssemblyEvents(matchId: string) {
+    return db
+        .select()
+        .from(matchAssemblyEvents)
+        .where(eq(matchAssemblyEvents.matchId, matchId))
+        .orderBy(desc(matchAssemblyEvents.revision), desc(matchAssemblyEvents.at))
+        .limit(20);
+}
+
 export async function getMatchById(matchId: string): Promise<MatchRow> {
     const [row] = await db
         .select()
@@ -363,17 +353,6 @@ export async function updateMatch(
 }
 
 
-/**
- * Take ONE seat back — the console's eject for a walk-in who claimed with the
- * wrong code, or a seat filled by mistake at the desk.
- *
- * Deliberately NOT `updateMatch`: that replaces the whole players array and
- * validates it against the format, so removing one player would be refused the
- * moment the table is left short of the allowed count. The count is checked
- * where it matters — when the match goes LIVE, which says exactly what is
- * missing. The write runs behind `FOR UPDATE` so two ejects cannot resurrect
- * each other's seat.
- */
 export async function ejectSeat(
     tournamentId: string,
     matchId: string,
@@ -507,8 +486,6 @@ export async function setMatchResults(
         return updated;
     });
 
-    // The standings are never typed in: they follow the points of the matches that were
-    // played, so they are recomputed when a match ends.
     await recomputeStandings(tournamentId);
 
     return row;
@@ -562,9 +539,6 @@ export async function transitionMatch(
             .where(eq(matches.id, matchId))
             .returning();
 
-        // Going LIVE opens the live round record at the tournament's first round. The round's
-        // engine state stays empty until the console starts it. Idempotent: re-entering LIVE
-        // never clobbers an in-progress round.
         if (next === "LIVE") {
             const tournament = await requireTournament(tournamentId);
             const ordered = orderedMatchRounds(tournament.rounds, updated.roundConfigs);
@@ -576,7 +550,6 @@ export async function transitionMatch(
             }
         }
 
-        // Match end freezes the results in the same transaction as the status change.
         if (next === "FINISHED") {
             await scoreMatch(tx, updated);
         }

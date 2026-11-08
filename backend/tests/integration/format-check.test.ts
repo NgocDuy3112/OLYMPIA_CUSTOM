@@ -6,13 +6,11 @@ import { db } from "../../src/db/pool.js";
 import { questionBank, tournamentPlayers, tournaments, users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 
-// The format, checked against the matches the staff place: the engine never draws, but
-// it refuses a match that breaks the bracket.
 
 let app: FastifyInstance;
 let ownerCookie: string;
 let tournamentId: string;
-let playerIds: string[];      // in rank order: playerIds[0] is the best
+let playerIds: string[];      
 
 const auth = (cookie: string) => ({ cookie: `portal_session=${cookie}` });
 const tournamentUrl = (suffix: string) =>
@@ -63,7 +61,6 @@ beforeAll(async () => {
     ).returning();
     playerIds = players.map((row) => row.id);
 
-    // The tournament is the unit: it carries the identity the tournament had.
     const tournamentTags = ["THTH"];
     const tournamentOwner = owner.id;
     const tournamentSlug = "fc-tournament-tournament";
@@ -73,7 +70,6 @@ beforeAll(async () => {
         name: "FC Tournament",
         rounds: [{ id: "ve-dich", name: "Ve Dich", order: 0, chart: "grid" }],
         format: { competitorsPerMatch: 4 },
-        // the first splitting round: the tier draw
         stages: [{ id: "splitting-1", title: "Splitting 1", role: "splitting" }],
         roundRules: {
             "ve-dich": {
@@ -85,9 +81,6 @@ beforeAll(async () => {
     }).returning();
     tournamentId = tournament.id;
 
-    // The entry order IS the pre-tournament ranking (the format check's tier seed):
-    // enroll in rank order with distinct timestamps so the order is the data's, not
-    // the database's.
     await db.insert(tournamentPlayers).values(
         playerIds.map((userId, index) => ({
             tournamentId,
@@ -101,7 +94,7 @@ beforeAll(async () => {
             kind: "CHOICE" as const,
             questionText: `Q${i}`,
             
-            payload: { options: [{ id: "a", text: "A" }, { id: "b", text: "B" }], correctSet: ["a"] },
+            payload: { type: "CHOICE" as const, options: [{ id: "a", text: "A" }, { id: "b", text: "B" }], correctSet: ["a"] },
             timeLimit: 30,
             status: "PUBLISHED" as const,
             tournamentId: null,
@@ -117,7 +110,6 @@ afterAll(async () => {
 
 describe("the tier draw", () => {
     it("accepts a match with one player from each tier", async () => {
-        // Ranks 1, 5, 9 and 13: one from each tier of four.
         const res = await createMatch({ players: [seat(0), seat(4), seat(8), seat(12)] });
         expect(res.statusCode).toBe(201);
     });
@@ -140,7 +132,6 @@ describe("the tier draw", () => {
             stageId: "somewhere-else",
             players: [seat(0), seat(1), seat(2), seat(3)]
         });
-        // the stage is not in the tournament's list at all, so nothing is checked
         expect(res.statusCode).toBe(400);
         expect(res.json().message).toContain("not one of this tournament's stages");
     });

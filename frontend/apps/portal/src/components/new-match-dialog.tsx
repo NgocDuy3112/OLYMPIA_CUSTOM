@@ -1,46 +1,17 @@
 import { useState } from "react"
-import { useQuery } from "@tanstack/react-query"
-import { cn } from "cn"
 import { Button } from "@shared/ui/button"
 import {
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@shared/ui/dialog"
 import { Input } from "@shared/ui/input"
-import { api } from "@shared/lib/api"
 import { seatsPhrase } from "@/lib/tournaments"
 import { useCreateMatch, useEnrolled } from "@/lib/tournament"
-import type { AssemblyEntry, TournamentDetail } from "@/lib/tournament"
+import type { TournamentDetail } from "@/lib/tournament"
 
-// The bank's published questions — the pool the picker draws from.
-interface PoolQuestion {
-    id: string
-    kind: "CHOICE" | "TEXT" | "KEYWORD" | "HINT"
-    questionText: string
-    status: string
-}
 
-interface PoolPage {
-    items: PoolQuestion[]
-    total: number
-}
 
-// One turn that asks for N questions — the picker must fill it before the
-// match can be created (manual picks: nothing stages itself).
-interface Slot {
-    key: string
-    roundId: string
-    turnId: string
-    label: string
-    count: number
-    kinds: Array<PoolQuestion["kind"]>
-}
-
-// A hand-placed match starts an hour out. Computed in the click handler —
-// render stays pure (no Date.now in the component body).
 const inOneHour = () => new Date(Date.now() + 60 * 60 * 1000).toISOString()
 
-// A match, placed by hand: the staff pick who plays whom AND which questions
-// every turn plays — the match is born fully assembled.
 export function NewMatchDialog({
     tournamentId,
     tournament,
@@ -51,9 +22,7 @@ export function NewMatchDialog({
 }: {
     tournamentId: string
     tournament: TournamentDetail
-    /** the default seat count (the format's `competitorsPerMatch`) */
     seats: number
-    /** every count this tournament allows — AOC: 3 or 4, per match */
     allowedSeats: number[]
     open: boolean
     onOpenChange: (open: boolean) => void
@@ -65,59 +34,19 @@ export function NewMatchDialog({
 
     const [label, setLabel] = useState("")
     const [stageId, setStageId] = useState(stages[0]?.id ?? "")
-    // A group match holds 3 or 4 players and the team-point scale resolves by the
-    // real count, so the count is a choice per match — not a property of the form.
     const [seatCount, setSeatCount] = useState(seats)
     const [picked, setPicked] = useState<string[]>(Array.from({ length: seats }, () => ""))
-    const [chosen, setChosen] = useState<Record<string, string[]>>({})
-    const [search, setSearch] = useState("")
 
-    // The pool: every published question (the first 100 — the bank is hand-sized).
-    const pool = useQuery({
-        queryKey: ["eligible-questions", tournamentId],
-        queryFn: () =>
-            api<PoolPage>(`/portal/tournaments/${tournamentId}/eligible-questions?limit=100`),
-        enabled: open,
-    })
 
-    // The slots: every turn of the saved rules that declares questionCount.
-    const rules = tournament.roundRules ?? {}
-    const slots: Slot[] = []
-    for (const round of [...tournament.rounds].sort((a, b) => a.order - b.order)) {
-        const config = rules[round.id]
-        if (!config) continue
-        for (const turn of config.turns) {
-            const count = turn.questionCount ?? 0
-            if (count <= 0) continue
-            slots.push({
-                key: `${round.id}:${turn.id}`,
-                roundId: round.id,
-                turnId: turn.id,
-                label: `${round.name} · ${turn.id}`,
-                count,
-                kinds: config.allowedKinds,
-            })
-        }
-    }
-    const questionsNeeded = slots.reduce((sum, slot) => sum + slot.count, 0)
-    const questionsPicked = slots.reduce(
-        (sum, slot) => sum + (chosen[slot.key]?.length ?? 0),
-        0
-    )
-    const questionsComplete = slots.every(
-        (slot) => (chosen[slot.key]?.length ?? 0) === slot.count
-    )
 
     const players = enrolled.data?.items ?? []
     const chosenPlayers = picked.filter(Boolean)
 
-    /** Change the seat count; the seats already chosen are kept, in order. */
     const reseat = (count: number) => {
         setSeatCount(count)
         setPicked((current) => Array.from({ length: count }, (_, index) => current[index] ?? ""))
     }
 
-    // One visible reason at a time — the disabled Create button states it here.
     const reason =
         label.trim().length === 0
             ? "Give the match a label"
@@ -125,54 +54,26 @@ export function NewMatchDialog({
               ? "Choose a stage"
               : chosenPlayers.length !== seatCount || new Set(chosenPlayers).size !== seatCount
                 ? `Pick ${seatCount} distinct players`
-                : !questionsComplete
-                  ? `Questions: ${questionsPicked}/${questionsNeeded} picked`
-                  : null
+                : null
     const valid = reason === null
 
     const reset = () => {
         setLabel("")
         setPicked(Array.from({ length: seats }, () => ""))
-        setChosen({})
-        setSearch("")
     }
 
-    const toggleQuestion = (slot: Slot, sourceId: string) =>
-        setChosen((current) => {
-            const list = current[slot.key] ?? []
-            if (list.includes(sourceId)) {
-                return { ...current, [slot.key]: list.filter((id) => id !== sourceId) }
-            }
-            if (list.length >= slot.count) return current
-            return { ...current, [slot.key]: [...list, sourceId] }
-        })
+
 
     const submit = () => {
-        const questions: AssemblyEntry[] = slots.flatMap((slot) =>
-            (chosen[slot.key] ?? []).map((sourceId) => ({
-                roundId: slot.roundId,
-                turnId: slot.turnId,
-                sourceId,
-            }))
-        )
         const scheduledAt = inOneHour()
         create.mutate(
-            { label: label.trim(), stageId, scheduledAt, playerIds: chosenPlayers, questions },
+            { label: label.trim(), stageId, scheduledAt, playerIds: chosenPlayers },
             { onSuccess: () => { reset(); onOpenChange(false) } }
         )
     }
 
     const error = create.isError ? create.error : null
     const pending = create.isPending
-
-    const visibleFor = (slot: Slot): PoolQuestion[] => {
-        const needle = search.trim().toLowerCase()
-        return (pool.data?.items ?? []).filter(
-            (question) =>
-                slot.kinds.includes(question.kind) &&
-                (needle.length === 0 || question.questionText.toLowerCase().includes(needle))
-        )
-    }
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -181,8 +82,8 @@ export function NewMatchDialog({
                     <DialogHeader>
                         <DialogTitle>New match</DialogTitle>
                         <DialogDescription>
-                            Pick {allowedSeats.length > 1 ? seatsPhrase(allowedSeats) : seatCount} players,
-                            then the questions each turn&apos;s rules ask for.
+                            Pick {allowedSeats.length > 1 ? seatsPhrase(allowedSeats) : seatCount} players.
+                            Questions are added on the match page after it&apos;s created.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -217,8 +118,7 @@ export function NewMatchDialog({
                                 )}
                             </label>
 
-                            {/* A group match holds 3 or 4 — the count is a property of
-                                THIS match, decided now (team points resolve by it). */}
+                            
                             {allowedSeats.length > 1 ? (
                                 <div className="flex items-center gap-2 text-sm">
                                     <span className="text-muted-foreground">Seats</span>
@@ -257,8 +157,7 @@ export function NewMatchDialog({
                                                 value={player.userId}
                                                 disabled={picked.includes(player.userId) && picked[seat] !== player.userId}
                                             >
-                                                {/* the group is what a seat's placement banks for, so
-                                                    the operator picking seats must see it */}
+                                                
                                                 {player.displayName}
                                                 {player.group ? ` · Nhóm ${player.group}` : " · chưa xếp nhóm"}
                                             </option>
@@ -266,94 +165,6 @@ export function NewMatchDialog({
                                     </select>
                                 ))}
                             </div>
-
-                    {/* ── the assembly step: one section per turn the rules feed ── */}
-                    {slots.length > 0 && (
-                        <div className="flex flex-col gap-3 border-t pt-4">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                                <span className="text-sm font-medium">
-                                    Questions · {questionsPicked}/{questionsNeeded} picked
-                                </span>
-                                <Input
-                                    value={search}
-                                    onChange={(event) => setSearch(event.target.value)}
-                                    placeholder="filter questions…"
-                                    className="h-8 w-56"
-                                />
-                            </div>
-
-                            {slots.map((slot) => {
-                                const pickedIds = chosen[slot.key] ?? []
-                                const visible = visibleFor(slot)
-                                return (
-                                    <div key={slot.key} className="rounded-lg border p-3">
-                                        <div className="mb-2 flex items-center justify-between gap-2 text-xs">
-                                            <span className="font-medium text-muted-foreground">
-                                                {slot.label}
-                                            </span>
-                                            <span
-                                                className={
-                                                    pickedIds.length === slot.count
-                                                        ? "text-emerald-600 dark:text-emerald-500"
-                                                        : "text-amber-600 dark:text-amber-500"
-                                                }
-                                            >
-                                                {pickedIds.length}/{slot.count} ·{" "}
-                                                {slot.kinds.join(" · ")}
-                                            </span>
-                                        </div>
-                                        <ul className="grid max-h-44 gap-1 overflow-y-auto">
-                                            {visible.map((question) => {
-                                                const selected = pickedIds.includes(question.id)
-                                                const full = pickedIds.length >= slot.count && !selected
-                                                return (
-                                                    <li key={question.id}>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => toggleQuestion(slot, question.id)}
-                                                            disabled={full}
-                                                            className={cn(
-                                                                "flex w-full items-center gap-2 rounded-md border px-2 py-1.5 text-left text-sm transition-colors",
-                                                                selected
-                                                                    ? "border-primary bg-primary/10"
-                                                                    : "border-transparent hover:bg-muted",
-                                                                full && "opacity-40"
-                                                            )}
-                                                        >
-                                                            <span className="w-4 shrink-0 text-xs">
-                                                                {selected ? "✓" : ""}
-                                                            </span>
-                                                            <span className="truncate">
-                                                                {question.questionText}
-                                                            </span>
-                                                            <span className="ml-auto shrink-0 rounded border px-1 text-[10px] text-muted-foreground">
-                                                                {question.kind}
-                                                            </span>
-                                                        </button>
-                                                    </li>
-                                                )
-                                            })}
-                                            {visible.length === 0 && (
-                                                <li className="px-2 py-1 text-xs text-muted-foreground">
-                                                    {pool.isPending
-                                                        ? "Loading the pool…"
-                                                        : `No matching questions${search.trim() ? " for this filter" : ""}.`}
-                                                </li>
-                                            )}
-                                        </ul>
-                                    </div>
-                                )
-                            })}
-
-                            <p className="text-xs text-muted-foreground">
-                                Pool: every published question
-                                {pool.data
-                                    ? ` (${pool.data.items.length} of ${pool.data.total} shown)`
-                                    : ""}{" "}
-                                — pick exactly what each turn asks for.
-                            </p>
-                        </div>
-                    )}
 
                     {error && <p className="text-sm text-destructive">{error.message}</p>}
 

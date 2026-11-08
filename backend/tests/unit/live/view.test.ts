@@ -28,8 +28,6 @@ const base = (over: Partial<Parameters<typeof buildPlayerView>[0]>) => ({
     state: {}, submitted: [] as SubmittedAnswer[], ...over
 });
 
-// The show's board carries NO category labels — a cell IS its score; the
-// ordinal tells the same-score cells apart ("40-1" … "40-4").
 const cells = (value: number, count: number): VeDichQuestion[] =>
     Array.from({ length: count }, (_, i) => ({ id: `${value}-${i + 1}`, value, timeLimit: 30 }));
 
@@ -110,7 +108,6 @@ describe("player view — but-pha", () => {
 
 describe("player view — khoi-dong", () => {
     const P1 = ["a1", "a2", "a3", "a4", "a5", "a6"];
-    // Chung is six questions now — the phase refuses any other count.
     const P2 = Array.from({ length: 6 }, (_, i) => `b${i + 1}`);
 
     it("phase 1 is oral: nothing to type, and it says whose run it is", () => {
@@ -126,9 +123,9 @@ describe("player view — khoi-dong", () => {
         const state = beginPhase2(finishSetup(["p0", "p1"], P1, P2), P2);
         const waiting = buildPlayerView(base({ roundId: "khoi-dong", state }));
         expect(waiting.stage).toBe("phase2");
-        expect(waiting.open).toHaveLength(1);                       // one question at a time
+        expect(waiting.open).toHaveLength(1);                       
         expect(waiting.open[0]).toEqual({ questionId: "b1", deadlineAt: null, question: null });
-        expect(waiting.me.windowOpen).toBe(false);                  // the field is locked
+        expect(waiting.me.windowOpen).toBe(false);                  
         expect(waiting.me.questionCount).toBe(6);
     });
 
@@ -145,7 +142,6 @@ describe("player view — khoi-dong", () => {
         const running = openWindow(beginPhase2(finishSetup(["p0", "p1"], P1, P2), P2), NOW);
         const expired = buildPlayerView(base({ roundId: "khoi-dong", state: running, now: at(10.5) }));
         expect(expired.me.windowOpen).toBe(false);
-        // …and every player reads the same lock, whoever they are
         const theirs = buildPlayerView(base({ roundId: "khoi-dong", state: running, now: at(10.5), userId: "p1" }));
         expect(theirs.me.windowOpen).toBe(false);
     });
@@ -168,20 +164,17 @@ describe("player view — khoi-dong", () => {
         const view = buildPlayerView(base({ roundId: "khoi-dong", state, now: at(1) }));
         expect(view.me.questionIndex).toBe(1);
         expect(view.open[0].questionId).toBe("b2");
-        expect(view.me.windowOpen).toBe(false);                     // its window waits for Bấm giờ
+        expect(view.me.windowOpen).toBe(false);                     
     });
 
     it("an ENDED round surfaces the waiting stage — Về sảnh lands on the lobby", () => {
-        // endKhoiDong sets `ended` but keeps the stage it was in; without the
-        // view mapping BOTH surfaces stay stuck on the round screen and the
-        // lobby gate (isWaitingStage) never fires — "the button does nothing".
         const oral = endKhoiDong(startKhoiDong(["p0", "p1"], P1));
         expect(buildPlayerView(base({ roundId: "khoi-dong", state: oral })).stage).toBe("ended");
 
         const batch = endKhoiDong(beginPhase2(finishSetup(["p0", "p1"], P1, P2), P2));
         const view = buildPlayerView(base({ roundId: "khoi-dong", state: batch }));
         expect(view.stage).toBe("ended");
-        expect(view.open).toEqual([]); // endKhoiDong closes phase 2 — nothing left to buzz
+        expect(view.open).toEqual([]); 
     });
 });
 
@@ -260,6 +253,22 @@ describe("player view — ve-dich", () => {
         expect(view.me).toMatchObject({ canAnswer: true, canBuzz: false, isAnswerer: true });
     });
 
+    it("the Riêng audio gate: only in-turn, assigned and buzzing players stay audible", () => {
+        const before = buildPlayerView(base({ roundId: "ve-dich", state: phase1(), userId: "p0" }));
+        expect(before.audioGate).toBeUndefined();
+
+        const { state, current } = phase2Open();
+        const opened = buildPlayerView(base({ roundId: "ve-dich", state, userId: current }));
+        expect(opened.audioGate).toEqual({ allowed: [current] });
+
+        const raced = closeCurrentAnswer(state, NOW);
+        const winner = raced.players.find((p) => p.id !== raced.open!.answerer)!.id;
+        const buzzed = buzz(raced, winner, at(1));
+        const view = buildPlayerView(base({ roundId: "ve-dich", state: buzzed, userId: "p1" }));
+        expect(view.audioGate?.allowed).toEqual(expect.arrayContaining([current, winner]));
+        expect(view.audioGate?.allowed).toHaveLength(2);
+    });
+
     it("phase 2: others can buzz once the window opens, and see its deadline", () => {
         const { state } = phase2Open();
         const withBuzzWindow = closeCurrentAnswer(state, NOW);
@@ -268,13 +277,10 @@ describe("player view — ve-dich", () => {
         const view = buildPlayerView(base({ roundId: "ve-dich", state: withBuzzWindow, userId: other }));
         expect(view.me.canBuzz).toBe(true);
         expect(view.me.canAnswer).toBe(false);
-        expect(view.open[0].deadlineAt).toBe(at(5));         // the 5 s buzz window
+        expect(view.open[0].deadlineAt).toBe(at(5));         
     });
 
     it("phase 2: a duel offers the buzz ONLY to the pair — and to the answerer", () => {
-        // ASSIGN staged on the pick board, then the question opens into the
-        // race: the race replaces the "current answers first" step, so the
-        // answerer now HAS a buzz and the room does not.
         const { picked, current, questionId } = phase2Picked();
         const answerer = current;
         const partner = picked.players.find((p) => p.id !== answerer)!.id;
@@ -293,7 +299,6 @@ describe("player view — ve-dich", () => {
         expect(viewOf(partner).canBuzz).toBe(true);
         expect(viewOf(outsider).canBuzz).toBe(false);
 
-        // Once one of them buzzes, the offer disappears for BOTH: one answerer.
         const won = buzz(duel, partner, at(1));
         expect(buildPlayerView(base({ roundId: "ve-dich", state: won, userId: answerer })).me.canBuzz).toBe(false);
         expect(buildPlayerView(base({ roundId: "ve-dich", state: won, userId: partner })).me.canBuzz).toBe(false);
@@ -327,7 +332,6 @@ describe("player view — ve-dich", () => {
 });
 
 
-// ─── L1: what the live surface adds to the view (docs/live-surface.md) ───────
 
 const frozen = (ids: string[], kind: "CHOICE" | "TEXT" = "CHOICE"): MatchQuestion[] =>
     ids.map((id, index) => ({
@@ -360,13 +364,12 @@ describe("player view — payloads (G1)", () => {
         const wire = JSON.stringify(view);
         expect(wire).not.toContain("correctSet");
         expect(wire).not.toContain("acceptedAnswers");
-        // …and nothing revealed it: no console press, no answer on the wire
         expect(view.revealed).toBeUndefined();
     });
 
     it("an unknown id degrades to null instead of throwing", () => {
         const state = openCurrentQuestion(startButPha(["q1", "q2", "q3", "q4"]), NOW);
-        const view = buildPlayerView(base({ roundId: "but-pha", state })); // no questions passed
+        const view = buildPlayerView(base({ roundId: "but-pha", state })); 
         expect(view.open[0]?.question).toBeNull();
     });
 
@@ -419,7 +422,6 @@ describe("player view — ve-dich board (G3)", () => {
     const POOL = [...cells(20, 6), ...cells(30, 6), ...cells(40, 4), ...cells(50, 4)];
     const P = (id: string): PlayerState => ({ id, score: 0, powersLeft: ["STAR", "ASSIGN"] });
 
-    // The board is built from the FROZEN set now — give the view one.
     const veFrozen = (qs: VeDichQuestion[]): MatchQuestion[] =>
         qs.map((q) => ({
             ...frozen([q.id])[0],
@@ -431,10 +433,9 @@ describe("player view — ve-dich board (G3)", () => {
         const state = createVeDich(POOL, [P("p0"), P("p1")]);
         const view = buildPlayerView(base({ roundId: "ve-dich", state, userId: "p0", questions: veFrozen(POOL) }));
 
-        expect(view.board).toHaveLength(POOL.length);                 // one entry per frozen cell
+        expect(view.board).toHaveLength(POOL.length);                 
         expect(view.board).toContainEqual({ questionId: "30-1", value: 30, where: "free" });
         expect(view.board).toContainEqual({ questionId: "20-2", value: 20, where: "free" });
-        // Chung: the 40/50s are on the table but waiting upstairs (deferred)
         expect(view.board).toContainEqual({ questionId: "50-1", value: 50, where: "deferred" });
         expect(view.board).toContainEqual({ questionId: "40-1", value: 40, where: "deferred" });
         expect(view.board?.filter((c) => c.where === "free").every((c) => c.value <= 30)).toBe(true);
@@ -443,19 +444,19 @@ describe("player view — ve-dich board (G3)", () => {
     it("a picked cell STAYS on the board — open now, taken (black) from the next turn", () => {
         let state = createVeDich(POOL, [P("p0"), P("p1")]);
         const view = () => buildPlayerView(base({ roundId: "ve-dich", state, userId: "p0", questions: veFrozen(POOL) }));
-        state = pickPhase1(state, "p0", "30-1");   // opens a 30 (either band)
+        state = pickPhase1(state, "p0", "30-1");   
         expect(view().board)
             .toContainEqual({ questionId: "30-1", value: 30, where: "open" });
 
         state = resolveQuestion(state, { answerer: true });
-        state = advanceTurn(state);                     // this turn is over
+        state = advanceTurn(state);                     
         expect(view().board)
             .toContainEqual({ questionId: "30-1", value: 30, where: "taken" });
     });
 
     it("marks the open question and this turn's picks, each cell exactly once", () => {
         let state = createVeDich(POOL, [P("p0"), P("p1")]);
-        state = advanceTurn(advanceTurn(state));   // phase 1 must run its turns first
+        state = advanceTurn(advanceTurn(state));   
         state = beginVeDichPhase2(state);
         const ids = state.remaining.slice(0, 3).map((q) => q.id);
         state = pickPhase2(state, "p0", ids);
@@ -463,10 +464,9 @@ describe("player view — ve-dich board (G3)", () => {
 
         const view = buildPlayerView(base({ roundId: "ve-dich", state, userId: "p1", questions: veFrozen(POOL) }));
         const cellIds = (view.board ?? []).map((cell) => cell.questionId);
-        expect(new Set(cellIds).size).toBe(cellIds.length);     // no duplicates
+        expect(new Set(cellIds).size).toBe(cellIds.length);     
         expect(view.board?.find((cell) => cell.where === "open")?.questionId).toBe(ids[0]);
         expect(view.board?.some((cell) => cell.where === "free")).toBe(true);
-        // the deferred 40/50s joined the pool when phase 2 began
         expect(cellIds).toContain("50-1");
     });
 });
@@ -504,13 +504,12 @@ describe("player view — Hiện đáp án (the revealed answer)", () => {
     it("bứt phá: the answer rides while the cursor's question is in play", () => {
         const state = { ...openCurrentQuestion(startButPha(Q4), NOW), revealedAnswer: "q1" };
         const view = buildPlayerView(base({ roundId: "but-pha", state, questions: frozen(Q4) }));
-        // frozen's CHOICE correctSet is ["a"] → the option's TEXT, never the id
         expect(view.revealed).toEqual({ questionId: "q1", answer: "A" });
     });
 
     it("bứt phá: the advance hides it — the next question carries no answer, no undo sent", () => {
         const asked = { ...openCurrentQuestion(startButPha(Q4), NOW), revealedAnswer: "q1" };
-        const moved = closeQuestion(asked);                       // cursor → q2
+        const moved = closeQuestion(asked);                       
         const view = buildPlayerView(base({ roundId: "but-pha", state: moved, questions: frozen(Q4) }));
         expect(view.revealed).toBeUndefined();
     });
@@ -524,7 +523,7 @@ describe("player view — Hiện đáp án (the revealed answer)", () => {
         expect(buildPlayerView(base({ roundId: "khoi-dong", state, questions })).revealed)
             .toEqual({ questionId: "b1", answer: "x" });
 
-        state = nextQuestion(openWindow(state, NOW));             // the strip advances
+        state = nextQuestion(openWindow(state, NOW));             
         expect(buildPlayerView(base({ roundId: "khoi-dong", state, questions })).revealed)
             .toBeUndefined();
     });
@@ -537,12 +536,10 @@ describe("player view — Hiện đáp án (the revealed answer)", () => {
         expect(buildPlayerView(base({ roundId: "giai-ma", state, questions })).revealed)
             .toEqual({ questionId: "h1", answer: "x" });
 
-        // judged: the window closes, the picked tail keeps the answer in play
         state = resolveOpenHint(state, {});
         expect(buildPlayerView(base({ roundId: "giai-ma", state, questions })).revealed)
             .toEqual({ questionId: "h1", answer: "x" });
 
-        // the NEXT hint opens → the old answer is off screen until re-revealed
         state = openHint(state, "h2", NOW);
         expect(buildPlayerView(base({ roundId: "giai-ma", state, questions })).revealed)
             .toBeUndefined();
@@ -555,8 +552,6 @@ describe("player view — Hiện đáp án (the revealed answer)", () => {
             questionText: "Từ khoá", media: null, timeLimit: null,
             payload: { code: "CHUNGKET" }, sourceId: "src"
         } as unknown as MatchQuestion;
-        // mid-hint-window: the keyword question is on every screen all round,
-        // so its reveal has no window to wait for
         const state = { ...openHint(startGiaiMa(["p0"], H), "h1", NOW), revealedAnswer: "kw" };
         const view = buildPlayerView(base({
             roundId: "giai-ma", state, questions: [...frozen(H, "TEXT"), keyword]
@@ -573,12 +568,12 @@ describe("player view — Hiện đáp án (the revealed answer)", () => {
         const questions = frozen(POOL.map((q) => q.id));
 
         let state = createVeDich(POOL, players);
-        state = pickPhase1(state, "p0", "30-1");                   // opens a free cell (20s and 30s both fair game)
+        state = pickPhase1(state, "p0", "30-1");                   
         state = { ...state, revealedAnswer: "30-1" };
         expect(buildPlayerView(base({ roundId: "ve-dich", state, questions })).revealed)
             .toEqual({ questionId: "30-1", answer: "A" });
 
-        state = resolveQuestion(state, { answerer: true });        // Hết lượt closes it
+        state = resolveQuestion(state, { answerer: true });        
         expect(buildPlayerView(base({ roundId: "ve-dich", state, questions })).revealed)
             .toBeUndefined();
     });

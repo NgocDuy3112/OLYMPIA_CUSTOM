@@ -15,32 +15,24 @@ import { AddContestantDialog } from "./add-contestant-dialog"
 
 const PASSWORD_MIN = 8
 
-/**
- * Thí sinh — the roster, and the only place a contestant is created or corrected.
- *
- * It lists and nothing else: the name on the board, the ACCOUNT (handle, address
- * if any, password state), and three actions. Group membership belongs to the
- * Groups tab (that tab is the DRAW); scores belong to Standings.
- *
- * Since step 8 the account column IS the identity: the handle is what this
- * player types at the login form, `hasPassword` says whether they can sign in
- * at all yet, and "chưa đổi mật khẩu" means the desk's FIRST password is still
- * in place — every one of those states ends at the same place, the player
- * setting their own password on their first sign-in.
- */
+function discordValue(raw: string): string {
+    const trimmed = raw.trim()
+    if (trimmed === "" || /^[0-9]{15,30}$/.test(trimmed)) return trimmed
+    const extracted = trimmed.match(/(?:users\/|<@)([0-9]{15,30})>?/)
+    return extracted ? extracted[1] : trimmed
+}
+
 export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; frozen: boolean }) {
     const roster = useContestants(tournamentId)
     const update = useUpdateContestant(tournamentId)
     const remove = useRemoveContestant(tournamentId)
     const reset = useResetPassword(tournamentId)
 
-    /** Adding is a dialog, like every other create on this page. */
     const [adding, setAdding] = useState(false)
-    /** The row being edited (null: no row chosen). One panel, so never two forms at once. */
     const [editing, setEditing] = useState<ContestantRow | null>(null)
     const [editName, setEditName] = useState("")
     const [editEmail, setEditEmail] = useState("")
-    /** The row whose password is being (re)set — the other panel, same rule. */
+    const [editDiscord, setEditDiscord] = useState("")
     const [resetting, setResetting] = useState<ContestantRow | null>(null)
     const [newPassword, setNewPassword] = useState("")
 
@@ -51,6 +43,7 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
         setEditing(row)
         setEditName(row.displayName)
         setEditEmail(row.email ?? "")
+        setEditDiscord(row.discordId ?? "")
         update.reset()
         remove.reset()
     }
@@ -61,12 +54,15 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
         const trimmed = editName.trim()
         if (!trimmed) return
         const address = editEmail.trim()
+        const discord = discordValue(editDiscord)
+        if (discord !== "" && !/^[0-9]{15,30}$/.test(discord)) return
+        const discordChanged = (editing.discordId ?? "") !== (discord === "" ? "" : discord)
         update.mutate(
             {
                 userId: editing.userId,
                 displayName: trimmed,
-                // "" detaches the address: Google stops finding this row
                 email: address === "" ? null : address,
+                ...(discordChanged ? { discordId: discord === "" ? null : discord } : {}),
             },
             { onSuccess: () => setEditing(null) }
         )
@@ -76,7 +72,6 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
         remove.mutate(row.userId)
     }
 
-    /** Forgotten password — or a row that never had one (created before step 8). */
     const startReset = (row: ContestantRow) => {
         setEditing(null)
         setResetting(row)
@@ -136,6 +131,7 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
                                 <TableHead className="pl-6">Contestant</TableHead>
                                 <TableHead className="w-28">Nhóm</TableHead>
                                 <TableHead>Account</TableHead>
+                                <TableHead className="w-36">Discord</TableHead>
                                 <TableHead className="w-72 pr-6 text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -187,13 +183,30 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
                                             ) : null}
                                         </div>
                                     </TableCell>
+                                    <TableCell>
+                                        {row.discordId ? (
+                                            <span
+                                                className="font-mono text-xs"
+                                                title={`Discord ID ${row.discordId}`}
+                                            >
+                                                {row.discordId}
+                                            </span>
+                                        ) : (
+                                            <span
+                                                className="text-sm text-muted-foreground"
+                                                title="Chưa có ID Discord — bấm Sửa để lưu (dán ID, mention hoặc link đều được)."
+                                            >
+                                                chưa liên kết
+                                            </span>
+                                        )}
+                                    </TableCell>
                                     <TableCell className="pr-6 text-right">
                                         <span className="flex flex-wrap justify-end gap-1">
                                             <Button
                                                 size="sm"
                                                 variant="ghost"
                                                 onClick={() => startEdit(row)}
-                                                title="Sửa tên / email"
+                                                title="Sửa tên / email / Discord"
                                             >
                                                 <Pencil className="size-3.5" />
                                                 Sửa
@@ -259,7 +272,34 @@ export function PlayersTab({ tournamentId, frozen }: { tournamentId: string; fro
                                 className="h-8 w-56"
                             />
                         </label>
-                        <Button size="sm" type="submit" disabled={update.isPending || editName.trim().length === 0}>
+                        <label className="flex flex-col gap-1">
+                            <span className="text-xs text-muted-foreground">Discord ID (15–30 chữ số)</span>
+                            <Input
+                                value={editDiscord}
+                                onChange={(event) => setEditDiscord(event.target.value)}
+                                maxLength={64}
+                                inputMode="numeric"
+                                aria-label="Discord ID"
+                                placeholder="dán ID, mention hoặc link"
+                                className="h-8 w-56"
+                            />
+                            {editDiscord.trim() !== "" &&
+                                !/^[0-9]{15,30}$/.test(discordValue(editDiscord)) && (
+                                    <span className="text-xs text-destructive">
+                                        ID Discord là dãy 15–30 chữ số
+                                    </span>
+                                )}
+                        </label>
+                        <Button
+                            size="sm"
+                            type="submit"
+                            disabled={
+                                update.isPending ||
+                                editName.trim().length === 0 ||
+                                (editDiscord.trim() !== "" &&
+                                    !/^[0-9]{15,30}$/.test(discordValue(editDiscord)))
+                            }
+                        >
                             {update.isPending ? "Saving…" : "Lưu"}
                         </Button>
                         <Button size="sm" type="button" variant="ghost" onClick={() => setEditing(null)}>

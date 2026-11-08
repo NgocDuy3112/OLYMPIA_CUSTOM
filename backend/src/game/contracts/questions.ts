@@ -17,16 +17,27 @@ export const NormalizeSchema = Type.Object({
 });
 export type Normalize = Static<typeof NormalizeSchema>;
 
+export const QuestionTypeSchema = Type.Union([
+    Type.Literal("TEXT"),
+    Type.Literal("ORAL"),
+    Type.Literal("CHOICE"),
+    Type.Literal("KEYWORD")
+]);
+export type QuestionTypeValue = Static<typeof QuestionTypeSchema>;
+
 export const QuestionPayloadSchema = Type.Union([
     Type.Object({
+        type: Type.Optional(QuestionTypeSchema),
         options: Type.Array(Type.Object({ id: Type.String(), text: Type.String() })),
         correctSet: Type.Array(Type.String())
     }),
     Type.Object({
+        type: Type.Optional(QuestionTypeSchema),
         acceptedAnswers: Type.Array(Type.String()),
         normalize: NormalizeSchema
     }),
     Type.Object({
+        type: Type.Optional(QuestionTypeSchema),
         code: Type.String(),
         normalize: NormalizeSchema
     })
@@ -45,8 +56,6 @@ export const MatchQuestionSchema = Type.Object({
     media: Type.Union([MediaSchema, Type.Null()]),
     timeLimit: Type.Union([Type.Integer(), Type.Null()]),
     points: Type.Integer(),
-    // The ve-dich board's category label (presentation only). Optional: copies
-    // frozen before this field existed simply carry none.
     payload: QuestionPayloadSchema,
     sourceId: Uuid
 });

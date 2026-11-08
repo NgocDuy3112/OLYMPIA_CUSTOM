@@ -15,11 +15,6 @@ import {
     veDichRules
 } from "../../../src/game/engine/rules.js";
 
-// The rulebook is now the ONLY place the AOC rules are stated (the operator no
-// longer types them), so it has to agree with the engine that reads it. These tests
-// resolve each round's canonical config through the engine's own resolver and
-// compare against the engine's defaults: if someone edits a number here, the round
-// changes behaviour and this fails.
 
 describe("the four AOC rounds", () => {
     it("are the rounds the deck has modules for, in playing order", () => {
@@ -82,7 +77,7 @@ describe("the question kinds each round accepts", () => {
     it("matches what its engine deals in", () => {
         expect(aocRoundConfig("khoi-dong")?.allowedKinds).toEqual(["TEXT"]);
         expect(aocRoundConfig("giai-ma")?.allowedKinds).toEqual(["KEYWORD", "HINT"]);
-        expect(aocRoundConfig("but-pha")?.allowedKinds).toEqual(["CHOICE"]);
-        expect(aocRoundConfig("ve-dich")?.allowedKinds).toEqual(["CHOICE"]);
+        expect(aocRoundConfig("but-pha")?.allowedKinds).toEqual(["TEXT"]);
+        expect(aocRoundConfig("ve-dich")?.allowedKinds).toEqual(["TEXT"]);
     });
 });

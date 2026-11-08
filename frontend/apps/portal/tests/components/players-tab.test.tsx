@@ -4,14 +4,6 @@ import { describe, expect, it } from "vitest"
 import { PlayersTab } from "@/components/players-tab"
 import { renderWithProviders } from "../helpers/render"
 
-// Thí sinh — the roster, and the only place a contestant is created or corrected.
-// It lists and nothing else: name, the ACCOUNT (handle, address, password state),
-// and three actions. Group membership belongs to the Groups tab; scores to Standings.
-//
-// The dialog has two doors, in the order step 8 made them matter: CREATE the
-// account (name + the desk's first password — the handle is derived from the
-// name), or enroll an account that already exists by its address (Google-made,
-// or created for another tournament — no password in sight either way).
 
 const TOURNAMENT = "t1"
 const ROSTER_URL = `GET /portal/tournaments/${TOURNAMENT}/players`
@@ -25,23 +17,27 @@ const row = (
     displayName: string,
     email: string | null = null,
     group: "A" | "B" | null = null,
-    over: Partial<{ username: string; hasPassword: boolean; mustChangePassword: boolean }> = {}
+    over: Partial<{
+        username: string
+        hasPassword: boolean
+        mustChangePassword: boolean
+        discordId: string | null
+    }> = {}
 ) => ({
     userId,
     displayName,
-    // the handle the server would derive: the address's local part, else the name
     username: email ? email.split("@")[0]! : displayName.toLowerCase().replace(/\s+/g, "-"),
     email,
     hasPassword: true,
     mustChangePassword: false,
     group,
     enrolledAt: "2026-11-03T00:00:00.000Z",
+    discordId: null as string | null,
     ...over,
 })
 
 const roster = (items: ReturnType<typeof row>[]) => ({ items })
 
-/** The stub keys carry the method ("POST /path"); a mock call records them apart. */
 const callKey = (call: [RequestInfo | URL, RequestInit?]) =>
     `${call[1]?.method ?? "GET"} ${String(call[0])}`
 
@@ -63,8 +59,6 @@ describe("the roster list", () => {
     it("shows the handle they sign in with, and says when there is no address", async () => {
         draw()
         await screen.findByText("An")
-        // the handle is the identity since step 8 — it is on the row even when
-        // no address ever was (a @players.invalid placeholder is history)
         expect(screen.getByText("an")).toBeInTheDocument()
         expect(screen.getByText("không có địa chỉ")).toBeInTheDocument()
         expect(screen.getByText("binh")).toBeInTheDocument()
@@ -96,12 +90,10 @@ describe("adding a contestant — in a dialog, like every other create here", ()
         return screen.findByRole("dialog")
     }
 
-    /** The OTHER door: an account that already exists, by its address. */
     const openEnrollTab = async () => {
         await userEvent.click(await screen.findByRole("tab", { name: /Ghi danh theo email/ }))
     }
 
-    /** Fill the create tab: name + the desk's first password (+ optional address). */
     const fillCreate = async (name: string, password = "mat-khau-ban-2026", email?: string) => {
         await userEvent.type(screen.getByLabelText(/^Tên \(trên bảng đấu\)$/), name)
         await userEvent.type(screen.getByLabelText(/Mật khẩu ban điều hành cấp/), password)
@@ -120,7 +112,6 @@ describe("adding a contestant — in a dialog, like every other create here", ()
         await openDialog()
         expect(screen.getByLabelText(/^Tên \(trên bảng đấu\)$/)).toBeInTheDocument()
         expect(screen.getByLabelText(/Mật khẩu ban điều hành cấp/)).toBeInTheDocument()
-        // the handle is derived, and the desk is told so BEFORE it creates
         expect(screen.getByText(/Ngọc Duy/)).toBeInTheDocument()
 
         await userEvent.type(screen.getByLabelText(/^Tên \(trên bảng đấu\)$/), "Ngọc Duy")
@@ -132,8 +123,6 @@ describe("adding a contestant — in a dialog, like every other create here", ()
         await openDialog()
         await openEnrollTab()
         expect(screen.getByLabelText(/Email của thí sinh/)).toBeInTheDocument()
-        // the consequence is stated where the decision is made: this door never
-        // sees a password, because the account already has one of its own
         expect(screen.getByText(/không biết và không cần mật khẩu/)).toBeInTheDocument()
     })
 
@@ -158,7 +147,6 @@ describe("adding a contestant — in a dialog, like every other create here", ()
 
         await waitFor(() => expect(callOf(fetchMock!, ENROLL_URL)).toBeTruthy())
         expect(JSON.parse(String(callOf(fetchMock!, ENROLL_URL)![1]?.body))).toEqual({ email: "em@example.test" })
-        // and it closes itself on success
         await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
     })
 
@@ -185,7 +173,6 @@ describe("adding a contestant — in a dialog, like every other create here", ()
         await openDialog()
         await userEvent.type(screen.getByLabelText(/^Tên \(trên bảng đấu\)$/), "  Em  ")
 
-        // a password shorter than the floor keeps the button disabled
         expect(screen.getByRole("button", { name: /^Tạo tài khoản$/ })).toBeDisabled()
         await userEvent.type(screen.getByLabelText(/Mật khẩu ban điều hành cấp/), "mat-khau-ban-2026")
         await userEvent.click(screen.getByRole("button", { name: /^Tạo tài khoản$/ }))
@@ -195,7 +182,6 @@ describe("adding a contestant — in a dialog, like every other create here", ()
             displayName: "Em",
             password: "mat-khau-ban-2026",
         })
-        // and it closes itself on success
         await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
     })
 
@@ -221,7 +207,6 @@ describe("adding a contestant — in a dialog, like every other create here", ()
         await fillCreate("An")
         await userEvent.click(screen.getByRole("button", { name: /^Tạo tài khoản$/ }))
 
-        // the refusal stays in the dialog, next to what caused it
         expect(await screen.findByRole("alert")).toHaveTextContent(/already a contestant/)
         expect(screen.getByRole("dialog")).toBeInTheDocument()
     })
@@ -265,7 +250,6 @@ describe("editing a contestant", () => {
         await userEvent.click(screen.getByRole("button", { name: "Lưu" }))
 
         await waitFor(() => expect(callOf(fetchMock!, EDIT_URL("u2"))).toBeTruthy())
-        // null, not "": back to a show-floor identity
         expect(JSON.parse(String(callOf(fetchMock!, EDIT_URL("u2"))![1]?.body))).toEqual({
             displayName: "Bình",
             email: null,
@@ -326,12 +310,6 @@ describe("the group a contestant banks for", () => {
     })
 })
 
-// ── step 8: the desk's password actions ──────────────────────────────────
-//
-// The desk types a FIRST password (at create, or with this reset) and it stops
-// being the desk's at the player's next sign-in — the BACKEND gate enforces
-// that, and the roster's job is to show which state each row is in and to hand
-// over the one button that fixes a forgotten password.
 
 const RESET_URL = (userId: string) => `POST /portal/tournaments/${TOURNAMENT}/players/${userId}/password`
 
@@ -343,7 +321,6 @@ describe("resetting a password from the roster", () => {
 
         await userEvent.click(screen.getByRole("button", { name: /Đặt mật khẩu/ }))
         expect(screen.getByText(/Mật khẩu đầu cho Chi/)).toBeInTheDocument()
-        // nothing under 8 characters counts as a password yet
         expect(screen.getByRole("button", { name: /^Cấp lại$/ })).toBeDisabled()
     })
 
@@ -362,7 +339,6 @@ describe("resetting a password from the roster", () => {
         expect(JSON.parse(String(callOf(fetchMock!, RESET_URL("u9"))![1]?.body))).toEqual({
             password: "mat-khau-moi-1",
         })
-        // the panel closes: the secret it held is not left on screen
         await waitFor(() => expect(screen.queryByLabelText("New password")).toBeNull())
     })
 
@@ -390,5 +366,46 @@ describe("resetting a password from the roster", () => {
         await screen.findByText("Cũ")
         expect(screen.getAllByRole("button", { name: /Đặt mật khẩu/ })).toHaveLength(2)
         expect(screen.getByText("chưa có mật khẩu")).toBeInTheDocument()
+    })
+})
+
+describe("the Discord column", () => {
+    it("shows the ID (or that there is none) and saves a normalized edit", async () => {
+        const { fetchMock } = draw({}, [
+            row("u1", "An", null, null, { discordId: "123456789012345678" }),
+            row("u2", "Bình", "binh@example.test"),
+        ])
+        await screen.findByText("An")
+        expect(screen.getByText("123456789012345678")).toBeInTheDocument()
+        expect(screen.getByText("chưa liên kết")).toBeInTheDocument()
+
+        await userEvent.click(screen.getAllByRole("button", { name: /Sửa/ })[0]!)
+        const input = await screen.findByLabelText(/Discord ID/)
+        await userEvent.clear(input)
+        await userEvent.type(input, "<@987654321098765432>")
+
+        const save = screen.getByRole("button", { name: "Lưu" })
+        expect(save).toBeEnabled()
+        await userEvent.click(save)
+
+        await waitFor(() => expect(callOf(fetchMock!, EDIT_URL("u1"))).toBeTruthy())
+        expect(
+            JSON.parse(String(callOf(fetchMock!, EDIT_URL("u1"))![1]?.body))
+        ).toEqual({
+            displayName: "An",
+            email: null,
+            discordId: "987654321098765432",
+        })
+    })
+
+    it("refuses a Save that is not an ID", async () => {
+        draw({}, [row("u1", "An")])
+        await screen.findByText("An")
+        await userEvent.click(screen.getAllByRole("button", { name: /Sửa/ })[0]!)
+        const input = await screen.findByLabelText(/Discord ID/)
+        await userEvent.type(input, "123")
+
+        expect(screen.getByText(/ID Discord là dãy/)).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Lưu" })).toBeDisabled()
     })
 })

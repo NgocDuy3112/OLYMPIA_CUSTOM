@@ -1,12 +1,8 @@
-import { PlayerStage, Progress, QuestionFrame, Rail, Timer, type PlayerCore } from "../player-deck"
+import { AudienceFace, PlayerStage, Progress, QuestionFrame, Rail, Timer, type PlayerCore } from "../player-deck"
 import { STRIP_R, pt } from "../geometry"
 
-// Khởi động — lượt cá nhân (S1): the oral run projected to everyone. Nobody
-// types — the band carries the run status + budget bar. Pure: every value comes
-// from the orchestrator, narrowed to what this screen reads.
 type KhoiDongRiengPlayerCtx = PlayerCore
 
-/** The run's status pill: mine (primary), someone else's (muted), nobody's yet. */
 function runLabel(mine: boolean, playerName: string | null): string {
     if (mine) return "ĐẾN LƯỢT BẠN — trả lời miệng"
     if (playerName) return `Đang thi: ${playerName}`
@@ -14,7 +10,7 @@ function runLabel(mine: boolean, playerName: string | null): string {
 }
 
 export function KhoiDongRiengAOCPlayer({ ctx }: { ctx: KhoiDongRiengPlayerCtx }) {
-    const { v, myId, flash, nameOf } = ctx
+    const { v, myId, flash, nameOf, audience } = ctx
     const oral = v.oral
     const mine = v.me.isMyRun === true
     const spent = oral ? Math.min(1, oral.elapsedS / Math.max(1, oral.budgetS)) : 0
@@ -54,6 +50,11 @@ export function KhoiDongRiengAOCPlayer({ ctx }: { ctx: KhoiDongRiengPlayerCtx })
                 }
                 question={oral?.question?.questionText ?? null}
                 media={oral?.question?.media ?? null}
+                face={
+                    audience ? (
+                        <AudienceFace options={oral?.question?.payload.options ?? []} />
+                    ) : undefined
+                }
             />
         </PlayerStage>
     )

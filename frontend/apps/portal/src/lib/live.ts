@@ -3,11 +3,7 @@ import { api } from "@shared/lib/api"
 import { useSocketStream } from "@shared/lib/ws"
 import type { LiveAction, Verdict } from "./live-actions"
 
-// The console's data layer: one polled read, one version-guarded action
-// writer, one drafts reader for judging — plus the pure helpers that decide
-// what the tools show (unit-tested in tests/lib/live.test.ts).
 
-// ── the wire (mirrors the backend's live contract) ───────────────────────────
 
 export interface ConsoleQuestion {
     _id: string
@@ -18,8 +14,6 @@ export interface ConsoleQuestion {
     questionText: string
     timeLimit: number | null
     points: number
-    // The JUDGE sees everything: options and the correct set are both here on
-    // purpose — this is the staff route's own copy of the frozen set.
     payload: { options?: Array<{ id: string; text: string }>; [key: string]: unknown }
 }
 
@@ -30,7 +24,6 @@ export interface SanitizedQuestion {
     questionText: string
     media: { url: string; type: string } | null
     timeLimit: number | null
-    // No tag field: the sanitizer never sees one (the bank has none).
     payload: { options?: Array<{ id: string; text: string }> }
 }
 
@@ -51,8 +44,8 @@ export interface Projection {
         budgetS: number
     } | null
     board?: Array<{ questionId: string; value: number; where: "free" | "pending" | "open" | "taken" | "deferred" }>
-    /** The console's Hiện đáp án — the revealed answer, while its question is in play. */
     revealed?: { questionId: string; answer: string }
+    audioGate?: { allowed: string[] }
 }
 
 export interface GiaiMaConsole {
@@ -67,17 +60,11 @@ export interface VeDichConsole {
     openStage: "current" | "buzz" | null
     answererId: string | null
     buzzerId: string | null
-    /** How fast the winning buzz was, in ms (null before anyone buzzes). */
     buzzerMs: number | null
     power: "STAR" | "ASSIGN" | null
-    /** ASSIGN only: the player the question was handed to. */
     assignedToId: string | null
     pendingQuestionId: string | null
-    /** The pick board's staged power decision (pre-open): which of the three —
-     *  Ngôi sao hy vọng / Chỉ định đối kháng / Không dùng quyền năng — the
-     *  console chose for this turn, before the question opens. */
     stagedPower: { power: "STAR" | "ASSIGN"; targetId?: string } | null
-    /** One power per turn: true once this turn spent one — the row is inert. */
     turnPowerUsed: boolean
 }
 export interface KhoiDongConsole {
@@ -85,16 +72,12 @@ export interface KhoiDongConsole {
     ended: boolean
     phase2Begun: boolean
     phase2Closed: boolean
-    /** Which of the six is in play (the strip's cursor). */
     questionIndex: number
     questionCount: number
-    /** Is the window Bấm giờ opened running RIGHT NOW? */
     windowOpen: boolean
 }
 export interface ButPhaConsole {
-    /** The cursor's question — its id survives the 30 s that clears `projection.open`. */
     questionId: string | null
-    /** Has the current question been ASKED (its clock started at least once)? */
     opened: boolean
 }
 
@@ -105,42 +88,31 @@ export interface LiveResponse {
     questions: ConsoleQuestion[]
     projection: Projection
     roundEnded: boolean
-    /** User ids with a live player socket right now — the rail's connected dots. */
     connected?: string[]
     console: Record<string, unknown> | null
 }
 
-// ── the lobby (both surfaces wait on this) ───────────────────────────────────
 
-/** The waiting screen's payload: identity, seats+totals, who's connected, rounds. */
 export interface LobbyData {
     title: string
     label: string
     status: "UPCOMING" | "LIVE" | "FINISHED"
-    /** The round waiting to start (the live record's, else the match's first). */
     roundId: string | null
-    /** The match's rounds in tournament order — the controller's open/start buttons.
-     *  Khởi động & Về đích are PAIRED client-side (phase 1/2 → "· Riêng/· Chung"):
-     *  two entries share the id, `phase` tells a fresh start which side to open. */
     rounds: Array<{ id: string; name: string; status: "new" | "playing" | "ended"; phase?: 1 | 2 }>
-    /** The live stage's phase — which split entry is "where you are" (model-derived). */
     currentPhase?: 1 | 2 | null
     table: Array<{
         id: string
         displayName: string
         points: number
         rank: number
-        /** The seat's live camera — model-derived from the console's Room. */
         video?: import("livekit-client").RemoteVideoTrack | null
     }>
-    /** User ids with a live socket right now — the lobby's connected dots. */
     connected: string[]
 }
 
 const lobbyKey = (tournamentId: string, matchId: string) =>
     ["lobby", tournamentId, matchId] as const
 
-/** The the console's lobby read: polled like /live (presence moves without a round change). */
 export function useLobby(tournamentId: string, matchId: string, enabled: boolean) {
     return useQuery({
         queryKey: lobbyKey(tournamentId, matchId),
@@ -161,13 +133,10 @@ export interface QuestionAnswerRow {
     pointsAwarded: number | null
 }
 
-// ── the reads / writes ───────────────────────────────────────────────────────
 
 const liveKey = (tournamentId: string, matchId: string) =>
     ["live", tournamentId, matchId] as const
 
-// The stream's frames — the subset this client reads. `console` carries the
-// same body as the GET below; players' `view` frames never reach this door.
 interface ConsoleStreamFrame {
     v?: number
     type?: "console" | "error"
@@ -175,9 +144,6 @@ interface ConsoleStreamFrame {
     data?: { view?: LiveResponse }
 }
 
-// The console's eyes: the socket pushes, the 3 s poll stays as the fallback
-// (it also refreshes `connected`, which a push alone cannot announce).
-// 404 (no round yet) and 409 are answers, not crashes — no retry storm.
 export function useLive(tournamentId: string, matchId: string, onFrame?: (at: string) => void) {
     const queryClient = useQueryClient()
     const query = useQuery({
@@ -198,9 +164,6 @@ export function useLive(tournamentId: string, matchId: string, onFrame?: (at: st
             if (!frame || typeof frame !== "object") return
 
             if (frame.type === "console" && frame.data?.view) {
-                // Every push carries the server's `at`: the clock re-anchors, then
-                // the snapshot lands. A response already in flight is older — the
-                // version guard keeps a late poll from overwriting a newer push.
                 if (frame.at) onFrame?.(frame.at)
                 const incoming = frame.data.view
                 queryClient.setQueryData<LiveResponse>(liveKey(tournamentId, matchId), (current) =>
@@ -210,7 +173,6 @@ export function useLive(tournamentId: string, matchId: string, onFrame?: (at: st
             }
 
             if (frame.type === "error") {
-                // e.g. UNAVAILABLE (the match left LIVE): let HTTP answer the gate.
                 void queryClient.invalidateQueries({ queryKey: liveKey(tournamentId, matchId) })
             }
         }
@@ -219,9 +181,6 @@ export function useLive(tournamentId: string, matchId: string, onFrame?: (at: st
     return query
 }
 
-// Every action carries the version it was read from. The server rejects a stale
-// one (409 CONFLICT with both versions) — we then reload and show its message:
-// reject, don't queue.
 export function useLiveAction(tournamentId: string, matchId: string) {
     const queryClient = useQueryClient()
 
@@ -236,39 +195,25 @@ export function useLiveAction(tournamentId: string, matchId: string) {
             void queryClient.invalidateQueries({ queryKey: ["question-answers"] })
         },
         onError: () => {
-            // A refusal still means our view is suspect (another console may have
-            // acted) — reload so the next buttons reflect reality.
             void queryClient.invalidateQueries({ queryKey: ["live"] })
         },
     })
 }
 
-// The drafts ledger for ONE question — the judging panel's raw material.
-//
-// Polling is the ONLY signal here: a player's submission bumps no live version
-// (answers live outside the round state), pushes no frame, and crosses no
-// console-side mutation — window-focus refetch is globally off too. Without
-// this interval the console's Đúng stays dead until a reload (smoke-tested).
 export function useQuestionAnswers(tournamentId: string, matchId: string, questionId: string | null) {
     return useQuery({
         queryKey: ["question-answers", matchId, questionId],
-        // The route wraps: { items: [...] } — unwrap here or `rows.find` gets an
-        // object and the console unmounts (blank stage page).
         queryFn: () =>
             api<{ items: QuestionAnswerRow[] }>(
                 `/portal/tournaments/${tournamentId}/matches/${matchId}/live/answers?questionId=${questionId}`
             ).then((body) => body.items),
         enabled: Boolean(questionId),
-        // Same cadence as the lobby — only while a question is open (enabled).
         refetchInterval: 3_000,
         retry: false,
     })
 }
 
-// ── pure decisions (tested) ──────────────────────────────────────────────────
 
-// The hints the console may still open: everything not yet consumed, the currently
-// open window excluded (it gets its own panel), text resolved from the frozen set.
 export function hintPool(
     mc: GiaiMaConsole | null,
     questions: ConsoleQuestion[]
@@ -280,11 +225,6 @@ export function hintPool(
         .map((id) => ({ questionId: id, text: byId.get(id)?.questionText ?? id }))
 }
 
-// The verdicts to SEND with a finalize: ONLY the rows the console explicitly staged —
-// there is no default. An un-staged submitted answer makes the set incomplete and
-// the backend refuses it (UNJUDGED_ANSWERS → the flash shows the message), so an
-// answer can never be silently judged. Judged rows are already final and are not
-// re-sent.
 export function mergedVerdicts(
     questionId: string,
     rows: QuestionAnswerRow[],

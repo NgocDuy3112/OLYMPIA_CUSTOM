@@ -35,8 +35,6 @@ type ScoringRule =
         template: "outcome_multipliers"
         correct: number
         incorrect: number
-        // STAR is the only configurable multiplier (HOPE, renamed). ASSIGN is a
-        // duel whose payout is the show's rule, not a knob.
         powers: { star: { correct: number; incorrect: number } }
     }
 
@@ -51,7 +49,6 @@ export interface TournamentDetail extends Tournament {
     places: number
 }
 
-/** A seat is a user — teams are gone (mirrors the backend's SeatSchema). */
 export interface MatchSeat {
     kind: "user"
     userId: string
@@ -67,10 +64,18 @@ export interface MatchSummary {
     scheduledAt: string
     players: MatchSeat[]
     questions: unknown[]
+    assemblyRevision?: number
+    assembledAt?: string | null
+    assemblyEvents?: Array<{
+        id: string
+        revision: number
+        mode: string
+        addedCount: number
+        removedCount: number
+        at: string
+    }>
 }
 
-// A row of the tournament's standings. The place is how far the player got, not a sum of
-// points; the points are a statistic.
 interface StandingRow {
     userId: string
     displayName: string
@@ -94,8 +99,6 @@ export function useTournament(tournamentId: string) {
 export function useUpdateTournament(tournamentId: string) {
     const queryClient = useQueryClient()
     return useMutation({
-        // `rounds` is part of the patch because the ROUND LIST is editable too: a
-        // tournament created without rounds can only become playable through it.
         mutationFn: (patch: Partial<Pick<TournamentDetail, "roundRules" | "stages">> & { rounds?: TournamentRound[] }) =>
             api<TournamentDetail>(`/portal/tournaments/${tournamentId}`, {
                 method: "PATCH",
@@ -108,9 +111,7 @@ export function useUpdateTournament(tournamentId: string) {
     })
 }
 
-// ── The roster ────────────────────────────────────────────────────────────────
 
-/** The roster — the same rows the players tab lists, group included. */
 export function useEnrolled(tournamentId: string) {
     return useQuery({
         queryKey: ["enrolled", tournamentId],
@@ -119,7 +120,6 @@ export function useEnrolled(tournamentId: string) {
     })
 }
 
-// ── The matches ───────────────────────────────────────────────────────────────
 
 export function useMatches(tournamentId: string) {
     return useQuery({
@@ -187,7 +187,6 @@ export function useSetMatchResults(tournamentId: string) {
     })
 }
 
-// A standard match's status transition (UPCOMING → LIVE; results do the finish).
 export function useTransitionMatch(tournamentId: string) {
     const queryClient = useQueryClient()
 
@@ -203,7 +202,6 @@ export function useTransitionMatch(tournamentId: string) {
     })
 }
 
-// ── The standings ─────────────────────────────────────────────────────────────
 
 export function useStandings(tournamentId: string) {
     return useQuery({
@@ -231,28 +229,21 @@ export function useRecomputeStandings(tournamentId: string) {
     })
 }
 
-// ── The AOC group stage ──────────────────────────────────────────────────────
 
-/** One contestant's line in their group (or in the wildcard table). */
 export interface GroupRow {
     userId: string
     displayName: string
     matchesPlayed: number
-    /** Σ team points this contestant banked for their group. */
     bankedPoints: number
     averages: { phase1: number | null; phase2: number | null; all: number | null }
 }
 
 interface GroupTables {
-    /** The two groups, in label order; rows are rank-ordered by the engine. */
     groups: Array<{ id: "A" | "B"; teamPoints: number; rows: GroupRow[] }>
-    /** Enrolled contestants with no group yet — the operator still has to draw them. */
     unassigned: Array<{ userId: string; displayName: string }>
-    /** Every contestant with ≥ 1 match, best pooled average first. */
     wildcard: Array<GroupRow & { avg: number }>
 }
 
-/** The group tables — DERIVED on the server from the roster's groups + frozen results. */
 export function useGroups(tournamentId: string) {
     return useQuery({
         queryKey: ["groups", tournamentId],
@@ -261,27 +252,18 @@ export function useGroups(tournamentId: string) {
     })
 }
 
-/**
- * A contestant as the players tab reads them: the name on the board, the handle
- * they sign in with, whether a password exists yet, and whether they are still
- * on the desk's first one. The address is only where Google finds this row.
- */
 export interface ContestantRow {
     userId: string
     displayName: string
-    /** The login handle — what the desk tells this player to type. */
     username: string
-    /** null when no address was ever given (the handle is the identity). */
     email: string | null
-    /** No password at all: they can only get in through Google, or a reset. */
+    discordId: string | null
     hasPassword: boolean
-    /** Still on the desk's first password — they must set their own before play. */
     mustChangePassword: boolean
     group: "A" | "B" | null
     enrolledAt: string
 }
 
-/** The roster, for the players tab. */
 export function useContestants(tournamentId: string) {
     return useQuery({
         queryKey: ["enrolled", tournamentId],
@@ -290,15 +272,16 @@ export function useContestants(tournamentId: string) {
     })
 }
 
-/**
- * Edit a contestant. The address is the interesting half: adding it later is what
- * lets their own Google sign-in attach to this same row, history intact.
- */
 export function useUpdateContestant(tournamentId: string) {
     const queryClient = useQueryClient()
 
     return useMutation({
-        mutationFn: (edit: { userId: string; displayName?: string; email?: string | null }) =>
+        mutationFn: (edit: {
+            userId: string
+            displayName?: string
+            email?: string | null
+            discordId?: string | null
+        }) =>
             api<{ userId: string; displayName: string; email: string | null }>(
                 `/portal/tournaments/${tournamentId}/players/${edit.userId}`,
                 {
@@ -306,6 +289,7 @@ export function useUpdateContestant(tournamentId: string) {
                     body: JSON.stringify({
                         ...(edit.displayName !== undefined ? { displayName: edit.displayName } : {}),
                         ...(edit.email !== undefined ? { email: edit.email } : {}),
+                        ...(edit.discordId !== undefined ? { discordId: edit.discordId } : {}),
                     }),
                 }
             ),
@@ -316,7 +300,6 @@ export function useUpdateContestant(tournamentId: string) {
     })
 }
 
-/** Off the roster. The server refuses once they have played, or still hold a seat. */
 export function useRemoveContestant(tournamentId: string) {
     const queryClient = useQueryClient()
 
@@ -336,10 +319,6 @@ export function useCreateContestant(tournamentId: string) {
     const queryClient = useQueryClient()
 
     return useMutation({
-        // Step 8: the desk types the name and the FIRST PASSWORD. The server
-        // derives the handle from the name and flags the password as the desk's
-        // to be replaced — the player keeps their own from that first sign-in.
-        // The optional address is only ever "where Google will find this row".
         mutationFn: (input: { displayName: string; password: string; email?: string }) =>
             api<{ userId: string; displayName: string; username: string; group: "A" | "B" | null }>(
                 `/portal/tournaments/${tournamentId}/players/new`,
@@ -353,14 +332,6 @@ export function useCreateContestant(tournamentId: string) {
     })
 }
 
-/**
- * Enroll an EXISTING account by its address — for an account that exists but is
- * not on this roster: one made at the desk for another tournament, or by the
- * player's first Google sign-in (which matches on the address). The operator
- * never learns the password — whoever holds it chose it. The server refuses an
- * address no account has ever used (404), a disabled account (403), and one
- * already on this roster (409).
- */
 export function useEnrollByEmail(tournamentId: string) {
     const queryClient = useQueryClient()
 
@@ -378,7 +349,6 @@ export function useEnrollByEmail(tournamentId: string) {
     })
 }
 
-/** The DRAW: place a contestant in Nhóm A / Nhóm B, or clear it with null. */
 export function useAssignGroup(tournamentId: string) {
     const queryClient = useQueryClient()
 
@@ -389,22 +359,13 @@ export function useAssignGroup(tournamentId: string) {
                 { method: "PATCH", body: JSON.stringify({ group: placed.group }) }
             ),
         onSuccess: () => {
-            // The roster carries the group, and the tables are derived from it.
             void queryClient.invalidateQueries({ queryKey: ["groups", tournamentId] })
             void queryClient.invalidateQueries({ queryKey: ["enrolled", tournamentId] })
         },
     })
 }
 
-// ── the desk's password actions ─────────────────────────────────────────────────
 
-/**
- * FORGOTTEN PASSWORD: the desk types a first password again, and the row goes
- * back to `mustChangePassword` — this one stops being the desk's at the
- * player's next sign-in too, and every session the old password minted dies
- * with the version bump. Also how a row from before step 8 (no password at all)
- * is given a way in.
- */
 export function useResetPassword(tournamentId: string) {
     const queryClient = useQueryClient()
 
@@ -420,31 +381,22 @@ export function useResetPassword(tournamentId: string) {
     })
 }
 
-// ── the matches: room codes and seats ───────────────────────────────────────
 
-/** A live room code — the secret a walk-in types on /code of the gameplay app. */
 export interface RoomCode {
     matchId: string
     code: string
     expiresAt: string
 }
 
-/**
- * Every live room code of the tournament, in one read. Write-guarded on the
- * server (a code seats people), so an answer here is also the permission to
- * show one: a 403 renders as "no code controls", not as an error banner.
- */
 export function useMatchCodes(tournamentId: string) {
     return useQuery({
         queryKey: ["match-codes", tournamentId],
         queryFn: () => api<{ items: RoomCode[] }>(`/portal/tournaments/${tournamentId}/match-codes`),
         enabled: Boolean(tournamentId),
-        // A refusal is an answer (another desk's tournament), never a retry.
         retry: false,
     })
 }
 
-/** Mint the room code, or rotate it: the old code dies in the same request. */
 export function useRotateMatchCode(tournamentId: string) {
     const queryClient = useQueryClient()
 
@@ -459,7 +411,6 @@ export function useRotateMatchCode(tournamentId: string) {
     })
 }
 
-/** Take ONE seat back — the console's eject for a walk-in who claimed wrong. */
 export function useEjectSeat(tournamentId: string) {
     const queryClient = useQueryClient()
 
@@ -475,7 +426,5 @@ export function useEjectSeat(tournamentId: string) {
     })
 }
 
-// ── The questions ────────────────────────────────────────────────────────────
 
 
-// The bank's published TEXT questions — what the turn's question may be.

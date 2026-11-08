@@ -1,13 +1,11 @@
 import { screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { MemoryRouter } from "react-router-dom"
 import { describe, expect, it } from "vitest"
 import { MatchesTab } from "@/components/matches-tab"
 import { renderWithProviders } from "../helpers/render"
 import type { TournamentDetail } from "@/lib/tournament"
 
-// Matches — and where the PIN used to sit: the ROOM CODE, shown and rotatable.
-// The code is a bearer secret, so it appears only when the server says this
-// desk may read it (the codes query answers), and rotating kills the old one.
 
 const TOURNAMENT = "t1"
 const MATCHES_URL = `GET /portal/tournaments/${TOURNAMENT}/matches?limit=100`
@@ -40,7 +38,9 @@ const roster = { items: [{ userId: "u1", displayName: "An", email: "an@example.t
 
 const draw = (routes: Record<string, { body: unknown; status?: number }>) =>
     renderWithProviders(
-        <MatchesTab tournamentId={TOURNAMENT} tournament={tournament} seats={4} />,
+        <MemoryRouter>
+            <MatchesTab tournamentId={TOURNAMENT} tournament={tournament} seats={4} />
+        </MemoryRouter>,
         {
             routes: {
                 [MATCHES_URL]: { body: { items: [match()], total: 1, limit: 100, offset: 0 } },
@@ -82,13 +82,10 @@ describe("the room code in the matches tab", () => {
         await userEvent.click(screen.getByRole("button", { name: /Xoay/ }))
 
         await waitFor(() => expect(callOf(fetchMock!, ROTATE_URL("m1"))).toBeTruthy())
-        // the seat list is untouched by a rotation
         expect(screen.getByText("An")).toBeInTheDocument()
     })
 
     it("shows no code controls at all when this desk may not read them", async () => {
-        // The codes route is write-guarded: another operator's tournament
-        // answers 403, and the tab renders the matches without the key.
         draw({ [CODES_URL]: { status: 403, body: { message: "only the owner or an admin may manage this tournament" } } })
 
         expect(await screen.findByRole("button", { name: "Control" })).toBeInTheDocument()
@@ -105,6 +102,32 @@ describe("the room code in the matches tab", () => {
 
         await userEvent.click(await screen.findByRole("button", { name: /Tạo mã/ }))
         expect(await screen.findByRole("alert")).toHaveTextContent(/không còn mã vào/)
+    })
+})
+
+describe("the match row as the door to its questions", () => {
+    it("links the match name to the match page and says what is missing", async () => {
+        draw({ [CODES_URL]: { body: { items: [] } } })
+
+        const link = await screen.findByRole("link", { name: "Bảng 1" })
+        expect(link).toHaveAttribute("href", `/tournaments/${TOURNAMENT}/matches/m1`)
+        expect(screen.getByText("chưa có câu — nhấn để thêm")).toBeInTheDocument()
+    })
+
+    it("counts the questions once they are composed", async () => {
+        draw({
+            [MATCHES_URL]: {
+                body: {
+                    items: [match({ questions: [{ sourceId: "s1" }, { sourceId: "s2" }] })],
+                    total: 1,
+                    limit: 100,
+                    offset: 0,
+                },
+            },
+            [CODES_URL]: { body: { items: [] } },
+        })
+
+        expect(await screen.findByText("2 câu hỏi")).toBeInTheDocument()
     })
 })
 

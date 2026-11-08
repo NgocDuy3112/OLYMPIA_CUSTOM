@@ -7,9 +7,6 @@ import { questionBank, tournamentPlayers, tournamentStandings, tournaments, user
 import { signToken } from "../../src/lib/jwt.js";
 import type { RoundConfig } from "../../src/game/contracts/index.js";
 
-// The tournament's places are decided by how far a player got: the last stage they reached,
-// the match they were eliminated in, and their rank in it. The points never decide the
-// order — they are a statistic.
 
 let app: FastifyInstance;
 let ownerCookie: string;
@@ -76,7 +73,6 @@ beforeAll(async () => {
     ).returning();
     playerIds = players.map((row) => row.id);
 
-    // The tournament is the unit: it carries the identity the tournament had.
     const tournamentTags = ["THTH"];
     const tournamentOwner = owner.id;
     const tournamentSlug = "st-tournament-tournament";
@@ -91,8 +87,6 @@ beforeAll(async () => {
     }).returning();
     tournamentId = tournament.id;
 
-    // The roster: the tournament's field. Everyone enrolled is in the table, even the ones
-    // who never played.
     await db.insert(tournamentPlayers).values(
         playerIds.map((userId) => ({ tournamentId, userId }))
     );
@@ -102,7 +96,7 @@ beforeAll(async () => {
             kind: "CHOICE" as const,
             questionText: `Q${i}`,
             
-            payload: { options: [{ id: "a", text: "A" }, { id: "b", text: "B" }], correctSet: ["a"] },
+            payload: { type: "CHOICE" as const, options: [{ id: "a", text: "A" }, { id: "b", text: "B" }], correctSet: ["a"] },
             timeLimit: 30,
             status: "PUBLISHED" as const,
             tournamentId: null,
@@ -126,7 +120,6 @@ describe("a match placed by hand", () => {
         const body = created.json();
         expect(body.kind).toBe("STANDARD");
         expect(body.roundConfigs).toHaveProperty("ve-dich");
-        // Manual picks only: nothing is staged from the rulebook automatically.
         expect(body.questions).toHaveLength(0);
     });
 
@@ -154,7 +147,6 @@ describe("the tournament's places", () => {
     let secondMatch: string;
 
     it("places the players of the last stage first", async () => {
-        // Round 1: everybody plays. The four winners go on to round 2.
         const first = await createMatch({
             stageId: "round-1",
             slot: 1,
@@ -178,9 +170,6 @@ describe("the tournament's places", () => {
         expect(second.statusCode).toBe(201);
         secondMatch = second.json().id;
 
-        // In round 2 the player who was last in round 1 wins the match. The tournament's
-        // points do not order the field: three of them finish on 50 points, and only
-        // the progress says who is first.
         await setResults(secondMatch, [
             { userId: playerIds[2], score: 30 },
             { userId: playerIds[1], score: 20 },
@@ -196,15 +185,12 @@ describe("the tournament's places", () => {
 
         expect(rows).toHaveLength(6);
 
-        // The four who reached round 2 take the first four places, in that match's order.
         expect(rows.slice(0, 4).map((row) => row.userId)).toEqual([
             playerIds[2], playerIds[1], playerIds[0], playerIds[3]
         ]);
         expect(rows.slice(0, 4).map((row) => row.place)).toEqual([1, 2, 3, 4]);
         expect(rows.slice(0, 4).every((row) => row.stageTitle === "Round 2")).toBe(true);
 
-        // Three of them finished on 50 points in the tournament; only the progress orders
-        // them. A place carries no stored worth any more — the row is place + progress.
         expect(rows.every((row) => !("placementPoints" in row))).toBe(true);
     });
 
@@ -213,7 +199,6 @@ describe("the tournament's places", () => {
             userId: string; place: number | null; stageTitle: string | null;
         }>;
 
-        // Players 4 and 5 never played: no place, at the bottom.
         expect(rows[4].userId).toBe(playerIds[4]);
         expect(rows[4].place).toBeNull();
         expect(rows[5].userId).toBe(playerIds[5]);

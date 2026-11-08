@@ -1,24 +1,8 @@
-// The question side of the card: the text, its media well, and the whole
-// "question card" assembly both surfaces were building by hand — Badges +
-// timer/progress on the right, the text, the media.
-//
-// QuestionFrame is the deduplication that matters: five controller screens and
-// five player screens drew the identical MainCard/CardHeader/QuestionBlock
-// stack, so a fix to the media well or the placeholder had to be made ten
-// times.
 import { useState, type ReactNode } from "react"
 import { DECK_PAD, pt } from "./geometry"
 import { Badges, CardHeader, MainCard } from "./primitives"
 import { COPY } from "./copy"
 
-/**
- * The question TEXT takes the whole card when there is no media (no empty gray
- * well for nothing); with media, the well hugs the image's natural aspect
- * (horizontal images span the row, vertical ones stay narrow instead of
- * pillarboxing), is always aligned to the RIGHT of the card with breathing room
- * (right padding only when media exists), and a broken URL falls back to the
- * placeholder rather than a torn icon.
- */
 export function QuestionBlock({ question, media, mediaHint = "hình ảnh câu hỏi" }: {
     question: string | null
     media?: { url: string; type: string } | null
@@ -41,8 +25,6 @@ function MediaWell({ media, mediaHint }: { media: { url: string; type: string };
     const [natural, setNatural] = useState<{ w: number; h: number } | null>(null)
     const [broken, setBroken] = useState(false)
 
-    // Audio/video (or a broken link): a modest labeled well — the deck never
-    // plays media inline; the show surface does.
     if (media.type !== "image" || broken) {
         return (
             <div className="ml-auto flex h-full w-[37.4cqw] shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-muted ring-1 ring-border">
@@ -53,8 +35,6 @@ function MediaWell({ media, mediaHint }: { media: { url: string; type: string };
         )
     }
 
-    // Image: the well tracks the natural aspect (16:9 until it loads) and never
-    // exceeds the row — width clamps, the img contains inside it.
     return (
         <div
             className="ml-auto flex shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-muted ring-1 ring-border"
@@ -74,10 +54,6 @@ function MediaWell({ media, mediaHint }: { media: { url: string; type: string };
     )
 }
 
-/**
- * Giải mã's public clue: "Mật mã gồm có N chữ cái" — above the tiles on both
- * surfaces, so the length is announced identically to the console and the field.
- */
 export function KeywordLengthBanner({ length }: { length: number | null }) {
     if (length === null) return null
     return (
@@ -89,12 +65,6 @@ export function KeywordLengthBanner({ length }: { length: number | null }) {
     )
 }
 
-/**
- * Hiện đáp án: the console revealed this question's correct answer — one line
- * under the question, on every screen showing it. The server only ever sends
- * `revealed` while the question is still in play, so this renders nothing on
- * its own once the round moves on.
- */
 export function AnswerReveal({ answer }: { answer?: string | null }) {
     if (!answer) return null
     return (
@@ -109,13 +79,7 @@ export function AnswerReveal({ answer }: { answer?: string | null }) {
     )
 }
 
-/**
- * The whole question card: the round badge (clickable on the console's deck), the
- * optional middle chips, the clock/progress on the right, then the question
- * itself. Screens that need a different body (giai-ma's hint grid, the vé-đích
- * board) build their own MainCard — this is for the five that don't.
- */
-export function QuestionFrame({ round, mode, size, onRoundClick, mid, right, question, media, answer }: {
+export function QuestionFrame({ round, mode, size, onRoundClick, mid, right, question, media, answer, face }: {
     round: string
     mode?: string
     size?: number
@@ -124,8 +88,8 @@ export function QuestionFrame({ round, mode, size, onRoundClick, mid, right, que
     right?: ReactNode
     question: string | null
     media?: { url: string; type: string } | null
-    /** The console's Hiện đáp án — rendered under the question when present. */
     answer?: string | null
+    face?: ReactNode
 }) {
     return (
         <MainCard>
@@ -135,7 +99,34 @@ export function QuestionFrame({ round, mode, size, onRoundClick, mid, right, que
                 right={right}
             />
             <QuestionBlock question={question} media={media} />
+            {face}
             <AnswerReveal answer={answer} />
         </MainCard>
+    )
+}
+
+export function AudienceFace({ options }: { options: Array<{ id: string; text: string }> }) {
+    if (options.length === 0) return null
+    return (
+        <div className="flex shrink-0 flex-col gap-[0.5cqw] rounded-xl bg-muted/60 px-[1.4cqw] py-[0.9cqw] ring-1 ring-border">
+            <span
+                className="font-sans font-bold uppercase tracking-wide text-muted-foreground"
+                style={{ fontSize: pt(11) }}
+            >
+                Khán giả chọn
+            </span>
+            <div className="grid grid-cols-2 gap-[0.6cqw] sm:grid-cols-4">
+                {options.map((option, index) => (
+                    <span
+                        key={option.id}
+                        className="flex items-center justify-center gap-[0.5cqw] rounded-lg bg-background px-[0.8cqw] py-[0.6cqw] text-center font-sans font-semibold text-foreground ring-1 ring-border"
+                        style={{ fontSize: pt(12) }}
+                    >
+                        <b>{String.fromCharCode(65 + index)}.</b>
+                        <span className="min-w-0 truncate">{option.text}</span>
+                    </span>
+                ))}
+            </div>
+        </div>
     )
 }

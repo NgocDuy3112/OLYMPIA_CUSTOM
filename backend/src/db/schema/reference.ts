@@ -29,7 +29,6 @@ import {
 export const visibility = pgEnum("visibility", ["PUBLIC", "PRIVATE"]);
 export const questionKind = pgEnum("question_kind", ["CHOICE", "TEXT", "KEYWORD", "HINT"]);
 export const questionStatus = pgEnum("question_status", ["DRAFT", "PENDING", "PUBLISHED", "ARCHIVED"]);
-// AOC group-stage membership (Nhóm A / Nhóm B). Nullable: classic tournaments have no groups.
 export const playerGroup = pgEnum("player_group", ["A", "B"]);
 
 
@@ -50,8 +49,6 @@ export const tournaments = pgTable(
         format: jsonb("format").$type<TournamentFormat>().notNull(),
         stages: jsonb("stages").$type<Stage[]>().notNull(),
 
-        // The rulebook the tournament is played on. Frozen once a match has been assembled,
-        // so a running event never depends on later edits.
         roundRules: jsonb("round_rules").$type<Record<string, RoundConfig>>(),
 
         closedAt: timestamp("closed_at", { withTimezone: true }),
@@ -61,7 +58,6 @@ export const tournaments = pgTable(
     },
     (table) => [
         uniqueIndex("tournaments_slug_unique").on(table.slug),
-        // One running tournament per owner.
         uniqueIndex("tournaments_current_unique")
             .on(table.ownerId)
             .where(sql`current = true`)
@@ -77,12 +73,51 @@ export const tournamentPlayers = pgTable(
         userId: uuid("user_id")
             .notNull()
             .references(() => users.id, { onDelete: "cascade" }),
-        // AOC group stage: which group this contestant banks team points for.
-        // NULL = the classic format (no groups). Set at enrollment, staff's call.
         group: playerGroup("group"),
         enrolledAt: timestamp("enrolled_at", { withTimezone: true }).notNull().defaultNow()
     },
     (table) => [primaryKey({ columns: [table.tournamentId, table.userId] })]
+);
+
+export interface SourceCells {
+    question: string;
+    answer: string;
+    explanation: string;
+    note: string;
+    media: string;
+}
+
+export const questionImportBatches = pgTable(
+    "question_import_batches",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+        sourceName: text("source_name"),
+        rowCount: integer("row_count").notNull().default(0),
+        createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+    }
+);
+
+export const questionImportRows = pgTable(
+    "question_import_rows",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        batchId: uuid("batch_id")
+            .notNull()
+            .references((): AnyPgColumn => questionImportBatches.id, { onDelete: "cascade" }),
+        position: integer("position").notNull(),
+        sheet: text("sheet").notNull(),
+        sourceId: text("source_id").notNull(),
+        cells: jsonb("cells").$type<SourceCells>().notNull(),
+        media: jsonb("media").$type<Media>(),
+        error: text("error"),
+        warning: text("warning"),
+        dropped: boolean("dropped").notNull().default(false),
+        createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+    },
+    (table) => [uniqueIndex("question_import_rows_batch_pos").on(table.batchId, table.position)]
 );
 
 export const questionBank = pgTable(
@@ -91,16 +126,22 @@ export const questionBank = pgTable(
         id: uuid("id").primaryKey().defaultRandom(),
         kind: questionKind("kind").notNull(),
         questionText: text("question_text").notNull(),
-        // A hint belongs to exactly one keyword: the set it lives under.
         keywordId: uuid("keyword_id").references((): AnyPgColumn => questionBank.id),
         media: jsonb("media").$type<Media>(), 
         payload: jsonb("payload").$type<QuestionPayload>().notNull(),
         timeLimit: integer("time_limit"),
         status: questionStatus("status").notNull().default("DRAFT"),
 
+        tags: text("tags").array().notNull().default(sql`'{}'`),
+        type: text("type").generatedAlwaysAs(sql`(payload ->> 'type')`).notNull(),
+
         createdBy: uuid("created_by")
             .notNull()
             .references(() => users.id),
+        importBatchId: uuid("import_batch_id").references(
+            () => questionImportBatches.id,
+            { onDelete: "set null" }
+        ),
 
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
         updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
@@ -108,7 +149,6 @@ export const questionBank = pgTable(
     (table) => [
         index("question_bank_status_idx").on(table.status),
         index("question_bank_keyword_idx").on(table.keywordId),
-        // Containment lives in the database: a HINT without its keyword cannot exist.
         check("question_bank_hint_needs_keyword", sql`kind <> 'HINT' OR keyword_id IS NOT NULL`)
     ]
 );

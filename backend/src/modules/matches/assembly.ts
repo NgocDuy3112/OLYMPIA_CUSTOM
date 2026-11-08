@@ -3,6 +3,7 @@ import { inArray } from "drizzle-orm";
 import { db } from "../../db/pool.js";
 import { questionBank, tournaments } from "../../db/schema/index.js";
 import type { MatchQuestion, RoundConfig, ScoringRule } from "../../game/contracts/index.js";
+import { slotConflict } from "../questions/buckets.js";
 import { MatchError } from "./errors.js";
 import { assemblyEligibility } from "../questions/service.js";
 import type { AssemblyEntry } from "./schemas.js";
@@ -12,8 +13,6 @@ type BankRow = typeof questionBank.$inferSelect;
 type QuestionKind = "CHOICE" | "TEXT" | "KEYWORD" | "HINT";
 
 
-// §5: points are a per-question base. Templates that ignore them (the ve-dich
-// grid) still need a number, so derive from the scoring rule; callers may override.
 export function basePoints(scoring: ScoringRule): number {
     switch (scoring.template) {
         case "constant":
@@ -145,6 +144,18 @@ export async function buildQuestionCopies(params: {
                     `${where}: kind ${source.kind} is not allowed in round "${entry.roundId}"`,
                     [`allowed kinds: ${config.allowedKinds.join(", ")}`]
                 );
+            }
+
+            const conflict = slotConflict(
+                { roundId: entry.roundId, turnId: entry.turnId, points: entry.points },
+                {
+                    tags: source.tags,
+                    type: source.type,
+                    keywordId: source.keywordId
+                }
+            );
+            if (conflict) {
+                throw new MatchError("VALIDATION", `${where}: ${conflict}`);
             }
 
             usedSourceIds.add(source.id);

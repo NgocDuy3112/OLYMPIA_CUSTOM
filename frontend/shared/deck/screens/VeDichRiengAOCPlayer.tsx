@@ -1,16 +1,12 @@
 import { Hand } from "lucide-react"
 import { formatRemaining } from "@shared/lib/clock"
-import { AnswerBand, PlayerStage, QuestionFrame, Rail, Timer, VeDichStripCells, type PlayerCore } from "../player-deck"
+import { AnswerBand, AudienceFace, PlayerStage, QuestionFrame, Rail, Timer, VeDichStripCells, type PlayerCore } from "../player-deck"
 import { STRIP_R, pt } from "../geometry"
 import { stripCellsOf } from "../ve-dich-board"
 import { formatBuzzMs } from "@shared/lib/clock"
 import { COPY } from "../copy"
 import type { AnswerValue, VeDichCommand } from "../types"
 
-// Về đích — câu hỏi mở, phase 2 (S8): the personal round — everyone sees the
-// question; the answer is oral, the buzz window is the typed part. Powers are
-// NOT the player's to declare — the console stages them on the pick board
-// before the question opens. Pure: every value comes from the orchestrator.
 type VeDichRiengPlayerCtx = PlayerCore & {
     remaining: number
     answerBusy: boolean
@@ -19,7 +15,6 @@ type VeDichRiengPlayerCtx = PlayerCore & {
     command: (action: VeDichCommand) => void
 }
 
-/** What the band says when this player has nothing to press. */
 function spectatorLine(ctx: VeDichRiengPlayerCtx): string {
     const me = ctx.v.me
     if (me.isAnswerer) return "Bạn trả lời miệng trước ban điều hành"
@@ -33,7 +28,7 @@ function spectatorLine(ctx: VeDichRiengPlayerCtx): string {
 }
 
 export function VeDichRiengAOCPlayer({ ctx }: { ctx: VeDichRiengPlayerCtx }) {
-    const { v, remaining, myId, flash, answerBusy, submitAnswer, cmdBusy, command } = ctx
+    const { v, remaining, myId, flash, answerBusy, submitAnswer, cmdBusy, command, audience } = ctx
     const openQ = ctx.open[0]
     const qid = openQ.questionId
     return (
@@ -78,6 +73,11 @@ export function VeDichRiengAOCPlayer({ ctx }: { ctx: VeDichRiengPlayerCtx }) {
                 right={<Timer remaining={openQ ? remaining : null} fallback="—" />}
                 question={openQ.question?.questionText ?? null}
                 media={openQ.question?.media ?? null}
+                face={
+                    audience ? (
+                        <AudienceFace options={openQ.question?.payload.options ?? []} />
+                    ) : undefined
+                }
             />
         </PlayerStage>
     )

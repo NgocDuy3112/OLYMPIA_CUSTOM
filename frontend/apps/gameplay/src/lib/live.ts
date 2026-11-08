@@ -4,8 +4,6 @@ import { useServerClock, type ServerClock } from "@shared/lib/clock"
 import type { LobbyData } from "@shared/deck/types"
 import { useSocketStream } from "@shared/lib/ws"
 
-// An API refusal, shaped for the gate screens: each status is a screen, never
-// a crash. A non-API error becomes status 0 so it lands in the "say why" branch.
 interface ViewFailure {
     status: number
     code?: string
@@ -20,19 +18,7 @@ function failureOf(error: unknown): ViewFailure | null {
     return { status: 0, message: error instanceof Error ? error.message : "Không tải được trận." }
 }
 
-// The player's live match client — HTTP up, socket down (the transport decision,
-// docs/live-surface.md § L3):
-//
-//   send     → plain POSTs to /live/answers, /live/keyword, /live/commands
-//              (the same commands the socket accepts; session owns the user id)
-//   receive  → full `view` snapshots pushed over /live/stream (initial view on
-//              connect), plus GET /live as the pre-connect paint
-//   after a command → refetch, so the view is right even if the socket was down
-//
-// Push-first: no polling anywhere. Countdowns run on the shared clock — every
-// pushed envelope's `at` re-anchors the skew, never the client's own time.
 
-// ── the wire ─────────────────────────────────────────────────────────────────
 
 export interface LiveQuestion {
     questionId: string
@@ -41,7 +27,6 @@ export interface LiveQuestion {
     questionText: string
     media: { url: string; type: "image" | "audio" | "video" } | null
     timeLimit: number | null
-    // CHOICE carries options; never the correct set — the sanitizer's rule.
     payload: { options?: Array<{ id: string; text: string }> }
 }
 
@@ -52,23 +37,18 @@ export interface LiveScoreRow {
     rank: number
 }
 
-// Every field optional: the view grows per round, and a screen must degrade
-// gracefully when a field belongs to another round.
 export interface LiveMe {
     verdicts?: Record<string, "CORRECT" | "INCORRECT">
     answerState?: "none" | "draft" | "final"
-    // khoi-dong
     isMyRun?: boolean
     points?: number
     answered?: string[]
     finalized?: string[]
-    // giai-ma
     keywordLocked?: boolean
     eliminated?: boolean
     keywordValue?: number | null
     revealedHints?: Array<{ questionId: string; question: LiveQuestion | null }>
     hintsRevealed?: number
-    // ve-dich
     score?: number
     powersLeft?: Array<"STAR" | "ASSIGN">
     isMyTurn?: boolean
@@ -91,7 +71,6 @@ export interface LiveView {
         question: LiveQuestion | null
     }>
     table: LiveScoreRow[]
-    // khoi-dong phase 1: the active run's question — on EVERY seated screen.
     oral?: {
         questionId: string
         question: LiveQuestion | null
@@ -101,18 +80,16 @@ export interface LiveView {
         elapsedS: number
         budgetS: number
     } | null
-    // ve-dich: free cells + this turn's batch + the open question.
     board?: Array<{
         questionId: string
         value: number
         where: "free" | "pending" | "open" | "taken" | "deferred"
     }>
-    // giai-ma: THE keyword question.
     keyword?: { questionId: string; question: LiveQuestion | null } | null
     me: LiveMe
+    audioGate?: { allowed: string[] }
 }
 
-// The stream's frames — the subset this client reads.
 interface StreamFrame {
     v?: number
     type?: "view" | "ack" | "error"
@@ -120,14 +97,11 @@ interface StreamFrame {
     data?: { view?: LiveView }
 }
 
-// ── the query + push ─────────────────────────────────────────────────────────
 
 const liveKey = (matchId: string) => ["live", matchId] as const
 
 interface UseLiveMatch {
-    /** The last known view — a pushed snapshot replaces the GET's paint. */
     view: LiveView | undefined
-    /** ApiError → the gate screen reads it (401 / 403 / 409 are answers). */
     failure: ViewFailure | null
     clock: ServerClock
     refetch: () => void
@@ -141,8 +115,6 @@ export function useLiveMatch(matchId: string, enabled: boolean): UseLiveMatch {
         queryKey: liveKey(matchId),
         queryFn: () => api<LiveView>(`/gameplay/matches/${matchId}/live`),
         enabled: enabled && Boolean(matchId),
-        // 401/403/409 are answers, not failures to retry through; push is the
-        // only refetch channel after the first paint.
         retry: false,
         staleTime: Infinity,
         refetchOnWindowFocus: false,
@@ -156,15 +128,12 @@ export function useLiveMatch(matchId: string, enabled: boolean): UseLiveMatch {
             if (!frame || typeof frame !== "object") return
 
             if (frame.type === "view" && frame.data?.view) {
-                // Every push carries the server's `at`: the clock re-anchors, then
-                // the snapshot lands as the new truth (no refetch needed).
                 if (frame.at) clock.sync(frame.at)
                 queryClient.setQueryData(liveKey(matchId), frame.data.view)
                 return
             }
 
             if (frame.type === "error") {
-                // e.g. UNAVAILABLE (the match left LIVE): let HTTP answer the gate.
                 void queryClient.invalidateQueries({ queryKey: liveKey(matchId) })
             }
         }
@@ -178,21 +147,12 @@ export function useLiveMatch(matchId: string, enabled: boolean): UseLiveMatch {
     }
 }
 
-// ── which screen a view renders ────────────────────────────────────────────
 
-// The screen rule lives with the kit (shared/deck/dispatch) so the audience deck
-// uses the SAME routing. Re-exported here: gameplay's call sites keep one import.
 export { playerScreenOf, type PlayerScreen } from "@shared/deck/dispatch"
 
-// ── the lobby ───────────────────────────────────────────────────────────────────
 
 const lobbyKey = (matchId: string) => ["lobby", matchId] as const
 
-/**
- * The player's lobby read — asked WHILE WAITING: /live 409s until the match is
- * LIVE and says "pending" until the console starts a round, but the lobby answers
- * in every case — seats, connected dots, the round waiting to start.
- */
 export function useLiveLobby(matchId: string, enabled: boolean) {
     return useQuery({
         queryKey: lobbyKey(matchId),
@@ -204,19 +164,12 @@ export function useLiveLobby(matchId: string, enabled: boolean) {
     })
 }
 
-// ── the three commands ───────────────────────────────────────────────────────
 
-// ve-dich's player vocabulary, exactly as /live/commands validates it.
-// BUZZ only — no pick (the console's), no power (the console stages those
-// before the question opens).
 export type LivePlayerCommand =
     | { type: "buzz"; questionId: string }
 
 export type AnswerValue = { picked?: string[]; text?: string }
 
-// One POST shape for all three: refetch after every success (the view is right
-// even if the socket was down), and after every 409 (the refusal means the
-// window moved on — the view is the answer).
 function useLiveCommandPost<TInput>(matchId: string, suffix: string) {
     const queryClient = useQueryClient()
 
