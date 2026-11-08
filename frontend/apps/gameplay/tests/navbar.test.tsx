@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen, waitFor } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter, useLocation } from "react-router-dom"
 import { describe, expect, it, vi } from "vitest"
@@ -57,10 +57,10 @@ const oneMatch = {
 }
 
 describe("NavBar — signed out", () => {
-    it("offers the door to the account the desk issued — no signup (step 8)", async () => {
+    it("offers the door to the account the desk issued — no signup, no separate code link (step 8)", async () => {
         draw({ ...signedOut, ...noTournaments })
         expect(await screen.findByRole("link", { name: "Đăng nhập" })).toBeTruthy()
-        expect(screen.getByRole("link", { name: "Nhập mã" })).toBeTruthy()
+        expect(screen.queryByRole("link", { name: "Nhập mã" })).toBeNull()
         expect(screen.queryByRole("link", { name: "Đăng ký" })).toBeNull()
         expect(screen.queryByRole("button", { name: "Vào trận" })).toBeNull()
     })
@@ -78,24 +78,27 @@ describe("NavBar — signed in", () => {
         expect(await screen.findByText("An")).toBeTruthy()
     })
 
-    it("one seat → the deck, in one click", async () => {
+    it("one seat → listed in the dialog, one click deeper to the deck", async () => {
         draw({ ...signedIn, ...noTournaments, ...oneMatch })
         await screen.findByText("An")
 
         await userEvent.click(screen.getByRole("button", { name: "Vào trận" }))
+        const dialog = await screen.findByRole("dialog")
+        await userEvent.click(within(dialog).getByRole("button", { name: /Chung kết/ }))
         await waitFor(() => expect(screen.getByText("landed at /s/cup/matches/m1")).toBeTruthy())
     })
 
-    it("no seat → says why, instead of a dead navigation", async () => {
+    it("no seat → the dialog is just the code box, not a dead navigation", async () => {
         draw({ ...signedIn, ...noTournaments, [MATCHES]: { body: { items: [] } } })
         await screen.findByText("An")
 
         await userEvent.click(screen.getByRole("button", { name: "Vào trận" }))
-        expect(await screen.findByRole("status")).toHaveTextContent(/chưa có trận/)
+        const dialog = await screen.findByRole("dialog")
+        expect(within(dialog).getByLabelText("Mã phòng")).toBeTruthy()
         expect(screen.queryByText(/^landed at/)).toBeNull()
     })
 
-    it("several seats → a list to pick from, newest first already", async () => {
+    it("several seats → listed in the dialog to pick from", async () => {
         draw({
             ...signedIn,
             ...noTournaments,
@@ -111,10 +114,9 @@ describe("NavBar — signed in", () => {
         await screen.findByText("An")
 
         await userEvent.click(screen.getByRole("button", { name: "Vào trận" }))
-        const list = await screen.findByRole("menu", { name: "Chọn trận" })
-        expect(list).toBeTruthy()
+        const dialog = await screen.findByRole("dialog")
 
-        await userEvent.click(screen.getByRole("menuitem", { name: /Chung kết/ }))
+        await userEvent.click(within(dialog).getByRole("button", { name: /Chung kết/ }))
         await waitFor(() => expect(screen.getByText("landed at /s/cup/matches/m1")).toBeTruthy())
     })
 
@@ -123,24 +125,27 @@ describe("NavBar — signed in", () => {
         await screen.findByText("An")
 
         await userEvent.click(screen.getByRole("button", { name: "Vào trận" }))
-        expect(await screen.findByRole("status")).toHaveTextContent(/Không đọc được danh sách trận/)
+        const dialog = await screen.findByRole("dialog")
+        expect(within(dialog).getByRole("status")).toHaveTextContent(/Không đọc được danh sách trận/)
     })
 })
 
-describe("NavBar — the other way in (a room code)", () => {
-    it("signed out: «Nhập mã» goes to the login door first, carrying the code box", async () => {
+describe("NavBar — one button, code box inside", () => {
+    it("signed out: no code box — Đăng nhập is the only door", async () => {
         draw({ ...signedOut, ...noTournaments })
 
-        const door = await screen.findByRole("link", { name: "Nhập mã" })
-        expect(door.getAttribute("href")).toBe("/login?next=%2Fcode")
+        expect(await screen.findByRole("link", { name: "Đăng nhập" })).toBeTruthy()
+        expect(screen.queryByRole("link", { name: "Nhập mã" })).toBeNull()
     })
 
-    it("signed in: «Nhập mã» sits beside Vào trận and opens the code box", async () => {
+    it("signed in: the single Vào trận button opens the code box", async () => {
         draw({ ...signedIn, ...noTournaments, ...oneMatch })
         await screen.findByText("An")
 
-        const box = await screen.findByRole("link", { name: "Nhập mã" })
-        expect(box.getAttribute("href")).toBe("/code")
-        expect(screen.getByRole("button", { name: "Vào trận" })).toBeTruthy()
+        expect(screen.queryByRole("link", { name: "Nhập mã" })).toBeNull()
+        await userEvent.click(screen.getByRole("button", { name: "Vào trận" }))
+        const dialog = await screen.findByRole("dialog")
+        expect(within(dialog).getByLabelText("Mã phòng")).toBeTruthy()
+        expect(within(dialog).getByRole("button", { name: "Vào trận" })).toBeTruthy()
     })
 })
