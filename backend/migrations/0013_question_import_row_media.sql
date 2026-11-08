@@ -1,0 +1,1 @@
+ALTER TABLE "question_import_rows" ADD COLUMN "media" jsonb;

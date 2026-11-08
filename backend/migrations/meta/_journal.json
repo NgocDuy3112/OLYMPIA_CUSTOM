@@ -85,6 +85,27 @@
       "when": 1793933777098,
       "tag": "0011_question_bank_buckets",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794037154898,
+      "tag": "0012_question_import_batches",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1794037900867,
+      "tag": "0013_question_import_row_media",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1794039545986,
+      "tag": "0014_import_batch_creator_set_null",
+      "breakpoints": true
     }
   ]
 }

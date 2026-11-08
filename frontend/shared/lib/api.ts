@@ -10,8 +10,6 @@ export class ApiError extends Error {
     constructor(
         public status: number,
         message: string,
-        // The API's error shape: { error, message, details }. The details carry the
-        // specifics the server refused over — the tied players, the unknown rounds.
         public code?: string,
         public details?: string[]
     ) {
@@ -26,7 +24,9 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
         ...init,
         credentials: "include",
         headers: {
-            ...(init.body ? { "Content-Type": "application/json" } : {}),
+            ...(init.body && !(init.body instanceof FormData)
+                ? { "Content-Type": "application/json" }
+                : {}),
             ...(init.headers ?? {}),
         },
     })
@@ -47,11 +47,6 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
                 ? (body.details as string[])
                 : undefined
 
-        // THE GATE (step 8): while the player is still on the desk's first
-        // password, the backend refuses every authenticated route with this code.
-        // Sending the browser to the one page that clears it is the gate doing
-        // its job — an API-level refusal the UI cannot forget to honour. The
-        // portal never sees it: staff accounts never carry the flag.
         if (code === "PASSWORD_CHANGE_REQUIRED" && typeof window !== "undefined") {
             const at = window.location.pathname
             if (at !== "/password") {

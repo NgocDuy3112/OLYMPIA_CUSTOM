@@ -29,7 +29,8 @@ function stubBank() {
         "GET /portal/auth/me": {
             body: { id: "u1", username: "ada", displayName: "Ada", role: "ADMIN", emailVerified: true, totpEnabled: true, avatarUrl: null },
         },
-        "GET /portal/questions?limit=20&offset=0&kind=TEXT": list([draftRow]),
+        "GET /portal/questions?limit=500&bucket=khoi-dong": list([draftRow]),
+        "GET /portal/questions/bucket-counts": { body: {} },
         "POST /portal/questions": { body: { id: "q2" } },
         "PATCH /portal/questions/q1/status": { body: { ...draftRow, status: "PENDING" } },
     })
@@ -47,8 +48,7 @@ describe("QuestionsPage", () => {
         expect(within(row).getByRole("button", { name: /Submit/ })).toBeInTheDocument()
         expect(within(row).getByRole("button", { name: /Archive/ })).toBeInTheDocument()
         expect(within(row).getByRole("button", { name: /Edit/ })).toBeInTheDocument()
-        // admin session → the admin-only step is offered (not blocked)
-        expect(screen.queryByRole("button", { name: /Publish/ })).toBeNull() // DRAFT has no publish step
+        expect(screen.queryByRole("button", { name: /Publish/ })).toBeNull() 
     })
 
     it("creates a TEXT question: dialog draft becomes the POST payload", async () => {
@@ -61,6 +61,7 @@ describe("QuestionsPage", () => {
 
         await user.type(within(dialog).getByLabelText("Question"), "Thủ đô của Việt Nam là?")
         await user.type(within(dialog).getByLabelText(/Accepted answers/), "Hà Nội\nHa Noi")
+        await user.selectOptions(within(dialog).getByLabelText("Round group"), "khoi-dong:chung")
 
         await user.click(within(dialog).getByRole("button", { name: "Save" }))
 
@@ -73,11 +74,12 @@ describe("QuestionsPage", () => {
             kind: "TEXT",
             questionText: "Thủ đô của Việt Nam là?",
             payload: {
+                type: "TEXT",
                 acceptedAnswers: ["Hà Nội", "Ha Noi"],
                 normalize: { caseSensitive: false, trim: true, stripAccents: true },
             },
+            tags: ["khoi-dong:chung"],
         })
-        // the dialog unmounts once its close animation finishes
         await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
     })
 
@@ -89,9 +91,8 @@ describe("QuestionsPage", () => {
         await user.click(await screen.findByRole("button", { name: /New question/ }))
         const dialog = await screen.findByRole("dialog")
 
-        // Save stays disabled and states why — no request is made
         expect(within(dialog).getByRole("button", { name: "Save" })).toBeDisabled()
-        expect(within(dialog).getByText(/required/i)).toBeInTheDocument()
+        expect(within(dialog).getByText("Pick the round group this question lives in.")).toBeInTheDocument()
     })
 
     it("moves a draft on with Submit → PATCH status", async () => {
@@ -106,7 +107,6 @@ describe("QuestionsPage", () => {
         )
         expect(patch).toBeTruthy()
         expect(JSON.parse(patch![1]?.body as string)).toEqual({ status: "PENDING" })
-        // success invalidates → the list refetches (stub allows the repeat GET)
         expect(await screen.findByText(draftRow.questionText)).toBeInTheDocument()
     })
 })

@@ -5,9 +5,9 @@ import { db } from "../../src/db/pool.js";
 import { users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 import type { CreateQuestionInput } from "../../src/modules/questions/index.js";
+import { MAX_PAGE_SIZE } from "../../src/modules/questions/index.js";
 
 
-// The question bank is global: one bank, and the tournaments pick from it by their tags.
 
 let app: FastifyInstance;
 let adminCookie: string;
@@ -240,6 +240,46 @@ describe("GET — listing, filters, pagination", () => {
         expect(byStatus.json().items.every((q: { status: string }) => q.status === "DRAFT")).toBe(true);
     });
 
+    it("filters by round bucket — tags and the payload bridge", async () => {
+        const rieng = await create({ ...textQ("bucket rieng"), tags: ["khoi-dong:rieng"] });
+        const bridge = await create({
+            ...textQ("bucket bridge"),
+            tags: [],
+            payload: {
+                acceptedAnswers: ["42"],
+                normalize: { caseSensitive: false, trim: true, stripAccents: true },
+                bucket: "ve-dich:20",
+            },
+        });
+
+        const byRound = await app.inject({
+            method: "GET",
+            url: "/portal/questions?bucket=khoi-dong&limit=100",
+            headers: auth(ownerCookie),
+        });
+        expect(byRound.statusCode).toBe(200);
+        const roundIds = byRound.json().items.map((q: { id: string }) => q.id);
+        expect(roundIds).toContain(rieng.json().id);
+        expect(roundIds).not.toContain(bridge.json().id);
+
+        const byCell = await app.inject({
+            method: "GET",
+            url: "/portal/questions?bucket=ve-dich&limit=100",
+            headers: auth(ownerCookie),
+        });
+        expect(byCell.statusCode).toBe(200);
+        expect(byCell.json().items.map((q: { id: string }) => q.id)).toContain(bridge.json().id);
+
+        const counts = await app.inject({
+            method: "GET",
+            url: "/portal/questions/bucket-counts",
+            headers: auth(ownerCookie),
+        });
+        expect(counts.statusCode).toBe(200);
+        expect(counts.json()["khoi-dong:rieng"]).toBeGreaterThanOrEqual(1);
+        expect(counts.json()["ve-dich:20"]).toBeGreaterThanOrEqual(1);
+    });
+
     it("paginates with offset and reports the unpaginated total", async () => {
         const all = await app.inject({
             method: "GET",
@@ -266,8 +306,8 @@ describe("GET — listing, filters, pagination", () => {
         expect(res.statusCode).toBe(400);
     });
 
-    it("400 for limit=0 and limit=101 (bounds enforced)", async () => {
-        for (const limit of [0, 101]) {
+    it("400 for limit=0 and one past the bank's page cap", async () => {
+        for (const limit of [0, MAX_PAGE_SIZE + 1]) {
             const res = await app.inject({
                 method: "GET",
                 url: `/portal/questions?limit=${limit}`,
@@ -275,6 +315,16 @@ describe("GET — listing, filters, pagination", () => {
             });
             expect(res.statusCode).toBe(400);
         }
+    });
+
+    it("200 for a limit between the global cap and the bank's window", async () => {
+        const res = await app.inject({
+            method: "GET",
+            url: "/portal/questions?limit=101",
+            headers: auth(ownerCookie),
+        });
+        expect(res.statusCode).toBe(200);
+        expect(res.json().limit).toBe(101);
     });
 
     it("400 for an unknown status value", async () => {
@@ -439,7 +489,6 @@ describe("GET /portal/tournaments/:id/eligible-questions — the assembly browse
         const ids = res.json().items.map((q: { id: string }) => q.id);
         expect(ids).toContain(own.json().id);
         expect(ids).not.toContain(draft.json().id);
-        // the bank is global: every published question is eligible, whoever authored it
         expect(ids).toContain(other.json().id);
     });
 

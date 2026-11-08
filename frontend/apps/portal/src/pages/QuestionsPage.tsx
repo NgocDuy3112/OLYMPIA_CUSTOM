@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Download, FileText, Lightbulb, Pencil, Plus } from "lucide-react"
+import { Download, FileText, Lightbulb, Pencil, Plus, X } from "lucide-react"
 import { cn } from "cn"
 import { ApiError, api } from "@shared/lib/api"
 import { Badge } from "@shared/ui/badge"
@@ -16,34 +16,12 @@ import {
 import { Input } from "@shared/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
 import { EmptyState, ErrorPanel, ListSkeleton, Page, PageHeader } from "@/components/page"
+import { QuestionAuthorDialog, type AuthorSave } from "@/components/question-author-dialog"
+import { StagedImportBanner } from "@/components/staged-import"
 import { useMe } from "@/lib/session"
+import { useMatches } from "@/lib/tournament"
+import { useTournaments } from "@/lib/tournaments"
 
-// ui-patterns.md rule): browse/filter here, author/edit only inside the dialog,
-// status moves are explicit row actions (operations, not forms). One Save per
-// dialog; the draft is derived from the server row when the dialog opens and
-// Cancel discards it.
-//
-// The surface is split BY KIND (tabs): TEXT renders as plain rows, CHOICE as
-// card-rows where the options are visible at a glance, KEYWORD as one big
-// set-card per keyword — the keyword as the title, the hints as sub rows, and
-// no prose beyond that.
-//
-// A hint is a KIND of its own (HINT): a typed answer that belongs to a keyword
-// set — same payload shape as TEXT, never listed as a TEXT question. A hint has
-// NO tab and no list of its own: it lives only as a sub-row of its keyword's
-// card (kind=HINT, grouped by the keyword's tag, D1), born from the card's
-// "Add hint" or from a TEXT ↔ HINT conversion — the one kind conversion the
-// dialog and the service allow. A set holds at most HINT_MAX (8).
-//
-// Status workflow (backend `transitions.ts`):
-//   DRAFT → PENDING | ARCHIVED · PENDING → DRAFT | PUBLISHED | ARCHIVED
-//   PUBLISHED → PENDING | ARCHIVED · ARCHIVED → (terminal, immutable)
-// Publishing is admin-only — the button says why when it is disabled.
-// ARCHIVED is terminal, so it asks for a confirmation that states the invariant.
-//
-// Filters (status/tag/search/kind/offset) live in the URL via replaceState —
-// this page renders without a Router in the test harness, and refresh/share
-// must keep the view. Search and tag apply debounced.
 
 type Kind = "CHOICE" | "TEXT" | "KEYWORD" | "HINT"
 type Status = "DRAFT" | "PENDING" | "PUBLISHED" | "ARCHIVED"
@@ -52,11 +30,10 @@ interface BankQuestion {
     id: string
     kind: Kind
     questionText: string
-    // The ve-dich board's category label — presentation only.
-    // A hint's set: the keyword it lives under.
     keywordId?: string | null
     status: Status
     timeLimit: number | null
+    tags?: string[]
     payload: Record<string, unknown>
     updatedAt: string
 }
@@ -66,7 +43,6 @@ interface Paged {
     total: number
 }
 
-// The batch import report (backend service.ts → BatchReport).
 interface BatchErrorRow {
     index: number
     code: string
@@ -82,9 +58,22 @@ interface BatchReport {
     errors: BatchErrorRow[]
 }
 
-const LIMIT = 20
+interface ExcelRowSummary {
+    index: number
+    sheet: string
+    sourceId: string
+    bucket: string
+    kind: string
+}
+
+interface ExcelReport extends BatchReport {
+    skipped: number
+    warnings: Array<{ index: number; message: string }>
+    rows: ExcelRowSummary[]
+}
+
+const WINDOW = 500
 const MAX_BATCH = 500
-// docs/game-rules.md §giai-ma: at most 8 hints per set.
 const HINT_MAX = 8
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" })
 
@@ -122,129 +111,121 @@ const TRANSITIONS: Record<Status, Array<{ to: Status; label: string; adminOnly?:
 }
 
 
-type TabKind = Kind
 
-interface UrlState {
-    kind: TabKind
-    status: Status | "ALL"
-    search: string
-    offset: number
+type TabId = "khoi-dong" | "giai-ma" | "but-pha" | "ve-dich"
+
+interface GroupDef {
+    bucket: string | null
+    label: string
+    typeLabel?: string
 }
 
-const TAB_KINDS: TabKind[] = ["TEXT", "CHOICE", "KEYWORD"]
+interface TabDef {
+    id: TabId
+    label: string
+    groups: GroupDef[]
+}
+
+const TABS: TabDef[] = [
+    {
+        id: "khoi-dong",
+        label: "Khởi động",
+        groups: [
+            { bucket: "khoi-dong:rieng", label: "Riêng", typeLabel: "ORAL" },
+            { bucket: "khoi-dong:chung", label: "Chung", typeLabel: "TEXT" },
+        ],
+    },
+    {
+        id: "giai-ma",
+        label: "Giải mã",
+        groups: [{ bucket: "giai-ma", label: "Từ khóa", typeLabel: "KEYWORD" }],
+    },
+    {
+        id: "but-pha",
+        label: "Bứt phá",
+        groups: [{ bucket: "but-pha", label: "Bứt phá", typeLabel: "TEXT" }],
+    },
+    {
+        id: "ve-dich",
+        label: "Về đích",
+        groups: [
+            { bucket: "ve-dich:20", label: "20 điểm", typeLabel: "TEXT" },
+            { bucket: "ve-dich:30", label: "30 điểm", typeLabel: "TEXT" },
+            { bucket: "ve-dich:40", label: "40 điểm", typeLabel: "ORAL" },
+            { bucket: "ve-dich:50", label: "50 điểm", typeLabel: "ORAL" },
+        ],
+    },
+]
+
+const UNASSIGNED: GroupDef = { bucket: null, label: "Chưa gán nhóm" }
+
+const BUCKET_TAGS = new Set(
+    TABS.flatMap((tab) => tab.groups.map((group) => group.bucket)).filter(
+        (bucket): bucket is string => bucket !== null
+    )
+)
+
+function activeTab(id: TabId): TabDef {
+    return TABS.find((tab) => tab.id === id) ?? TABS[0]
+}
+
+function bucketOf(row: BankQuestion): string | null {
+    const tagged = (row.tags ?? []).find((tag) => BUCKET_TAGS.has(tag))
+    if (tagged) return tagged
+    const carrier = (row.payload as { bucket?: unknown }).bucket
+    if (typeof carrier === "string" && carrier.length > 0) return carrier
+    if (row.kind === "KEYWORD" || row.kind === "HINT") return "giai-ma"
+    return null
+}
+
+function typeOf(row: BankQuestion): string {
+    const declared = (row.payload as { type?: unknown }).type
+    if (typeof declared === "string" && declared.length > 0) return declared
+    return row.kind === "HINT" ? "TEXT" : row.kind
+}
+
+function belongsToTab(bucket: string | null, tab: TabId): boolean {
+    if (!bucket) return false
+    return bucket === tab || bucket.startsWith(`${tab}:`)
+}
+
 const STATUSES: Status[] = ["DRAFT", "PENDING", "PUBLISHED", "ARCHIVED"]
 
+interface UrlState {
+    tab: TabId
+    status: Status | "ALL"
+    search: string
+}
+
 function readUrlState(): UrlState {
-    const fallback: UrlState = { kind: "TEXT", status: "ALL", search: "", offset: 0 }
+    const fallback: UrlState = { tab: "khoi-dong", status: "ALL", search: "" }
     if (typeof window === "undefined") return fallback
     const params = new URLSearchParams(window.location.search)
-    const kind = params.get("kind") ?? "TEXT"
+    const tab = params.get("tab") ?? params.get("kind") ?? "khoi-dong"
     const status = params.get("status") ?? "ALL"
-    const offset = Number(params.get("offset") ?? "0")
+    const legacy: Record<string, TabId> = { KEYWORD: "giai-ma", TEXT: "khoi-dong", CHOICE: "khoi-dong" }
+    const mapped = (TABS as TabDef[]).some((entry) => entry.id === tab)
+        ? (tab as TabId)
+        : legacy[tab] ?? "khoi-dong"
     return {
-        kind: (TAB_KINDS as string[]).includes(kind) ? (kind as TabKind) : "TEXT",
+        tab: mapped,
         status: (STATUSES as string[]).includes(status) ? (status as Status) : "ALL",
         search: params.get("search") ?? "",
-        offset: Number.isFinite(offset) && offset > 0 ? Math.floor(offset) : 0,
     }
 }
 
-function listParams(state: UrlState, limit = LIMIT): URLSearchParams {
-    const params = new URLSearchParams({ limit: String(limit), offset: String(state.offset) })
-    params.set("kind", state.kind)
+function listParams(state: UrlState): URLSearchParams {
+    const params = new URLSearchParams({ limit: String(WINDOW), bucket: state.tab })
     if (state.status !== "ALL") params.set("status", state.status)
     if (state.search) params.set("search", state.search)
     return params
 }
 
-// ── the edit draft ────────────────────────────────────────────────────────────
 
 interface Normalize {
     caseSensitive: boolean
     trim: boolean
     stripAccents: boolean
-}
-
-interface Draft {
-    kind: Kind
-    questionText: string
-    keywordId: string // HINT only: the set this hint joins; "" = none yet
-    timeLimit: string // "" = none
-    options: Array<{ id: string; text: string }>
-    correct: string[]
-    accepted: string // one answer per line
-    code: string
-    norm: Normalize
-}
-
-const DEFAULT_NORM: Normalize = { caseSensitive: false, trim: true, stripAccents: true }
-
-function nextOptionId(existing: string[]): string {
-    for (let i = 0; i < 26; i += 1) {
-        const id = String.fromCharCode(97 + i)
-        if (!existing.includes(id)) return id
-    }
-    return `o${existing.length}`
-}
-
-function draftFrom(row: BankQuestion | null, presetKeywordId?: string, presetKind?: Kind): Draft {
-    const base: Draft = {
-        kind: row?.kind ?? presetKind ?? "TEXT",
-        questionText: row?.questionText ?? "",
-        keywordId: row?.keywordId ?? presetKeywordId ?? "",
-        timeLimit: row?.timeLimit != null ? String(row.timeLimit) : "",
-        options: [
-            { id: "a", text: "" },
-            { id: "b", text: "" },
-        ],
-        correct: [],
-        accepted: "",
-        code: "",
-        norm: { ...DEFAULT_NORM },
-    }
-    if (!row) return base
-
-    const payload = row.payload as {
-        options?: Array<{ id: string; text: string }>
-        correctSet?: string[]
-        acceptedAnswers?: string[]
-        code?: string
-        normalize?: Partial<Normalize>
-    }
-    if (Array.isArray(payload.options)) {
-        base.options = payload.options.map((o) => ({ id: o.id, text: o.text }))
-        base.correct = payload.correctSet ?? []
-    }
-    if (Array.isArray(payload.acceptedAnswers)) {
-        base.accepted = payload.acceptedAnswers.join("\n")
-    }
-    if (typeof payload.code === "string") {
-        base.code = payload.code
-    }
-    if (payload.normalize) {
-        base.norm = { ...DEFAULT_NORM, ...payload.normalize }
-    }
-    return base
-}
-
-// null = the draft cannot be a valid payload yet (the dialog shows why).
-function buildPayload(draft: Draft): Record<string, unknown> | null {
-    if (draft.kind === "CHOICE") {
-        const options = draft.options
-            .filter((o) => o.text.trim())
-            .map((o) => ({ id: o.id, text: o.text.trim() }))
-        if (options.length === 0) return null
-        const ids = new Set(options.map((o) => o.id))
-        return { options, correctSet: draft.correct.filter((id) => ids.has(id)) }
-    }
-    // HINT shares TEXT's payload on purpose — see assertPayloadForKind.
-    if (draft.kind === "TEXT" || draft.kind === "HINT") {
-        const acceptedAnswers = draft.accepted.split("\n").map((line) => line.trim()).filter(Boolean)
-        if (acceptedAnswers.length === 0) return null
-        return { acceptedAnswers, normalize: draft.norm }
-    }
-    if (!draft.code.trim()) return null
-    return { code: draft.code.trim(), normalize: draft.norm }
 }
 
 function messageOf(error: unknown): string {
@@ -260,7 +241,6 @@ function normSummary(norm?: Partial<Normalize> | null): string {
     return parts.join(" · ")
 }
 
-// The answer, in plain sight — the bank is a staff-only surface.
 function answerSummary(row: BankQuestion): string | null {
     const payload = row.payload as {
         acceptedAnswers?: string[]
@@ -282,7 +262,6 @@ function answerSummary(row: BankQuestion): string | null {
     return payload.code ? `→ ${payload.code}` : null
 }
 
-// ── the row actions (shared by the table, the console cards, the hint rows) ────────
 
 function RowActions({
     row,
@@ -297,6 +276,7 @@ function RowActions({
     onEdit: (row: BankQuestion) => void
     onTransition: (row: BankQuestion, to: Status) => void
 }) {
+    const [adding, setAdding] = useState(false)
     return (
         <div className="flex flex-wrap items-center justify-end gap-1.5">
             <Button
@@ -307,6 +287,19 @@ function RowActions({
                 onClick={() => onEdit(row)}
             >
                 <Pencil className="size-3.5" aria-hidden /> Edit
+            </Button>
+            <Button
+                variant="outline"
+                size="sm"
+                disabled={row.status !== "PUBLISHED" || busy}
+                title={
+                    row.status !== "PUBLISHED"
+                        ? "Chỉ câu PUBLISHED mới vào được trận"
+                        : "Chọn một trận UPCOMING và mở composer với câu này"
+                }
+                onClick={() => setAdding(true)}
+            >
+                Thêm vào trận
             </Button>
             {TRANSITIONS[row.status].map((step) => {
                 const blocked = step.adminOnly && !isAdmin
@@ -323,12 +316,101 @@ function RowActions({
                     </Button>
                 )
             })}
+            {adding && <AddToMatchDialog rows={[row]} onClose={() => setAdding(false)} />}
         </div>
     )
 }
 
-// A question's text opens the read-only preview — a button, so it stays
-// keyboard reachable (and the table cell keeps its title attribute).
+function AddToMatchDialog({ rows, onClose }: { rows: BankQuestion[] | null; onClose: () => void }) {
+    const tournaments = useTournaments({ limit: 50 })
+    const [tournamentId, setTournamentId] = useState("")
+    const [matchId, setMatchId] = useState("")
+    const matches = useMatches(tournamentId)
+    const upcoming = (matches.data?.items ?? []).filter((match) => match.status === "UPCOMING")
+    const unbucketed = (rows ?? []).filter((row) => !bucketOf(row)).length
+
+    if (!rows || rows.length === 0) return null
+
+    const ready = Boolean(tournamentId && matchId && rows.some((row) => bucketOf(row)))
+    const go = () => {
+        if (!ready) return
+        window.location.assign(
+            `/tournaments/${tournamentId}/matches/${matchId}?add=${encodeURIComponent(
+                rows.map((row) => row.id).join(",")
+            )}`
+        )
+    }
+
+    const description =
+        rows.length === 1
+            ? bucketOf(rows[0])
+                ? `Câu nằm ở nhóm ${bucketOf(rows[0])} — chọn một trận UPCOMING để mở composer với câu đã sẵn sàng thêm.`
+                : "Câu chưa gán nhóm — gán nhóm trước khi thêm vào trận."
+            : `${rows.length} câu được chọn${
+                  unbucketed > 0 ? ` — ${unbucketed} chưa gán nhóm sẽ bị bỏ qua` : ""
+              }.`
+
+    return (
+        <Dialog open onOpenChange={(next) => { if (!next) onClose() }}>
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Thêm vào trận</DialogTitle>
+                    <DialogDescription>{description}</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-3">
+                    <label className="grid gap-1 text-sm">
+                        Giải đấu
+                        <select
+                            value={tournamentId}
+                            onChange={(event) => {
+                                setTournamentId(event.target.value)
+                                setMatchId("")
+                            }}
+                            className="h-8 rounded-lg border border-input bg-transparent px-2 text-sm"
+                        >
+                            <option value="">— chọn giải —</option>
+                            {(tournaments.data?.items ?? []).map((tournament) => (
+                                <option key={tournament.id} value={tournament.id}>
+                                    {tournament.name}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    <label className="grid gap-1 text-sm">
+                        Trận UPCOMING
+                        <select
+                            value={matchId}
+                            onChange={(event) => setMatchId(event.target.value)}
+                            disabled={!tournamentId || matches.isPending}
+                            className="h-8 rounded-lg border border-input bg-transparent px-2 text-sm"
+                        >
+                            <option value="">
+                                {matches.isPending ? "Đang tải…" : "— chọn trận —"}
+                            </option>
+                            {upcoming.map((match) => (
+                                <option key={match.id} value={match.id}>
+                                    {match.label} · {match.stageId} · slot {match.slot ?? "—"}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    {tournamentId && !matches.isPending && upcoming.length === 0 && (
+                        <p className="text-xs text-amber-600 dark:text-amber-500">
+                            Giải này chưa có trận UPCOMING nào.
+                        </p>
+                    )}
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={onClose}>Hủy</Button>
+                    <Button onClick={go} disabled={!ready} title={ready ? undefined : "Chọn giải và trận"}>
+                        Mở trận và thêm
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 function PreviewText({
     row,
     className,
@@ -350,11 +432,32 @@ function PreviewText({
     )
 }
 
-// ── the question table (ALL and TEXT tabs) ────────────────────────────────────
+function SelectBox({
+    row,
+    selected,
+    onToggle,
+}: {
+    row: BankQuestion
+    selected: Map<string, BankQuestion>
+    onToggle: (row: BankQuestion) => void
+}) {
+    return (
+        <input
+            type="checkbox"
+            checked={selected.has(row.id)}
+            onChange={() => onToggle(row)}
+            aria-label={`Chọn: ${row.questionText}`}
+            className="size-4 shrink-0 accent-primary"
+        />
+    )
+}
+
 
 function QuestionTable({
     rows,
     showKind,
+    selected,
+    onToggleSelect,
     isAdmin,
     busy,
     flash,
@@ -364,6 +467,8 @@ function QuestionTable({
 }: {
     rows: BankQuestion[]
     showKind: boolean
+    selected: Map<string, BankQuestion>
+    onToggleSelect: (row: BankQuestion) => void
     isAdmin: boolean
     busy: boolean
     flash: { id: string; message: string } | null
@@ -376,6 +481,9 @@ function QuestionTable({
             <Table>
                 <TableHeader>
                     <TableRow>
+                        <TableHead className="w-8">
+                            <span className="sr-only">Chọn</span>
+                        </TableHead>
                         <TableHead>Question</TableHead>
                         {showKind && <TableHead className="w-20">Kind</TableHead>}
                         <TableHead className="w-28">Status</TableHead>
@@ -388,6 +496,13 @@ function QuestionTable({
                         const answer = answerSummary(row)
                         return (
                             <TableRow key={row.id}>
+                                <TableCell>
+                                    <SelectBox
+                                        row={row}
+                                        selected={selected}
+                                        onToggle={onToggleSelect}
+                                    />
+                                </TableCell>
                                 <TableCell className="max-w-md">
                                     <span className="block truncate font-medium" title={row.questionText}>
                                         <PreviewText row={row} onPreview={onPreview} className="font-medium" />
@@ -408,7 +523,7 @@ function QuestionTable({
                                     )}
                                 </TableCell>
                                 {showKind && (
-                                    <TableCell><Badge variant="outline">{row.kind}</Badge></TableCell>
+                                    <TableCell><Badge variant="outline">{typeOf(row)}</Badge></TableCell>
                                 )}
                                 <TableCell><StatusBadge status={row.status} /></TableCell>
                                 <TableCell className="text-sm text-muted-foreground">
@@ -432,10 +547,11 @@ function QuestionTable({
     )
 }
 
-// ── the console cards ──────────────────────────────────────────────────────────────
 
 function McCard({
     row,
+    selected,
+    onToggleSelect,
     isAdmin,
     busy,
     flash,
@@ -444,6 +560,8 @@ function McCard({
     onTransition,
 }: {
     row: BankQuestion
+    selected: Map<string, BankQuestion>
+    onToggleSelect: (row: BankQuestion) => void
     isAdmin: boolean
     busy: boolean
     flash: { id: string; message: string } | null
@@ -462,11 +580,16 @@ function McCard({
     return (
         <div className="rounded-xl border bg-card p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                    <PreviewText row={row} onPreview={onPreview} className="text-sm font-semibold" />
-                    {flash?.id === row.id && (
-                        <span role="alert" className="block text-xs text-destructive">{flash.message}</span>
-                    )}
+                <div className="flex min-w-0 flex-1 items-start gap-2">
+                    <div className="pt-1">
+                        <SelectBox row={row} selected={selected} onToggle={onToggleSelect} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <PreviewText row={row} onPreview={onPreview} className="text-sm font-semibold" />
+                        {flash?.id === row.id && (
+                            <span role="alert" className="block text-xs text-destructive">{flash.message}</span>
+                        )}
+                    </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <StatusBadge status={row.status} />
@@ -508,10 +631,11 @@ function McCard({
     )
 }
 
-// ── the KEYWORD set-card ──────────────────────────────────────────────────────
 
 function KeywordSetCard({
     row,
+    selected,
+    onToggleSelect,
     isAdmin,
     busy,
     flash,
@@ -521,6 +645,8 @@ function KeywordSetCard({
     onAddHint,
 }: {
     row: BankQuestion
+    selected: Map<string, BankQuestion>
+    onToggleSelect: (row: BankQuestion) => void
     isAdmin: boolean
     busy: boolean
     flash: { id: string; message: string } | null
@@ -531,7 +657,6 @@ function KeywordSetCard({
 }) {
     const payload = row.payload as { code?: string }
 
-    // The set: this keyword's own hints — filtered server-side by the link.
     const hintParams = new URLSearchParams({ kind: "HINT", keywordId: row.id, limit: "100", offset: "0" })
     const hints = useQuery({
         queryKey: ["keyword-hints", row.id],
@@ -548,6 +673,9 @@ function KeywordSetCard({
         <div className="overflow-hidden rounded-xl border bg-card">
             <div className="relative overflow-hidden px-5 py-6">
                 <div className="relative grid gap-1.5">
+                    <div className="w-fit">
+                        <SelectBox row={row} selected={selected} onToggle={onToggleSelect} />
+                    </div>
                     <button
                         type="button"
                         onClick={() => onPreview(row)}
@@ -560,7 +688,7 @@ function KeywordSetCard({
 
             </div>
 
-            {/* operations */}
+            
             <div className="flex flex-wrap items-center gap-2 border-b bg-muted/40 px-5 py-3">
                 <StatusBadge status={row.status} />
                 <span className="text-sm text-muted-foreground">{dateFormat.format(new Date(row.updatedAt))}</span>
@@ -596,6 +724,7 @@ function KeywordSetCard({
                             return (
                                 <li key={hint.id} className="rounded-lg border bg-background/60 px-3 py-2">
                                     <div className="flex flex-wrap items-center gap-2 text-sm">
+                                        <SelectBox row={hint} selected={selected} onToggle={onToggleSelect} />
                                         <span className="w-5 shrink-0 text-muted-foreground">{index + 1}.</span>
                                         <PreviewText row={hint} onPreview={onPreview} className="min-w-40 flex-1 truncate font-medium" />
                                         <StatusBadge status={hint.status} />
@@ -656,9 +785,34 @@ function KeywordSetCard({
     )
 }
 
-// ── the read-only preview ─────────────────────────────────────────────────────
 
-function PreviewDialog({ row, onClose }: { row: BankQuestion | null; onClose: () => void }) {
+function bucketLabel(bucket: string | null): string | null {
+    if (!bucket) return null
+    for (const tabDef of TABS) {
+        for (const group of tabDef.groups) {
+            if (group.bucket === bucket) return `${tabDef.label} · ${group.label}`
+        }
+    }
+    return bucket
+}
+
+function InspectorDrawer({ row, onClose }: { row: BankQuestion | null; onClose: () => void }) {
+    const usage = useQuery({
+        queryKey: ["question-usage", row?.id ?? "none"],
+        queryFn: () =>
+            api<{
+                items: Array<{
+                    id: string
+                    tournamentId: string
+                    label: string
+                    stageId: string
+                    status: string
+                }>
+            }>(`/portal/questions/${row?.id ?? ""}/usage`),
+        enabled: row !== null,
+        staleTime: 15_000,
+    })
+
     if (!row) return null
 
     const payload = row.payload as {
@@ -669,94 +823,139 @@ function PreviewDialog({ row, onClose }: { row: BankQuestion | null; onClose: ()
         normalize?: Partial<Normalize>
     }
     const correct = new Set(payload.correctSet ?? [])
+    const items = usage.data?.items ?? []
+    const bucket = bucketLabel(bucketOf(row))
 
     return (
-        <Dialog open onOpenChange={(next) => { if (!next) onClose() }}>
-            <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
-                <DialogHeader>
-                    <DialogTitle>Preview question</DialogTitle>
-                    <DialogDescription>Read-only — edit it from the row action.</DialogDescription>
-                </DialogHeader>
-
-                <div className="grid gap-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="outline">{row.kind}</Badge>
+        <>
+            <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} aria-hidden />
+            <aside
+                role="dialog"
+                aria-label={`Chi tiết: ${row.questionText}`}
+                className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col overflow-y-auto border-l bg-card p-5 shadow-xl"
+            >
+                <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge variant="outline">{typeOf(row)}</Badge>
                         <StatusBadge status={row.status} />
-                        <span className="text-sm text-muted-foreground">
-                            Updated {dateFormat.format(new Date(row.updatedAt))}
-                            {row.timeLimit != null ? ` · ${row.timeLimit}s limit` : " · no time limit"}
-                        </span>
+                        {bucket && <Badge variant="secondary">{bucket}</Badge>}
                     </div>
+                    <Button variant="ghost" size="sm" aria-label="Đóng" onClick={onClose}>
+                        <X className="size-4" />
+                    </Button>
+                </div>
 
-                    <div className="grid gap-1">
-                        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                            Question
-                        </span>
-                        <p className="text-sm font-medium">{row.questionText}</p>
-                    </div>
+                <h3 className="mt-3 text-base font-semibold">{row.questionText}</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                    Cập nhật {dateFormat.format(new Date(row.updatedAt))}
+                    {row.timeLimit != null ? ` · ${row.timeLimit}s` : " · không giới hạn thời gian"}
+                </p>
 
-                    {row.kind === "CHOICE" && (
-                        <div className="grid gap-1">
+                <div className="mt-4 grid gap-4 text-sm">
+                    {payload.options && payload.options.length > 0 && (
+                        <div className="grid gap-1.5">
                             <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                Options · correct ticked
+                                Lựa chọn
+                                {payload.acceptedAnswers
+                                    ? " · mặt khán giả nhìn thấy"
+                                    : ""}
                             </span>
                             <ul className="grid gap-1.5">
-                                {(payload.options ?? []).map((option, index) => (
+                                {payload.options.map((option, index) => (
                                     <li
                                         key={option.id}
                                         className={cn(
-                                            "flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm",
+                                            "flex items-center gap-2 rounded-lg border px-3 py-1.5",
                                             correct.has(option.id) && "border-primary/40 bg-primary/5"
                                         )}
                                     >
                                         <span className="font-semibold text-muted-foreground">
                                             {String.fromCharCode(65 + index)}
                                         </span>
-                                        <span>{option.text}</span>
-                                        {correct.has(option.id) && <span className="ml-auto text-xs text-primary">✓</span>}
+                                        <span className="min-w-0 truncate">{option.text}</span>
+                                        {correct.has(option.id) && (
+                                            <span className="ml-auto shrink-0 text-xs font-medium text-primary">
+                                                ✓
+                                            </span>
+                                        )}
                                     </li>
                                 ))}
                             </ul>
-                            {correct.size === 0 && (
-                                <p className="text-xs text-destructive">⚠ No correct option ticked.</p>
-                            )}
                         </div>
                     )}
 
-                    {(row.kind === "TEXT" || row.kind === "HINT") && (
+                    {payload.acceptedAnswers && payload.acceptedAnswers.length > 0 && (
                         <div className="grid gap-1">
                             <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                Accepted answers
+                                Đáp án chấp nhận
                             </span>
                             <ul className="list-inside list-disc text-sm">
-                                {(payload.acceptedAnswers ?? []).map((answer) => (
+                                {payload.acceptedAnswers.map((answer) => (
                                     <li key={answer}>{answer}</li>
                                 ))}
                             </ul>
-                            <span className="text-xs text-muted-foreground">{normSummary(payload.normalize)}</span>
+                            <span className="text-xs text-muted-foreground">
+                                {normSummary(payload.normalize)}
+                            </span>
                         </div>
                     )}
 
-                    {row.kind === "KEYWORD" && (
+                    {payload.code !== undefined && (
                         <div className="grid gap-1">
                             <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                Keyword (secret)
+                                Keyword (bí mật)
                             </span>
-                            <p className="rounded-lg border px-3 py-2 text-sm">{payload.code}</p>
-                            <span className="text-xs text-muted-foreground">{normSummary(payload.normalize)}</span>
+                            <p className="rounded-lg border px-3 py-2">{payload.code}</p>
+                            <span className="text-xs text-muted-foreground">
+                                {normSummary(payload.normalize)}
+                            </span>
                         </div>
                     )}
+
+                    <div className="grid gap-1.5 border-t pt-3">
+                        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Đang dùng trong {usage.isPending ? "…" : `${items.length} trận`}
+                        </span>
+                        {usage.isError && (
+                            <p className="text-xs text-destructive">{messageOf(usage.error)}</p>
+                        )}
+                        {!usage.isPending && !usage.isError && items.length === 0 && (
+                            <p className="text-xs text-muted-foreground">Chưa vào trận nào.</p>
+                        )}
+                        <ul className="grid gap-1">
+                            {items.map((match) => (
+                                <li key={match.id}>
+                                    <a
+                                        className="text-sm underline-offset-2 hover:underline"
+                                        href={`/tournaments/${match.tournamentId}/matches/${match.id}`}
+                                    >
+                                        {match.label}
+                                    </a>
+                                    <span className="text-xs text-muted-foreground">
+                                        {" "}
+                                        · {match.stageId} · {match.status}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                        {items.length >= 20 && (
+                            <p className="text-xs text-muted-foreground">
+                                Chỉ hiện 20 trận gần nhất.
+                            </p>
+                        )}
+                    </div>
                 </div>
 
-                <DialogFooter>
-                    <Button variant="outline" onClick={onClose}>Close</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                <div className="mt-auto pt-4">
+                    <Button variant="outline" className="w-full" onClick={onClose}>
+                        Đóng
+                    </Button>
+                </div>
+            </aside>
+        </>
     )
 }
 
-// ── the archive confirmation ──────────────────────────────────────────────────
 
 function ArchiveConfirmDialog({
     row,
@@ -802,15 +1001,20 @@ function ArchiveConfirmDialog({
     )
 }
 
-// ── the batch import ──────────────────────────────────────────────────────────
 
 function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
     const queryClient = useQueryClient()
+    const [mode, setMode] = useState<"json" | "excel">("json")
     const [text, setText] = useState("")
     const [questions, setQuestions] = useState<unknown[] | null>(null)
+    const [file, setFile] = useState<File | null>(null)
+    const [mediaFiles, setMediaFiles] = useState<File[]>([])
     const [parseError, setParseError] = useState<string | null>(null)
     const [report, setReport] = useState<BatchReport | null>(null)
+    const [excel, setExcel] = useState<ExcelReport | null>(null)
     const [validatedText, setValidatedText] = useState<string | null>(null)
+    const [validatedFile, setValidatedFile] = useState<File | null>(null)
+    const [validatedMedia, setValidatedMedia] = useState<File[] | null>(null)
 
     const parse = (): unknown[] | null => {
         setQuestions(null)
@@ -864,31 +1068,100 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
             }),
         onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: ["questions"] })
-            void queryClient.invalidateQueries({ queryKey: ["question-counts"] })
+            void queryClient.invalidateQueries({ queryKey: ["bucket-counts"] })
             onClose()
         },
     })
 
+    const postExcel = (dryRun: boolean, chosen: File) => {
+        const form = new FormData()
+        form.append("file", chosen, chosen.name)
+        for (const media of mediaFiles) form.append("media", media, media.name)
+        return api<ExcelReport>(`/portal/questions/import-excel?dryRun=${dryRun}`, {
+            method: "POST",
+            body: form,
+        })
+    }
+
+    const validateExcel = useMutation({
+        mutationFn: (chosen: File) => postExcel(true, chosen),
+        onSuccess: (result, chosen) => {
+            setExcel(result)
+            setValidatedFile(chosen)
+            setValidatedMedia(mediaFiles)
+        },
+        onError: (cause) => setParseError(messageOf(cause)),
+    })
+
+    const runExcelImport = useMutation({
+        mutationFn: (chosen: File) => postExcel(false, chosen),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ["questions"] })
+            void queryClient.invalidateQueries({ queryKey: ["bucket-counts"] })
+            void queryClient.invalidateQueries({ queryKey: ["keyword-hints"] })
+            void queryClient.invalidateQueries({ queryKey: ["question-imports"] })
+            onClose()
+        },
+        onError: (cause) => setParseError(messageOf(cause)),
+    })
+
     const onValidate = () => {
+        if (mode === "excel") {
+            if (file) validateExcel.mutate(file)
+            return
+        }
         const rows = parse()
         if (rows) validate.mutate(rows)
     }
     const onImport = () => {
+        if (mode === "excel") {
+            if (file && excel) runExcelImport.mutate(file)
+            return
+        }
         if (questions) runImport.mutate(questions)
     }
 
+    const switchMode = (next: "json" | "excel") => {
+        if (next === mode) return
+        setMode(next)
+        setText("")
+        setQuestions(null)
+        setFile(null)
+        setMediaFiles([])
+        setReport(null)
+        setExcel(null)
+        setValidatedText(null)
+        setValidatedFile(null)
+        setValidatedMedia(null)
+        setParseError(null)
+    }
+
+    const currentReport = mode === "excel" ? excel : report
+    const busy =
+        validate.isPending ||
+        runImport.isPending ||
+        validateExcel.isPending ||
+        runExcelImport.isPending
+    const importError = mode === "excel" ? runExcelImport : runImport
+
     const changedSinceValidation = validatedText !== null && validatedText !== text
-    const reason =
-        parseError ??
-        (questions === null
-            ? "Paste JSON, then validate"
-            : report === null
-                ? "Validate first (dry run)"
-                : report.errors.length > 0
-                    ? `Fix ${report.errors.length} error(s) above`
-                    : changedSinceValidation
-                        ? "Changed since validation — validate again"
-                        : null)
+    const reason = (() => {
+        if (parseError) return parseError
+        if (mode === "excel") {
+            if (!file) return "Choose an .xlsx file, then validate"
+            if (!excel) return "Validate first (dry run)"
+            if (validatedFile !== file) return "File changed since validation — validate again"
+            if (validatedMedia !== mediaFiles) return "Media files changed since validation — validate again"
+            return null
+        }
+        if (questions === null) return "Paste JSON, then validate"
+        if (report === null) return "Validate first (dry run)"
+        if (report.errors.length > 0) return `Fix ${report.errors.length} error(s) above`
+        if (changedSinceValidation) return "Changed since validation — validate again"
+        return null
+    })()
+
+    const willStage = mode === "excel" && currentReport !== null && currentReport.errors.length > 0
 
     return (
         <Dialog
@@ -901,43 +1174,122 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
                 <DialogHeader>
                     <DialogTitle>Import questions</DialogTitle>
                     <DialogDescription>
-                        Paste a JSON batch (max {MAX_BATCH}). Validate runs a dry run: the server checks every
-                        row — payload shape, duplicates — without writing anything.
+                        {mode === "json"
+                            ? `Paste a JSON batch (max ${MAX_BATCH}). Validate runs a dry run: the server checks every row — payload shape, duplicates — without writing anything.`
+                            : "Upload the AOC workbook with the media its File column names (max 5 MB + 100 files). Validate runs a dry run: every row is checked — group IDs, payload shape, duplicates, missing media — without writing anything."}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="grid gap-3">
-                    <label className="grid gap-1 text-sm" htmlFor="import-json">
-                        Questions (JSON array, or {"{ \"questions\": [...] }"})
-                    </label>
-                    <textarea
-                        id="import-json"
-                        value={text}
-                        onChange={(event) => {
-                            setText(event.target.value)
-                            setParseError(null)
-                        }}
-                        rows={10}
-                        spellCheck={false}
-                        placeholder={'[\n  { "kind": "TEXT", "questionText": "…", "payload": { "acceptedAnswers": ["…"], "normalize": { "caseSensitive": false, "trim": true, "stripAccents": true } } }\n]'}
-                        className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-xs"
-                    />
+                    <div className="flex w-fit gap-1 rounded-lg border p-1" role="group" aria-label="Import source">
+                        <Button
+                            size="sm"
+                            variant={mode === "json" ? "secondary" : "ghost"}
+                            onClick={() => switchMode("json")}
+                        >
+                            JSON
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant={mode === "excel" ? "secondary" : "ghost"}
+                            onClick={() => switchMode("excel")}
+                        >
+                            Excel (.xlsx)
+                        </Button>
+                    </div>
 
-                    {report && report.errors.length === 0 && (
+                    {mode === "json" ? (
+                        <>
+                            <label className="grid gap-1 text-sm" htmlFor="import-json">
+                                Questions (JSON array, or {"{ \"questions\": [...] }"})
+                            </label>
+                            <textarea
+                                id="import-json"
+                                value={text}
+                                onChange={(event) => {
+                                    setText(event.target.value)
+                                    setParseError(null)
+                                }}
+                                rows={10}
+                                spellCheck={false}
+                                placeholder={'[\n  { "kind": "TEXT", "questionText": "…", "payload": { "acceptedAnswers": ["…"], "normalize": { "caseSensitive": false, "trim": true, "stripAccents": true } } }\n]'}
+                                className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-xs"
+                            />
+                        </>
+                    ) : (
+                        <>
+                            <label className="grid gap-1 text-sm" htmlFor="import-xlsx">
+                                Workbook (.xlsx)
+                            </label>
+                            <input
+                                id="import-xlsx"
+                                type="file"
+                                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                onChange={(event) => {
+                                    setFile(event.target.files?.[0] ?? null)
+                                    setExcel(null)
+                                    setParseError(null)
+                                }}
+                                className="block w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm file:mr-3 file:cursor-pointer file:rounded-lg file:border file:border-input file:bg-muted file:px-3 file:py-1 file:text-sm"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                Template <span className="font-medium text-foreground">AOC_M00.xlsx</span> — sheets
+                                KHOI_DONG · GIAI_MA · BUT_PHA · VE_DICH, columns ID · Câu hỏi · Đáp án · Giải thích ·
+                                Ghi chú · File ảnh/video/audio. One accepted answer per line (Alt+Enter); GM_KEY
+                                carries the keyword and GM_1…GM_8 its hints. Rows the template leaves empty are
+                                skipped, never imported.
+                            </p>
+
+                            <label className="grid gap-1 text-sm" htmlFor="import-media">
+                                Media files (optional)
+                            </label>
+                            <input
+                                id="import-media"
+                                type="file"
+                                multiple
+                                onChange={(event) => {
+                                    setMediaFiles(Array.from(event.target.files ?? []))
+                                    setExcel(null)
+                                    setParseError(null)
+                                }}
+                                className="block w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm file:mr-3 file:cursor-pointer file:rounded-lg file:border file:border-input file:bg-muted file:px-3 file:py-1 file:text-sm"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                The <span className="font-medium text-foreground">File ảnh/video/audio</span> column
+                                names a file — bundle the ones you want stored and they upload with the import. A
+                                cell naming a file you did NOT pick is reported as a warning: the row still
+                                imports, without its media.
+                            </p>
+                            {mediaFiles.length > 0 && (
+                                <p className="text-xs text-muted-foreground">
+                                    {mediaFiles.length} file{mediaFiles.length === 1 ? "" : "s"} selected:{" "}
+                                    {mediaFiles.slice(0, 6).map((media) => media.name).join(", ")}
+                                    {mediaFiles.length > 6 ? ` … +${mediaFiles.length - 6} more` : ""}
+                                </p>
+                            )}
+                        </>
+                    )}
+
+                    {currentReport && currentReport.errors.length === 0 && (
                         <p className="rounded-lg border border-emerald-600/40 bg-emerald-500/10 px-3 py-2 text-sm">
-                            ✓ {report.total} question{report.total === 1 ? "" : "s"} valid — ready to import.
+                            ✓ {currentReport.total} question{currentReport.total === 1 ? "" : "s"} valid — ready to import.
                         </p>
                     )}
 
-                    {report && report.errors.length > 0 && (
+                    {currentReport && currentReport.errors.length > 0 && (
                         <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2">
                             <p className="text-sm font-medium text-destructive">
-                                {report.errors.length} of {report.total} rows failed:
+                                {currentReport.errors.length} of {currentReport.total} rows failed:
                             </p>
                             <ul className="mt-1 grid gap-1 text-xs text-destructive">
-                                {report.errors.map((failure) => (
+                                {currentReport.errors.map((failure) => (
                                     <li key={failure.index}>
-                                        Row {failure.index + 1}: [{failure.code}] {failure.message}
+                                        {excel
+                                            ? `${excel.rows[failure.index]?.sheet ?? "?"} ${
+                                                  excel.rows[failure.index]?.sourceId || `#${failure.index + 1}`
+                                              }`
+                                            : `Row ${failure.index + 1}`}
+                                        : [{failure.code}] {failure.message}
                                         {failure.details.length > 0 ? ` — ${failure.details.join("; ")}` : ""}
                                     </li>
                                 ))}
@@ -945,36 +1297,83 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
                         </div>
                     )}
 
-                    {runImport.isError && (
+                    {excel && excel.skipped > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                            {excel.skipped} pre-seeded row{excel.skipped === 1 ? "" : "s"} left empty — skipped.
+                        </p>
+                    )}
+
+                    {excel && excel.warnings.length > 0 && (
+                        <div className="rounded-lg border border-amber-600/40 bg-amber-500/10 px-3 py-2">
+                            <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                                {excel.warnings.length} warning{excel.warnings.length === 1 ? "" : "s"} — these rows
+                                still import:
+                            </p>
+                            
+                            <ul className="mt-1 max-h-40 grid gap-1 overflow-y-auto text-xs text-amber-800 dark:text-amber-500">
+                                {excel.warnings.map((warning) => (
+                                    <li key={warning.index}>
+                                        {excel.rows[warning.index]?.sourceId || `Row ${warning.index + 1}`}:{" "}
+                                        {warning.message}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    {excel && excel.rows.length > 0 && (
+                        <div className="rounded-lg border">
+                            <p className="border-b px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                                {excel.rows.length} row{excel.rows.length === 1 ? "" : "s"} →{" "}
+                                {new Set(excel.rows.map((row) => row.bucket)).size} group(s)
+                            </p>
+                            <ul className="max-h-40 overflow-y-auto px-3 py-2 font-mono text-xs">
+                                {excel.rows.map((row) => (
+                                    <li key={row.index} className="flex gap-2">
+                                        <span className="w-24 shrink-0 text-muted-foreground">{row.sheet}</span>
+                                        <span className="w-24 shrink-0">{row.sourceId || `#${row.index + 1}`}</span>
+                                        <span>{row.bucket}</span>
+                                        <span className="ml-auto text-muted-foreground">{row.kind}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    {importError.isError && (
                         <p role="alert" className="text-sm text-destructive">
-                            {messageOf(runImport.error)} — re-validate and try again.
+                            {messageOf(importError.error)} — re-validate and try again.
                         </p>
                     )}
                 </div>
 
                 <DialogFooter className="items-center gap-2">
                     <span className="mr-auto text-xs text-muted-foreground">{reason}</span>
-                    <Button variant="outline" onClick={onClose} disabled={validate.isPending || runImport.isPending}>
+                    <Button variant="outline" onClick={onClose} disabled={busy}>
                         Cancel
                     </Button>
                     <Button
                         variant="secondary"
                         onClick={onValidate}
-                        disabled={!text.trim() || validate.isPending || runImport.isPending}
+                        disabled={busy || (mode === "json" ? !text.trim() : !file)}
                     >
-                        {validate.isPending ? "Validating…" : "Validate (dry run)"}
+                        {validate.isPending || validateExcel.isPending ? "Validating…" : "Validate (dry run)"}
                     </Button>
                     <Button
                         onClick={onImport}
                         disabled={
                             reason !== null ||
-                            report === null ||
-                            report.errors.length > 0 ||
-                            runImport.isPending
+                            currentReport === null ||
+                            (mode === "json" && currentReport.errors.length > 0) ||
+                            busy
                         }
                         title={reason ?? undefined}
                     >
-                        {runImport.isPending ? "Importing…" : "Import"}
+                        {runImport.isPending || runExcelImport.isPending
+                            ? "Importing…"
+                            : willStage
+                              ? "Import & review"
+                              : "Import"}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -982,104 +1381,55 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
     )
 }
 
-// ── the dialog ────────────────────────────────────────────────────────────────
 
 function QuestionDialog({
     row,
     presetKeywordId,
-    presetKind,
+    bucket,
     open,
     onClose,
 }: {
     row: BankQuestion | null
     presetKeywordId?: string
-    presetKind?: Kind
+    bucket?: string
     open: boolean
     onClose: () => void
 }) {
     const queryClient = useQueryClient()
-    const [draft, setDraft] = useState<Draft>(() => draftFrom(row, presetKeywordId, presetKind))
     const [error, setError] = useState<string | null>(null)
 
-    const patch = (change: Partial<Draft>) => setDraft((current) => ({ ...current, ...change }))
-
-    // The 8-hint cap, checked against the set of the tag being edited (the same
-    // cache entry the keyword card reads). The row itself stops counting when it
-    // stops being a HINT, so a conversion back is never blocked by the cap.
-    const hintParams = new URLSearchParams({
-        kind: "HINT",
-        keywordId: draft.keywordId,
-        limit: "100",
-        offset: "0",
-    })
-    const hintPool = useQuery({
-        queryKey: ["keyword-hints", draft.keywordId],
-        queryFn: () => api<Paged>(`/portal/questions?${hintParams.toString()}`),
-        enabled: draft.kind === "HINT" && draft.keywordId.length > 0,
-        staleTime: 15_000,
-    })
-    const selfIsHint = row !== null && row.kind === "HINT" && row.keywordId === draft.keywordId
-    const otherHints = Math.max(0, (hintPool.data?.items ?? []).length - (selfIsHint ? 1 : 0))
-    const hintCapFull = draft.kind === "HINT" && draft.keywordId.length > 0 && otherHints >= HINT_MAX
-
-    // The set picker: every (non-archived) keyword can parent a hint.
-    const keywordList = useQuery({
-        queryKey: ["keyword-list"],
-        queryFn: () =>
-            api<Paged>(
-                `/portal/questions?${new URLSearchParams({ kind: "KEYWORD", limit: "100", offset: "0" }).toString()}`
-            ),
-        enabled: draft.kind === "HINT",
-        staleTime: 15_000,
-    })
-    const keywordOptions = (keywordList.data?.items ?? []).filter(
-        (keyword) => keyword.status !== "ARCHIVED" || keyword.id === draft.keywordId
-    )
-
-    const payload = buildPayload(draft)
-    const textOk = draft.questionText.trim().length > 0
-    const dirty =
-        row === null
-            ? textOk && payload !== null
-            : draft.kind !== row.kind ||
-            draft.questionText.trim() !== row.questionText ||
-            draft.keywordId !== (row.keywordId ?? "") ||
-            draft.timeLimit !== (row.timeLimit != null ? String(row.timeLimit) : "") ||
-            JSON.stringify(payload) !== JSON.stringify(row.payload)
-    const reason =
-        !textOk || payload === null
-            ? row
-                ? "Fill the required fields"
-                : "Question and an answer are required"
-            : draft.kind === "HINT" && !draft.keywordId
-                ? "Choose the keyword set this hint joins"
-                : hintCapFull
-                    ? `This set already holds ${HINT_MAX}/${HINT_MAX} hints — convert or archive one first`
-                    : !dirty
-                        ? "No changes to save"
-                        : null
-
     const save = useMutation({
-        mutationFn: () => {
+        mutationFn: (input: AuthorSave) => {
+            const kind: Kind =
+                input.type === "KEYWORD"
+                    ? "KEYWORD"
+                    : input.type === "CHOICE"
+                      ? "CHOICE"
+                      : input.keywordId
+                        ? "HINT"
+                        : "TEXT"
             const body: Record<string, unknown> = {
-                questionText: draft.questionText.trim(),
-                payload,
+                questionText: input.questionText,
+                payload: input.payload,
+                tags: input.tags,
             }
+            if (input.timeLimit != null) body.timeLimit = input.timeLimit
+            if (input.keywordId) body.keywordId = input.keywordId
             if (row) {
-                // The only kind change the service accepts is TEXT ↔ HINT.
-                if (draft.kind !== row.kind) body.kind = draft.kind
-                body.keywordId = draft.kind === "HINT" ? draft.keywordId || null : null
-                body.timeLimit = draft.timeLimit ? Number(draft.timeLimit) : null
-                return api(`/portal/questions/${row.id}`, { method: "PATCH", body: JSON.stringify(body) })
+                if (kind !== row.kind) body.kind = kind
+                body.keywordId = input.keywordId 
+                body.timeLimit = input.timeLimit 
+                return api(`/portal/questions/${row.id}`, {
+                    method: "PATCH",
+                    body: JSON.stringify(body),
+                })
             }
-            body.kind = draft.kind
-            if (draft.kind === "HINT") body.keywordId = draft.keywordId || undefined
-            if (draft.timeLimit) body.timeLimit = Number(draft.timeLimit)
+            body.kind = kind
             return api("/portal/questions", { method: "POST", body: JSON.stringify(body) })
         },
         onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: ["questions"] })
-            void queryClient.invalidateQueries({ queryKey: ["question-counts"] })
+            void queryClient.invalidateQueries({ queryKey: ["bucket-counts"] })
             void queryClient.invalidateQueries({ queryKey: ["keyword-hints"] })
             void queryClient.invalidateQueries({ queryKey: ["keyword-list"] })
             onClose()
@@ -1087,255 +1437,198 @@ function QuestionDialog({
         onError: (cause) => setError(messageOf(cause)),
     })
 
-    const toggleCorrect = (id: string) =>
-        patch({ correct: draft.correct.includes(id) ? draft.correct.filter((c) => c !== id) : [...draft.correct, id] })
-
-    const setNorm = (key: keyof Normalize, value: boolean) => patch({ norm: { ...draft.norm, [key]: value } })
-
     return (
-        <Dialog
+        <QuestionAuthorDialog
             open={open}
-            onOpenChange={(next) => {
-                if (!next) onClose()
-            }}
-        >
-            <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
-                <DialogHeader>
-                    <DialogTitle>{row ? "Edit question" : "New question"}</DialogTitle>
-                    <DialogDescription>
-                        {row
-                            ? "Changes apply to the bank; assembled matches keep their frozen copy."
-                            : presetKind === "HINT"
-                                ? "A hint for a keyword's set — the keyword is linked in the form."
-                                : "A bank question for the global bank."}
-                    </DialogDescription>
-                </DialogHeader>
-
-                <div className="grid gap-4">
-                    <div className="grid gap-2">
-                        <label className="text-sm font-medium" htmlFor="q-kind">Kind</label>
-                        <select
-                            id="q-kind"
-                            value={draft.kind}
-                            disabled={row !== null && row.kind !== "TEXT" && row.kind !== "HINT"}
-                            title={
-                                row
-                                    ? row.kind === "TEXT" || row.kind === "HINT"
-                                        ? "TEXT and HINT may be converted into each other"
-                                        : "The kind cannot change after creation"
-                                    : undefined
-                            }
-                            onChange={(event) => patch({ kind: event.target.value as Kind })}
-                            className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            <option value="TEXT">TEXT — typed answer</option>
-                            {row === null && <option value="CHOICE">CHOICE — multiple choice</option>}
-                            {row === null && <option value="KEYWORD">KEYWORD — the giai mã keyword</option>}
-                            {(row !== null || presetKind === "HINT") && (
-                                <option value="HINT">HINT — the giai mã hint</option>
-                            )}
-                            {row !== null && row.kind !== "TEXT" && row.kind !== "HINT" && (
-                                <option value={row.kind}>
-                                    {row.kind === "CHOICE" ? "CHOICE — multiple choice" : "KEYWORD — the giai mã keyword"}
-                                </option>
-                            )}
-                        </select>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <label className="text-sm font-medium" htmlFor="q-text">Question</label>
-                        <textarea
-                            id="q-text"
-                            value={draft.questionText}
-                            onChange={(event) => patch({ questionText: event.target.value })}
-                            rows={3}
-                            className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm"
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                            <label className="text-sm font-medium" htmlFor="q-limit">Time limit (s, optional)</label>
-                            <Input
-                                id="q-limit"
-                                type="number"
-                                min={1}
-                                value={draft.timeLimit}
-                                onChange={(event) => patch({ timeLimit: event.target.value })}
-                                placeholder="—"
-                            />
-                        </div>
-                    </div>
-
-                    {/* ── the answer, shaped by the kind ── */}
-                    {draft.kind === "CHOICE" && (
-                        <div className="grid gap-2">
-                            <span className="text-sm font-medium">Options · tick the correct one(s)</span>
-                            {draft.options.map((option, index) => (
-                                <div key={option.id} className="flex items-center gap-2">
-                                    <input
-                                        type="checkbox"
-                                        checked={draft.correct.includes(option.id)}
-                                        onChange={() => toggleCorrect(option.id)}
-                                        aria-label={`Option ${String.fromCharCode(65 + index)} correct`}
-                                        className="size-4 shrink-0"
-                                    />
-                                    <span className="w-4 shrink-0 text-sm font-semibold text-muted-foreground">
-                                        {String.fromCharCode(65 + index)}
-                                    </span>
-                                    <Input
-                                        value={option.text}
-                                        onChange={(event) =>
-                                            patch({
-                                                options: draft.options.map((o) =>
-                                                    o.id === option.id ? { ...o, text: event.target.value } : o
-                                                ),
-                                            })
-                                        }
-                                        placeholder={`Option ${String.fromCharCode(65 + index)}`}
-                                    />
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        disabled={draft.options.length <= 1}
-                                        title={draft.options.length <= 1 ? "A question needs at least one option" : "Remove this option"}
-                                        onClick={() => {
-                                            patch({
-                                                options: draft.options.filter((o) => o.id !== option.id),
-                                                correct: draft.correct.filter((id) => id !== option.id),
-                                            })
-                                        }}
-                                    >
-                                        ✕
-                                    </Button>
-                                </div>
-                            ))}
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="justify-start"
-                                onClick={() =>
-                                    patch({ options: [...draft.options, { id: nextOptionId(draft.options.map((o) => o.id)), text: "" }] })
-                                }
-                            >
-                                <Plus className="size-4" aria-hidden /> Add option
-                            </Button>
-                            {payload === null && (
-                                <p className="text-xs text-destructive">Give at least one option a text.</p>
-                            )}
-                        </div>
-                    )}
-
-                    {(draft.kind === "TEXT" || draft.kind === "HINT") && (
-                        <div className="grid gap-2">
-                            <label className="text-sm font-medium" htmlFor="q-accepted">
-                                Accepted answers · one per line
-                            </label>
-                            <textarea
-                                id="q-accepted"
-                                value={draft.accepted}
-                                onChange={(event) => patch({ accepted: event.target.value })}
-                                rows={3}
-                                placeholder={"Hoàng thành Thăng Long\nThăng Long"}
-                                className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm"
-                            />
-                            <NormalizeRow norm={draft.norm} onSet={setNorm} />
-                            {draft.kind === "HINT" && (
-                                <div className="grid gap-1 border-t pt-2">
-                                    <label className="text-sm font-medium" htmlFor="q-set">
-                                        Set · the keyword this hint joins
-                                    </label>
-                                    <select
-                                        id="q-set"
-                                        value={draft.keywordId}
-                                        onChange={(event) => patch({ keywordId: event.target.value })}
-                                        className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
-                                    >
-                                        <option value="">Choose a keyword…</option>
-                                        {keywordOptions.map((keyword) => (
-                                            <option key={keyword.id} value={keyword.id}>
-                                                {(keyword.payload as { code?: string }).code || keyword.questionText}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    {keywordList.data && keywordOptions.length === 0 && (
-                                        <span className="text-xs text-amber-600 dark:text-amber-500">
-                                            No KEYWORD question exists yet — create the keyword first.
-                                        </span>
-                                    )}
-                                    {hintPool.data && draft.keywordId && (
-                                        <span
-                                            className={cn("text-xs", hintCapFull ? "text-destructive" : "text-muted-foreground")}
-                                        >
-                                            {otherHints}/{HINT_MAX} hints in this set
-                                            {hintCapFull ? " — convert or archive one first." : ""}
-                                        </span>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {draft.kind === "KEYWORD" && (
-                        <div className="grid gap-2">
-                            <label className="text-sm font-medium" htmlFor="q-code">
-                                Keyword (mật mã)
-                            </label>
-                            <Input
-                                id="q-code"
-                                value={draft.code}
-                                onChange={(event) => patch({ code: event.target.value })}
-                                placeholder="the secret keyword"
-                            />
-                            <p className="text-xs text-muted-foreground">
-                                Players type this keyword into the Giải Mã box; the prompt above is what they see.
-                                Matching uses the checkboxes below.
-                            </p>
-                            <NormalizeRow norm={draft.norm} onSet={setNorm} />
-                        </div>
-                    )}
-
-                    {error && (
-                        <p role="alert" className="text-sm text-destructive">{error}</p>
-                    )}
-                </div>
-
-                <DialogFooter className="items-center gap-2">
-                    <span className="mr-auto text-xs text-muted-foreground">{reason}</span>
-                    <Button variant="outline" onClick={onClose}>Cancel</Button>
-                    <Button
-                        disabled={reason !== null || save.isPending}
-                        title={reason ?? undefined}
-                        onClick={() => save.mutate()}
-                    >
-                        {save.isPending ? "Saving…" : "Save"}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+            row={row}
+            bucket={bucket}
+            presetKeywordId={presetKeywordId}
+            busy={save.isPending}
+            saveError={error}
+            onCancel={onClose}
+            onSave={(input) => save.mutate(input)}
+        />
     )
 }
 
-function NormalizeRow({ norm, onSet }: { norm: Normalize; onSet: (key: keyof Normalize, value: boolean) => void }) {
+
+function GroupSection({
+    group,
+    rows,
+    count,
+    selected,
+    onToggleSelect,
+    isAdmin,
+    busy,
+    flash,
+    onEdit,
+    onPreview,
+    onTransition,
+    onAdd,
+    onAddHint,
+}: {
+    group: GroupDef
+    rows: BankQuestion[]
+    count?: number
+    selected: Map<string, BankQuestion>
+    onToggleSelect: (row: BankQuestion) => void
+    isAdmin: boolean
+    busy: boolean
+    flash: { id: string; message: string } | null
+    onEdit: (row: BankQuestion) => void
+    onPreview: (row: BankQuestion) => void
+    onTransition: (row: BankQuestion, to: Status) => void
+    onAdd: (bucket: string) => void
+    onAddHint: (keywordId: string, openDialog?: boolean) => void
+}) {
+    const keywords = rows.filter((row) => row.kind === "KEYWORD")
+    const choices = rows.filter((row) => row.kind === "CHOICE")
+    const plain = rows.filter((row) => row.kind !== "KEYWORD" && row.kind !== "CHOICE")
+
     return (
-        <div className="flex flex-wrap gap-4 pt-1">
-            <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={norm.trim} onChange={(e) => onSet("trim", e.target.checked)} className="size-4" />
-                Ignore surrounding spaces
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={norm.stripAccents} onChange={(e) => onSet("stripAccents", e.target.checked)} className="size-4" />
-                Ignore accents
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={norm.caseSensitive} onChange={(e) => onSet("caseSensitive", e.target.checked)} className="size-4" />
-                Case sensitive
-            </label>
+        <section className="grid gap-3" aria-label={`Nhóm ${group.label}`}>
+            <header className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-4 py-2.5">
+                <span className="text-sm font-semibold">{group.label}</span>
+                {group.typeLabel && <Badge variant="secondary">{group.typeLabel}</Badge>}
+                <span className="text-xs text-muted-foreground">{count ?? rows.length} câu</span>
+                {group.bucket && (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="ml-auto"
+                        onClick={() => onAdd(group.bucket as string)}
+                    >
+                        <Plus className="size-4" aria-hidden /> Thêm
+                    </Button>
+                )}
+            </header>
+
+            {rows.length === 0 && (
+                <p className="rounded-lg border border-dashed px-4 py-3 text-xs text-muted-foreground">
+                    Chưa có câu hỏi trong nhóm này.
+                </p>
+            )}
+
+            {plain.length > 0 && (
+                <QuestionTable
+                    rows={plain}
+                    showKind
+                    selected={selected}
+                    onToggleSelect={onToggleSelect}
+                    isAdmin={isAdmin}
+                    busy={busy}
+                    flash={flash}
+                    onEdit={onEdit}
+                    onPreview={onPreview}
+                    onTransition={onTransition}
+                />
+            )}
+
+            {choices.length > 0 && (
+                <div className="grid gap-3">
+                    {choices.map((row) => (
+                        <McCard
+                            key={row.id}
+                            row={row}
+                            selected={selected}
+                            onToggleSelect={onToggleSelect}
+                            isAdmin={isAdmin}
+                            busy={busy}
+                            flash={flash}
+                            onEdit={onEdit}
+                            onPreview={onPreview}
+                            onTransition={onTransition}
+                        />
+                    ))}
+                </div>
+            )}
+
+            {keywords.length > 0 && (
+                <div className="grid gap-4">
+                    {keywords.map((row) => (
+                        <KeywordSetCard
+                            key={row.id}
+                            row={row}
+                            selected={selected}
+                            onToggleSelect={onToggleSelect}
+                            isAdmin={isAdmin}
+                            busy={busy}
+                            flash={flash}
+                            onEdit={onEdit}
+                            onPreview={onPreview}
+                            onTransition={onTransition}
+                            onAddHint={onAddHint}
+                        />
+                    ))}
+                </div>
+            )}
+        </section>
+    )
+}
+
+function GroupList({
+    tab,
+    rows,
+    counts,
+    selected,
+    onToggleSelect,
+    isAdmin,
+    busy,
+    flash,
+    onEdit,
+    onPreview,
+    onTransition,
+    onAdd,
+    onAddHint,
+}: {
+    tab: TabDef
+    rows: BankQuestion[]
+    counts?: Record<string, number>
+    selected: Map<string, BankQuestion>
+    onToggleSelect: (row: BankQuestion) => void
+    isAdmin: boolean
+    busy: boolean
+    flash: { id: string; message: string } | null
+    onEdit: (row: BankQuestion) => void
+    onPreview: (row: BankQuestion) => void
+    onTransition: (row: BankQuestion, to: Status) => void
+    onAdd: (bucket: string) => void
+    onAddHint: (keywordId: string, openDialog?: boolean) => void
+}) {
+    const assigned = rows.filter((row) => belongsToTab(bucketOf(row), tab.id))
+    const unassigned = rows.filter((row) => bucketOf(row) === null)
+    const shared = {
+        rows,
+        selected,
+        onToggleSelect,
+        isAdmin,
+        busy,
+        flash,
+        onEdit,
+        onPreview,
+        onTransition,
+        onAdd,
+        onAddHint,
+    }
+
+    return (
+        <div className="grid gap-6">
+            {tab.groups.map((group) => (
+                <GroupSection
+                    key={group.bucket}
+                    group={group}
+                    count={group.bucket ? counts?.[group.bucket] : undefined}
+                    {...shared}
+                    rows={assigned.filter((row) => bucketOf(row) === group.bucket)}
+                />
+            ))}
+            {unassigned.length > 0 && (
+                <GroupSection group={UNASSIGNED} {...shared} rows={unassigned} />
+            )}
         </div>
     )
 }
 
-// ── the page ──────────────────────────────────────────────────────────────────
 
 export function QuestionsPage() {
     const queryClient = useQueryClient()
@@ -1344,27 +1637,20 @@ export function QuestionsPage() {
     const [state, setState] = useState<UrlState>(() => readUrlState())
     const [searchInput, setSearchInput] = useState(() => state.search)
 
-    // update() applies a filter change and always returns to the first page;
-    // the offset moves only through explicit pagination calls.
     const update = (patch: Partial<UrlState>) =>
-        setState((current) => ({ ...current, ...patch, offset: patch.offset ?? 0 }))
+        setState((current) => ({ ...current, ...patch }))
 
-    // Debounced search: typing narrows the view after a pause; Enter applies
-    // the search immediately (the effect then finds nothing left to do).
     useEffect(() => {
         if (searchInput.trim() === state.search) return
         const timer = setTimeout(() => update({ search: searchInput.trim() }), 350)
         return () => clearTimeout(timer)
     }, [searchInput, state.search])
 
-    // The URL is the bookmark of this view (no Router on this page — the test
-    // harness mounts it bare, and replaceState keeps the SPA router undisturbed).
     useEffect(() => {
         const params = new URLSearchParams()
-        params.set("kind", state.kind)
+        params.set("tab", state.tab)
         if (state.status !== "ALL") params.set("status", state.status)
         if (state.search) params.set("search", state.search)
-        if (state.offset > 0) params.set("offset", String(state.offset))
         const query = params.toString()
         window.history.replaceState(
             null,
@@ -1378,23 +1664,15 @@ export function QuestionsPage() {
         queryFn: () => api<Paged>(`/portal/questions?${listParams(state).toString()}`),
     })
 
-    // Tab counts follow the active filters (status/tag/search, not kind).
     const countFilters = JSON.stringify({ status: state.status, search: state.search })
     const counts = useQuery({
-        queryKey: ["question-counts", countFilters],
-        queryFn: async () => {
-            const totals = await Promise.all(
-                TAB_KINDS.map((tab) => {
-                    const params = new URLSearchParams({ limit: "1", offset: "0", kind: tab })
-                    if (state.status !== "ALL") params.set("status", state.status)
-                    if (state.search) params.set("search", state.search)
-                    return api<Paged>(`/portal/questions?${params.toString()}`)
-                })
-            )
-            const result = Object.fromEntries(
-                TAB_KINDS.map((tab, index) => [tab, totals[index].total])
-            ) as Record<TabKind, number>
-            return result
+        queryKey: ["bucket-counts", countFilters],
+        queryFn: () => {
+            const params = new URLSearchParams()
+            if (state.status !== "ALL") params.set("status", state.status)
+            if (state.search) params.set("search", state.search)
+            const qs = params.toString()
+            return api<Record<string, number>>(`/portal/questions/bucket-counts${qs ? `?${qs}` : ""}`)
         },
         placeholderData: keepPreviousData,
         staleTime: 15_000,
@@ -1402,6 +1680,10 @@ export function QuestionsPage() {
 
     const [flash, setFlash] = useState<{ id: string; message: string } | null>(null)
     const [confirming, setConfirming] = useState<BankQuestion | null>(null)
+    const [selected, setSelected] = useState<Map<string, BankQuestion>>(new Map())
+    const [bulkBusy, setBulkBusy] = useState(false)
+    const [bulkFlash, setBulkFlash] = useState<string | null>(null)
+    const [addRows, setAddRows] = useState<BankQuestion[] | null>(null)
 
     const transition = useMutation({
         mutationFn: (input: { id: string; to: Status }) =>
@@ -1410,7 +1692,7 @@ export function QuestionsPage() {
             setFlash(null)
             setConfirming(null)
             void queryClient.invalidateQueries({ queryKey: ["questions"] })
-            void queryClient.invalidateQueries({ queryKey: ["question-counts"] })
+            void queryClient.invalidateQueries({ queryKey: ["bucket-counts"] })
             void queryClient.invalidateQueries({ queryKey: ["keyword-hints"] })
         },
         onError: (cause, input) => setFlash({ id: input.id, message: messageOf(cause) }),
@@ -1420,7 +1702,7 @@ export function QuestionsPage() {
         open: boolean
         row: BankQuestion | null
         presetKeywordId?: string
-        presetKind?: Kind
+        bucket?: string
     }>({
         open: false,
         row: null,
@@ -1428,8 +1710,6 @@ export function QuestionsPage() {
     const [previewing, setPreviewing] = useState<BankQuestion | null>(null)
     const [importOpen, setImportOpen] = useState(false)
 
-    // ARCHIVED is terminal — it goes through the confirmation that states the
-    // invariant; every other step is a one-click row operation.
     const requestTransition = (row: BankQuestion, to: Status) => {
         if (to === "ARCHIVED") {
             setConfirming(row)
@@ -1438,23 +1718,111 @@ export function QuestionsPage() {
         transition.mutate({ id: row.id, to })
     }
 
-    // "Add hint" lands on the set's card (KEYWORD tab) and opens the dialog with
-    // HINT preselected and the link already set — a hint is born from its
-    // keyword, never from the global New question button.
     const addHint = (keywordId: string, openDialog = true) => {
-        update({ kind: "KEYWORD" })
-        if (openDialog) setEditing({ open: true, row: null, presetKeywordId: keywordId, presetKind: "HINT" })
+        update({ tab: "giai-ma" })
+        if (openDialog) setEditing({ open: true, row: null, presetKeywordId: keywordId, bucket: "giai-ma" })
     }
 
     const isAdmin = me?.role === "ADMIN"
     const rows = list.data?.items ?? []
+
+    const toggleSelect = (row: BankQuestion) =>
+        setSelected((current) => {
+            const next = new Map(current)
+            if (next.has(row.id)) next.delete(row.id)
+            else next.set(row.id, row)
+            return next
+        })
+
+    const clearSelection = () => setSelected(new Map())
+
+    const runBulk = async (
+        what: string,
+        jobs: Array<() => Promise<unknown>>,
+        skipped: number
+    ) => {
+        if (jobs.length === 0) {
+            setBulkFlash(
+                skipped > 0
+                    ? `Không có câu nào đủ điều kiện (${skipped} bị bỏ qua).`
+                    : "Không có gì để làm."
+            )
+            return
+        }
+        setBulkBusy(true)
+        setBulkFlash(null)
+        try {
+            const results = await Promise.allSettled(jobs.map((job) => job()))
+            const done = results.filter((result) => result.status === "fulfilled").length
+            const firstError = results.find(
+                (result): result is PromiseRejectedResult => result.status === "rejected"
+            )
+            void queryClient.invalidateQueries({ queryKey: ["questions"] })
+            void queryClient.invalidateQueries({ queryKey: ["bucket-counts"] })
+            void queryClient.invalidateQueries({ queryKey: ["keyword-hints"] })
+            clearSelection()
+            setBulkFlash(
+                firstError
+                    ? `${what}: ${done}/${results.length} thành công — lỗi đầu: ${messageOf(firstError.reason)}`
+                    : `${what}: ${done} câu đã xử lý.`
+            )
+        } finally {
+            setBulkBusy(false)
+        }
+    }
+
+    const bulkStatus = (to: Status) => {
+        const eligible = [...selected.values()].filter((row) =>
+            TRANSITIONS[row.status].some(
+                (step) => step.to === to && !(step.adminOnly && !isAdmin)
+            )
+        )
+        runBulk(
+            `Chuyển ${STATUS_LABEL[to]}`,
+            eligible.map((row) => () =>
+                api(`/portal/questions/${row.id}/status`, {
+                    method: "PATCH",
+                    body: JSON.stringify({ status: to }),
+                })
+            ),
+            selected.size - eligible.length
+        )
+    }
+
+    const bulkDuplicate = () =>
+        runBulk(
+            "Nhân bản",
+            [...selected.values()].map((row) => () =>
+                api(`/portal/questions/${row.id}/duplicate`, { method: "POST" })
+            ),
+            0
+        )
+
+    const bulkBucket = (bucket: string) => {
+        const eligible = [...selected.values()].filter((row) => row.status !== "ARCHIVED")
+        runBulk(
+            `Gắn nhóm ${bucket}`,
+            eligible.map((row) => () =>
+                api(`/portal/questions/${row.id}`, {
+                    method: "PATCH",
+                    body: JSON.stringify({
+                        tags: [
+                            ...(row.tags ?? []).filter((tag) => !BUCKET_TAGS.has(tag)),
+                            bucket,
+                        ],
+                    }),
+                })
+            ),
+            selected.size - eligible.length
+        )
+    }
 
 
     const emptyDescription = () => {
         if (searchInput.trim() || state.status !== "ALL") {
             return "Loosen the filters, or author the first one."
         }
-        return `The bank has no ${state.kind} questions yet — author the first one.`
+        return `Chưa có câu nào ở tab ${activeTab(state.tab).label} — thêm câu đầu tiên.`
     }
 
     return (
@@ -1473,7 +1841,10 @@ export function QuestionsPage() {
                 }
             />
 
-            {/* filters — read controls, not a form: they query on change */}
+            
+            <StagedImportBanner />
+
+            
             <div className="flex flex-wrap items-end gap-3">
                 <label className="grid gap-1 text-sm">
                     Status
@@ -1510,15 +1881,18 @@ export function QuestionsPage() {
                     <Button type="submit" variant="outline" size="sm" className="h-8">Search</Button>
                 </form>
 
-                {TAB_KINDS.map((tab) => {
-                    const active = state.kind === tab
-                    const count = counts.data?.[tab]
+                {TABS.map((tab) => {
+                    const active = state.tab === tab.id
+                    const count = tab.groups.reduce(
+                        (sum, group) => sum + (counts.data?.[group.bucket ?? ""] ?? 0),
+                        0
+                    )
                     return (
                         <button
-                            key={tab}
+                            key={tab.id}
                             type="button"
                             aria-pressed={active}
-                            onClick={() => update({ kind: tab })}
+                            onClick={() => update({ tab: tab.id })}
                             className={cn(
                                 "rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors",
                                 active
@@ -1526,10 +1900,8 @@ export function QuestionsPage() {
                                     : "bg-background hover:bg-muted"
                             )}
                         >
-                            {tab}
-                            {count !== undefined && (
-                                <span className="ml-1.5 text-xs font-normal opacity-70">{count}</span>
-                            )}
+                            {tab.label}
+                            <span className="ml-1.5 text-xs font-normal opacity-70">{count}</span>
                         </button>
                     )
                 })}
@@ -1546,78 +1918,29 @@ export function QuestionsPage() {
                 />
             )}
 
-            {list.data && rows.length > 0 && state.kind === "CHOICE" && (
-                <div className="grid gap-3">
-                    {rows.map((row) => (
-                        <McCard
-                            key={row.id}
-                            row={row}
-                            isAdmin={isAdmin}
-                            busy={transition.isPending}
-                            flash={flash}
-                            onEdit={(target) => setEditing({ open: true, row: target })}
-                            onPreview={setPreviewing}
-                            onTransition={requestTransition}
-                        />
-                    ))}
-                </div>
-            )}
-
-            {list.data && rows.length > 0 && state.kind === "KEYWORD" && (
-                <div className="grid gap-4">
-                    {rows.map((row) => (
-                        <KeywordSetCard
-                            key={row.id}
-                            row={row}
-                            isAdmin={isAdmin}
-                            busy={transition.isPending}
-                            flash={flash}
-                            onEdit={(target) => setEditing({ open: true, row: target })}
-                            onPreview={setPreviewing}
-                            onTransition={requestTransition}
-                            onAddHint={addHint}
-                        />
-                    ))}
-                </div>
-            )}
-
-            {list.data && rows.length > 0 && state.kind === "TEXT" && (
-                <QuestionTable
+            {list.data && rows.length > 0 && (
+                <GroupList
+                    tab={activeTab(state.tab)}
                     rows={rows}
-                    showKind={state.kind === "TEXT"}
+                    counts={counts.data}
+                    selected={selected}
+                    onToggleSelect={toggleSelect}
                     isAdmin={isAdmin}
                     busy={transition.isPending}
                     flash={flash}
                     onEdit={(row) => setEditing({ open: true, row })}
                     onPreview={setPreviewing}
                     onTransition={requestTransition}
+                    onAdd={(bucket) => setEditing({ open: true, row: null, bucket })}
+                    onAddHint={addHint}
                 />
             )}
 
-            {list.data && list.data.total > LIMIT && (
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span>
-                        {state.offset + 1}–{Math.min(state.offset + LIMIT, list.data.total)} of {list.data.total}
-                    </span>
-                    <div className="flex gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={state.offset === 0}
-                            onClick={() => update({ offset: Math.max(0, state.offset - LIMIT) })}
-                        >
-                            Previous
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={state.offset + LIMIT >= list.data.total}
-                            onClick={() => update({ offset: state.offset + LIMIT })}
-                        >
-                            Next
-                        </Button>
-                    </div>
-                </div>
+            {list.data && list.data.total > rows.length && (
+                <p className="text-xs text-muted-foreground">
+                    Đang hiển thị {rows.length} của {list.data.total} câu khớp bộ lọc — thu hẹp
+                    tìm kiếm để xem thêm.
+                </p>
             )}
 
             {editing.open && (
@@ -1625,13 +1948,13 @@ export function QuestionsPage() {
                     key={editing.row?.id ?? "new"}
                     row={editing.row}
                     presetKeywordId={editing.presetKeywordId}
-                    presetKind={editing.presetKind}
+                    bucket={editing.bucket}
                     open={editing.open}
                     onClose={() => setEditing({ open: false, row: null })}
                 />
             )}
 
-            {previewing && <PreviewDialog row={previewing} onClose={() => setPreviewing(null)} />}
+            {previewing && <InspectorDrawer row={previewing} onClose={() => setPreviewing(null)} />}
 
             <ArchiveConfirmDialog
                 row={confirming}
@@ -1644,6 +1967,85 @@ export function QuestionsPage() {
             />
 
             {importOpen && <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} />}
+
+            
+            {selected.size > 0 && (
+                <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 px-4 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.08)] backdrop-blur">
+                    <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 text-sm">
+                        <span className="font-semibold">{selected.size} đã chọn</span>
+                        <span className="text-xs text-muted-foreground">
+                            ở{" "}
+                            {[...new Set([...selected.values()].map((row) => bucketOf(row) ?? "chưa gán"))].join(
+                                ", "
+                            )}
+                        </span>
+                        <Button
+                            className="ml-auto"
+                            size="sm"
+                            variant="outline"
+                            disabled={bulkBusy}
+                            onClick={() => bulkStatus("PENDING")}
+                        >
+                            Nộp duyệt
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={bulkBusy || !isAdmin}
+                            title={isAdmin ? undefined : "Chỉ admin mới được đăng"}
+                            onClick={() => bulkStatus("PUBLISHED")}
+                        >
+                            Đăng
+                        </Button>
+                        <Button size="sm" variant="outline" disabled={bulkBusy} onClick={bulkDuplicate}>
+                            Nhân bản
+                        </Button>
+                        <select
+                            value=""
+                            disabled={bulkBusy}
+                            aria-label="Gắn nhóm cho các câu đã chọn"
+                            onChange={(event) => {
+                                if (event.target.value) bulkBucket(event.target.value)
+                            }}
+                            className="h-8 rounded-lg border border-input bg-transparent px-2 text-sm"
+                        >
+                            <option value="">Gắn nhóm…</option>
+                            {TABS.flatMap((tabDef) =>
+                                tabDef.groups.map((group) => (
+                                    <option
+                                        key={group.bucket ?? group.label}
+                                        value={group.bucket ?? ""}
+                                    >
+                                        {tabDef.label} · {group.label}
+                                    </option>
+                                ))
+                            )}
+                        </select>
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={bulkBusy}
+                            onClick={() => setAddRows([...selected.values()])}
+                        >
+                            Thêm vào trận
+                        </Button>
+                        <Button size="sm" variant="ghost" disabled={bulkBusy} onClick={clearSelection}>
+                            Bỏ chọn
+                        </Button>
+                        {bulkBusy && (
+                            <span className="text-xs text-muted-foreground">Đang xử lý…</span>
+                        )}
+                    </div>
+                    {bulkFlash && (
+                        <p className="mx-auto max-w-6xl pt-1 text-xs text-muted-foreground" role="status">
+                            {bulkFlash}
+                        </p>
+                    )}
+                </div>
+            )}
+            {addRows !== null && (
+                <AddToMatchDialog rows={addRows} onClose={() => setAddRows(null)} />
+            )}
         </Page>
     )
 }
