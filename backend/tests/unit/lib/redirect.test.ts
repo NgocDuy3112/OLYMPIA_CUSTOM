@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { safeNextPath } from "../../../src/lib/redirect.js";
 
-// The ?next= value is user-controlled: a sign-in link must never be able to
-// bounce a player to another origin.
 
 describe("safeNextPath", () => {
     it("keeps a site-relative path", () => {

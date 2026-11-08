@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
@@ -7,16 +6,11 @@ import { describe, expect, it, vi } from "vitest"
 import { ChangePasswordPage } from "@/pages/ChangePasswordPage"
 import { LoginPage } from "@/pages/LoginPage"
 
-/** Where the router actually landed — the assertion for every ?next= test. */
 function WhereAmI() {
     const location = useLocation()
     return <p>landed at {location.pathname}</p>
 }
 
-// The two doors of step 8, mounted for real: the desk ISSUES the account
-// (handle + first password), the player signs in with that handle, and the
-// forced change is where the desk's password stops being the desk's. There is
-// no register page any more, and these tests are where that is asserted.
 
 interface StubRoute { body: unknown; status?: number }
 
@@ -63,8 +57,6 @@ describe("LoginPage", () => {
 
         expect(screen.getByLabelText("Tên đăng nhập")).toBeTruthy()
         expect(screen.getByLabelText("Mật khẩu")).toBeTruthy()
-        // Step 8: accounts are created at the desk, so the door says so instead
-        // of offering a form.
         expect(screen.queryByRole("link", { name: "Đăng ký" })).toBeNull()
         expect(screen.getByText(/thí sinh không tự đăng ký/)).toBeTruthy()
     })
@@ -100,7 +92,6 @@ describe("LoginPage", () => {
         await userEvent.type(screen.getByLabelText("Mật khẩu"), "mat-khau-42")
         await userEvent.click(screen.getByRole("button", { name: "Đăng nhập" }))
 
-        // "/" is the safe destination — inside this app, never another host
         await waitFor(() => expect(screen.getByText("landed at /")).toBeTruthy())
     })
 
@@ -114,8 +105,6 @@ describe("LoginPage", () => {
         await userEvent.type(screen.getByLabelText("Mật khẩu"), "mat-khau-ban-2026")
         await userEvent.click(screen.getByRole("button", { name: "Đăng nhập" }))
 
-        // The forced change is not a suggestion: /password is the only way on,
-        // and the code box the player asked for waits behind it as ?next=.
         await waitFor(() => expect(screen.getByLabelText("Mật khẩu ban điều hành cấp")).toBeTruthy())
     })
 
@@ -182,7 +171,6 @@ describe("ChangePasswordPage — where the desk's password ends", () => {
         await userEvent.type(screen.getByLabelText("Nhập lại mật khẩu mới"), "mat-khau-moi-123")
         await userEvent.click(screen.getByRole("button", { name: "Đặt mật khẩu" }))
 
-        // A wrong current password is NOT "your session is gone": the form stays.
         expect(await screen.findByRole("alert")).toHaveTextContent(/Mật khẩu hiện tại không đúng/)
         expect(screen.getByLabelText("Mật khẩu mới")).toBeTruthy()
     })
@@ -193,7 +181,6 @@ describe("ChangePasswordPage — where the desk's password ends", () => {
         const door = await screen.findByRole("link", { name: "Đăng nhập" })
         const href = door.getAttribute("href") ?? ""
         expect(href).toContain("/login?next=")
-        // two encodings, two hops: /password, itself carrying next=/code
         expect(decodeURIComponent(decodeURIComponent(href))).toContain("/password?next=/code")
         expect(screen.getByText(/đăng nhập lại bằng mật khẩu ban điều hành cấp/)).toBeTruthy()
         expect(screen.queryByLabelText("Mật khẩu mới")).toBeNull()

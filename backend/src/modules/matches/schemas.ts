@@ -26,14 +26,12 @@ export type AssemblyEntry = Static<typeof AssemblyEntry>;
 
 
 export const CreateMatchInput = Type.Object({
-    // Accepted for compatibility; only STANDARD exists.
     kind: Type.Optional(Type.Literal("STANDARD")),
     stageId: Type.String({ minLength: 1 }),
     slot: Type.Optional(Type.Integer({ minimum: 1 })),
     label: Type.String({ minLength: 1 }),
     scheduledAt: IsoDateTime,
     players: Type.Optional(Type.Array(SeatSchema)),
-    // Optional: a match created by hand takes the tournament's saved rules.
     roundConfigs: Type.Optional(Type.Record(Type.String(), RoundConfigSchema)),
     questions: Type.Optional(Type.Array(AssemblyEntry))
 });

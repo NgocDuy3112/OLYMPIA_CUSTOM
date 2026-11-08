@@ -6,17 +6,11 @@ import {
     UserKind
 } from "./primitives.js";
 
-// ─── §1 — Seat ───────────────────────────────────────────────────────────────
 
-// A seat is a USER. (Teams were removed with the team format: a group stage
-// banks points per GROUP, which is a roster property, not a seat kind.)
 export const SeatSchema = Type.Object({ kind: UserKind, userId: Uuid, seed: Type.Integer() });
 export type Seat = Static<typeof SeatSchema>;
 
-// ─── §6 — AnswerValue ────────────────────────────────────────────────────────
 
-// A submitted answer is either a selection or typed text. An oral answer is a distinct
-// shape: the player said it out loud, so there is no typed content — only a verdict.
 export const SubmittedAnswerValueSchema = Type.Union([
     Type.Object({ picked: Type.Array(Type.String(), { minItems: 1 }) }),
     Type.Object({ text: Type.String({ minLength: 1 }) })
@@ -46,7 +40,6 @@ export const MatchLiveSchema = Type.Object({
 });
 export type MatchLive = Static<typeof MatchLiveSchema>;
 
-// ─── §9 — ResultEntry ────────────────────────────────────────────────────────
 
 export const ResultEntrySchema = Type.Object({
     kind: UserKind,
@@ -57,7 +50,6 @@ export const ResultEntrySchema = Type.Object({
 });
 export type ResultEntry = Static<typeof ResultEntrySchema>;
 
-// ─── §14 — MatchDiscord ──────────────────────────────────────────────────────
 
 export const MatchDiscordSchema = Type.Object({
     announcementChannelId: Type.Optional(Type.String()),
@@ -68,7 +60,6 @@ export const MatchDiscordSchema = Type.Object({
 });
 export type MatchDiscord = Static<typeof MatchDiscordSchema>;
 
-// ─── §15 — MatchEventPayload ─────────────────────────────────────────────────
 
 export const MatchEventPayloadSchema = Type.Union([
     Type.Object({ kind: Type.Literal("PICK"), turnId: Type.String(), pickOrder: Type.Integer() }),
@@ -76,7 +67,6 @@ export const MatchEventPayloadSchema = Type.Union([
     Type.Object({
         kind: Type.Literal("POWER"),
         power: Type.Union([Type.Literal("STAR"), Type.Literal("ASSIGN")]),
-        // ASSIGN names who the question was handed to.
         targetId: Type.Optional(Uuid)
     })
 ]);

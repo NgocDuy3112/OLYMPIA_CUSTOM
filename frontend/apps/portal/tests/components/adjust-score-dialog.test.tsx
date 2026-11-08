@@ -4,8 +4,6 @@ import userEvent from "@testing-library/user-event"
 
 import { AdjustScoreDialog } from "@/console/AdjustScoreDialog"
 
-// The controller's score correction dialog: one audited delta + reason.
-// Submit stays disabled until BOTH a non-zero integer and a reason exist.
 
 function renderDialog(onSubmit = vi.fn(), onCancel = vi.fn()) {
     render(<AdjustScoreDialog playerName="An" onCancel={onCancel} onSubmit={onSubmit} />)
@@ -33,7 +31,7 @@ describe("AdjustScoreDialog", () => {
         const reason = screen.getByLabelText(/Lý do/)
         await userEvent.type(delta, "0")
         await userEvent.type(reason, "lý do")
-        expect(save).toBeDisabled() // 0 is not an adjustment
+        expect(save).toBeDisabled() 
     })
 
     it("Hủy and the backdrop both cancel", async () => {

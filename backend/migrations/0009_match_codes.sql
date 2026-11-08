@@ -1,15 +1,3 @@
--- Room codes: the PIN comes back, demoted. The old `join_code` column (dropped
--- in 0008) was a standing secret that could not expire and minted a session for
--- whoever typed it — code as IDENTITY. This table is the opposite shape:
---
---   * the account says WHO the player is (session, minted only by a password
---     login or a one-time entry code);
---   * the code says WHICH room is open (`match_id`), or names ONE account for
---     the desk's password-reset path (`user_id`, single use).
---
--- Rotation and expiry are the whole point, so the code is a row with a clock
--- instead of a column that lives forever. Exactly one target per row: a code
--- that meant both would be the old PIN in another costume.
 CREATE TABLE "match_codes" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"code" varchar(6) NOT NULL,

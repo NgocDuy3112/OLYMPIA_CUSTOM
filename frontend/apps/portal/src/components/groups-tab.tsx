@@ -119,12 +119,6 @@ export function GroupsTab({ tournamentId }: { tournamentId: string }) {
     )
 }
 
-/**
- * One drawn contestant: what they banked for the group (Điểm nhóm — the placement
- * scale), their average score per group match (Thành tích TB), and the way
- * to the other group. Two different numbers, two columns: the first is what their
- * RANK paid the group, the second is how well they actually played.
- */
 function GroupMemberRow({ row, seat, group, disabled, onMove }: {
     row: GroupRow
     seat: number

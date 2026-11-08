@@ -64,7 +64,6 @@ describe("server messages", () => {
     });
 
     it("every server message carries a server timestamp", () => {
-        // Deadlines are server times, so the client needs `at` to correct its own clock.
         expect(viewMessage(view).at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
         expect(ackMessage("answer", {}).at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
         expect(errorMessage("X", "y").at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
@@ -86,7 +85,6 @@ describe("server messages", () => {
     });
 
     it("commands carry no authoritative time: the server stamps receipt", () => {
-        // A client timestamp would be spoofable, and buzz order is server receive time.
         expect(Object.keys(answer())).not.toContain("at");
         expect(Object.keys(answer())).not.toContain("clientSentAt");
     });
@@ -108,9 +106,7 @@ describe("requestIdOf", () => {
 describe("the operator's race lock", () => {
     it("is part of the action vocabulary the console route accepts", () => {
         expect(Value.Check(LiveActionSchema, { kind: "ve-dich.lockBuzz" })).toBe(true);
-        // it is an operator action with no payload: the STATE decides what is open
         expect(Value.Check(LiveActionSchema, { kind: "ve-dich.lockBuzz", playerId: "x" })).toBe(true);
-        // and a made-up neighbour is still refused
         expect(Value.Check(LiveActionSchema, { kind: "ve-dich.lockBuzzNow" })).toBe(false);
     });
 });

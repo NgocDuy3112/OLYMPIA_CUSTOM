@@ -33,7 +33,6 @@ describe("statisticsFor — the round breakdown", () => {
         const stats = statisticsFor(m, ROUNDS)
         expect(stats.rounds[0].scores.map((s) => s.points)).toEqual([50, 30, 10])
         expect(stats.rounds[0].winnerIds).toEqual(["a"])
-        // Bee sat out "Về đích" — a zero, present, not missing.
         expect(stats.rounds[2].scores.find((s) => s.playerId === "b")?.points).toBe(0)
         expect(stats.rounds[2].gap).toBe(20)
     })
@@ -48,8 +47,6 @@ describe("statisticsFor — the round breakdown", () => {
 })
 
 describe("statisticsFor — the headline numbers", () => {
-    // Every player in every round — the realistic shape of a finished match
-    // (an absent round key reads as 0, exactly like the chart draws it).
     const m = match([
         player("a", "Ace", 120, { "Khởi động": 50, "Giải mã": 40, "Về đích": 30 }),
         player("b", "Bee", 80, { "Khởi động": 30, "Giải mã": 40, "Về đích": 10 }),
@@ -65,7 +62,6 @@ describe("statisticsFor — the headline numbers", () => {
 
     it("reports the closest / biggest rounds", () => {
         const stats = statisticsFor(m, ROUNDS)
-        // gaps: 40 / 20 / 30 — Giải mã split them the least, Khởi động the most.
         expect(stats.closestRound?.round).toBe("Giải mã")
         expect(stats.biggestRound?.round).toBe("Khởi động")
     })

@@ -58,7 +58,6 @@ describe("TournamentsPage", () => {
         )
         if (!post) throw new Error("no POST to /portal/tournaments")
 
-        // no tags field in the UI: the server defaults the assembly scope
         expect(JSON.parse(post[1]?.body as string)).toEqual({
             name: "2027 Tournament",
             visibility: "PUBLIC",

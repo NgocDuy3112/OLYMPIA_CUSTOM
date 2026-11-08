@@ -7,8 +7,6 @@ import { STAGE_ROLES } from "@/lib/tournaments"
 import { EditStagesDialog } from "./edit-stages-dialog"
 
 
-// The tournament's stages, in order. This order is how far the rounds go, and it decides the
-// tournament's places: a player who got to a later stage placed above one who did not.
 export function StagesTab({
     tournamentId,
     tournament,

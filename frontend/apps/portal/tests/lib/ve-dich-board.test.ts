@@ -2,14 +2,10 @@ import { describe, expect, it } from "vitest"
 
 import { VE_BOARD, VE_GRID_COLUMNS, VE_VALUES, boardRows, stripCellsOf } from "@shared/deck/ve-dich-board"
 
-// The show board — 6×20, 6×30, 4×40, 4×50 — and the row/span arithmetic that
-// keeps it balanced. The the console's grid and the player's picker both go through
-// here, so a cell must land in the same row on both surfaces.
 
 interface Cell { questionId: string; value: number; where?: string }
 const c = (questionId: string, value: number, where = "free"): Cell => ({ questionId, value, where })
 
-// A real board: exactly the composition the backend enforces at start.
 const BOARD: Cell[] = [
     ...Array.from({ length: 6 }, (_, i) => c(`q20-${i}`, 20)),
     ...Array.from({ length: 6 }, (_, i) => c(`q30-${i}`, 30)),
@@ -28,7 +24,6 @@ describe("the board's composition", () => {
         for (const band of VE_BOARD) {
             expect(band.count * band.span).toBe(VE_GRID_COLUMNS)
         }
-        // the higher bands are WIDER, not taller (height is fixed in cells.ts)
         expect(VE_BOARD[3].span).toBeGreaterThan(VE_BOARD[0].span)
     })
 })

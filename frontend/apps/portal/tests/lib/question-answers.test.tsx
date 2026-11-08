@@ -5,9 +5,6 @@ import type { ReactNode } from "react"
 
 import { useQuestionAnswers } from "@/lib/live"
 
-// The the console's ledger is the judging panel's raw material: a player's submission
-// bumps no live version and pushes no frame, so the ONLY signal is this poll.
-// (A reload used to be the only way Đúng could arm — smoke run 2026-10-29.)
 
 function makeWrapper() {
     const client = new QueryClient({

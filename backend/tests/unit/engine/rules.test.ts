@@ -7,7 +7,6 @@ import {
 } from "../../../src/game/engine/rules.js";
 import type { RoundConfig } from "../../../src/game/contracts/index.js";
 
-// The rulebook is the source; the format's numbers are the defaults.
 
 const round = (config: Partial<RoundConfig>): RoundConfig => ({
     allowedKinds: ["CHOICE"],
@@ -21,7 +20,6 @@ describe("the defaults — the format's numbers", () => {
         const rules = khoiDongRules(undefined);
         expect(rules.phase1Questions).toBe(6);
         expect(rules.phase1BudgetS).toBe(45);
-        // The count is the show's: a rulebook cannot change it.
         expect(rules.phase2Questions).toBe(6);
         expect(rules.phase2WindowS).toBe(10);
         expect(rules.pointsPerCorrect).toBe(10);
@@ -64,15 +62,12 @@ describe("the rulebook wins", () => {
         const rules = khoiDongRules(round({
             turns: [
                 { id: "phase1", mode: "oral", delivery: "sequential", questionCount: 8, timeBudgetSeconds: 30 },
-                // the old buzzWindowSeconds rides along in old configs: it must
-                // NOT leak into the batch's window — timeLimitSeconds is the key
                 { id: "phase2", mode: "text", delivery: "batch", questionCount: 10, timeLimitSeconds: 7, buzzWindowSeconds: 99 }
             ]
         }));
 
         expect(rules.phase1Questions).toBe(8);
         expect(rules.phase1BudgetS).toBe(30);
-        // …but the six questions are fixed by the show, not by the rulebook.
         expect(rules.phase2Questions).toBe(6);
         expect(rules.phase2WindowS).toBe(7);
     });
@@ -137,7 +132,6 @@ describe("the rulebook wins", () => {
     });
 
     it("a rulebook that says nothing about a number keeps the format's", () => {
-        // The template is constant, so the keyword numbers are the format's.
         const rules = giaiMaRules(round({ scoring: { template: "constant", points: 10 } }));
         expect(rules.start).toBe(100);
         expect(rules.dropPerHint).toBe(10);

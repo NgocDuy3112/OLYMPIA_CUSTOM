@@ -9,24 +9,11 @@ import { isUnauthorized, loginLink, useChangePassword, useMe } from "@/lib/sessi
 
 const PASSWORD_MIN = 8
 
-/** Only a path inside this app — the same rule LoginPage applies to ?next=. */
 function safeNext(raw: string | null): string {
     if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) return "/"
     return raw
 }
 
-/**
- * /password — where the desk's first password stops being the desk's.
- *
- * Two ways lead here, and both are the gate working: the login response says
- * `mustChangePassword`, and every other request a player in that state makes
- * comes back 409 PASSWORD_CHANGE_REQUIRED, which `api()` turns into this page
- * (with `?next=` carrying where they were headed).
- *
- * The rule it enforces in one sentence: an operator-chosen password is a
- * password the operator knows — so it works exactly once, for the sign-in that
- * ends with this form.
- */
 export function ChangePasswordPage() {
     const [params] = useSearchParams()
     const navigate = useNavigate()
@@ -38,8 +25,6 @@ export function ChangePasswordPage() {
     const [confirm, setConfirm] = useState("")
 
     const back = safeNext(params.get("next"))
-    // Only WHOAMI decides the gate: a 401 from the CHANGE itself means the
-    // current password was typed wrong, not that the session is gone.
     const signedOut = isUnauthorized(me.error) || me.data === null
 
     const submit = (event: FormEvent) => {
@@ -92,8 +77,6 @@ export function ChangePasswordPage() {
         )
     }
 
-    // A refusal from the SERVER about the current password (wrong one, or a
-    // change the rules refuse) — the client's own two checks live above.
     const serverError = change.isError ? change.error : null
     const wrongCurrent =
         serverError instanceof ApiError && serverError.status === 401 ? serverError.message : null

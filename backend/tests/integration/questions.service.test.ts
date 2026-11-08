@@ -191,7 +191,6 @@ describe("question search (tsvector + unaccent)", () => {
         const accented = await listQuestions({ search: "Đường lên" }, page);
         expect(accented.items.map((q) => q.id)).toContain(row.id);
 
-        // the point of unaccent: users type without diacritics
         const unaccented = await listQuestions({ search: "duong len dinh" }, page);
         expect(unaccented.items.map((q) => q.id)).toContain(row.id);
     });
@@ -292,7 +291,6 @@ describe("listForAssembly — the visibility choke point", () => {
         const ownArchived = await createQuestion({ actorId: ownerId }, mc("asm archived"));
         await transitionQuestion(ownArchived.id, "ARCHIVED", "OPERATOR");
 
-        // Every published question is eligible, whoever authored it.
         const foreignPublished = await createQuestion({ actorId: otherId }, { ...mc("asm foreign") });
         await publish(foreignPublished.id);
 

@@ -1,7 +1,3 @@
-// A player's ve-dich command: BUZZ only. Picking and powers are the console's
-// (the desk picks for the turn player and stages powers before the question
-// opens). This changes round state, so it runs through mutateLive. The
-// playerId always comes from the session, never from the message.
 import type { VeDichAction } from "./actions.js";
 import { mutateLive, type Transition } from "./apply.js";
 import { pgLiveStore } from "./store.js";

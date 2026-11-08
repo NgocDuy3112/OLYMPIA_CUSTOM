@@ -10,7 +10,6 @@ function CheckingSession() {
     )
 }
 
-// Guards routes that need a signed-in operator. A 401 from /me means signed out.
 export function RequireAuth({ children }: { children: ReactNode }) {
     const { data, error, isPending } = useMe()
     const location = useLocation()
@@ -18,7 +17,6 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     if (isPending) return <CheckingSession />
 
     if (isUnauthorized(error) || !data) {
-        // Remember the destination so login can send them back.
         return (
             <Navigate
                 to="/login"
@@ -31,7 +29,6 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     return <>{children}</>
 }
 
-// Keeps an already-signed-in user off the login page.
 export function RedirectIfSignedIn({ children }: { children: ReactNode }) {
     const { data, isPending } = useMe()
 

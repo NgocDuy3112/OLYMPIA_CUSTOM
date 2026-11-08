@@ -3,16 +3,8 @@ import { DECK_PAD, STRIP_R, pt } from "../geometry"
 import { mcCellClass, type CellWhere } from "../cells"
 import { VE_GRID_COLUMNS, boardRows } from "../ve-dich-board"
 
-// Về đích — bảng chọn câu (S6 = phase 1 · S5 = phase 2): the CONSOLE picks for
-// the player whose turn it is (prod parity — the desk drives the board), so this
-// screen is DISPLAY-ONLY: it shows the show's grid, whose turn it is, and what
-// has been staged — the cells are never clickable here. EITHER band is pickable
-// (the show allows a 20 or a 30 in any order). The board is the show's —
-// 6×20, 6×30, 4×40, 4×50 — rows are the bands and the higher bands are wider
-// (span 3 of 12), so the grid stays balanced without any category columns.
 type VeDichPickPlayerCtx = PlayerCore
 
-/** What a cell says — the console's words; free cells note the top-band rule. */
 const CELL_TITLE: Record<Exclude<CellWhere, "free">, string> = {
     taken: "đã dùng",
     pending: "thí sinh đã chọn — chờ mở",
@@ -20,7 +12,6 @@ const CELL_TITLE: Record<Exclude<CellWhere, "free">, string> = {
     deferred: "dành cho Lượt cá nhân",
 }
 
-/** The status line, keyed by turn state — the picking itself happens upstairs. */
 function boardLabel(v: { pendingPicks?: string[]; isMyTurn?: boolean }, phase2: boolean, need: number): string {
     const pending = (v.pendingPicks ?? []).length
     if (pending > 0) return `Đã chốt ${pending} câu — chờ điều hành mở`

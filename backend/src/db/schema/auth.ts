@@ -21,10 +21,6 @@ export const users = pgTable(
     {
         id: uuid("id").primaryKey().defaultRandom(),
         role: userRole("role").notNull(),
-        // The LOGIN HANDLE, and since step 8 the identity every role shares:
-        // staff type it (and prove it with TOTP), players get it derived from
-        // their display name (`lib/username.ts`). Never null — a row without it
-        // is a row nobody can ever sign in as.
         username: varchar("username", { length: 50 }).notNull(),
         email: varchar("email", { length: 255 }),
         emailVerified: boolean("email_verified").notNull().default(false),
@@ -34,10 +30,6 @@ export const users = pgTable(
         discordId: varchar("discord_id", { length: 30 }),
 
         passwordHash: text("password_hash"),
-        // The desk's first password stops being the desk's the moment the player
-        // sets their own: while this is true, every authenticated route except
-        // whoami/logout/change-password answers 409 PASSWORD_CHANGE_REQUIRED
-        // (`lib/guards.ts` is the single choke point).
         mustChangePassword: boolean("must_change_password").notNull().default(false),
         totpSecret: text("totp_secret"),
         totpEnabledAt: timestamp("totp_enabled_at", { withTimezone: true }),

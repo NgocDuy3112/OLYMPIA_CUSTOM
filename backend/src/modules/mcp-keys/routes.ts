@@ -36,7 +36,6 @@ export async function mcpKeyRoutes(app: FastifyInstance) {
 
     const staff = [requireRole("PORTAL", ["ADMIN", "OPERATOR"])];
 
-    // The raw token is in this response and nowhere else, ever.
     app.post(
         "/portal/mcp-keys",
         { onRequest: staff, schema: { body: CreateMcpKeyInput } },
@@ -44,7 +43,6 @@ export async function mcpKeyRoutes(app: FastifyInstance) {
             const user = request.sessionUser!;
             const issued = await createMcpKey(user.id, request.body as CreateMcpKeyInput);
 
-            // Details never contain the token — only its identifying prefix.
             await auditFromRequest(request, "mcp_key_issued", {
                 targetId: user.id,
                 details: {
@@ -68,15 +66,12 @@ export async function mcpKeyRoutes(app: FastifyInstance) {
             const user = request.sessionUser!;
             const query = request.query as ListMcpKeysQuery;
 
-            // Operators see only their own keys; admins see everything
-            // (the doc's manual cleanup of stale or suspicious keys).
             const userId = user.role === "ADMIN" ? query.userId : user.id;
 
             return listMcpKeys({ userId }, parsePage(query));
         }
     );
 
-    // DELETE = revoke. One-way, idempotent, and the row survives (audit history).
     app.delete(
         "/portal/mcp-keys/:id",
         { onRequest: staff, schema: { params: idParams } },

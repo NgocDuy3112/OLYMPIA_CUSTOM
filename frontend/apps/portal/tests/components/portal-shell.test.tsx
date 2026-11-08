@@ -47,9 +47,7 @@ describe("PortalShell", () => {
         expect(screen.getByText("Tournaments")).toBeInTheDocument()
         expect(screen.getByText("Questions")).toBeInTheDocument()
         expect(screen.getByText("MCP keys")).toBeInTheDocument()
-        // admin sees the admin-only item
         expect(await screen.findByText("Operators")).toBeInTheDocument()
-        // no signed-in footer any more (the console's call): nav only
         expect(screen.queryByRole("button", { name: /Sign out/ })).toBeNull()
     })
 
@@ -77,7 +75,6 @@ describe("PortalShell", () => {
         renderShell("/tournaments/t1/matches/m1")
 
         expect(await screen.findByText("match page")).toBeInTheDocument()
-        // no label, no status pill, no route echo — the match page carries it all
         expect(screen.queryByText("Slot 2 · Match")).toBeNull()
         expect(screen.queryByText(/LIVE/)).toBeNull()
         expect(screen.queryByRole("link", { name: /t1/ })).toBeNull()

@@ -8,8 +8,6 @@ import { answers, matchEvents, matchLive, matchResults, matchStats, matches, tou
 import { signToken } from "../../src/lib/jwt.js";
 import type { MatchQuestion } from "../../src/game/contracts/index.js";
 
-// Runs against the real Postgres in CI. Proves the 409 path, the row lock, facts
-// committing with state, and the player submission path.
 
 let app: FastifyInstance;
 let ownerCookie: string;
@@ -60,7 +58,6 @@ beforeAll(async () => {
     }).returning();
     outsiderCookie = signToken(app, "GAMEPLAY", { sub: outsider.id, role: "PLAYER", tokenVersion: 0 });
 
-    // The tournament is the unit: it carries the identity the tournament had.
     const tournamentTags = ["THTH"];
     const tournamentOwner = owner.id;
     const tournamentSlug = "live-tournament-tournament";
@@ -127,8 +124,6 @@ async function live(): Promise<{
     return res.json();
 }
 
-// Pin the open question's clock `msAgo` into the past, as the real clock would after
-// time passes. Keeps but-pha points deterministic instead of timing-dependent.
 async function backdateQuestionClock(msAgo: number): Promise<void> {
     const current = await live();
     const state = current.state as Record<string, unknown>;
@@ -159,9 +154,7 @@ describe("the console contract (GET /live)", () => {
             console: { hintsRemaining: [], hintsPicked: [], openHintId: null },
             roundEnded: false
         });
-        // the judge reads the full frozen set — answers included
         expect(body.questions.length).toBeGreaterThan(0);
-        // the scoreboard rides along (all zeros before any answer)
         expect(body.projection.table.length).toBeGreaterThan(0);
         expect(body.projection.table.every((row: { points: number }) => row.points === 0)).toBe(true);
     });
@@ -173,7 +166,6 @@ describe("live actions — start", () => {
         expect(res.statusCode).toBe(200);
         expect(res.json().state).toMatchObject({ stage: "hints", hintIds, picked: [], openHint: null });
 
-        // The console's view of the same moment.
         const contract = await live();
         expect(contract).toMatchObject({
             projection: { stage: "hints" },
@@ -229,17 +221,16 @@ describe("player submissions", () => {
     });
 
     it("a seated player submits a correct answer while the window is open", async () => {
-        const res = await answer(playerCookies[0], hintIds[0], "ha noi");   // accents/case ignored
+        const res = await answer(playerCookies[0], hintIds[0], "ha noi");   
         expect(res.statusCode).toBe(200);
-        expect(res.json()).toEqual({ drafted: true });         // ack reveals nothing
-        // the matcher's opinion lives in the DRAFT, not in a verdict
+        expect(res.json()).toEqual({ drafted: true });         
         const rows = await db.select().from(answers).where(and(
             eq(answers.matchId, matchId),
             eq(answers.questionId, hintIds[0]),
             eq(answers.userId, playerIds[0])
         ));
         expect(rows[0]).toMatchObject({ judged: false, verdict: null });
-        expect(rows[0].drafts).toMatchObject({ auto: "CORRECT" });   // accents/case ignored
+        expect(rows[0].drafts).toMatchObject({ auto: "CORRECT" });   
     });
 
     it("a player may revise while the window is open: the last answer wins", async () => {
@@ -256,7 +247,7 @@ describe("player submissions", () => {
             eq(answers.questionId, hintIds[0]),
             eq(answers.userId, playerIds[1])
         ));
-        expect(rows).toHaveLength(1);                    // revised in place, not appended
+        expect(rows).toHaveLength(1);                    
         expect(rows[0]).toMatchObject({ judged: false, verdict: null, value: { text: "Hải Phòng" } });
         expect(rows[0].drafts).toMatchObject({ auto: "INCORRECT" });
     });
@@ -272,7 +263,6 @@ describe("player submissions", () => {
 
 describe("resolve — the console closes the window with explicit verdicts", () => {
     it("resolveHint reveals the hint to the players the console judged correct", async () => {
-        // both submitted; the console stages p0 correct, p1 wrong — no auto-verdict
         const res = await act({
             kind: "giai-ma.resolveHint",
             verdicts: [
@@ -298,7 +288,7 @@ describe("resolve — the console closes the window with explicit verdicts", () 
         const rows = await db.select().from(answers)
             .where(and(eq(answers.matchId, matchId), eq(answers.questionId, hintIds[0])));
         expect(rows).toHaveLength(2);
-        expect(rows.every((r) => r.judged)).toBe(true);                // judged by the resolve, not at submit
+        expect(rows.every((r) => r.judged)).toBe(true);                
         expect(rows.filter((r) => r.verdict === "CORRECT")).toHaveLength(1);
     });
 });
@@ -319,7 +309,6 @@ describe("facts — committed with the state", () => {
     });
 
     it("the console can enter a keyword for a player as a draft, then judge it", async () => {
-        // player 0 has one revealed hint → the value frozen at entry is 90.
         const entered = await act({
             kind: "giai-ma.submitKeyword",
             playerId: playerIds[0], questionId: keywordQuestionId,
@@ -327,7 +316,6 @@ describe("facts — committed with the state", () => {
         });
         expect(entered.statusCode).toBe(200);
 
-        // entered = locked + draft: NO verdict, NO points until the console judges
         const draftRows = await db.select().from(answers)
             .where(and(eq(answers.matchId, matchId), eq(answers.userId, playerIds[0])));
         expect(draftRows.find((r) => r.questionId === keywordQuestionId)).toMatchObject({
@@ -377,8 +365,6 @@ describe("player submission guards", () => {
 
 describe("round progression", () => {
     it("resolving the expired window: refused until every answer is judged, then reveals", async () => {
-        // p1 submitted to this window; p0 did not (they are keyword-locked).
-        // a verdict for a non-submitter is refused FIRST (NO_ANSWER) …
         const refused = await act({
             kind: "giai-ma.resolveHint",
             verdicts: [{ playerId: playerIds[0], correct: true }]
@@ -386,12 +372,10 @@ describe("round progression", () => {
         expect(refused.statusCode).toBe(409);
         expect(refused.json().error).toBe("NO_ANSWER");
 
-        // … an empty set leaves p1's answer waiting (UNJUDGED_ANSWERS) …
         const empty = await act({ kind: "giai-ma.resolveHint", verdicts: [] });
         expect(empty.statusCode).toBe(409);
         expect(empty.json().error).toBe("UNJUDGED_ANSWERS");
 
-        // … and the console's explicit verdict is what reveals the hint
         const res = await act({
             kind: "giai-ma.resolveHint",
             verdicts: [{ playerId: playerIds[1], correct: true }]
@@ -401,13 +385,12 @@ describe("round progression", () => {
     });
 
     it("a player submits their keyword: locked, stored as a draft (nothing leaked)", async () => {
-        // player 1 now has one revealed hint → 90 freezes at this moment.
         const res = await app.inject({
             method: "POST", url: keywordUrl(), headers: asPlayer(playerCookies[1]),
             payload: { questionId: keywordQuestionId, value: { text: "dienbienphu" } }
         });
         expect(res.statusCode).toBe(200);
-        expect(res.json()).toEqual({ drafted: true });     // no correctness, no points
+        expect(res.json()).toEqual({ drafted: true });     
     });
 
     it("submitting a keyword twice is rejected", async () => {
@@ -424,9 +407,8 @@ describe("round progression", () => {
             .where(and(eq(answers.matchId, matchId), eq(answers.userId, playerIds[1])));
         const draft = rows.find((r) => r.questionId === keywordQuestionId);
         expect(draft).toMatchObject({ judged: false, verdict: null, autoMatched: false });
-        expect(draft!.drafts).toMatchObject({ auto: "CORRECT" });      // opinion, not verdict
+        expect(draft!.drafts).toMatchObject({ auto: "CORRECT" });      
 
-        // the console's verdict is what makes it count — frozen value 90 (one revealed hint)
         const judged = await act({
             kind: "giai-ma.judgeKeyword",
             playerId: playerIds[1], questionId: keywordQuestionId, correct: true
@@ -446,7 +428,6 @@ describe("round progression", () => {
         expect(advanced.json().roundId).toBe("but-pha");
         expect(advanced.json().state).toEqual({});
 
-        // The console's view of the fresh round: pending until the console starts it.
         const consoleView = await live();
         expect(consoleView).toMatchObject({
             roundId: "but-pha",
@@ -457,15 +438,11 @@ describe("round progression", () => {
     });
 
     it("round.goTo re-opens the finished round — states are archived, not wiped", async () => {
-        // Back to giai-ma: the round we left was ARCHIVED, so its ended state
-        // comes back with it — the controller may re-visit a finished round.
         const back = await act({ kind: "round.goTo", roundId: "giai-ma" });
         expect(back.statusCode).toBe(200);
         expect(back.json().roundId).toBe("giai-ma");
         expect(back.json().state.stage).toBe("ended");
 
-        // …and forward again: but-pha is still the untouched pending round, and
-        // both left rounds live in the archive (re-visit in either direction).
         const forward = await act({ kind: "round.goTo", roundId: "but-pha" });
         expect(forward.statusCode).toBe(200);
         expect(forward.json().roundId).toBe("but-pha");
@@ -505,16 +482,13 @@ describe("the audience's read — public gameplay, no judge's extras", () => {
         expect(res.statusCode).toBe(200);
         const body = res.json();
 
-        // The screens still draw from these (options, code LENGTH)…
         const keyword = body.questions.find((q: { kind: string }) => q.kind === "KEYWORD");
         expect(Object.keys(keyword.payload)).toEqual(["codeLength"]);
-        // …but the answer itself never crosses the public door.
         for (const q of body.questions) {
             expect(JSON.stringify(q.payload)).not.toContain("correctSet");
             expect(JSON.stringify(q.payload)).not.toContain("acceptedAnswers");
             expect(q.payload.code).toBeUndefined();
         }
-        // The the console's own facts are the CONSOLE's, not the audience's.
         expect(body.console).toBeNull();
     });
 
@@ -587,13 +561,13 @@ describe("but-pha round — draft, then finalize", () => {
         await backdateQuestionClock(3_000);
         const res = await answer(playerCookies[0], butPhaIds[0], "Hà Nội");
         expect(res.statusCode).toBe(200);
-        expect(res.json()).toEqual({ drafted: true });            // opinion stays server-side
+        expect(res.json()).toEqual({ drafted: true });            
 
         const [row] = await db.select().from(answers)
             .where(and(eq(answers.matchId, matchId), eq(answers.questionId, butPhaIds[0]), eq(answers.userId, playerIds[0])));
         expect(row.judged).toBe(false);
-        expect(row.answeredMs).toBeGreaterThanOrEqual(3_000);      // the round's clock source
-        expect(row.pointsAwarded ?? 0).toBe(0);                    // nothing scores yet
+        expect(row.answeredMs).toBeGreaterThanOrEqual(3_000);      
+        expect(row.pointsAwarded ?? 0).toBe(0);                    
     });
 
     it("a second player drafts in the same question", async () => {
@@ -615,7 +589,6 @@ describe("but-pha round — draft, then finalize", () => {
         });
         expect(res.statusCode).toBe(200);
 
-        // player 0 submitted first (3 s, base 15 x4 = 60); player 1 second (7 s, base 10 x3 = 30)
         const points = res.json().state.points[butPhaIds[0]];
         expect(points[playerIds[0]]).toBe(60);
         expect(points[playerIds[1]]).toBe(30);
@@ -632,8 +605,6 @@ describe("but-pha round — draft, then finalize", () => {
         expect(res.json().state.cursor).toBe(1);
         expect(res.json().state.questionOpenedAt).toBeNull();
 
-        // …and the reveal did NOT follow the cursor: q2 is on screen now,
-        // so q1's answer is off every screen (no undo is ever sent)
         const view = await live();
         expect(view.projection.revealed).toBeUndefined();
     });
@@ -683,8 +654,6 @@ describe("match end — the results are frozen once", () => {
         const [row] = await db.select().from(matchResults).where(eq(matchResults.matchId, matchId));
         expect(row.results).toHaveLength(2);
 
-        // Both solved the giai-ma keyword from one revealed hint (90 each). In but-pha,
-        // player 0 was first correct (60) and player 1 second (30).
         const p0 = row.results.find((r) => r.userId === playerIds[0])!;
         const p1 = row.results.find((r) => r.userId === playerIds[1])!;
         expect(p0).toMatchObject({ kind: "user", totalScore: 150, rank: 1 });
@@ -695,8 +664,6 @@ describe("match end — the results are frozen once", () => {
 
     it("the per-question analytics grain is written for the round", async () => {
         const rows = await db.select().from(matchStats).where(eq(matchStats.matchId, matchId));
-        // giai-ma: hint 0 (both) + hint 2 (one) + keyword (player) + keyword (console) = 5
-        // but-pha: two answers on question 1, one on question 2 = 3
         expect(rows).toHaveLength(8);
         expect(rows.filter((r) => r.roundId === "but-pha")).toHaveLength(3);
         expect(rows.every((r) => r.tournamentId === tournamentId)).toBe(true);

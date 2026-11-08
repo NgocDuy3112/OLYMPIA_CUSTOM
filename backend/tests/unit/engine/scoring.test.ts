@@ -78,9 +78,9 @@ describe("but-pha — speed multiplier", () => {
 
 describe("but-pha — points", () => {
     it("worked example: 3s, 7s, 12s all correct on one question", () => {
-        expect(butPhaPoints({ correct: true, seconds: 3, order: 1 }, BUT_PHA_DEFAULTS)).toBe(60);  // 15 × 4
-        expect(butPhaPoints({ correct: true, seconds: 7, order: 2 }, BUT_PHA_DEFAULTS)).toBe(30);  // 10 × 3
-        expect(butPhaPoints({ correct: true, seconds: 12, order: 3 }, BUT_PHA_DEFAULTS)).toBe(20); // 10 × 2
+        expect(butPhaPoints({ correct: true, seconds: 3, order: 1 }, BUT_PHA_DEFAULTS)).toBe(60);  
+        expect(butPhaPoints({ correct: true, seconds: 7, order: 2 }, BUT_PHA_DEFAULTS)).toBe(30);  
+        expect(butPhaPoints({ correct: true, seconds: 12, order: 3 }, BUT_PHA_DEFAULTS)).toBe(20); 
     });
 
     it("a 4th correct answer earns base × 1", () => {

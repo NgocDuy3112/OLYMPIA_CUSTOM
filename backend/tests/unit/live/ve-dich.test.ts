@@ -18,11 +18,8 @@ import { VeDichRuleError } from "../../../src/game/engine/turns/ve-dich.js";
 const NOW = "2026-01-01T00:00:00.000Z";
 const at = (s: number) => new Date(Date.parse(NOW) + s * 1000).toISOString();
 
-// The show's board carries NO category labels — a cell IS its score; the
-// ordinal tells the same-score cells apart ("40-1" … "40-4").
 const cells = (value: number, count: number): VeDichQuestion[] =>
     Array.from({ length: count }, (_, i) => ({ id: `${value}-${i + 1}`, value, timeLimit: 30 }));
-// The show's board — createVeDich refuses a set that is not 6×20/6×30/4×40/4×50.
 const POOL = [
     ...cells(20, 6), ...cells(30, 6), ...cells(40, 4), ...cells(50, 4)
 ];
@@ -50,9 +47,6 @@ function phase1Done(): VeDichState {
 
 function phase2Open(playerId: string, questionId: string): VeDichState {
     let s = beginPhase2(phase1Done());
-    // The batch must contain the question this test opens — the pool is
-    // partitioned now (Chung leftovers + deferred 40/50), so slice(0,3)
-    // alone no longer guarantees the target.
     const target = s.remaining.find((q) => q.id === questionId);
     const others = s.remaining.filter((q) => q.id !== questionId).slice(0, 2);
     const ids = (target ? [target, ...others] : s.remaining.slice(0, 3)).map((q) => q.id);
@@ -63,7 +57,7 @@ function phase2Open(playerId: string, questionId: string): VeDichState {
 describe("ve-dich start", () => {
     it("creates the round with both powers and the cumulative score as the seed", () => {
         const s = started([10, 50, 0]);
-        expect(s.players.map((p) => p.id)).toEqual(["p1", "p0", "p2"]);   // highest first
+        expect(s.players.map((p) => p.id)).toEqual(["p1", "p0", "p2"]);   
         expect(s.players[0].score).toBe(50);
         expect(s.players.every((p) => p.powersLeft.length === 2)).toBe(true);
         expect(s.phase).toBe(1);
@@ -77,7 +71,6 @@ describe("ve-dich start", () => {
         expect(s.phase).toBe(2);
         expect(s.turnIndex).toBe(0);
         expect(s.open).toBeNull();
-        // phase 2's rule: lowest score first, from the scores as they stand
         expect(s.players.map((p) => p.id)).toEqual(["p2", "p0", "p1"]);
     });
 
@@ -126,7 +119,7 @@ describe("ve-dich powers and buzz", () => {
         const staged = applyVeDichAction(s, {
             kind: "ve-dich.declarePower", playerId: s.players[0].id, power: "STAR"
         }, ctx());
-        expect(staged.facts).toEqual([]);                       // nothing spent, nothing recorded
+        expect(staged.facts).toEqual([]);                       
         expect(staged.state.stagedPower).toEqual({ power: "STAR" });
 
         const opened = applyVeDichAction(staged.state, {
@@ -146,11 +139,9 @@ describe("ve-dich powers and buzz", () => {
             kind: "ve-dich.declarePower", playerId: s.players[0].id, power: null
         }, ctx());
         expect(none.state.stagedPower ?? null).toBeNull();
-        expect(none.state.turnPowerUsed).toBe(false);         // excluded from the one-pick rule
+        expect(none.state.turnPowerUsed).toBe(false);         
         expect(none.facts).toEqual([]);
 
-        // the row stays live: the REAL pick follows and locks it — the second
-        // POWER press is what gets refused
         const star = applyVeDichAction(none.state, {
             kind: "ve-dich.declarePower", playerId: s.players[0].id, power: "STAR"
         }, ctx());
@@ -173,16 +164,12 @@ describe("ve-dich powers and buzz", () => {
     });
 
     it("a buzz AFTER the window is refused — the clock is a rule, not a UI courtesy", () => {
-        // The window opened at t0 and is 5 s wide (VE_DICH_DEFAULTS.buzzWindowS).
         let s = phase2Open("p0", "50-1");
         s = applyVeDichAction(s, { kind: "ve-dich.closeCurrentAnswer" }, ctx({ now: at(0) })).state;
 
-        // Inside the window: accepted.
         expect(() => applyVeDichAction(s, { kind: "ve-dich.buzz", playerId: "p1" }, ctx({ now: at(4.9) })))
             .not.toThrow();
 
-        // One tick past it: refused, so a slow player cannot steal the question by
-        // posting late (hiding the button is not enforcement).
         expect(() => applyVeDichAction(s, { kind: "ve-dich.buzz", playerId: "p1" }, ctx({ now: at(5.1) })))
             .toThrow(VeDichRuleError);
         try {
@@ -203,7 +190,7 @@ describe("ve-dich powers and buzz", () => {
 describe("ve-dich resolve", () => {
     it("phase 1, typed: finalizes the player's draft and scores by face value", () => {
         let s = started();
-        s = pickPhase1(s, "p0", "30-1");   // Chung's table: only 20/30s
+        s = pickPhase1(s, "p0", "30-1");   
         const res = applyVeDichAction(s, { kind: "ve-dich.resolve", answerer: true },
             ctx({ drafts: [draft("p0")] }));
         expect(res.facts[0]).toEqual({
@@ -263,7 +250,6 @@ describe("ve-dich flow actions", () => {
     });
 
     it("beginPhase2 is rejected while phase 1 has unfinished turns", () => {
-        // Untouched may now skip (the confirmed rule) — one completed turn may not.
         let s = started();
         s = advanceTurn(s);
         expect(() => applyVeDichAction(s, { kind: "ve-dich.beginPhase2" }, ctx())).toThrow(VeDichRuleError);

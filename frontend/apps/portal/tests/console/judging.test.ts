@@ -2,9 +2,6 @@ import { describe, expect, it } from "vitest"
 import { judgingIdsOf, targetOf, type JudgingInput } from "@/console/lib/judging"
 import type { ConsoleQuestion } from "@/lib/live"
 
-// The console's judging scope table. These ids decide WHAT the ledger, the rail
-// and the commits read, so a wrong row here means the operator judges one
-// question while the screen shows another.
 
 const q = (id: string, roundId: string, kind = "CHOICE"): ConsoleQuestion =>
     ({ _id: id, roundId, kind, position: 1 } as unknown as ConsoleQuestion)
@@ -31,7 +28,6 @@ describe("judgingIdsOf — the clicked-question rounds (khởi động, bút ph�
     })
 
     it("falls back to the open one when the click outlived its window", () => {
-        // a click on a closed question must not point the ledger at a dead row
         expect(judgingIdsOf(input({ openIds: ["k2"], selectedQ: "k1" })).judgingId).toBe("k2")
     })
 

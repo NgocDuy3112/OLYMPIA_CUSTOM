@@ -5,9 +5,6 @@ import type { ButPhaState } from "../../game/engine/turns/but-pha.js";
 import type { KhoiDongState } from "../../game/engine/turns/khoi-dong-round.js";
 import type { VeDichState } from "../../game/engine/turns/ve-dich.js";
 
-// Runtime validation for state loaded from the database. The stored JSON is untrusted:
-// it may have been written by an older build. Bad state must fail loudly, never reach
-// the engine.
 
 export const GiaiMaPlayerSchema = Type.Object({
     id: Type.String(),
@@ -25,8 +22,6 @@ export const GiaiMaStateSchema = Type.Object({
     picked: Type.Array(Type.String()),
     openHint: Type.Union([Type.String(), Type.Null()]),
     openHintAt: Type.Union([Type.String(), Type.Null()]),
-    // The console's Hiện đáp án — display-only (see the engine's state docs).
-    // Optional: states written before the reveal exist without it.
     revealedAnswer: Type.Optional(Type.Union([Type.String(), Type.Null()]))
 });
 
@@ -47,7 +42,6 @@ export function parseGiaiMaState(raw: unknown): GiaiMaState {
     return raw as GiaiMaState;
 }
 
-// ── but-pha ───────────────────────────────────────────────────────────────────
 
 export const ButPhaAnswerSchema = Type.Object({
     playerId: Type.String(),
@@ -62,7 +56,6 @@ export const ButPhaStateSchema = Type.Object({
     answers: Type.Record(Type.String(), Type.Array(ButPhaAnswerSchema)),
     points: Type.Record(Type.String(), Type.Record(Type.String(), Type.Integer())),
     ended: Type.Boolean(),
-    // The console's Hiện đáp án — display-only; optional on archived states.
     revealedAnswer: Type.Optional(Type.Union([Type.String(), Type.Null()]))
 });
 
@@ -76,7 +69,6 @@ export function parseButPhaState(raw: unknown): ButPhaState {
     return raw as ButPhaState;
 }
 
-// ── khoi-dong ─────────────────────────────────────────────────────────────────
 
 export const KhoiDongPhase1RunSchema = Type.Object({
     kind: Type.Literal("phase1"),
@@ -96,10 +88,7 @@ export const KhoiDongPhase2Schema = Type.Object({
     windowS: Type.Integer(),
     questionIds: Type.Array(Type.String()),
     index: Type.Integer({ minimum: 0 }),
-    // Bấm giờ's stamp; null while the question waits for its window.
     openedAt: Type.Union([Type.String(), Type.Null()]),
-    // points per question, per player — replaced on re-judgement, never summed,
-    // so a card the console corrects cannot be paid twice.
     results: Type.Record(Type.String(), Type.Record(Type.String(), Type.Integer())),
     closed: Type.Boolean()
 });
@@ -111,7 +100,6 @@ export const KhoiDongStateSchema = Type.Object({
     activeIndex: Type.Integer({ minimum: 0 }),
     runs: Type.Record(Type.String(), KhoiDongPhase1RunSchema),
     phase2: Type.Union([KhoiDongPhase2Schema, Type.Null()]),
-    // The console's Hiện đáp án — display-only; optional on archived states.
     revealedAnswer: Type.Optional(Type.Union([Type.String(), Type.Null()]))
 });
 
@@ -125,15 +113,12 @@ export function parseKhoiDongState(raw: unknown): KhoiDongState {
     return raw as KhoiDongState;
 }
 
-// ── ve-dich ───────────────────────────────────────────────────────────────────
 
-// STAR (the renamed HOPE) and ASSIGN (the duel) — see scoring/ve-dich.ts.
 const PowerSchema = Type.Union([Type.Literal("STAR"), Type.Literal("ASSIGN")]);
 
 export const VeDichQuestionSchema = Type.Object({
     id: Type.String(),
     value: Type.Integer(),
-    // Optional: states written before ASSIGN existed carry no limit.
     timeLimit: Type.Optional(Type.Union([Type.Integer(), Type.Null()]))
 });
 
@@ -149,9 +134,7 @@ export const VeDichOpenSchema = Type.Object({
     power: Type.Union([PowerSchema, Type.Null()]),
     stage: Type.Union([Type.Literal("current"), Type.Literal("buzz")]),
     buzzer: Type.Union([Type.String(), Type.Null()]),
-    // How fast the winning buzz was (optional: older states carry none).
     buzzerMs: Type.Optional(Type.Union([Type.Integer(), Type.Null()])),
-    // ASSIGN only: the player the question was handed to (optional for archives).
     assignedTo: Type.Optional(Type.Union([Type.String(), Type.Null()]))
 });
 
@@ -159,18 +142,13 @@ export const VeDichStateSchema = Type.Object({
     phase: Type.Union([Type.Literal(1), Type.Literal(2)]),
     players: Type.Array(VeDichPlayerSchema),
     remaining: Type.Array(VeDichQuestionSchema),
-    // The 40/50s held back from Chung. Optional: archives written before the
-    // rule don't carry it — they must still parse (their remaining held all).
     deferred: Type.Optional(Type.Array(VeDichQuestionSchema)),
     turnIndex: Type.Integer({ minimum: 0 }),
     pendingPicks: Type.Array(VeDichQuestionSchema),
     open: Type.Union([VeDichOpenSchema, Type.Null()]),
     buzzOpenedAt: Type.Union([Type.String(), Type.Null()]),
-    // Optional: states written before the operator lock carry none.
     buzzLocked: Type.Optional(Type.Boolean()),
     ended: Type.Boolean(),
-    // The console's PRE-OPEN power decision (pick board): staged, spent when the
-    // question opens with it. Optional: states written before it carry none.
     stagedPower: Type.Optional(Type.Union([
         Type.Object({
             power: Type.Union([Type.Literal("STAR"), Type.Literal("ASSIGN")]),
@@ -178,10 +156,7 @@ export const VeDichStateSchema = Type.Object({
         }),
         Type.Null()
     ])),
-    // One power SPENT per turn — the show's cap; cleared at advanceTurn.
-    // Optional: states written before it existed carry none.
     turnPowerUsed: Type.Optional(Type.Boolean()),
-    // The console's Hiện đáp án — display-only; optional on archived states.
     revealedAnswer: Type.Optional(Type.Union([Type.String(), Type.Null()]))
 });
 
@@ -195,7 +170,6 @@ export function parseVeDichState(raw: unknown): VeDichState {
     return raw as VeDichState;
 }
 
-// Parse the stored state for whatever round is active.
 export function parseRoundState(
     roundId: string,
     raw: unknown

@@ -102,7 +102,6 @@ async function patchStatus(id: string, status: string, cookie: string) {
     return res.json();
 }
 
-// DRAFT → PENDING (operator) → PUBLISHED (admin only).
 async function publish(id: string) {
     await patchStatus(id, "PENDING", ownerCookie);
     await patchStatus(id, "PUBLISHED", adminCookie);
@@ -184,7 +183,6 @@ beforeAll(async () => {
     tournamentPublishedId = await createNested("tournament published");
     await publish(tournamentPublishedId);
 
-    // Another tag: not this tournament's to see.
     foreignPublishedId = await createNested("another tag", "VNTT");
     await publish(foreignPublishedId);
 });
@@ -297,7 +295,7 @@ describe("list_questions", () => {
             tournamentId: privateTournamentId
         });
         expect(ad.isError).toBe(false);
-        expect(ad.data!.total).toBe(4); // the whole visible bank: published, archived, published, published
+        expect(ad.data!.total).toBe(4); 
         await admin.transport.terminateSession();
         await admin.client.close();
     });
@@ -348,7 +346,6 @@ describe("get_question", () => {
             tournamentId: pubTournamentId,
             questionId: foreignPublishedId
         });
-        // The bank is global: "another tournament's question" no longer exists.
         expect(foreign.isError).toBe(false);
 
         await transport.terminateSession();

@@ -27,11 +27,6 @@ export function SchedulePage({
         [matches]
     )
 
-    // The picked day is a PREFERENCE, not the source of truth: on a cold load the
-    // matches arrive after the first render, so a plain `useState(days[0])` froze
-    // the choice at "" — no matches on the page and "Invalid Date" in the header.
-    // Deriving it means the first day is used until somebody picks another, and a
-    // day that no longer exists (filters changed) falls back instead of blanking.
     const [pickedDay, setDay] = useState<string | null>(null)
     const day = pickedDay !== null && days.includes(pickedDay) ? pickedDay : (days[0] ?? "")
     const navigate = useNavigate()
@@ -54,9 +49,6 @@ export function SchedulePage({
     const liveMatch = filtered.find((m) => m.status === "LIVE")
     const rest = filtered.filter((m) => m.id !== liveMatch?.id)
 
-    // A match click opens the SIDEBAR, not a page (2510): the schedule stays
-    // behind it and `?match=` keeps the view shareable. LIVE is the exception —
-    // the live screens own the full page.
     const [searchParams, setSearchParams] = useSearchParams()
     const openId = searchParams.get("match")
     const openMatch = openId ? matches.find((m) => m.id === openId) ?? null : null

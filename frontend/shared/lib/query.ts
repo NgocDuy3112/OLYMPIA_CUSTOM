@@ -1,7 +1,6 @@
 import { QueryCache, QueryClient } from "@tanstack/react-query"
 import { ApiError } from "./api"
 
-// 4xx are answers, not transient failures — don't retry them.
 function shouldRetry(failureCount: number, error: unknown): boolean {
     if (error instanceof ApiError && error.status < 500) return false
     return failureCount < 2

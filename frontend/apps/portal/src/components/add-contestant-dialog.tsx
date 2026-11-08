@@ -15,11 +15,6 @@ import { useCreateContestant, useEnrollByEmail } from "@/lib/tournament"
 
 const PASSWORD_MIN = 8
 
-/**
- * Mirrors `lib/username.ts` on the backend so the desk sees the handle the
- * server WILL derive — before it exists. (Collisions get a `-2` there; only the
- * name itself is previewed here.)
- */
 function previewHandle(name: string): string {
     const ascii = name
         .normalize("NFD")
@@ -34,23 +29,6 @@ function previewHandle(name: string): string {
     return slug.length > 0 ? slug : "player"
 }
 
-/**
- * Thêm thí sinh — a dialog, like every other create on this page (new match, new
- * tournament, invite operator). One job, one commit point, and the roster table is
- * never pushed around by a form living in its header.
- *
- * TWO doors, in the order step 8 made them matter:
- *
- *  · **Tạo tài khoản thí sinh** (the default) — the desk types the name and a
- *    FIRST PASSWORD; the server derives the login handle from the name
- *    ("Ngọc Duy" → `ngoc-duy`) and the player replaces that password at their
- *    first sign-in. Self-registration is gone, so this is how an account comes
- *    to exist.
- *  · **Ghi danh theo email** — for an account that ALREADY exists: one made at
- *    the desk for another tournament, or by the player's first Google sign-in
- *    (which matches on the address). The operator types the address and never
- *    sees a password — there is none to see.
- */
 export function AddContestantDialog({
     tournamentId,
     open,
@@ -68,8 +46,6 @@ export function AddContestantDialog({
     const [name, setName] = useState("")
     const [password, setPassword] = useState("")
 
-    // Mounted per opening (the parent renders it conditionally), so the fields start
-    // empty every time — no draft from the previous contestant.
     const close = () => {
         setName("")
         setEmail("")
@@ -117,8 +93,6 @@ export function AddContestantDialog({
                         <Tabs
                             value={mode}
                             onValueChange={(value) => {
-                                // Each mode has its own fields: switching drops the
-                                // other's draft rather than carrying it over.
                                 setMode(value)
                                 setName("")
                                 setEmail("")

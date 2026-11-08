@@ -4,9 +4,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useRecomputeStandings, useStandings } from "@/lib/tournament"
 
 
-// The tournament's places. A player is placed by how far they got — the last stage they
-// reached, the match they were eliminated in, and their rank in it. The points are a
-// statistic, not the ranking key.
 export function StandingsTab({ tournamentId }: { tournamentId: string }) {
     const standings = useStandings(tournamentId)
     const recompute = useRecomputeStandings(tournamentId)

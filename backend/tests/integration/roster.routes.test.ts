@@ -7,22 +7,12 @@ import { db } from "../../src/db/pool.js";
 import { auditEvents, matchStats, matches, tournamentPlayers, tournaments, users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 
-// Making a contestant — two ways onto a roster.
-//
-//  · the player registered THEIR OWN account (email + password they chose,
-//    verified by mail) — the operator enrolls the ADDRESS, never the password;
-//  · a show-floor contestant never registers — the console CREATES the identity
-//    a seat points at.
-//
-// These tests are the contract for both: a real PLAYER row either way, enrolled
-// in the same call, never two the same name on one roster.
 
 let app: FastifyInstance;
 let ownerCookie: string;
 let tournamentId: string;
 
 const auth = (cookie: string) => ({ cookie: `portal_session=${cookie}` });
-/** What every create below types — step 8: the desk always supplies one. */
 const DESK_PASSWORD = "mat-khau-ban-2026";
 const createUrl = () => `/portal/tournaments/${tournamentId}/players/new`;
 
@@ -87,8 +77,6 @@ describe("a contestant is created and enrolled in one call", () => {
         expect(row.displayName).toBe("Bình");
         expect(username).toBe("binh");
         expect(row.username).toBe("binh");
-        // no address, no placeholder: the handle is the identity, and the desk's
-        // first password is a hash the player must replace at first sign-in
         expect(row.email).toBeNull();
         expect(row.passwordHash).toMatch(/^\$argon2/);
         expect(row.passwordHash).not.toContain(DESK_PASSWORD);
@@ -116,14 +104,13 @@ describe("a contestant is created and enrolled in one call", () => {
 describe("the roster refuses what an operator would regret", () => {
     it("refuses a second contestant with the same name", async () => {
         await add("Em");
-        const res = await add("em"); // case-insensitive: the rail reads names
+        const res = await add("em"); 
         expect(res.statusCode).toBe(409);
         expect((res.json() as { message: string }).message).toContain("already a contestant");
     });
 
     it("refuses an empty name", async () => {
         const res = await add("   ");
-        // the schema's minLength(1) passes on spaces, so the service answers
         expect([400, 409]).toContain(res.statusCode);
     });
 
@@ -155,11 +142,7 @@ describe("the email is what makes the identity claimable", () => {
         const { userId } = res.json() as { userId: string };
 
         const [row] = await db.select().from(users).where(eq(users.id, userId));
-        // provisionPlayer() matches by email and links the Google sub to this user,
-        // so their matches/answers/standings were never on another row to begin with
         expect(row.email).toBe("hanh@example.test");
-        // The desk typed this address, so it is vouched for on the spot — there
-        // is no verification mail left in the system to wait for.
         expect(row.emailVerified).toBe(true);
     });
 
@@ -186,7 +169,6 @@ describe("the email is what makes the identity claimable", () => {
         expect(again.statusCode).toBe(409);
         const body = again.json() as { message: string; details?: string[] };
         expect(body.message).toContain("already belongs to Minh");
-        // the operator gets the identity to enroll instead of a second row
         const { userId } = first.json() as { userId: string };
         expect(body.details).toEqual([userId, "Minh"]);
     });
@@ -202,12 +184,6 @@ describe("enrolling an account by its address", () => {
     const enroll = (email: string) =>
         app.inject({ method: "POST", url: byEmailUrl(), headers: auth(ownerCookie), payload: { email } });
 
-    /**
-     * An account that EXISTS but is not on this roster — made by the desk for
-     * another tournament, or by the player's first Google sign-in (which
-     * matches on the address). Registration is gone in step 8; THIS is what
-     * enroll-by-email has left to find.
-     */
     const existingAccount = async (email: string, displayName: string) => {
         const [row] = await db
             .insert(users)
@@ -241,9 +217,6 @@ describe("enrolling an account by its address", () => {
     });
 
     it("lands the account on the roster WITH the handle and password state the desk reads", async () => {
-        // A Google-created account: it exists (it can sign in through Google)
-        // but no password has ever been set for it — which is exactly what the
-        // roster must show, so the desk knows a password reset is one click away.
         const userId = await existingAccount("google-den@example.test", "Google Đến");
 
         const res = await enroll("  Google-Den@Example.Test ");
@@ -281,9 +254,6 @@ describe("enrolling an account by its address", () => {
     });
 
     it("404s a pre-step-8 placeholder address — it was never an account", async () => {
-        // Rows made before step 8 carried a @players.invalid address because the
-        // schema demanded one. They still must not be "enrolled": the guard is
-        // for DATA, not for anything creation makes today.
         const [legacy] = await db
             .insert(users)
             .values({
@@ -385,7 +355,6 @@ describe("taking a contestant off the roster", () => {
 });
 
 describe("the guards that keep a record from vanishing", () => {
-    /** A finished-ish match of this tournament, with the contestant either seated or stat-ed. */
     const aMatch = async (seats: string[]) => {
         const [match] = await db
             .insert(matches)
@@ -415,7 +384,6 @@ describe("the guards that keep a record from vanishing", () => {
     it("refuses to remove a contestant who has played (stats on the record)", async () => {
         const { userId } = (await add("Zũ")).json() as { userId: string };
         const matchId = await aMatch([]);
-        // the table's grain is per QUESTION (a check constraint enforces it)
         await db.insert(matchStats).values({
             matchId,
             tournamentId,

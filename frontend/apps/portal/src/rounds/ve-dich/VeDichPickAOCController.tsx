@@ -6,25 +6,16 @@ import { playerCellClass, type CellWhere } from "@shared/deck/cells"
 import { COPY } from "@shared/deck/copy"
 import { VE_GRID_COLUMNS, boardRows } from "@shared/deck/ve-dich-board"
 
-// Về đích — bảng chọn câu (S5 = phase 2 bốc 3 câu · S6 = phase 1 chọn 1 câu).
-// THE CONSOLE PICKS: the desk stages cells on the board and confirms in the
-// strip — the engine still checks the pick is made for the TURN player (Chung:
-// any free 20/30, either band). No question is open; the grid is the SHOW'S
-// board: 6×20, 6×30, 4×40, 4×50 — rows are the bands, and the higher bands are
-// WIDER cells (span 3 of 12) so every row is the same width.
 import type { ConsoleQuestion, VeDichConsole } from "@/lib/live"
 import type { ScreenCore } from "../types"
 
-/** Về đích · board: the picker grid while nothing is open. */
 export type VeDichPickCtx = ScreenCore & {
     questions: ConsoleQuestion[]
     consoleVeDich: VeDichConsole | null
-    /** the rail's selected card — the staged ASSIGN's target */
     target: string | null
     setSelectedPlayer: (userId: string) => void
 }
 
-/** What each cell's title says — the state in the console's words. */
 const CELL_TITLE: Record<CellWhere, string> = {
     taken: "đã dùng",
     pending: "thí sinh đã chọn — chờ mở",
@@ -39,9 +30,6 @@ export function VeDichPickAOCController({ ctx }: { ctx: VeDichPickCtx }) {
     const projection = ctx.v.projection
     const turnPlayer = ctx.consoleVeDich?.turnPlayerId ?? null
     const pendingCount = (projection.board ?? []).filter((c) => c.where === "pending").length
-    // The staged cells live in the board below, MOUNTED per staging session: a new
-    // turn, a confirmed pick, or an opened question changes the key, React
-    // remounts, and the staging clears itself — no effect, no stale cells.
     const stagingKey = `${turnPlayer ?? "-"}:${pendingCount}:${projection.open.length}`
     return <VeDichPickBoard key={stagingKey} ctx={ctx} />
 }
@@ -56,9 +44,6 @@ function VeDichPickBoard({ ctx }: { ctx: VeDichPickCtx }) {
     const boardMap = new Map((projection.board ?? []).map((c) => [c.questionId, c.where]))
     const rows = boardRows(boardQs, (q) => q.points)
 
-    // The desk's staged cells: click to toggle, confirm in the strip. Picking is
-    // live only while it is a turn to pick FOR and nothing is staged/open yet.
-    // EITHER band is pickable — the show allows a 20 or a 30 in any order.
     const [chosen, setChosen] = useState<string[]>([])
     const pendingCount = (projection.board ?? []).filter((c) => c.where === "pending").length
     const openCount = projection.open.length
@@ -79,13 +64,8 @@ function VeDichPickBoard({ ctx }: { ctx: VeDichPickCtx }) {
         else ctx.send({ kind: "ve-dich.pick", playerId: turnPlayer, questionId: chosen[0] })
     }
 
-    // ── the power row (Riêng only): pressed BEFORE Bắt đầu opens the question ──
-    // Three slots — Ngôi sao hy vọng / Chỉ định đối kháng / Không dùng quyền
-    // năng. The choice STAGES (nothing spent); the open spends and applies it.
     const staged = consoleVeDich?.stagedPower ?? null
     const usedThisTurn = consoleVeDich?.turnPowerUsed === true
-    // One power per turn: after the turn spent one, the row goes inert — the
-    // player's other power waits for their next turn.
     const canStage = phase2 && turnPlayer !== null && pendingCount > 0 && !usedThisTurn
     const stage = (power: "STAR" | "ASSIGN" | null) => {
         if (!turnPlayer) return
@@ -105,7 +85,6 @@ function VeDichPickBoard({ ctx }: { ctx: VeDichPickCtx }) {
                     label: phase2 ? `Chốt ${need} câu` : "Chọn câu này",
                     onClick: picking && chosen.length === need ? confirm : undefined,
                 },
-                // the pre-open decision: live only while a pick can still happen
                 {
                     label: "Quyền năng",
                     content: staged
@@ -123,7 +102,6 @@ function VeDichPickBoard({ ctx }: { ctx: VeDichPickCtx }) {
                 },
                 {
                     label: COPY.powerAssign,
-                    // The target is the card the console clicked — no card, no button.
                     onClick: canStage && ctx.target ? () => stage("ASSIGN") : undefined,
                     empty: !phase2,
                 },

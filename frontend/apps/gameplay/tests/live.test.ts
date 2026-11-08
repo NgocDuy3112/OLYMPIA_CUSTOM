@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { playerScreenOf, type LiveView } from "../src/lib/live"
 
-// A view factory: only the fields playerScreenOf reads are varied; everything
-// else arrives as the empty-but-well-formed shape the server would send.
 const view = (over: Partial<LiveView>): LiveView => ({
     matchId: "m1",
     roundId: "khoi-dong",
@@ -31,8 +29,6 @@ describe("playerScreenOf — the lobby", () => {
     })
 
     it("an ended round is the lobby for EVERY round — one rule, no exceptions", () => {
-        // The khoi-dong engine never sends "ended" (it stops at phase2), but the
-        // waiting-stage rule still covers it — no round-specific branch anywhere.
         expect(playerScreenOf(view({ roundId: "khoi-dong", stage: "ended" }))).toBe("lobby")
     })
 })

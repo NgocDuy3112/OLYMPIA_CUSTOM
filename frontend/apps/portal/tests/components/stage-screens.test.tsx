@@ -6,12 +6,6 @@ import type { ConsoleFacts } from "@/components/stage/deck"
 import type { LiveResponse, VeDichConsole } from "@/lib/live"
 import { roundModuleOf } from "@/rounds"
 
-/**
- * The controller's screens are pure (facts in, elements out — through the
- * round registry), so the fixture IS the console's state. Clickable things are
- * real buttons, which is what these tests query: strip order, gating, and the
- * actions each button sends.
- */
 function facts(
     over: Partial<ConsoleFacts> = {},
     projection: Partial<LiveResponse["projection"]> = {},
@@ -67,7 +61,6 @@ function facts(
     }
 }
 
-/** Render a round through its registry module — the path production takes. */
 function renderRound(
     roundId: string,
     over: Partial<ConsoleFacts> = {},
@@ -119,7 +112,6 @@ describe("KhoiDongRieng — S1, the oral run", () => {
         expect(screen.queryByRole("button", { name: "Đúng" })).toBeNull()
         expect(screen.getByRole("button", { name: "Về sảnh" })).toBeInTheDocument()
 
-        // overBudget reads the console's stopwatch: 6s watched into a 5s budget left
         rerender(mod.render(facts(
             { watchMs: 6_000 },
             { oral: { questionId: "q1", question: null, playerId: "u1", index: 2, total: 6, elapsedS: 40, budgetS: 45 } },
@@ -151,8 +143,6 @@ describe("KhoiDongChung — S2, the timed batch", () => {
         await user.click(screen.getByText("Bấm giờ", BUTTON))
         expect(f.send).toHaveBeenCalledWith({ kind: "khoi-dong.startWindow" })
 
-        // a window is already running → nothing to open (the engine would
-        // refuse a second press anyway; the button says so by being inert)
         rerender(mod.render(facts(
             { stage: "phase2" },
             { open: [{ ...q1, deadlineAt: "2026-01-01T00:00:10.000Z" }] },
@@ -189,7 +179,6 @@ describe("KhoiDongChung — S2, the timed batch", () => {
         const user = userEvent.setup()
         const f = renderRound("khoi-dong", { stage: "phase2" }, { open: [q1] }, batch({ questionIndex: 1 }))
 
-        // the strip runs 1..6; on question 2 (index 1) only 3 moves it on
         await user.click(screen.getByRole("button", { name: "3" }))
         expect(f.send).toHaveBeenCalledWith({ kind: "khoi-dong.nextQuestion" })
 
@@ -206,7 +195,6 @@ describe("KhoiDongChung — S2, the timed batch", () => {
         await user.click(screen.getByRole("button", { name: "Hiện đáp án" }))
         expect(f.send).toHaveBeenCalledWith({ kind: "reveal.answer", questionId: "q1" })
 
-        // no question in play → the slot is a display chip, not a button
         rerender(mod.render(facts({ stage: "phase2" }, { open: [] }, batch())))
         expect(screen.queryByRole("button", { name: "Hiện đáp án" })).toBeNull()
     })
@@ -216,11 +204,10 @@ describe("GiaiMa — S3", () => {
     const BUTTON = { selector: "button" } as const
 
     it("commits are inert until a submitted player is selected", () => {
-        renderRound("giai-ma")                 // defaults: nothing selected
-        // both commits render as inert slots — not clickable
+        renderRound("giai-ma")                 
         expect(screen.queryByText("Đúng", BUTTON)).toBeNull()
         expect(screen.queryByText("Đúng từ khoá", BUTTON)).toBeNull()
-        expect(screen.getByText("Sai")).toBeInTheDocument()      // old button stays, inert
+        expect(screen.getByText("Sai")).toBeInTheDocument()      
         expect(screen.queryByRole("button", { name: "Sai" })).toBeNull()
     })
 
@@ -261,11 +248,9 @@ describe("GiaiMa — S3", () => {
             [keyword],
         )
 
-        // the last judged hint is the one on the table → its answer reveals
         await user.click(screen.getByRole("button", { name: "Hiện đáp án gợi ý" }))
         expect(f.send).toHaveBeenCalledWith({ kind: "reveal.answer", questionId: "h1" })
 
-        // …and the keyword has no window to wait for — the desk decides
         await user.click(screen.getByRole("button", { name: "Hiện đáp án từ khoá" }))
         expect(f.send).toHaveBeenCalledWith({ kind: "reveal.answer", questionId: "kw" })
     })
@@ -278,8 +263,6 @@ describe("GiaiMa — S3", () => {
     })
 
     it("draws the fixed EIGHT-tile board, whatever the round's hint count", () => {
-        // Six hints in this round → six live tiles, two inert ones: the grid never
-        // shrinks, so a viewer cannot read the hint count off the layout.
         const hints = Array.from({ length: 6 }, (_, i) => ({
             _id: `h${i + 1}`,
             roundId: "giai-ma",
@@ -303,10 +286,8 @@ describe("GiaiMa — S3", () => {
         const f = renderRound("giai-ma", {}, {}, null, [...hints, keyword] as unknown as LiveResponse["questions"])
         const tiles = screen.getAllByText(/^[1-8]$/)
         expect(tiles).toHaveLength(8)
-        // 1..6 are this round's hints (open-able); 7 and 8 exist but stay inert
         expect(tiles.slice(0, 6).every((tile) => tile.getAttribute("role") === "button")).toBe(true)
         expect(tiles.slice(6).map((tile) => tile.getAttribute("role"))).toEqual([null, null])
-        // the keyword length is announced from the code ("BONTUONG" = 8 letters)
         expect(screen.getByText(/8 chữ cái/)).toBeInTheDocument()
         expect(f.remaining).toBe(30)
     })
@@ -330,8 +311,6 @@ describe("VeDichRieng — the powers and the duel", () => {
     const BUTTON = { selector: "button" } as const
     const opened = { open: [openQ] }
 
-    // The pick board with the turn's three already staged (pending) — the state
-    // the power row is live in: pre-open, one decision to make.
     const pickBoard = {
         open: [],
         board: [{ questionId: "a", value: 40, where: "pending" as const }],
@@ -349,8 +328,6 @@ describe("VeDichRieng — the powers and the duel", () => {
             [stagedQuestion],
         )
 
-        // Ngôi sao hy vọng stages for the turn player — the turn's ONE pick,
-        // nothing spent yet (the server locks the row after this press)
         await user.click(screen.getByText("Ngôi sao hy vọng", BUTTON))
         expect(f.send).toHaveBeenCalledWith({
             kind: "ve-dich.declarePower", playerId: "u1", power: "STAR",
@@ -378,7 +355,7 @@ describe("VeDichRieng — the powers and the duel", () => {
             [stagedQuestion],
         )
         expect(screen.queryByText("Chỉ định đối kháng", BUTTON)).toBeNull()
-        expect(screen.getByText("Chỉ định đối kháng")).toBeInTheDocument()   // still drawn, as a slot
+        expect(screen.getByText("Chỉ định đối kháng")).toBeInTheDocument()   
     })
 
     it("Chỉ định đối kháng sends the SELECTED card as the target", async () => {
@@ -413,14 +390,13 @@ describe("VeDichRieng — the powers and the duel", () => {
         expect(screen.queryByRole("button", { name: "Ngôi sao hy vọng" })).toBeNull()
         expect(screen.queryByRole("button", { name: "Chỉ định đối kháng" })).toBeNull()
         expect(screen.queryByRole("button", { name: "Không dùng quyền năng" })).toBeNull()
-        // …and the chip says why: the turn is done spending
         expect(screen.getByText("đã chốt lượt này")).toBeInTheDocument()
     })
 
     it("during a duel the buzz slot is inert — an ASSIGN question has nothing to close", () => {
         renderRound("ve-dich", {}, opened, veDichMc({ phase: 2, power: "ASSIGN", assignedToId: "u2" }))
         expect(screen.queryByText("Mở chuông", BUTTON)).toBeNull()
-        expect(screen.getByText("Mở chuông")).toBeInTheDocument()      // still drawn, as a slot
+        expect(screen.getByText("Mở chuông")).toBeInTheDocument()      
     })
 
     it("a live race can be ended: Khoá chuông sends the lock", async () => {
@@ -497,10 +473,9 @@ describe("VeDichPick — S5/S6, the board", () => {
             [veQuestion("q30", 30), veQuestion("q20", 20)],
         )
 
-        // BOTH bands are stageable — the show allows a 20 or a 30 in any order
         expect(screen.getAllByTitle("Chọn câu này")).toHaveLength(2)
-        await user.click(screen.getByRole("button", { name: "20" }))   // the lower band's cell
-        await user.click(screen.getByRole("button", { name: "Chọn câu này" }))  // the strip confirm
+        await user.click(screen.getByRole("button", { name: "20" }))   
+        await user.click(screen.getByRole("button", { name: "Chọn câu này" }))  
         expect(f.send).toHaveBeenCalledWith({ kind: "ve-dich.pick", playerId: "u1", questionId: "q20" })
     })
 
@@ -574,7 +549,6 @@ describe("VeDichChung — S7, phase 1 question", () => {
         const het = screen.getByRole("button", { name: "Hết lượt" })
         await user.click(het)
         expect(f.hetLuot).toHaveBeenCalledOnce()
-        // tooltips are gone (user decision): the buttons carry no title
         expect(het).not.toHaveAttribute("title")
         expect(screen.getByRole("button", { name: "Về sảnh" })).not.toHaveAttribute("title")
     })
@@ -623,12 +597,10 @@ describe("VeDichRieng — S8, phase 2 question", () => {
     })
 })
 
-/** The clickable labels in DOM order — real buttons + role=button divs (tiles). */
 function clickables(): string[] {
     return Array.from(document.querySelectorAll('button, [role="button"]')).map((el) => el.textContent ?? "")
 }
 
-/** Assert the given labels appear on screen in exactly this relative order. */
 function expectButtonsInOrder(expected: string[]) {
     const actual = clickables()
     let cursor = -1
@@ -639,6 +611,4 @@ function expectButtonsInOrder(expected: string[]) {
     }
 }
 
-// score adjust's ± chip was removed from the controller's rail (the console's call) —
-// the dialog/machinery stays dormant; no UI asserts it any more.
 

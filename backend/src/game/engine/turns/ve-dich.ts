@@ -1,17 +1,8 @@
-// ve-dich turn logic as pure state transitions. No DB, no I/O.
-// Scoring lives in ../scoring/ve-dich.ts; this module decides who may act,
-// which question is open, and which powers are still available.
 import { assignPayout, veDichPoints, type Power } from "../scoring/ve-dich.js";
 import { VE_DICH_DEFAULTS, type VeDichRules } from "../rules.js";
 
 export const VALUES = [20, 30, 40, 50] as const;
 
-/**
- * The board's composition — the SHOW's, not the staff's: six 20s, six 30s,
- * four 40s, four 50s (20 cells). Chung plays the twelve 20/30 cells, Riêng the
- * eight 40/50s. A question set that does not match this is refused at start, so
- * a wrong board can never reach the projector.
- */
 export const BOARD_COMPOSITION: Record<(typeof VALUES)[number], number> = {
     20: 6,
     30: 6,
@@ -19,7 +10,6 @@ export const BOARD_COMPOSITION: Record<(typeof VALUES)[number], number> = {
     50: 4
 };
 
-/** How a question set differs from BOARD_COMPOSITION, as "20×5 (want 6)" lines. */
 function compositionDiffs(questions: VeDichQuestion[]): string[] {
     const counted = new Map<number, number>();
     for (const q of questions) counted.set(q.value, (counted.get(q.value) ?? 0) + 1);
@@ -39,10 +29,8 @@ function compositionDiffs(questions: VeDichQuestion[]): string[] {
 }
 
 export interface VeDichQuestion {
-    id: string;        // the frozen MatchQuestion id
-    value: number;     // the face value — 20/30 in Chung, 40/50 in Riêng
-    // The question's own limit (seconds). An ASSIGN race runs on THIS clock —
-    // both halves must buzz before the question's time runs out.
+    id: string;        
+    value: number;     
     timeLimit: number | null;
 }
 
@@ -55,49 +43,22 @@ export interface PlayerState {
 export type Phase = 1 | 2;
 
 export interface VeDichState {
-    // The rulebook's numbers, frozen when the round opened.
     rules: VeDichRules;
     phase: Phase;
     players: PlayerState[];
-    /** What can still be picked RIGHT NOW: phase 1 holds only the 20/30 cells. */
     remaining: VeDichQuestion[];
-    /** The 40/50 cells, held back from Chung — merged into `remaining` at
-     *  phase 2 together with the unplayed 20/30s (the summit's full pool).
-     *  Optional: states stored before this rule lack it (read as none). */
     deferred?: VeDichQuestion[];
     turnIndex: number;
     pendingPicks: VeDichQuestion[];
     open: OpenQuestion | null;
-    buzzOpenedAt: string | null;   // ISO time the buzz window opened
-    /**
-     * The console's power decision for the turn — made on the pick board BEFORE
-     * the question opens (the show's rule: star / assign / none). Staged, not
-     * yet spent: `openPhase2Question` spends it and applies it; a turn change
-     * (advanceTurn) clears it unspent. Optional on pre-reveal states.
-     */
+    buzzOpenedAt: string | null;   
     stagedPower?: StagedPower | null;
-    /**
-     * At most ONE power may be SPENT per turn (the show's cap): set when a
-     * question opens with a staged power, cleared when the turn advances. The
-     * player's other power stays theirs for a later turn. Optional.
-     */
     turnPowerUsed?: boolean;
-    /**
-     * The operator ended the race: the clock stops and EVERY buzz is locked out
-     * from here on, whatever the time limit says. Optional — states written
-     * before the lock existed carry none.
-     */
     buzzLocked?: boolean;
     ended: boolean;
-    /**
-     * The console's Hiện đáp án: the question whose CORRECT ANSWER every screen
-     * is showing. Display-only; the view exposes the text only while that
-     * question is still open. Optional on pre-reveal states.
-     */
     revealedAnswer?: string | null;
 }
 
-/** A staged (pre-open) power decision: what the question will open with. */
 export interface StagedPower {
     power: Power;
     targetId?: string;
@@ -105,19 +66,11 @@ export interface StagedPower {
 
 export interface OpenQuestion {
     question: VeDichQuestion;
-    answerer: string;              // current player's id
-    power: Power | null;           // STAR: applies to the answerer. ASSIGN: the duel
-    stage: "current" | "buzz";     // current answers first, then buzz window
-    buzzer: string | null;         // set when a buzzer wins the window
-    /** How fast that buzz was, in ms from the window opening. Optional: states
-     *  written before the time was kept carry none. */
+    answerer: string;              
+    power: Power | null;           
+    stage: "current" | "buzz";     
+    buzzer: string | null;         
     buzzerMs?: number | null;
-    /**
-     * ASSIGN only: the player the question was handed to. Set when the current
-     * player declares ASSIGN — the same call that opens the race, since in a
-     * duel there is nobody to "answer first". Optional on the type so archived
-     * states (which never had it) still read.
-     */
     assignedTo?: string | null;
 }
 
@@ -150,15 +103,11 @@ export function createVeDich(
     players: PlayerState[],
     rules: VeDichRules = VE_DICH_DEFAULTS
 ): VeDichState {
-    // The board is fixed: 6×20, 6×30, 4×40, 4×50. Refuse anything else rather
-    // than draw a board the show never agreed to.
     const diffs = compositionDiffs(questions);
     if (diffs.length > 0) {
         fail("BOARD_COMPOSITION", `ve-dich needs 6×20, 6×30, 4×40, 4×50 — got ${diffs.join(", ")}`);
     }
 
-    // Chung plays the 20s and 30s ONLY; the 40s and 50s wait for the summit
-    // and join it together with whatever 20/30 cells Chung never reached.
     const isChung = (q: VeDichQuestion) => q.value === 20 || q.value === 30;
     return {
         rules,
@@ -174,16 +123,10 @@ export function createVeDich(
     };
 }
 
-// Phase 1 is complete once no question is open and every player has had a turn.
 export function phase1Complete(state: VeDichState): boolean {
     return state.phase === 1 && state.open === null && state.turnIndex >= state.players.length;
 }
 
-/**
- * Phase 1 recorded NOTHING — the console may skip it (Về đích · Riêng starts the
- * summit on untouched scores, the confirmed rule). Any completed turn or open
- * question keeps PHASE1_INCOMPLETE guarding: finish phase 1 first.
- */
 export function phase1Untouched(state: VeDichState): boolean {
     return state.phase === 1 && state.turnIndex === 0 && state.open === null && state.pendingPicks.length === 0;
 }
@@ -192,16 +135,12 @@ export function phase2Complete(state: VeDichState): boolean {
     return state.phase === 2 && state.open === null && state.turnIndex >= state.players.length;
 }
 
-// Move to phase 2. The turn order is fixed HERE, by score at this moment (lowest first).
 export function beginPhase2(state: VeDichState): VeDichState {
     if (state.phase !== 1) fail("WRONG_PHASE", "already in phase 2");
     if (!phase1Complete(state) && !phase1Untouched(state)) fail("PHASE1_INCOMPLETE", "phase 1 is not complete");
     return {
         ...state,
         phase: 2,
-        // The summit's pool = every cell Chung didn't play (20/30 leftovers)
-        // PLUS the deferred 40/50s. `?? []` carries pre-rule archives, which
-        // stored no deferred list (their remaining already held everything).
         remaining: [...state.remaining, ...(state.deferred ?? [])],
         deferred: [],
         players: orderForPhase(state.players, 2),
@@ -218,8 +157,6 @@ export function endVeDich(state: VeDichState): VeDichState {
     return { ...state, ended: true, open: null, buzzOpenedAt: null, buzzLocked: false };
 }
 
-// Phase 1: highest score first. Phase 2: lowest score first.
-// Ties keep the input order (stable sort), which the caller supplies.
 export function orderForPhase(players: PlayerState[], phase: Phase): PlayerState[] {
     const sorted = [...players];
     sorted.sort((a, b) => (phase === 1 ? b.score - a.score : a.score - b.score));
@@ -230,8 +167,6 @@ export function currentPlayer(state: VeDichState): PlayerState {
     return state.players[state.turnIndex];
 }
 
-// Phase 1: the current player picks one question — EITHER band: the show lets
-// the desk pick any free 20- or 30-point cell, in any order (no top-band rule).
 export function pickPhase1(
     state: VeDichState,
     playerId: string,
@@ -243,8 +178,6 @@ export function pickPhase1(
 
     const question = state.remaining.find((q) => q.id === questionId);
     if (!question) fail("INVALID_QUESTION", `question ${questionId} is not available`);
-    // Chung is a 20/30 table by rule — guards pre-rule archived states too,
-    // where remaining may still list the big cells.
     if (question.value !== 20 && question.value !== 30) {
         fail("INVALID_QUESTION", "phase 1 only plays 20- and 30-point questions");
     }
@@ -265,7 +198,6 @@ export function pickPhase1(
     };
 }
 
-// Phase 2: the current player commits 3 picks for their turn, in order.
 export function pickPhase2(
     state: VeDichState,
     playerId: string,
@@ -290,15 +222,6 @@ export function pickPhase2(
     };
 }
 
-// Power declaration: at question open, by the current player only, at most one
-// per question, and only if the player still has that power.
-/**
- * The power decision — PRE-OPEN ONLY. PLAYERS CANNOT DECLARE: the console
- * stages it on the pick board before Bắt đầu opens the question (the show's
- * row: star / assign / none). Nothing is spent until the question opens with
- * it; a turn change clears an unspent staging. `power: null` is the explicit
- * "Không dùng quyền năng" — it clears a staged choice.
- */
 export function declarePower(
     state: VeDichState,
     playerId: string,
@@ -317,13 +240,8 @@ export function declarePower(
     if (state.pendingPicks.length === 0) {
         fail("NOTHING_OPEN", "pick the turn's questions first");
     }
-    // "Không dùng quyền năng" is NOT a pick — excluded from the one-pick rule:
-    // it never locks the row and never clears one. A statement, not a choice.
     if (power === null) return state;
 
-    // ONE pick per turn: the first press — STAR or ASSIGN — stands, and the
-    // choice locks until the turn advances. The power itself is SPENT when the
-    // question opens with it.
     if (state.turnPowerUsed === true) {
         fail("ONE_POWER_PER_TURN", "the turn has already chosen its power");
     }
@@ -344,8 +262,6 @@ export function declarePower(
     return { ...state, stagedPower: { power }, turnPowerUsed: true };
 }
 
-// Phase 2 opens the question for the current player. Declaration happens here,
-// then the answer is recorded and the buzz window opens.
 export function openPhase2Question(state: VeDichState, questionId: string, nowIso?: string): VeDichState {
     if (state.phase !== 2) fail("WRONG_PHASE", "openPhase2Question only applies in Phase 2");
     if (state.open) fail("ALREADY_OPEN", "a question is already open");
@@ -353,9 +269,6 @@ export function openPhase2Question(state: VeDichState, questionId: string, nowIs
     const question = state.pendingPicks.find((q) => q.id === questionId);
     if (!question) fail("INVALID_QUESTION", `question ${questionId} is not one of this turn's picks`);
 
-    // The staged decision lands with the question: SPEND it here (the show's
-    // rule: a power is spent the moment the question opens with it) and apply
-    // it. An ASSIGN opens the race at once — nobody answers first.
     const staged = state.stagedPower ?? null;
     const isAssign = staged?.power === "ASSIGN";
     if (isAssign && !nowIso) fail("INVALID_TARGET", "ASSIGN needs the server clock to open the race");
@@ -372,7 +285,6 @@ export function openPhase2Question(state: VeDichState, questionId: string, nowIs
         ...state,
         players,
         stagedPower: null,
-        // One power per turn: spending one here caps the rest of this turn.
         turnPowerUsed: staged !== null || state.turnPowerUsed === true,
         pendingPicks: state.pendingPicks.filter((q) => q.id !== questionId),
         open: {
@@ -388,20 +300,14 @@ export function openPhase2Question(state: VeDichState, questionId: string, nowIs
     };
 }
 
-// The current player's answer has been recorded and judged later. The buzz window opens now
-// regardless of correctness, per the rules. Buzzes are resolved by the server receive order;
-// the caller passes the first buzzer, and later buzzes are rejected by this function.
 export function closeCurrentAnswer(state: VeDichState, openedAt: string): VeDichState {
     if (!state.open) fail("NOTHING_OPEN", "no question is open");
-    if (state.phase !== 2) return state;      // Phase 1 has no buzz window
+    if (state.phase !== 2) return state;      
     if (state.open.stage !== "current") fail("ALREADY_OPEN", "the buzz window already happened");
 
     return { ...state, open: { ...state.open, stage: "buzz" }, buzzOpenedAt: openedAt, buzzLocked: false };
 }
 
-// How long the window stays open, in seconds. A normal buzz window is the
-// round's `buzzWindowS` (5 s). An ASSIGN race runs on the QUESTION's own time
-// limit — the duel lasts as long as the question does.
 export function buzzWindowSeconds(state: VeDichState): number {
     if (state.open?.power === "ASSIGN") {
         return state.open.question.timeLimit ?? state.rules.buzzWindowS;
@@ -409,12 +315,6 @@ export function buzzWindowSeconds(state: VeDichState): number {
     return state.rules.buzzWindowS;
 }
 
-/**
- * END THE RACE. The operator stops the clock and BOTH halves of a duel are
- * locked out — nothing is scored here: the question then resolves as the
- * nobody-buzzed case (both lose 50%). Also usable on a normal question, where it
- * simply skips the rest of the 5 s window.
- */
 export function lockBuzzWindow(state: VeDichState): VeDichState {
     if (!state.open) fail("NOTHING_OPEN", "no question is open");
     if (state.open.stage !== "buzz") fail("ALREADY_OPEN", "there is no open buzz window");
@@ -422,9 +322,8 @@ export function lockBuzzWindow(state: VeDichState): VeDichState {
     return { ...state, buzzLocked: true };
 }
 
-// Is the buzz window open at `nowIso`?
 export function isBuzzOpen(state: VeDichState, nowIso: string): boolean {
-    if (state.buzzLocked === true) return false;      // the operator ended it
+    if (state.buzzLocked === true) return false;      
     if (state.open === null || state.open.stage !== "buzz" || state.buzzOpenedAt === null) {
         return false;
     }
@@ -432,8 +331,6 @@ export function isBuzzOpen(state: VeDichState, nowIso: string): boolean {
     return elapsed >= 0 && elapsed <= buzzWindowSeconds(state) * 1000;
 }
 
-// Who may buzz at all: on a normal question everyone except the answerer; on an
-// ASSIGN question ONLY the two halves of the duel.
 export function mayBuzz(state: VeDichState, playerId: string): boolean {
     if (state.open === null) return false;
     const assignedTo = state.open.assignedTo ?? null;
@@ -443,9 +340,6 @@ export function mayBuzz(state: VeDichState, playerId: string): boolean {
     return playerId !== state.open.answerer;
 }
 
-// The buzz. `nowIso` is REQUIRED: the window is a RULE, not a UI courtesy — a
-// buzz that arrives after buzzWindowS is refused here, so a slow player cannot
-// steal the question by posting late (the view hides the button; this enforces).
 export function buzz(state: VeDichState, playerId: string, nowIso: string): VeDichState {
     if (!state.open) fail("NOTHING_OPEN", "no question is open");
     if (state.phase !== 2) fail("WRONG_PHASE", "buzzing only exists in Phase 2");
@@ -459,7 +353,6 @@ export function buzz(state: VeDichState, playerId: string, nowIso: string): VeDi
         open: {
             ...state.open,
             buzzer: playerId,
-            // The race is a stopwatch: keep the time that decided it.
             buzzerMs: state.buzzOpenedAt === null
                 ? 0
                 : Math.max(0, Date.parse(nowIso) - Date.parse(state.buzzOpenedAt))
@@ -468,23 +361,15 @@ export function buzz(state: VeDichState, playerId: string, nowIso: string): VeDi
 }
 
 export interface Verdicts {
-    answerer: boolean;          // current player correct?
-    buzzer?: boolean;           // buzzer correct? (only if someone buzzed)
+    answerer: boolean;          
+    buzzer?: boolean;           
 }
 
-// Finish the question. Two shapes:
-//
-//   normal — the answerer scores on their own answer (STAR/plain multipliers),
-//            and a buzzer, if any, scores on theirs. Independent.
-//   ASSIGN — a DUEL between the answerer and the player they handed it to. Only
-//            one of them answered (the faster buzz); nobody buzzed at all is a
-//            legitimate ending, and both halves lose 50%.
 export function resolveQuestion(state: VeDichState, verdicts: Verdicts): VeDichState {
     if (!state.open) fail("NOTHING_OPEN", "no question is open");
     const { open } = state;
     const assignedTo = open.assignedTo ?? null;
 
-    // A duel may be resolved with nobody buzzing; everything else may not.
     if (open.stage === "current" && state.phase === 2) {
         fail("ALREADY_OPEN", "the question is still open");
     }
@@ -518,9 +403,6 @@ export function resolveQuestion(state: VeDichState, verdicts: Verdicts): VeDichS
     ]);
 }
 
-// An ASSIGN duel: the buzzer takes +100% when right / −50% when wrong, and the
-// other half of the pair takes −50% only when the buzzer was right. Nobody
-// buzzing costs both halves 50%.
 function resolveAssign(state: VeDichState, verdicts: Verdicts): VeDichState {
     const open = state.open!;
     const partner = open.assignedTo!;
@@ -555,8 +437,6 @@ function applyDeltas(state: VeDichState, deltas: Array<[string, number]>): VeDic
 export function advanceTurn(state: VeDichState): VeDichState {
     if (state.open) fail("ALREADY_OPEN", "finish the open question first");
     const next = state.turnIndex + 1;
-    // A new turn = a new decision: any staged power dies unspent here, and the
-    // one-power-per-turn cap lifts with the turn it belonged to.
     return { ...state, turnIndex: next, pendingPicks: [], stagedPower: null, turnPowerUsed: false };
 }
 

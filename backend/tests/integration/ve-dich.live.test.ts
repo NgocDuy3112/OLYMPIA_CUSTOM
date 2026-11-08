@@ -8,13 +8,7 @@ import { answers, matchEvents, matchLive, matchResults, matchStats, matches, tou
 import { signToken } from "../../src/lib/jwt.js";
 import type { MatchQuestion } from "../../src/game/contracts/index.js";
 
-// ve-dich end to end: phase 1 typed (pick → draft → controller finalizes), phase 2 oral
-// with a buzz window and powers.
 
-// The show's board — 6×20, 6×30, 4×40, 4×50 — and the engine refuses anything
-// else at start, so this fixture IS the round's composition. NO category
-// labels: a cell is its score, and the ordinal tells the four 40s apart
-// (40-1 … 40-4), assigned in board order.
 const BOARD: number[] = [
     20, 20, 20, 20, 20, 20,
     30, 30, 30, 30, 30, 30,
@@ -28,7 +22,7 @@ let playerCookies: string[];
 let tournamentId: string;
 let matchId: string;
 let playerIds: string[];
-const qid = new Map<string, string>();     // "50-1" -> question id
+const qid = new Map<string, string>();     
 
 const auth = (cookie: string) => ({ cookie: `portal_session=${cookie}` });
 const asPlayer = (cookie: string) => ({ cookie: `gameplay_session=${cookie}` });
@@ -56,7 +50,6 @@ beforeAll(async () => {
     playerIds = playerRows.map((u) => u.id);
     playerCookies = playerRows.map((u) => signToken(app, "GAMEPLAY", { sub: u.id, role: "PLAYER", tokenVersion: 0 }));
 
-    // The tournament is the unit: it carries the identity the tournament had.
     const tournamentTags = ["THTH"];
     const tournamentOwner = owner.id;
     const tournamentSlug = "vd-tournament-tournament";
@@ -136,8 +129,8 @@ describe("ve-dich — start", () => {
         expect(res.statusCode).toBe(200);
         const state = res.json().state;
         expect(state.phase).toBe(1);
-        expect(state.remaining).toHaveLength(12);   // Chung: six 20s + six 30s
-        expect(state.deferred).toHaveLength(8);     // Riêng: four 40s + four 50s
+        expect(state.remaining).toHaveLength(12);   
+        expect(state.deferred).toHaveLength(8);     
         expect(state.players.map((p: { id: string }) => p.id)).toEqual(playerIds);
         expect(state.players.every((p: { powersLeft: string[] }) => p.powersLeft.length === 2)).toBe(true);
     });
@@ -157,7 +150,7 @@ describe("ve-dich — phase 1 (typed, one pick each)", () => {
 
         const drafted = await answer(playerCookies[0], qid.get("30-1")!, "x");
         expect(drafted.statusCode).toBe(200);
-        expect(drafted.json()).toEqual({ drafted: true });            // opinion stays server-side
+        expect(drafted.json()).toEqual({ drafted: true });            
 
         const resolved = await act({ kind: "ve-dich.resolve", answerer: true });
         expect(resolved.statusCode).toBe(200);
@@ -177,14 +170,13 @@ describe("ve-dich — phase 1 (typed, one pick each)", () => {
 
         const resolved = await act({ kind: "ve-dich.resolve", answerer: false });
         expect(resolved.statusCode).toBe(200);
-        expect(await score(playerIds[1])).toBe(-15);      // -50% of 30
+        expect(await score(playerIds[1])).toBe(-15);      
 
         const [row] = await db.select().from(answers).where(and(
             eq(answers.matchId, matchId),
             eq(answers.questionId, qid.get("30-2")!),
             eq(answers.userId, playerIds[1])
         ));
-        // no typed answer: the verdict is recorded as an operator row, not a judge of a draft
         expect(row).toMatchObject({ judged: true, verdict: "INCORRECT", pointsAwarded: -15, autoMatched: false });
     });
 
@@ -217,7 +209,7 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
 
         const events = await db.select().from(matchEvents)
             .where(and(eq(matchEvents.matchId, matchId), eq(matchEvents.kind, "PICK")));
-        expect(events).toHaveLength(5);                    // 2 from phase 1 + 3 now
+        expect(events).toHaveLength(5);                    
     });
 
     it("the answerer and the buzzer are scored independently", async () => {
@@ -230,19 +222,16 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
 
         const resolved = await act({ kind: "ve-dich.resolve", answerer: false, buzzer: true });
         expect(resolved.statusCode).toBe(200);
-        expect(await score(playerIds[1])).toBe(-35);       // -15 - 20
-        expect(await score(playerIds[0])).toBe(70);        //  30 + 40
+        expect(await score(playerIds[1])).toBe(-35);       
+        expect(await score(playerIds[0])).toBe(70);        
     });
 
     it("a buzzer who buzzes twice, or a non-buzzer, is rejected", async () => {
-        // The window is still open on this question; the engine allows only one buzzer.
         const again = await command(playerCookies[1], { type: "buzz", questionId: qid.get("40-1") });
         expect(again.statusCode).toBeGreaterThanOrEqual(400);
     });
 
     it("STAR (wrong) costs -100% of face value — the turn's ONE pick, staged first", async () => {
-        // Ngôi sao hy vọng on the pick board: the turn's single choice —
-        // staged, NOT spent yet (the engine still checks NOT_YOUR_TURN).
         const staged = await act({
             kind: "ve-dich.declarePower",
             playerId: playerIds[1],
@@ -252,7 +241,7 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
         expect(staged.json().state.stagedPower).toEqual({ power: "STAR" });
         expect(staged.json().state.turnPowerUsed).toBe(true);
         expect(staged.json().state.players.find((p: { id: string }) => p.id === playerIds[1]).powersLeft)
-            .toEqual(["STAR", "ASSIGN"]);                    // spent only AT the open
+            .toEqual(["STAR", "ASSIGN"]);                    
 
         expect((await act({ kind: "ve-dich.openQuestion", questionId: qid.get("40-2") })).statusCode).toBe(200);
 
@@ -260,7 +249,7 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
 
         const resolved = await act({ kind: "ve-dich.resolve", answerer: false });
         expect(resolved.statusCode).toBe(200);
-        expect(await score(playerIds[1])).toBe(-75);       // -35 - 40
+        expect(await score(playerIds[1])).toBe(-75);       
     });
 
     it("one pick per turn: the turn already chose STAR — a second press is refused", async () => {
@@ -273,8 +262,6 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
         expect(again.statusCode).toBe(409);
         expect(again.json().error).toBe("ONE_POWER_PER_TURN");
 
-        // none is EXCLUDED from the rule — always legal, and it changes nothing:
-        // the lock holds and the spent STAR stays spent
         const none = await act({ kind: "ve-dich.declarePower", playerId: playerIds[1], power: null });
         expect(none.statusCode).toBe(200);
         expect(none.json().state.turnPowerUsed).toBe(true);
@@ -297,8 +284,6 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
     });
 
     it("ASSIGN hands the question to a partner, and the pair duel for it", async () => {
-        // The NEW turn player (0) stages on the pick board — the console's row,
-        // before the open; the question then opens STRAIGHT into the race.
         const assigned = await act({
             kind: "ve-dich.declarePower",
             playerId: playerIds[0],
@@ -308,17 +293,14 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
         expect(assigned.statusCode).toBe(200);
         expect((await act({ kind: "ve-dich.openQuestion", questionId: qid.get("40-4") })).statusCode).toBe(200);
 
-        // Only the two halves may buzz; the ASSIGNER takes it — A buzzes and
-        // is right: A +100%, B −50%.
         const buzzed = await command(playerCookies[0], { type: "buzz", questionId: qid.get("40-4") });
         expect(buzzed.statusCode).toBe(200);
 
         const resolved = await act({ kind: "ve-dich.resolve", answerer: false, buzzer: true });
         expect(resolved.statusCode).toBe(200);
-        expect(await score(playerIds[0])).toBe(110);      // the buzzer: +100% of 40
-        expect(await score(playerIds[1])).toBe(-95);      // the assigner: −50% of 40
+        expect(await score(playerIds[0])).toBe(110);      
+        expect(await score(playerIds[1])).toBe(-95);      
 
-        // The POWER event names the partner: the duel is auditable.
         const powers = (await db.select().from(matchEvents)
             .where(and(eq(matchEvents.matchId, matchId), eq(matchEvents.kind, "POWER"))))
             .map((row) => row.payload as { power: string; targetId?: string });
@@ -329,8 +311,8 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
         const state = (await live()).state;
         const p0 = state.players.find((p: { id: string }) => p.id === playerIds[0]);
         const p1 = state.players.find((p: { id: string }) => p.id === playerIds[1]);
-        expect(p0.powersLeft).toEqual(["STAR"]);         // ASSIGN spent on its turn — STAR still theirs
-        expect(p1.powersLeft).toEqual(["ASSIGN"]);        // STAR spent — ASSIGN waits for p1's next turn
+        expect(p0.powersLeft).toEqual(["STAR"]);         
+        expect(p1.powersLeft).toEqual(["ASSIGN"]);        
     });
 });
 
@@ -356,7 +338,6 @@ describe("ve-dich — round end and results", () => {
         expect(p1).toMatchObject({ totalScore: -95, rank: 2 });
         expect(p1.roundScores).toEqual({ "ve-dich": -95 });
 
-        // 2 in phase 1 · 2 in the buzz question · 1 STAR · 2 for the ASSIGN duel
         const stats = await db.select().from(matchStats).where(eq(matchStats.matchId, matchId));
         expect(stats).toHaveLength(7);
     });

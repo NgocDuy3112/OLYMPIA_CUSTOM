@@ -1,6 +1,3 @@
-// Apply one console action to the live round state. Pure orchestration over an injected
-// store, so the version rule and the atomic write can be tested without Postgres.
-// In production the store is backed by a SELECT ... FOR UPDATE transaction.
 import { assertVersion, nextVersion } from "./conflict.js";
 import { RuleError } from "../../game/engine/turns/errors.js";
 import type { LiveFact } from "./facts.js";
@@ -9,14 +6,9 @@ export interface LiveRecord<S> {
     version: number;
     roundId: string;
     state: S;
-    /** Rounds the controller has LEFT, kept per round — any round can be re-opened. */
     archive?: Record<string, S>;
 }
 
-// What a transition produces: the next state, the facts to append alongside it, and
-// optionally a new round id (round.goTo navigation). Omitting roundId keeps the current one.
-// `archive` is the full per-round map AFTER the switch — set it when the transition
-// leaves a round so its state is preserved for a later re-visit.
 export interface Transition<S> {
     state: S;
     facts: LiveFact[];
@@ -24,18 +16,13 @@ export interface Transition<S> {
     archive?: Record<string, S>;
 }
 
-// The transaction handle. Facts and answers are read and written through it, so a
-// transition sees a consistent snapshot and its writes commit with the state.
 export interface LiveTx<S> {
     load(): Promise<LiveRecord<S>>;
     save(next: LiveRecord<S>): Promise<void>;
     recordFacts(facts: LiveFact[]): Promise<void>;
-    // The raw drafts for a question, with submission times, so a controller action can
-    // judge inside the same transaction.
     readAnswerDrafts(questionId: string): Promise<AnswerDraft[]>;
 }
 
-// A drafted answer awaiting the controller's verdict.
 export interface AnswerDraft {
     userId: string;
     suggestion: "CORRECT" | "INCORRECT" | null;
@@ -43,12 +30,6 @@ export interface AnswerDraft {
     judged: boolean;
 }
 
-// The commit contract for any console verdict batch — both directions, never a
-// silent default:
-//   • a verdict for a player who submitted nothing → NO_ANSWER
-//   • a waiting draft without a verdict → UNJUDGED_ANSWERS
-// Called inside the transition so a submission landing mid-flight cannot slip
-// past the check (resolveHint, but-pha.finalize, khoi-dong.finalize share it).
 export function assertVerdictCoverage(
     drafts: AnswerDraft[],
     verdicts: Array<{ playerId: string }>,
@@ -69,22 +50,14 @@ export function assertVerdictCoverage(
 }
 
 export interface LiveStore<S> {
-    // Runs `fn` atomically against the stored record. The state write and every fact
-    // commit together, or none do. A throw inside `fn` rolls back.
     transact<T>(fn: (tx: LiveTx<S>) => Promise<T>): Promise<T>;
 }
 
 export interface Action<S> {
     expectedVersion: number;
-    // The transition sees the whole record and the transaction, so it can read further
-    // facts (e.g. submitted answers) before deciding. It may be async. Throws a RuleError
-    // to reject the action; nothing is written.
     transition(current: LiveRecord<S>, tx: LiveTx<S>): Transition<S> | Promise<Transition<S>>;
 }
 
-// A server-authoritative mutation that does NOT use the optimistic version: player
-// actions (e.g. a keyword submission) change the round state, and the client never
-// sends a version. The the console's next action with an older version will 409 and reload.
 export async function mutateLive<S>(
     store: LiveStore<S>,
     transition: (current: LiveRecord<S>, tx: LiveTx<S>) => Transition<S> | Promise<Transition<S>>

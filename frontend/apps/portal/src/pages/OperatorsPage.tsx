@@ -35,7 +35,6 @@ function messageOf(error: unknown): string {
     return "Something went wrong. Please try again."
 }
 
-// ── create dialog: form → the one-time invite panel ───────────────────────────
 
 function InviteOperatorDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
     const queryClient = useQueryClient()
@@ -180,7 +179,6 @@ function InviteOperatorDialog({ open, onClose }: { open: boolean; onClose: () =>
     )
 }
 
-// ── the page ──────────────────────────────────────────────────────────────────
 
 export function OperatorsPage() {
     const list = useQuery({

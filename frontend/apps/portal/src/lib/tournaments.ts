@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api, type PageResult } from "@shared/lib/api"
 
-// ── The tournament's shape ───────────────────────────────────────────────────────
 
 export interface TournamentRound {
     id: string
@@ -10,35 +9,22 @@ export interface TournamentRound {
     chart: string
 }
 
-// No team knobs: every seat is a user (the contract's SeatSchema says so). An
-// AOC group stage is a ROSTER property (`tournament_players.group`), not a format one.
 export interface TournamentFormat {
     competitorsPerMatch: number
-    /**
-     * Every seat count a match of this tournament may hold (AOC: 3 or 4 — the
-     * team-point scale resolves by the real count). Absent → the fixed
-     * `competitorsPerMatch`.
-     */
     allowedCompetitorCounts?: number[]
 }
 
-/** Every seat count a match may hold here; the fixed size when the format says nothing. */
 export function allowedSeatsOf(format: TournamentFormat): number[] {
     const counts = format.allowedCompetitorCounts ?? []
     return counts.length > 0 ? counts : [format.competitorsPerMatch]
 }
 
-/** "3 or 4" — the phrase the copy uses, so it is never written twice. */
 export function seatsPhrase(counts: number[]): string {
     if (counts.length <= 1) return String(counts[0] ?? 0)
     return `${counts.slice(0, -1).join(", ")} or ${counts.at(-1)}`
 }
 
-// ── The tournament ────────────────────────────────────────────────────────────────
 
-// What a stage is for. The role tells the engine which rule the stage's matches must
-// follow, so the staff can place the matches by hand and still be checked against the
-// format.
 export type StageRole = "splitting" | "playoff" | "finale"
 
 export const STAGE_ROLES: Array<{ value: StageRole; label: string; hint: string }> = [

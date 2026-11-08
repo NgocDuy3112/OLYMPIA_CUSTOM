@@ -1,5 +1,3 @@
-// Bits the tournament's own routes share: the error shape, the route params, and who may
-// write to a tournament.
 import type { FastifyInstance } from "fastify";
 import { requireRole } from "../lib/guards.js";
 import { canViewTournament, canWriteTournament } from "../lib/tournament-access.js";
@@ -35,7 +33,6 @@ export function tournamentErrorHandler(app: FastifyInstance): void {
     });
 }
 
-// The staff of the portal.
 export function tournamentGuards() {
     const staff = [requireRole("PORTAL", ["ADMIN", "OPERATOR"])];
 

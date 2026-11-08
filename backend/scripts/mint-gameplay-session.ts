@@ -1,12 +1,3 @@
-// Mint a dev gameplay session — a cookie you can paste into the browser while
-// Google OIDC is not configured locally (the only sign-in the player surface
-// ships with). It signs a real GAMEPLAY token for a player SEATED in the most
-// recent match, so the live view is reachable without Google.
-//
-//   npx tsx --env-file=../configs/.env scripts/mint-gameplay-session.ts [name-or-email]
-//
-// The output is a document.cookie line: run it in the browser console on the
-// gameplay origin. Dev tool only — it uses the same JWT secret as the server.
 import { and, desc, eq, inArray, or, ilike } from "drizzle-orm";
 import { db } from "../src/db/pool.js";
 import { matches, tournaments, users } from "../src/db/schema/index.js";

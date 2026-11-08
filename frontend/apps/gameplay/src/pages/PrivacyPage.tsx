@@ -1,19 +1,5 @@
 import { Link } from "react-router-dom"
 
-/**
- * /privacy — what this system collects, why, and who can see it.
- *
- * Two audiences read a policy: the player about to allow a camera, and whoever is
- * legally responsible for the data. It is therefore written from the CODE, not from
- * a template: every row below is a table the backend actually keeps, and every "we
- * do not" is a thing this codebase genuinely does not do (no analytics, no ad
- * cookies, no video recording).
- *
- * REVIEW BEFORE PUBLISHING. The wording is a starting point for the organiser's
- * lawyer (Nghị định 13/2023/NĐ-CP on personal-data protection applies in Vietnam;
- * Google sign-in adds the Google API Services User Data Policy). The contact block
- * is a placeholder and MUST be filled in.
- */
 
 const UPDATED = "03/11/2026"
 

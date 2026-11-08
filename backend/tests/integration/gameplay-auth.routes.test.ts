@@ -5,10 +5,6 @@ import { db } from "../../src/db/pool.js";
 import { users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 
-// The player surface's session endpoints: who am I, and signing out.
-// The Google round-trip itself needs GOOGLE_OIDC_* configured and is not
-// exercised here; the ?next= guard it uses is unit-tested in
-// tests/unit/lib/redirect.test.ts.
 
 let app: FastifyInstance;
 let playerId: string;
@@ -65,7 +61,6 @@ describe("GET /gameplay/auth/me", () => {
 
         const body = res.json();
         expect(body).toMatchObject({ id: playerId, role: "PLAYER", username: "gauth-player" });
-        // The public shape — never the secrets it is built from.
         expect(body).not.toHaveProperty("passwordHash");
         expect(body).not.toHaveProperty("totpSecret");
         expect(body).not.toHaveProperty("tokenVersion");
@@ -89,9 +84,6 @@ describe("GET /gameplay/auth/me", () => {
 
 describe("GET /gameplay/auth/google — the sign-in entry", () => {
     it("sends the browser to the login page when OIDC is not configured", async () => {
-        // No GOOGLE_OIDC_* in the test environment. This route is opened by a
-        // BROWSER (it is an <a href>), so a 503 JSON body was a wall of braces;
-        // the door that always works is /login, with the reason attached.
         const res = await app.inject({
             method: "GET",
             url: "/gameplay/auth/google?next=/s/x"
@@ -133,9 +125,6 @@ describe("POST /gameplay/auth/logout", () => {
 });
 
 describe("the sign-in a PLAYER is offered", () => {
-    // A player signs in with their own email and password; Google is the optional
-    // second door. A deployment without Google must not hand a browser a JSON
-    // error — the route is a LINK.
     it("reports which methods exist", async () => {
         const res = await app.inject({ method: "GET", url: "/gameplay/auth/methods" });
         expect(res.statusCode).toBe(200);
@@ -147,7 +136,6 @@ describe("the sign-in a PLAYER is offered", () => {
             method: "GET",
             url: "/gameplay/auth/google?next=%2Fs%2Fcup",
         });
-        // two honest answers, depending on the deployment running these tests
         if (res.statusCode === 302) {
             expect(res.headers.location).toBe("/login?notice=google-off");
         } else {

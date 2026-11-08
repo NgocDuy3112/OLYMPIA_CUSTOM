@@ -5,7 +5,6 @@ import type { TournamentRound } from "@/lib/api"
 import type { Match } from "@/lib/types"
 import { MatchDetail } from "./MatchDetail"
 
-// Clicking a match opens it HERE — a sidebar over the schedule, not a new page
 
 interface MatchDrawerProps {
     match: Match | null

@@ -24,13 +24,9 @@ export interface VeDichContext {
     actorId: string;
     roundId: string;
     now: string;
-    // The rulebook's rules for this round, resolved from the match's config.
     rules: VeDichRules;
-    // server-derived at start: the 24 questions, and each player's cumulative match score
-    // (so "highest score picks first" means something — everyone starts ve-dich at zero)
     questions: VeDichQuestion[];
     players: Array<{ id: string; score: number }>;
-    // read inside the transaction for resolve: did the answerer type an answer?
     drafts: AnswerDraft[];
 }
 
@@ -50,7 +46,7 @@ function pickFact(
         payload: {
             kind: "PICK",
             turnId: phase === 1 ? "phase-1" : "phase-2",
-            pickOrder: turnIndex + 1          // which turn the pick was made on
+            pickOrder: turnIndex + 1          
         }
     };
 }
@@ -70,8 +66,6 @@ export function applyVeDichAction(
                 powersLeft: ["STAR", "ASSIGN"]
             }));
             const created = createVeDich(ctx.questions, players, ctx.rules);
-            // phase: 2 — the navigator's "· Riêng" entry: straight to the summit
-            // on untouched scores, in the SAME action (atomic, one version).
             if (action.phase === 2) {
                 return { state: beginPhase2(created), facts: [] };
             }
@@ -98,9 +92,6 @@ export function applyVeDichAction(
         }
 
         case "ve-dich.declarePower":
-            // PRE-OPEN ONLY — players cannot declare: this is the console's
-            // pick-board row (star / assign / none), staged unspent. The POWER
-            // event lands at the OPEN (see below) — the moment it is spent.
             return {
                 state: declarePower(state, action.playerId, action.power, {
                     targetId: action.targetId
@@ -109,9 +100,6 @@ export function applyVeDichAction(
             };
 
         case "ve-dich.openQuestion": {
-            // ctx.now rides along for a staged ASSIGN: the race opens with the
-            // question (nobody answers first). The staged POWER event lands
-            // HERE — the question opens WITH the power, so this is its spend.
             const staged = state.stagedPower ?? null;
             const next = openPhase2Question(state, action.questionId, ctx.now);
             if (staged === null) return { state: next, facts: [] };
@@ -133,7 +121,6 @@ export function applyVeDichAction(
         }
 
         case "ve-dich.lockBuzz":
-            // Operator lock: no facts, no scoring — the resolve decides the outcome.
             return { state: lockBuzzWindow(state), facts: [] };
 
         case "ve-dich.closeCurrentAnswer":
@@ -143,7 +130,6 @@ export function applyVeDichAction(
             const questionId = state.open?.question.id;
             if (questionId === undefined) fail("NOTHING_OPEN", "no question is open");
             const next = buzz(state, action.playerId, ctx.now);
-            // One clock: the engine recorded the time when it accepted the buzz.
             const buzzMs = next.open?.buzzerMs ?? 0;
             return {
                 state: next,
@@ -170,7 +156,6 @@ export function applyVeDichAction(
             });
             const facts: LiveFact[] = [];
 
-            // ── an ASSIGN duel: two rows, because BOTH halves are scored ────────
             if (assignedTo !== null) {
                 const teammate = (userId: string, correct: boolean, pointsAwarded: number): LiveFact => ({
                     type: "answer",
@@ -183,7 +168,6 @@ export function applyVeDichAction(
                 });
 
                 if (open.buzzer === null) {
-                    // Nobody buzzed: both lose 50%. Neither answered.
                     const payout = assignPayout({ faceValue: face, buzzerCorrect: null });
                     facts.push(
                         teammate(open.answerer, false, payout.buzzer),
@@ -195,14 +179,12 @@ export function applyVeDichAction(
                     const payout = assignPayout({ faceValue: face, buzzerCorrect });
                     facts.push(
                         teammate(open.buzzer, buzzerCorrect, payout.buzzer),
-                        // The partner never answered: they take the pairing penalty only.
                         teammate(other, false, payout.partner)
                     );
                 }
                 return { state: next, facts };
             }
 
-            // ── the normal shapes ───────────────────────────────────────────────
             const answererPoints = veDichPoints({
                 faceValue: face,
                 correct: action.answerer,
@@ -211,14 +193,11 @@ export function applyVeDichAction(
             const verdict = verdictOf(action.answerer);
 
             if (state.phase === 1) {
-                // Typed: the player's draft is finalized. If they never submitted, the
-                // verdict is still scored (and may be negative), so it needs its own row.
                 const typed = ctx.drafts.some((d) => d.userId === open.answerer);
                 facts.push(typed
                     ? { type: "judge", questionId: open.question.id, userId: open.answerer, verdict, pointsAwarded: answererPoints }
                     : { type: "answer", questionId: open.question.id, userId: open.answerer, value: { oral: true }, verdict, pointsAwarded: answererPoints, autoMatched: false });
             } else {
-                // Oral: the controller recorded both verdicts directly.
                 facts.push({ type: "answer", questionId: open.question.id, userId: open.answerer, value: { oral: true }, verdict, pointsAwarded: answererPoints, autoMatched: false });
 
                 if (open.buzzer !== null) {

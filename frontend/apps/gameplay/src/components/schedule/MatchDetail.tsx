@@ -134,8 +134,6 @@ export function MatchDetail({ match, rounds, onBack, variant = "page" }: MatchDe
                                             {rounds.map((round) => {
                                                 const row = stats.rounds.find((r) => r.round === round.name)
                                                 if (!row) {
-                                                    // The round carries no recorded scores (legacy seeded
-                                                    // results) — say so instead of inventing a zero.
                                                     return (
                                                         <TableCell
                                                             key={round.id}

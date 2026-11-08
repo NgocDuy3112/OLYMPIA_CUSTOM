@@ -1,5 +1,3 @@
-// Auto-match: decide whether a player's typed answer is correct, using the answer and
-// normalize rules stored on the question copy. Pure and deterministic; no I/O.
 import type {
     AnswerValue,
     Normalize,
@@ -8,8 +6,6 @@ import type {
 
 export type QuestionKind = "CHOICE" | "TEXT" | "KEYWORD" | "HINT";
 
-// Vietnamese-aware normalization. Order matters: trim, then case, then đ/Đ -> d,
-// then strip combining diacritics. NFD does not decompose đ, so it needs its own step.
 export function normalizeText(input: string, rules: Normalize): string {
     let s = input;
     if (rules.trim) s = s.trim();
@@ -35,9 +31,6 @@ interface McPayload { options: Array<{ id: string; text: string }>; correctSet: 
 interface TextPayload { acceptedAnswers: string[]; normalize: Normalize }
 interface KeywordPayload { code: string; normalize: Normalize }
 
-// Returns true when the submitted value matches the question's stored answer.
-// Enumeration order is tried by callers with the question's kind, which the payload
-// shape mirrors (validated at write time by assertPayloadForKind).
 export function autoMatch(
     kind: QuestionKind,
     payload: QuestionPayload,
@@ -53,7 +46,6 @@ export function autoMatch(
     const submitted = value.text;
     if (submitted.length === 0) return false;
 
-    // A hint answers exactly like TEXT — same payload, same rules.
     if (kind === "TEXT" || kind === "HINT") {
         const { acceptedAnswers, normalize } = payload as TextPayload;
         const needle = normalizeText(submitted, normalize);

@@ -1,11 +1,8 @@
 import type { MatchEventPayload } from "../../game/contracts/index.js";
 
-// Facts are the append-only record of what happened in a live round. They are written
-// in the same transaction as the round state, so state and facts can never disagree.
 
 export type Verdict = "CORRECT" | "INCORRECT";
 
-// One row in `answers`: a player's answer to a question (hint or keyword).
 export interface AnswerFact {
     type: "answer";
     questionId: string;
@@ -16,18 +13,14 @@ export interface AnswerFact {
     autoMatched: boolean;
 }
 
-// A player's submission stored as a DRAFT — no verdict yet, awaiting the console.
-// Written in the SAME transaction as the round state it accompanies (a keyword
-// locks the player), so a submission and its lock can never disagree.
 export interface DraftFact {
     type: "draft";
     questionId: string;
     userId: string;
     value: { text: string } | { picked: string[] };
-    suggestion: Verdict;        // the auto-matcher's OPINION — never a verdict
+    suggestion: Verdict;        
 }
 
-// One row in `match_events`: a PICK, BUZZ, or POWER.
 export interface EventFact {
     type: "event";
     questionId: string;
@@ -37,8 +30,6 @@ export interface EventFact {
     payload: MatchEventPayload;
 }
 
-// Finalizing a drafted answer: the controller confirms or overwrites the suggestion.
-// This UPDATES the row a player's submission created; it never inserts.
 export interface JudgeFact {
     type: "judge";
     questionId: string;
@@ -47,9 +38,6 @@ export interface JudgeFact {
     pointsAwarded: number;
 }
 
-// The controller's manual score correction. Written in the SAME transaction as
-// the version bump (recordFacts → score_adjustments), so the pushed view can
-// never disagree with the queryable ledger; actorId is the audit trail.
 export interface AdjustFact {
     type: "adjust";
     userId: string;

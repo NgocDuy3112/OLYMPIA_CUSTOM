@@ -17,7 +17,6 @@ import { toMatch, toStandings } from "@/lib/adapters"
 
 interface TournamentContext { tournament: TournamentDetail }
 
-// A 404 is an answer, not a failure: the slug simply has no tournament.
 function isNotFound(error: unknown): boolean {
     return error instanceof ApiError && error.status === 404
 }
@@ -52,8 +51,6 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
     )
 }
 
-// The tournament of the URL: its identity loads here, its schedule and standings
-// load in the routes below.
 function TournamentLayout() {
     const { slug } = useParams()
     const query = useTournament(slug ?? "")
@@ -102,10 +99,6 @@ function MatchRoute() {
     const { tournament } = useOutletContext<TournamentContext>()
     const { id } = useParams()
     const schedule = useSchedule(tournament.slug)
-    // This player's own broadcast lives ABOVE every early return (one hook
-    // line, one room): the deck's Rail and the CameraPanel controls both read
-    // it through the context. resetKey = the match id — navigating between
-    // matches re-dials even though this component never remounts.
     const selfCam = useSelfBroadcast(id ?? "")
 
     if (schedule.isPending) return <LoadingState />
@@ -114,13 +107,6 @@ function MatchRoute() {
     const row = schedule.data.items.find((m) => m.id === id)
     if (!row) return <NotFoundPage />
 
-    // The player's deck owns the whole page (L3) — LIVE renders the round,
-    // anything else gates to the lobby inside the same canvas. Every other
-    // match entry stays the schedule's sidebar (2510).
-    // The CameraPanel is the CONTROL bar (status + mic/cam) and hides ITSELF
-    // when the token says the match isn't LIVE / the seat isn't ours
-    // (401/403/404/409/503); the feed itself renders in the player's own Rail
-    // card through the same context.
     return (
         <SelfBroadcastContext.Provider value={selfCam}>
             <PlayerShell matchId={row.id} />
@@ -129,8 +115,6 @@ function MatchRoute() {
     )
 }
 
-// "/" and "/standings" lead to the CURRENT tournament — the one the staff flagged,
-// or the newest when none is flagged.
 function CurrentTournamentRedirect({ path }: { path: (slug: string) => string }) {
     const list = useTournamentList()
 
@@ -157,16 +141,10 @@ function App() {
                     </Route>
                     <Route path="/standings" element={<CurrentTournamentRedirect path={(slug) => `/s/${slug}/standings`} />} />
                     <Route path="/privacy" element={<PrivacyPage />} />
-                    {/* The player's own door. Inside the shell on purpose: the
-                        navbar is where a signed-in player sees their name, so the
-                        pages that lead there sit under it too. There is no
-                        /register any more: accounts are created at the desk, and
-                        /password is where their first password stops being the
-                        desk's. */}
+                    
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/password" element={<ChangePasswordPage />} />
-                    {/* The walk-in's door: a room code, half of an entrance —
-                        the session (from the doors above) is the other half. */}
+                    
                     <Route path="/code" element={<CodePage />} />
                     <Route path="*" element={<NotFoundPage />} />
                 </Route>

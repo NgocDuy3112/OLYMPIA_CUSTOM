@@ -1,18 +1,3 @@
-// A player's account: the handle they sign in with, and the one password that
-// is theirs.
-//
-// Step 8 inverted who creates it. The DESK creates the account — username
-// derived from the name it typed (`lib/username.ts`), first password typed by
-// the operator — and that first password stops being the desk's the moment the
-// player sets their own. `mustChangePassword` is the promise, and
-// `lib/guards.ts` keeps it: every authenticated route except whoami, logout and
-// change-password answers 409 PASSWORD_CHANGE_REQUIRED until it clears, so a
-// password the operator knows works for exactly as long as the player hasn't
-// shown up.
-//
-// Self-registration and the verification mail went with the old model (there is
-// no mail flow left to verify an address with). Google sign-in stays a
-// secondary door and vouches for its own address.
 import argon2 from "argon2";
 import { and, desc, eq, or, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
@@ -27,10 +12,6 @@ const PASSWORD_MIN = 8;
 const perIp = { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } };
 
 export async function playerAccountRoutes(app: FastifyInstance) {
-    // ── log in ────────────────────────────────────────────────────────────────
-    // The same key staff use (username + password), without the TOTP step.
-    // Handles are stored lower-case but SPEAKABLE, so the lookup folds case:
-    // "Ngoc-Duy" and "ngoc-duy" are one player, not two.
     app.post(
         "/gameplay/auth/login",
         {
@@ -57,7 +38,6 @@ export async function playerAccountRoutes(app: FastifyInstance) {
                 .where(sql`lower(${users.username}) = ${handle}`)
                 .limit(1);
 
-            // One message for "unknown handle" and "wrong password": no enumeration.
             const invalid = () =>
                 app.httpErrors.unauthorized("Tên đăng nhập hoặc mật khẩu không đúng.");
             if (!user?.passwordHash) throw invalid();
@@ -72,8 +52,6 @@ export async function playerAccountRoutes(app: FastifyInstance) {
                 tokenVersion: user.tokenVersion,
             }));
 
-            // The flag rides along so the client can go STRAIGHT to the change
-            // form instead of waiting for the first request to bounce with 409.
             return {
                 id: user.id,
                 username: user.username,
@@ -83,11 +61,6 @@ export async function playerAccountRoutes(app: FastifyInstance) {
         }
     );
 
-    // ── set my own password ──────────────────────────────────────────────────
-    // The door the forced change walks through. `currentPassword` is required
-    // when one exists (proof the caller is the player who just typed it), and
-    // skipped for an account that has none yet — a Google-created player whose
-    // session is the only proof there is.
     app.post(
         "/gameplay/auth/change-password",
         {
@@ -123,10 +96,6 @@ export async function playerAccountRoutes(app: FastifyInstance) {
                 }
             }
 
-            // Bumping the version kills every session the OLD password minted —
-            // including any the desk opened while it still knew the password —
-            // and the one below re-issues this browser's, so the player walks
-            // straight into the app instead of back to the login form.
             const tokenVersion = user.tokenVersion + 1;
             await db
                 .update(users)
@@ -148,16 +117,12 @@ export async function playerAccountRoutes(app: FastifyInstance) {
         }
     );
 
-    // ── which match am I in? (what "Vào trận" opens) ──────────────────────────
     app.get(
         "/gameplay/me/match",
         { onRequest: [requireAuth("GAMEPLAY")] },
         async (request) => {
             const user = request.sessionUser!;
 
-            // Seated, and still worth opening: UPCOMING (waiting room) or LIVE.
-            // A seat is a jsonb array of { userId }, so containment asks the
-            // database directly instead of loading every match.
             const rows = await db
                 .select({
                     matchId: matches.id,

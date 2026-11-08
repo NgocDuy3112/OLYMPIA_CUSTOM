@@ -11,15 +11,12 @@ export const ScoringRuleSchema = Type.Union([
         template: Type.Literal("keyword_derived"),
         initial: Type.Integer(),
         dropPerHint: Type.Integer(),
-        // The keyword never drops below this.
         floor: Type.Optional(Type.Integer()),
         incorrect: Type.Literal(0)
     }),
     Type.Object({
         template: Type.Literal("rank_multiplier"),
         bands: Type.Array(Type.Object({ untilSec: Type.Integer(), points: Type.Integer() })),
-        // The multiplier by correct-answer order: the first correct answer gets the
-        // first multiplier. The last one covers everyone after it.
         multipliers: Type.Optional(Type.Array(Type.Integer())),
         ladderTop: Type.Integer(),
         incorrect: Type.Literal(0),
@@ -29,9 +26,6 @@ export const ScoringRuleSchema = Type.Union([
         template: Type.Literal("outcome_multipliers"),
         correct: Type.Number(),
         incorrect: Type.Number(),
-        // STAR (the renamed HOPE) is the only configurable multiplier: it fixes
-        // the outcome of YOUR OWN answer. ASSIGN is a duel — its payout table is
-        // the show's rule (engine/scoring/ve-dich.ts), not a knob.
         powers: Type.Object({
             star: Type.Object({ correct: Type.Number(), incorrect: Type.Number() })
         })
@@ -52,7 +46,6 @@ export const TurnConfigSchema = Type.Object({
     timeLimitSeconds: Type.Optional(Type.Integer()),
     buzzWindowSeconds: Type.Optional(Type.Integer()),
     pickCount: Type.Optional(Type.Integer()),
-    // How many hints the turn holds (giai-ma).
     hintCount: Type.Optional(Type.Integer()),
     questionCount: Type.Optional(Type.Integer({ minimum: 0 }))
 });

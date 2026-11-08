@@ -3,9 +3,6 @@ import { AnswerBand, PlayerStage, QuestionFrame, Rail, Timer, VeDichStripCells, 
 import type { AnswerValue } from "../types"
 import { stripCellsOf } from "../ve-dich-board"
 
-// Về đích — câu hỏi mở, phase 1 (S7): the shared round — the typed form for the
-// answerer, the public power declaration for everyone. Pure: every value comes
-// from the orchestrator, narrowed here.
 type VeDichChungPlayerCtx = PlayerCore & {
     remaining: number
     answerBusy: boolean
@@ -21,8 +18,8 @@ export function VeDichChungAOCPlayer({ ctx }: { ctx: VeDichChungPlayerCtx }) {
             rail={<Rail variant="answers" view={v} myId={myId} currentQid={qid || null} />}
             band={
                 <>
-                    {/* powers first: declaring is public and one-shot */}
-                    {/* Chung has NO powers: both STAR and ASSIGN are Riêng rules. */}
+                    
+                    
                     <AnswerBand
                         question={openQ.question}
                         answerState={v.me.answerState}

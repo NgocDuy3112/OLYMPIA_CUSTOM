@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen, waitFor } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
@@ -8,11 +7,6 @@ import type { PlayerGate } from "@/lib/player-gate"
 import type { PlayerModel } from "@/hooks/use-player-model"
 import type { LobbyData } from "@shared/deck/types"
 
-// The four screens a player can be stuck behind. Each must stand alone: the only
-// thing it is handed is the model (the two session gates link to /login, so a
-// player who lost their session signs back in without leaving the show).
-// Getting one wrong strands a player in front of a projector-sized screen with
-// the wrong instruction.
 
 function model(over: Partial<PlayerModel> = {}): PlayerModel {
     return {
@@ -50,8 +44,6 @@ describe("PlayerGateScreen — an expired session (401)", () => {
         draw("unauthorized")
         expect(screen.getByText("Chưa vào trận")).toBeTruthy()
         expect(screen.getByText(/Phiên thí sinh đã hết hạn/)).toBeTruthy()
-        // the message says the session is gone — so the way back is in the card,
-        // not a link that throws the player out of the show
         const door = screen.getByRole("link", { name: "Đăng nhập" })
         expect(door.getAttribute("href")).toContain("/login?next=")
     })

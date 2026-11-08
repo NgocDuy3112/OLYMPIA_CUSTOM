@@ -7,7 +7,6 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@shared/ui/fiel
 import { Input } from "@shared/ui/input"
 import { useCreateTournament } from "@/lib/tournaments"
 
-// A new tournament: the unit. It owns its roster, its stages, its rulebook and its points.
 export function NewTournamentDialog({
     open,
     onOpenChange,

@@ -23,13 +23,12 @@ describe("users: role enum + identity CHECK", () => {
     });
 
     it("refuses any row with no handle — username is the identity, in type and in SQL", async () => {
-        // Step 8: the handle is what every role signs in with, so `users.username`
-        // is NOT NULL in the schema AND in the table. The type already refuses
-        // this line; the database refuses it too, and that second refusal is the
-        // one being asserted (a code path that forgot a handle cannot sneak one in).
         await expect(
-            // @ts-expect-error — the very absence this test is about
-            db.insert(users).values({ role: "PLAYER", displayName: "NoHandle", email: "nohandle@example.test" })
+            db.insert(users).values({
+                role: "PLAYER",
+                displayName: "NoHandle",
+                email: "nohandle@example.test",
+            } as unknown as typeof users.$inferInsert)
         ).rejects.toThrow();
     });
 
@@ -48,9 +47,6 @@ describe("users: role enum + identity CHECK", () => {
 
         expect(players).toHaveLength(2);
 
-        // The handle is the login key: two accounts sharing one would be a typed
-        // name landing on either player. (Case-INSENSITIVE collisions are refused
-        // one layer up, in lib/username.ts, where handles are minted.)
         await expect(
             db.insert(users).values({ role: "PLAYER", username: "first", email: "third@example.test", displayName: "Third" })
         ).rejects.toThrow();

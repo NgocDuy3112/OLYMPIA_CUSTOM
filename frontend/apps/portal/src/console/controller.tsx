@@ -5,10 +5,6 @@ import { ROUND_LABEL, pt } from "@shared/deck/geometry"
 import { AdjustScoreDialog } from "./AdjustScoreDialog"
 import { useConsoleModel } from "./use-console-model"
 
-// The CONTROLLER's host: fetch → gate → let the round module draw. The UI is
-// entirely `rounds/*Controller.tsx` (nothing else renders match controls); this
-// file only picks which phase the portal shows. Its former display half is the
-// OBS overlay's job, not a screen's.
 
 export function Controller({ tournamentId, matchId }: { tournamentId: string; matchId: string }) {
     const model = useConsoleModel(tournamentId, matchId)
@@ -34,8 +30,7 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
     if (model.phase === "not-live") {
         return (
             <StageShell>
-                {/* The same waiting room as between rounds: the operator picks the
-                    round, and that one gesture brings the match LIVE. */}
+                
                 <Lobby
                     data={model.lobby}
                     mc={{
@@ -74,8 +69,6 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
         )
     }
 
-    // A round is running — the round module draws the controller's screen;
-    // an unknown round still waiting on its module holds the deck, not a blank.
     const { facts, roundModule } = model
     const screen = roundModule
         ? roundModule.render(facts)

@@ -15,18 +15,12 @@ import { ChevronRight } from "lucide-react"
 export function TournamentDetailPage() {
     const { tournamentId = "" } = useParams()
     const tournament = useTournament(tournamentId)
-    // The freeze signal is the SERVER's rule: the rulebook is frozen once a match
-    // has been assembled (its questions are the rulebook's output), or once the
-    // tournament is closed. Reading only `closedAt` let the dialog offer edits the
-    // server then refused with a 409.
     const matches = useMatches(tournamentId)
 
     if (tournament.isPending) return <p className="p-6 text-sm text-muted-foreground">Loading tournament…</p>
     if (tournament.isError) return <p role="alert" className="p-6 text-sm text-destructive">{tournament.error.message}</p>
 
     const s = tournament.data
-    // Until the match list lands, assume frozen: a false affordance that 409s is
-    // worse than a button that enables a moment late.
     const assembled = matches.isPending || (matches.data?.items ?? []).some((match) => match.questions.length > 0)
     const frozen = s.closedAt !== null || assembled
 
@@ -40,8 +34,6 @@ export function TournamentDetailPage() {
             <PageHeader
                 title={s.name}
                 description={
-                    // AOC: a match holds 3 or 4, so the header says the range — the
-                    // fixed `competitorsPerMatch` is only the default the dialog opens on.
                     `${s.rounds.length} rounds · matches of ${seatsPhrase(allowedSeatsOf(s.format))}`
                 }
                 actions={

@@ -25,15 +25,14 @@ export default function App() {
         >
           <Route path="/" element={<TournamentsPage />} />
           <Route path="/tournaments/:tournamentId" element={<TournamentDetailPage />} />
-          {/* The match's own page: every match operation lives here (2310). */}
+          
           <Route path="/tournaments/:tournamentId/matches/:matchId" element={<MatchPage />} />
           <Route path="/questions" element={<QuestionsPage />} />
           <Route path="/mcp-keys" element={<McpKeysPage />} />
           <Route path="/operators" element={<OperatorsPage />} />
         </Route>
 
-        {/* The controller's deck: signed in, but OUTSIDE the shell — full-screen
-            StageShell only (the matches list's Control button lands here). */}
+        
         <Route
           path="/tournaments/:tournamentId/matches/:matchId/stage"
           element={
@@ -43,8 +42,7 @@ export default function App() {
           }
         />
 
-        {/* The player's deck lives in the GAMEPLAY app — players never enter
-            the portal (user decision). */}
+        
 
         <Route
           path="/login"

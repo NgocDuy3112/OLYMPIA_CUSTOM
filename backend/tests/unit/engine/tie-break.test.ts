@@ -52,7 +52,7 @@ describe("tie-break — the round mechanism", () => {
         s = finalize(s, { verdicts: [{ playerId: "a", correct: true }, { playerId: "b", correct: false }] });
 
         expect(s.open).toBe(false);
-        expect(tieBreakScore(s, "a")).toBe(10);   // frozen default: 10 per correct
+        expect(tieBreakScore(s, "a")).toBe(10);   
         expect(tieBreakScore(s, "b")).toBe(0);
         expect(codeOf(() => finalize(s, { verdicts: [] }))).toBe("WINDOW_CLOSED");
     });
@@ -60,7 +60,7 @@ describe("tie-break — the round mechanism", () => {
     it("walks the questions in order, judging before advancing, then ends", () => {
         let s = startTieBreak(["a", "b"], QUESTIONS);
         expect(currentQuestionId(s)).toBe("tb1");
-        expect(codeOf(() => nextQuestion(s))).toBe("QUESTION_IN_PLAY"); // window still closed but unjudged
+        expect(codeOf(() => nextQuestion(s))).toBe("QUESTION_IN_PLAY"); 
 
         s = openWindow(s);
         expect(codeOf(() => nextQuestion(s))).toBe("QUESTION_IN_PLAY");
@@ -69,7 +69,6 @@ describe("tie-break — the round mechanism", () => {
         s = nextQuestion(s);
         expect(currentQuestionId(s)).toBe("tb2");
 
-        // ending with an unjudged question is refused
         s = openWindow(s);
         s = closeWindow(s);
         expect(codeOf(() => endTieBreak(s))).toBe("QUESTIONS_UNJUDGED");
@@ -78,7 +77,6 @@ describe("tie-break — the round mechanism", () => {
         s = finalize(s, { verdicts: [{ playerId: "a", correct: false }, { playerId: "b", correct: true }] });
         s = endTieBreak(s);
         expect(s.ended).toBe(true);
-        // a: correct on tb1 only; b: correct on both
         expect(tieBreakScore(s, "a")).toBe(10);
         expect(tieBreakScore(s, "b")).toBe(20);
         expect(codeOf(() => submit(openWindow(s), { playerId: "a", text: "x" }))).toBe("ENDED");

@@ -30,25 +30,18 @@ export function NavBar() {
     const list = useTournamentList()
     const tournaments = list.data?.tournaments ?? []
 
-    // The slug owns the URL: /s/:slug/…
     const slug = pathname.split("/")[2]
     const currentSlug = tournaments.find((t) => t.current)?.slug
     const viewingOtherTournament = Boolean(slug) && slug !== currentSlug
 
     const me = useMe()
     const logout = useLogout()
-    // Pending or a real error: show the login link rather than flash a name for
-    // a player who is signed in. Only a definitive 401 means "signed out".
     const signedOut = isUnauthorized(me.error) || me.data === null
 
-    // "Vào trận" reads the seats THIS player holds — only worth asking once the
-    // session says who they are (a signed-out ask would just be a 401).
     const myMatches = useMyMatches({ enabled: !signedOut })
     const [matchNotice, setMatchNotice] = useState<string | null>(null)
-    /** Several seats: the pick list is open (its items call goToMatch). */
     const [pickOpen, setPickOpen] = useState(false)
 
-    /** One click to the deck: 0 seats → say so; 1 → go; several → pick. */
     const enterMatch = async () => {
         setMatchNotice(null)
         const result = await myMatches.refetch()
@@ -65,7 +58,6 @@ export function NavBar() {
             goToMatch(items[0]!)
             return
         }
-        // Several: the list IS the choice (newest first already).
         setPickOpen(true)
     }
 
@@ -144,11 +136,6 @@ export function NavBar() {
                     </Link>
                 </nav>
                 {signedOut ? (
-                    // The desk issued this player an account, so the navbar
-                    // offers the door it leads to (`?next=` remembered here).
-                    // "Nhập mã" goes to the login door FIRST — a room code only
-                    // works with the session that says who is typing it — and
-                    // carries the code box back as ?next=.
                     <div className="ml-auto flex items-center gap-2">
                         <Link
                             to={loginLink("/code")}
@@ -180,8 +167,6 @@ export function NavBar() {
                                 disabled={myMatches.isFetching}
                                 aria-expanded={pickOpen}
                                 onClick={() => {
-                                    // A pick already open: close it (the list is
-                                    // the choice, not a second fetch).
                                     if (pickOpen) {
                                         setPickOpen(false)
                                         return
@@ -214,9 +199,7 @@ export function NavBar() {
                                 </div>
                             ) : null}
                         </div>
-                        {/* The OTHER way into a match: a seat nobody pre-assigned,
-                            claimed with the room code the desk reads out. Same
-                            account — the code only says which room. */}
+                        
                         <Link
                             to="/code"
                             className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
@@ -233,7 +216,6 @@ export function NavBar() {
                         </Button>
                     </div>
                 ) : (
-                    // Checking the session: hold the space, show nothing.
                     <span className="ml-auto h-9 w-24 animate-pulse rounded-md bg-muted" />
                 )}
             </div>

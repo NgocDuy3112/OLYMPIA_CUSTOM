@@ -13,9 +13,6 @@ import {
 type TournamentRow = typeof tournaments.$inferSelect;
 type MatchRow = typeof matches.$inferSelect;
 
-// The public read surface's one rule: a spectator sees the show, never the bank.
-// The rows below are deliberately FAT — every column the schema has, including the
-// frozen questions with their answers inside.
 
 const STAGE_TITLES = new Map([
     ["qualifiers", "Vòng loại"],
@@ -95,7 +92,6 @@ const tournamentRow = (overrides: Partial<TournamentRow> = {}): TournamentRow =>
 } as TournamentRow);
 
 
-// ─── presentMatch ────────────────────────────────────────────────────────────
 
 describe("presentMatch", () => {
     it("never exposes the frozen questions, the live state, the configs or discord", () => {
@@ -109,7 +105,6 @@ describe("presentMatch", () => {
         expect(out).not.toHaveProperty("createdAt");
         expect(out).not.toHaveProperty("updatedAt");
         expect(out).not.toHaveProperty("deletedAt");
-        // Belt and braces: nothing that smells like an answer made it through.
         expect(JSON.stringify(out)).not.toContain("acceptedAnswers");
         expect(JSON.stringify(out)).not.toContain("2 + 2");
     });
@@ -165,7 +160,6 @@ describe("presentMatch", () => {
 });
 
 
-// ─── matchRound ──────────────────────────────────────────────────────────────
 
 describe("matchRound", () => {
     it("is deterministic for the same inputs", () => {
@@ -175,7 +169,6 @@ describe("matchRound", () => {
 });
 
 
-// ─── presentTournament ───────────────────────────────────────────────────────
 
 describe("presentTournament", () => {
     it("never exposes the owner, the tags, the rulebook or the bookkeeping columns", () => {
@@ -210,7 +203,6 @@ describe("presentTournament", () => {
 });
 
 
-// ─── presentTournamentSummary ────────────────────────────────────────────────
 
 describe("presentTournamentSummary", () => {
     it("is the identity and the window, and nothing else", () => {
@@ -222,7 +214,6 @@ describe("presentTournamentSummary", () => {
 });
 
 
-// ─── stageRange ──────────────────────────────────────────────────────────────
 
 describe("stageRange", () => {
     it("has no window when no stage is dated", () => {
@@ -240,7 +231,6 @@ describe("stageRange", () => {
 });
 
 
-// ─── presentStanding ─────────────────────────────────────────────────────────
 
 describe("presentStanding", () => {
     it("is the engine's row, shaped", () => {

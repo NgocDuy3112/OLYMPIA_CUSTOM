@@ -30,8 +30,6 @@ import { NewTournamentDialog } from "@/components/new-tournament-dialog"
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" })
 
 
-// The tournaments of the portal. A tournament is the unit: its roster, its stages, its matches
-// and its standings.
 export function TournamentsPage() {
     const [searchInput, setSearchInput] = useState("")
     const [offset, setOffset] = useState(0)

@@ -1,6 +1,6 @@
 import { generateSecret, generateURI, verify } from "otplib";
 
-const EPOCH_TOLERANCE_SECONDS = 30; // ±1 window: covers typing delay + clock drift
+const EPOCH_TOLERANCE_SECONDS = 30; 
 
 export function newTotpSecret(): string {
     return generateSecret();

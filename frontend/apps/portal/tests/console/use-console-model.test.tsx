@@ -6,10 +6,6 @@ import { useConsoleModel } from "@/console/use-console-model"
 import type { LobbyData, LiveResponse } from "@/lib/live"
 import { stubFetch } from "../helpers/render"
 
-// The console's MODEL had no harness: every behaviour that lives in it — the
-// waiting-room routing, the race strips' facts, the plans it sends — was only
-// typecheck-covered. This file stubs the transport and reads the phase the host
-// would draw.
 
 const T = "t1"
 const M = "m1"
@@ -19,7 +15,6 @@ const MATCHES = `GET /portal/tournaments/${T}/matches`
 const RTC = `POST /portal/tournaments/${T}/matches/${M}/rtc/token`
 const ACTIONS = `POST /portal/tournaments/${T}/matches/${M}/live/actions`
 
-/** A live read mid-round: khoi-dong, phase 2 (the buzz race). */
 function liveView(over: Partial<LiveResponse> = {}): LiveResponse {
     return {
         version: 7,
@@ -70,7 +65,6 @@ function renderModel(routes: Record<string, { body: unknown; status?: number }> 
         [LIVE]: { body: liveView() },
         [LOBBY]: { body: lobbyData() },
         [MATCHES]: { body: { items: [], total: 0, limit: 20, offset: 0 } },
-        // RTC is a side-channel: refuse the token so the deck never dials.
         [RTC]: { body: { message: "not live" }, status: 409 },
         [ACTIONS]: { body: { version: 8 } },
         ...routes,
@@ -88,15 +82,12 @@ function renderModel(routes: Record<string, { body: unknown; status?: number }> 
 }
 
 type Model = ReturnType<typeof useConsoleModel>
-/** What the host would draw. */
 const phaseOf = (model: Model) => model.phase
 
-/** The deck's contract — only a "deck" phase carries it. */
 function deckOf(model: Model) {
     if (model.phase !== "deck") throw new Error(`not the deck: ${model.phase}`)
     return model.facts
 }
-/** The waiting room's contract. */
 function lobbyOf(model: Model) {
     if (model.phase !== "lobby") throw new Error(`not the lobby: ${model.phase}`)
     return model
@@ -112,11 +103,9 @@ describe("useConsoleModel — the deck and the waiting room", () => {
         const { result, fetchMock } = renderModel()
         await waitFor(() => expect(phaseOf(result.current)).toBe("deck"))
 
-        // The round's own end plan goes out…
         deckOf(result.current).backToLobby()
         await waitFor(() => expect(phaseOf(result.current)).toBe("lobby"))
 
-        // …and the console does not wait for it: the waiting room is already drawn.
         const posts = fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")
         expect(posts.some(([url]) => String(url) === `/portal/tournaments/${T}/matches/${M}/live/actions`))
             .toBe(true)
@@ -126,8 +115,6 @@ describe("useConsoleModel — the deck and the waiting room", () => {
         const { result } = renderModel()
         await waitFor(() => expect(phaseOf(result.current)).toBe("deck"))
 
-        // The controller reads these through the round module; the model's job is
-        // to hand the console's own read over untouched.
         const mc = deckOf(result.current).v.console as Record<string, unknown> | null
         expect(mc).toMatchObject({
             questionIndex: 2,
@@ -145,7 +132,6 @@ describe("useConsoleModel — the deck and the waiting room", () => {
         deckOf(result.current).backToLobby()
         await waitFor(() => expect(phaseOf(result.current)).toBe("lobby"))
 
-        // The navigator's start: back into the deck, and the start action goes out.
         lobbyOf(result.current).onStart("khoi-dong", 2)
         await waitFor(() => expect(phaseOf(result.current)).toBe("deck"))
     })

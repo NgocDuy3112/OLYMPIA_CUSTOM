@@ -1,33 +1,3 @@
-/**
- * dev-fixture — a REAL match in the dev database, so the decks can be walked in a
- * browser.
- *
- * Why it exists: the frontend suites stub fetch, and the backend integration
- * tests build their matches in-process and tear them down. Neither leaves
- * something a person can open at localhost and click. This script writes the
- * smallest tournament that reaches a round: one operator, four player accounts,
- * one LIVE match with khởi động's question batches, and the `matchLive` row the
- * engine expects before a round starts.
- *
- * Three players are SEALED into the match; the fourth walks in the way step 7
- * says a walk-in does — log in, then type the printed ROOM CODE on /code. The
- * code is minted per run (and rotated, so a stale one from yesterday is dead).
- * That is the whole claim flow, on a dev box, without touching the console.
- *
- * It is IDEMPOTENT: run it again and it replaces its own fixture (matched by
- * slug), never touching other data. `--clean` removes it and prints nothing else.
- *
- *   npx tsx --env-file=../configs/.env scripts/dev-fixture.ts
- *   npx tsx --env-file=../configs/.env scripts/dev-fixture.ts --session   (print a portal cookie)
- *   npx tsx --env-file=../configs/.env scripts/dev-fixture.ts --clean
- *
- * The round it arms is khởi động ONLY: phase 1 (six oral runs each) and phase 2
- * (six typed questions, one 10 s window each — Bấm giờ opens it). That is
- * deliberate — it is
- * the round that exercises the most frontend surface (stopwatch, buzz, verdicts,
- * Về sảnh). Extending it to another round means adding that round's `roundConfigs`
- * entry and question batch, exactly as the integration tests do.
- */
 import argon2 from "argon2";
 import { eq, inArray } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
@@ -48,19 +18,14 @@ import type { MatchQuestion } from "../src/game/contracts/index.js";
 const SLUG = "fixture-cup";
 const OPERATOR = { username: "fixture-op", password: "fixture-pass-2026", displayName: "Fixture Op" };
 const PLAYERS = ["An", "Bình", "Chi", "Dũng"];
-/** The player who is NOT pre-seated: they reach the deck with the room code. */
 const WALK_IN = 3;
-/** Dev-only password the fixture's players sign in with (they are real accounts). */
 const PLAYER_PASSWORD = "fixture-pass-2026";
 const TOURNAMENT_ID = "11111111-1111-4111-8111-111111111111";
 const MATCH_ID = "22222222-2222-4222-8222-222222222222";
 
 const clean = process.argv.includes("--clean");
-/** Print a portal session cookie instead of rebuilding — the console needs MFA
- *  on the real login route, which no browser walk can pass unattended. */
 const printSession = process.argv.includes("--session");
 
-/** A khởi động question: oral runs are timed by the console; phase 2 is typed. */
 function question(turnId: "phase1" | "phase2", position: number): MatchQuestion {
     return {
         _id: randomUUID(),
@@ -82,11 +47,6 @@ function question(turnId: "phase1" | "phase2", position: number): MatchQuestion 
 }
 
 async function remove() {
-    // Anyone on the fixture's roster goes too: a QA session adds contestants
-    // through the portal (the "Add contestant" box), and leaving them behind
-    // would make the next run of this script fail on a duplicate name.
-    // Read BEFORE the roster rows are deleted below — afterwards this query
-    // always answers "nobody", which is how QA's accounts used to leak.
     const rostered = await db
         .select({ id: tournamentPlayers.userId })
         .from(tournamentPlayers)
@@ -108,7 +68,6 @@ async function remove() {
     await db.delete(users).where(eq(users.username, OPERATOR.username));
 }
 
-/** A portal session for the fixture operator, signed exactly like a real login. */
 async function session() {
     const [operator] = await db
         .select({ id: users.id, role: users.role, tokenVersion: users.tokenVersion })
@@ -117,7 +76,6 @@ async function session() {
         .limit(1);
     if (!operator) throw new Error("no fixture operator — run the fixture first");
 
-    // buildApp only to reach the JWT plugin; nothing listens.
     const { buildApp } = await import("../src/app.js");
     const { signToken } = await import("../src/lib/jwt.js");
     const app = await buildApp();
@@ -134,7 +92,6 @@ async function session() {
 async function main() {
     if (printSession) return session();
 
-    // ── its own rows only: the fixture is replaceable, the rest of the DB is not
     await remove();
     if (clean) {
         console.log("fixture removed");
@@ -152,10 +109,6 @@ async function main() {
         })
         .returning();
 
-    // Accounts the desk issues — this fixture IS the operator. Handles are
-    // picked one at a time (pickUsername de-duplicates against the table, so
-    // parallel calls would race for the same name): "Ngọc Duy" → "ngoc-duy",
-    // exactly what the roster's own create button derives.
     const usernames: string[] = [];
     const playerValues = [];
     for (const [i, name] of PLAYERS.entries()) {
@@ -165,9 +118,6 @@ async function main() {
             username: usernames[i]!,
             email: `fixture-player-${i + 1}@example.com`,
             displayName: name,
-            // Passworded by the fixture (it holds the first password the way the
-            // desk does), so a dev logs in on /login — and is asked, like every
-            // player, to set their own at that first sign-in.
             emailVerified: true,
             passwordHash: await argon2.hash(PLAYER_PASSWORD),
             mustChangePassword: true,
@@ -191,8 +141,6 @@ async function main() {
         stages: [{ id: "s1", title: "Chung kết" }]
     });
 
-    // six oral runs in phase 1, six typed questions in phase 2 — the engine
-    // refuses any other count for this round
     const phase1 = [1, 2, 3, 4, 5, 6].map((n) => question("phase1", n));
     const phase2 = Array.from({ length: 6 }, (_, i) => question("phase2", i + 1));
 
@@ -204,10 +152,6 @@ async function main() {
         scheduledAt: new Date(),
         label: "Fixture — Chung kết",
         status: "LIVE",
-        // Three of the four are seated; the fourth seat is what the room code
-        // below buys (capacity is the format's 4). `joinCode` is gone — the
-        // column was dropped in migration 0008, and a standing code could
-        // neither expire nor rotate.
         players: playerRows
             .slice(0, WALK_IN)
             .map((p, i) => ({ kind: "user" as const, userId: p.id, seed: i + 1 })),
@@ -224,11 +168,8 @@ async function main() {
         questions: [...phase1, ...phase2]
     });
 
-    // The engine's row: a LIVE match with no round started yet.
     await db.insert(matchLive).values({ matchId: MATCH_ID, version: 0, roundId: "khoi-dong", state: {} });
 
-    // The walk-in's door: a fresh room code (rotation deletes whatever the last
-    // run minted), expiring in 24 h like every code the desk issues.
     const room = await rotateRoomCode(TOURNAMENT_ID, MATCH_ID, operator.id);
 
     console.log(`

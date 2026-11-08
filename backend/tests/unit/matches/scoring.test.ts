@@ -108,9 +108,8 @@ describe("buildMatchResults — manual score adjustments", () => {
 
         const a = results.find((r) => r.userId === "a")!;
         const b = results.find((r) => r.userId === "b")!;
-        expect(a).toMatchObject({ totalScore: 50, rank: 1 });   // 30 + 20 beats 40 - 15
+        expect(a).toMatchObject({ totalScore: 50, rank: 1 });   
         expect(b).toMatchObject({ totalScore: 25, rank: 2 });
-        // match-level: the per-round ledger stays answers-only
         expect(a.roundScores).toEqual({ "but-pha": 30 });
         expect(b.roundScores).toEqual({ "but-pha": 40 });
     });

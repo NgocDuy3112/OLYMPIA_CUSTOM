@@ -1,31 +1,22 @@
-// The the console's rail — the contestant cards as the OPERATOR sees them: the live
-// camera from the match Room, this round's badge/value, and
-// the console's staged verdict. It is NOT the player's rail (a player sees "BẠN" and
-// their own verdict): same frame, different card, so neither grows flags.
 import { useEffect, useRef } from "react"
 import type { RemoteVideoTrack } from "livekit-client"
 import { pt } from "@shared/deck/geometry"
 import { railCardClass, railCardState, railScoreClass } from "@shared/deck/rail-card"
 
-/** What one rail card shows — the console's projection of a score row. */
 export interface CardData {
     id: string
     name: string
     points: number
-    answer?: string        // answer-variant bottom line
-    value?: string         // answer-variant value row
+    answer?: string        
+    value?: string         
     verdict?: "CORRECT" | "INCORRECT" | null
-    badge?: { text: string; tone: "primary" | "amber" | "emerald" }  // keyword / power pill
+    badge?: { text: string; tone: "primary" | "amber" | "emerald" }  
     ring?: "selected" | "active"
-    dimmed?: boolean       // giai-ma eliminated
-    /** the player's live camera — Room identity === card id, so a plain map
-     *  lookup by `id` feeds this slot; absent → the initials show */
+    dimmed?: boolean       
     video?: RemoteVideoTrack | null
-    /** this player's buzz won the current window — the live answerer */
     buzzing?: boolean
 }
 
-/** The pill's colour, keyed by tone. */
 const PILL_TONE: Record<NonNullable<CardData["badge"]>["tone"], string> = {
     primary: "bg-primary text-primary-foreground",
     amber: "bg-amber-50 text-amber-700 ring-1 ring-amber-300",
@@ -35,16 +26,9 @@ const PILL_TONE: Record<NonNullable<CardData["badge"]>["tone"], string> = {
 const badgePill = (tone: NonNullable<CardData["badge"]>["tone"]): string =>
     `flex items-center justify-center rounded-full px-[0.6cqw] font-sans font-semibold leading-tight ${PILL_TONE[tone]}`
 
-/** The card's ring: the multi-select (giai-ma) or the verdict target — drawn ON
- *  TOP of the card's own state. */
 const cardRing = (ring: CardData["ring"]): string =>
     ring === "selected" ? "ring-2 ring-primary" : ring === "active" ? "ring-2 ring-amber-400" : ""
 
-/**
- * The card's live camera: attaches the remote track to a <video> for exactly
- * as long as the card holds it, laid OVER the initials (which stay as the
- * no-camera base). Not mirrored — the console is looking AT the player.
- */
 function CardVideo({ track }: { track: RemoteVideoTrack }) {
     const holder = useRef<HTMLSpanElement>(null)
     useEffect(() => {
@@ -64,16 +48,12 @@ function CardVideo({ track }: { track: RemoteVideoTrack }) {
 const initialsOf = (name: string): string =>
     name.replace(/[^A-Za-zÀ-ỹ0-9]/g, "").slice(0, 2).toUpperCase() || "??"
 
-/** The rail column: who's playing, what they answered, the console's verdict on them. */
 export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answers"; cards: CardData[]; onSelect?: (id: string) => void }) {
     const isAnswers = variant === "answers"
     const Interactive = onSelect ? "button" : "div"
     return (
         <>
             {cards.map((c) => {
-                // The card's STATE is the verdict (see @shared/deck/rail-card):
-                // bright = right, grey = wrong or eliminated, purple + dashed
-                // white = the live answerer, plain = waiting.
                 const state = railCardState({
                     verdict: c.verdict ?? null,
                     locked: c.dimmed === true,
@@ -112,7 +92,7 @@ export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answe
                             {c.answer ?? "—"}
                         </div>
                     )}
-                    {/* the bottom row: the badge, or the player state — value + verdict */}
+                    
                     {c.badge && !isAnswers ? (
                         <div className="flex shrink-0 justify-end" style={{ fontSize: pt(9) }}>
                             <span className={badgePill(c.badge.tone)}>{c.badge.text}</span>

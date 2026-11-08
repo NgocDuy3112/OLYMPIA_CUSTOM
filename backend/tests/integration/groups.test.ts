@@ -7,9 +7,6 @@ import { tournamentPlayers, tournaments, users } from "../../src/db/schema/index
 import { signToken } from "../../src/lib/jwt.js";
 import type { RoundConfig } from "../../src/game/contracts/index.js";
 
-// The AOC group stage, end to end: the DRAW places contestants in Nhóm A / Nhóm B,
-// and the tables are DERIVED from those groups plus the frozen results of the
-// phase matches. Nothing is stored, so the table can never drift.
 
 let app: FastifyInstance;
 let ownerCookie: string;
@@ -27,7 +24,6 @@ const roundRules: Record<string, RoundConfig> = {
     }
 };
 
-// AOC: the two group phases ARE stages (§3.3), and a match holds 3 or 4 seats.
 const STAGES = [
     { id: "phase-1", title: "Vòng bảng · Phase 1" },
     { id: "phase-2", title: "Vòng bảng · Phase 2" },
@@ -64,8 +60,6 @@ const closeMatch = async (stageId: string, totals: Array<{ userId: string; score
     expect(created.statusCode).toBe(201);
     const { id } = created.json();
 
-    // Writing the results IS what freezes them (same path the console takes);
-    // the match's status is not what the group table reads.
     const scored = await app.inject({
         method: "POST",
         url: url(`/matches/${id}/results`),
@@ -106,7 +100,6 @@ beforeAll(async () => {
     }).returning();
     tournamentId = tournament.id;
 
-    // Everyone enrolled; nobody drawn yet — that is the frame's starting state.
     await db.insert(tournamentPlayers).values(playerIds.map((userId) => ({ tournamentId, userId })));
 });
 
@@ -148,7 +141,6 @@ describe("the draw", () => {
         expect(res.statusCode).toBe(404);
         expect(res.json().code).toBe("NOT_ENROLLED");
 
-        // …and the roster is untouched.
         const rows = await db.select().from(tournamentPlayers)
             .where(eq(tournamentPlayers.userId, stranger.id));
         expect(rows).toHaveLength(0);
@@ -157,7 +149,6 @@ describe("the draw", () => {
     it("holds any number of contestants — only MATCHES are limited to 3 or 4", async () => {
         for (const id of playerIds) await drawPlayer(id, null);
 
-        // All five enrolled contestants in one Nhóm: the draw does not refuse.
         for (const id of playerIds) expect((await drawPlayer(id, "A")).statusCode).toBe(200);
         const body = (await groups()).json();
         expect(body.groups.find((g: { id: string }) => g.id === "A").rows).toHaveLength(5);
@@ -178,13 +169,11 @@ describe("the draw", () => {
 
 describe("the tables", () => {
     it("banks the placement points to the contestant's group", async () => {
-        // Two per group, and one left undrawn.
         await drawPlayer(playerIds[0], "A");
         await drawPlayer(playerIds[1], "A");
         await drawPlayer(playerIds[2], "B");
         await drawPlayer(playerIds[3], "B");
 
-        // Phase 1, 4 seats: 1st banks 3, 2nd banks 1 — so A takes 4.
         await closeMatch("phase-1", [
             { userId: playerIds[0], score: 40 },
             { userId: playerIds[1], score: 30 },
@@ -196,18 +185,15 @@ describe("the tables", () => {
         const a = body.groups.find((g: { id: string }) => g.id === "A");
         const b = body.groups.find((g: { id: string }) => g.id === "B");
 
-        expect(a.teamPoints).toBe(4);        // 3 + 1
+        expect(a.teamPoints).toBe(4);        
         expect(b.teamPoints).toBe(0);
         expect(a.rows.map((r: { bankedPoints: number }) => r.bankedPoints)).toEqual([3, 1]);
         expect(a.rows[0].matchesPlayed).toBe(1);
         expect(body.unassigned.map((r: { userId: string }) => r.userId)).toEqual([playerIds[4]]);
-        // the wildcard table is the pooled average, best first
         expect(body.wildcard.map((r: { displayName: string }) => r.displayName)).toEqual(["GRP0", "GRP1", "GRP2", "GRP3"]);
     });
 
     it("counts Phase 1 negatives as 0 in the averages but keeps the raw result", async () => {
-        // A 3-seat Phase 2 match: 1st banks 1 (the 2-point row is the 4-seat one),
-        // and GRP1 finishes negative.
         await closeMatch("phase-2", [
             { userId: playerIds[2], score: 25 },
             { userId: playerIds[1], score: -30 },
@@ -218,11 +204,11 @@ describe("the tables", () => {
         const a = body.groups.find((g: { id: string }) => g.id === "A");
         const b = body.groups.find((g: { id: string }) => g.id === "B");
 
-        expect(b.teamPoints).toBe(1);        // GRP2 won a 3-seat Phase 2 match
+        expect(b.teamPoints).toBe(1);        
         const grp1 = a.rows.find((r: { displayName: string }) => r.displayName === "GRP1");
         expect(grp1.matchesPlayed).toBe(2);
-        expect(grp1.averages.phase2).toBe(-30);   // Phase 2 counts raw
-        expect(grp1.averages.all).toBe(0);        // (30 + -30) / 2
+        expect(grp1.averages.phase2).toBe(-30);   
+        expect(grp1.averages.all).toBe(0);        
     });
 
     it("accrues nothing from a bracket stage — only the two group phases pay", async () => {

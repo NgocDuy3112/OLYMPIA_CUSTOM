@@ -1,15 +1,9 @@
 import { useEffect, useRef } from "react"
 
-// One place for what every socket shares: how to dial the backend, how
-// long to wait before trying again, and when to stop trying at all. Both
-// realtime channels ride this — the players' live match channel and the
-// console's live stream.
 
 const BASE_BACKOFF_MS = 2_000
 const MAX_BACKOFF_MS = 30_000
 
-// Backend close codes that reconnecting will never fix:
-// 4401 SESSION_ENDED (revoked session), 4403 NOT_SEATED (not in this match).
 const STOP_CODES = new Set([4401, 4403])
 
 function wsBase(): string {
@@ -17,16 +11,6 @@ function wsBase(): string {
     return `${protocol}//${window.location.host}`
 }
 
-/**
- * Dial `path` (e.g. `/gameplay/matches/<id>/live/stream`) while `enabled`.
- *
- * - `null` path = no dial (a match id or a gate not yet passed).
- * - Every parsed frame goes to `onMessage`; malformed frames are ignored — HTTP
- *   stays the truth either way.
- * - The callback lives in a ref: a new closure never re-dials the socket.
- * - Exponential backoff (2 s → 30 s), reset on a successful open; STOP_CODES end
- *   the stream for good, unmount cancels a scheduled reconnect.
- */
 export function useSocketStream(
     path: string | null,
     enabled: boolean,
@@ -56,7 +40,7 @@ export function useSocketStream(
                 }
             }
             socket.onopen = () => {
-                attempt = 0 // a fresh connection earns a fresh backoff
+                attempt = 0 
             }
             socket.onclose = (event) => {
                 if (stopped || STOP_CODES.has(event.code)) return
@@ -72,7 +56,7 @@ export function useSocketStream(
             stopped = true
             if (timer !== undefined) clearTimeout(timer)
             if (socket) {
-                socket.onclose = null // unmount must not schedule a reconnect
+                socket.onclose = null 
                 socket.close()
             }
         }

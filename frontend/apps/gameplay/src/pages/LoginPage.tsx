@@ -6,25 +6,11 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@shared/ui/field"
 import { Input } from "@shared/ui/input"
 import { googleLoginLink, useAuthMethods, useLogin } from "@/lib/session"
 
-/** Only a path inside this app may be the destination — never //host, never a scheme. */
 function safeNext(raw: string | null): string {
     if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) return "/"
     return raw
 }
 
-/**
- * /login — the player's own door: the handle the DESK issued them and the
- * password they chose at their first sign-in. There is no self-registration
- * link here any more (step 8): accounts are created at the desk, and a player
- * without one asks the operator rather than filling in a form.
- *
- * `?next=` is honoured (the walk-in's code box sends players here), and
- * `?notice=google-off` explains a Google link that could not start.
- *
- * A login that answers `mustChangePassword` does not go where the player asked:
- * it goes to /password, carrying `?next=` along — the desk's first password
- * stops being the desk's there, and the API would refuse everything until it does.
- */
 export function LoginPage() {
     const [params] = useSearchParams()
     const navigate = useNavigate()
@@ -49,8 +35,6 @@ export function LoginPage() {
                         navigate(`/password?next=${encodeURIComponent(next)}`, { replace: true })
                         return
                     }
-                    // The session just changed: everything cached was read
-                    // without it (the navbar's `me` read above all).
                     navigate(next, { replace: true })
                 },
             }

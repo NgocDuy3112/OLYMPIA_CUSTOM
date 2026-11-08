@@ -22,16 +22,10 @@ export interface KhoiDongContext {
     actorId: string;
     roundId: string;
     now: string;
-    // The rulebook's rules for this round, resolved from the match's config.
     rules: KhoiDongRules;
-    playerIds: string[];          // the match's competitors, resolved server-side
-    phase1QuestionIds: string[];  // 6 oral questions
-    phase2QuestionIds: string[];  // 6 typed questions
-    /**
-     * The question in play's draft rows, read inside the transaction — the
-     * judge's NO_ANSWER check and the advance's UNJUDGED_ANSWERS guard both
-     * need what the ledger holds right now, not what it held a moment ago.
-     */
+    playerIds: string[];          
+    phase1QuestionIds: string[];  
+    phase2QuestionIds: string[];  
     answerDrafts: AnswerDraft[];
 }
 
@@ -43,8 +37,6 @@ export function applyKhoiDongAction(
     switch (action.kind) {
         case "khoi-dong.start": {
             const started = startKhoiDong(ctx.playerIds, ctx.phase1QuestionIds);
-            // phase: 2 — the navigator's "· Chung" entry: skip the untouched
-            // oral phase and open the batch in the SAME action (atomic, one version).
             if (action.phase === 2) {
                 return { state: beginPhase2(started, ctx.phase2QuestionIds), facts: [] };
             }
@@ -60,7 +52,6 @@ export function applyKhoiDongAction(
 
             const next = recordOral(state, { correct: action.correct, spentS: action.spentS });
 
-            // An answer that overran the 45 s budget is not counted and writes no fact.
             const recorded = next.runs[playerId].results[questionId];
             if (!recorded) return { state: next, facts: [] };
 
@@ -68,11 +59,10 @@ export function applyKhoiDongAction(
                 type: "answer",
                 questionId,
                 userId: playerId,
-                // oral: the answer was spoken, so there is no typed content
                 value: { oral: true },
                 verdict: recorded.correct ? "CORRECT" : "INCORRECT",
                 pointsAwarded: recorded.points,
-                autoMatched: false            // the console judged it
+                autoMatched: false            
             }];
             return { state: next, facts };
         }
@@ -83,13 +73,9 @@ export function applyKhoiDongAction(
         case "khoi-dong.beginPhase2":
             return { state: beginPhase2(state, ctx.phase2QuestionIds), facts: [] };
 
-        // Bấm giờ: from this click the field has `windowS` seconds to type.
         case "khoi-dong.startWindow":
             return { state: openWindow(state, ctx.now), facts: [] };
 
-        // The console marks ONE card of the question in play — the rail's
-        // selected player, Đúng or Sai. Re-marking is a correction: the engine
-        // replaces this card's points instead of adding to them.
         case "khoi-dong.judge": {
             const questionId = state.phase2 === null ? null : phase2QuestionId(state.phase2);
             if (questionId === null) fail("PHASE_ENDED", "chung is over");
@@ -110,9 +96,6 @@ export function applyKhoiDongAction(
             return { state: next, facts };
         }
 
-        // The next number on the progress strip. Every submitted card on the
-        // question in play must carry a verdict first — the console marks them
-        // one by one, THEN moves the cursor.
         case "khoi-dong.nextQuestion": {
             const questionId = state.phase2 === null ? null : phase2QuestionId(state.phase2);
             if (questionId !== null && ctx.answerDrafts.some((d) => !d.judged)) {

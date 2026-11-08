@@ -8,13 +8,10 @@ import { RoundConfig } from "../../game/contracts/index.js";
 import { pageResult, type Page, type PageResult } from "../../lib/pagination.js";
 import { slugify } from "./slug.js";
 
-// The pure slug rules live in slug.js (unit-tested without the db); re-exported
-// here for the module's existing surface.
 export { slugify } from "./slug.js";
 
 type TournamentRow = typeof tournaments.$inferSelect;
 
-// A slug nobody else has: the name's, then the name's with a number.
 async function uniqueSlug(name: string, exceptId?: string): Promise<string> {
     const base = slugify(name) || "tournament";
 
@@ -67,8 +64,6 @@ export async function requireTournament(tournamentId: string): Promise<Tournamen
 }
 
 
-// Tournament tags are gone: the bank is global, and matches name their own
-// questions at assembly time.
 
 export async function createTournament(
     ownerId: string,
@@ -89,13 +84,7 @@ export async function createTournament(
             name: input.name,
             slug,
             visibility: input.visibility ?? "PUBLIC",
-            // A tournament plays the AOC rounds unless it says otherwise. An empty
-            // round list is not a valid state any more: the rulebook is not
-            // something an operator fills in, so nothing would ever fill it.
             rounds: input.rounds && input.rounds.length > 0 ? input.rounds : AOC_ROUNDS,
-            // AOC: a group match holds THREE or FOUR players (the team-point scale
-            // resolves by the real count at match end). A fixed 4 made the operator's
-            // only option the one the show does not always use.
             format: input.format ?? { competitorsPerMatch: 4, allowedCompetitorCounts: [3, 4] },
             roundRules: input.roundRules ?? null,
             stages: input.stages ?? [],
@@ -113,7 +102,6 @@ export interface ListFilters {
 }
 
 
-// The tournaments of the portal: every public one, and the private ones of an admin.
 export async function listTournaments(
     filters: ListFilters,
     page: Page,
@@ -156,7 +144,6 @@ export async function getTournament(tournamentId: string): Promise<TournamentRow
 }
 
 
-// Has any match in this tournament been assembled yet?
 async function hasAssembledMatch(tournamentId: string): Promise<boolean> {
     const [row] = await db.select({ id: matches.id })
         .from(matches)
@@ -173,8 +160,6 @@ export async function updateTournament(
     validate(UpdateTournamentInput, patch);
     const existing = await requireTournament(tournamentId);
 
-    // The rulebook is frozen once a match has been assembled: a running event must not
-    // depend on a later edit.
     const frozen = existing.closedAt !== null || await hasAssembledMatch(tournamentId);
 
     const changesRules = patch.roundRules !== undefined
@@ -182,8 +167,6 @@ export async function updateTournament(
     const changesStages = patch.stages !== undefined
         && JSON.stringify(patch.stages) !== JSON.stringify(existing.stages);
 
-    // The stages are the tournament's order. Changing it would rewrite the places, so it is
-    // frozen once the tournament is closed.
     if (changesStages && existing.closedAt !== null) {
         throw new TournamentError("CONFLICT", "the stages are frozen once the tournament is closed");
     }
@@ -194,9 +177,6 @@ export async function updateTournament(
             "round rules are frozen once a match has been assembled"
         );
     }
-    // Validate the rules against the rounds THIS PATCH leaves behind, not the old
-    // list: adding a round and its rules is one edit to the operator, and it used
-    // to be impossible in one request ("unknown round id" for the round being added).
     const roundsAfter = patch.rounds ?? existing.rounds;
     if (patch.roundRules) assertRoundRules(roundsAfter, patch.roundRules);
 
@@ -238,4 +218,3 @@ export async function deleteTournament(tournamentId: string): Promise<Tournament
 }
 
 
-// The staff of a tournament: its owner, and the admins.

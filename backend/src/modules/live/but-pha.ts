@@ -17,11 +17,10 @@ import type { AnswerDraft, Transition } from "./apply.js";
 export interface ButPhaContext {
     actorId: string;
     roundId: string;
-    // The rulebook's rules for this round, resolved from the match's config.
     rules: ButPhaRules;
-    now: string;              // ISO time, for the per-question clock
-    questionIds: string[];    // the round's questions, resolved server-side at start
-    answerDrafts: AnswerDraft[]; // the open question's drafts, read inside the transaction
+    now: string;              
+    questionIds: string[];    
+    answerDrafts: AnswerDraft[]; 
 }
 
 export function applyButPhaAction(
@@ -49,7 +48,6 @@ export function applyButPhaAction(
                 fail("INVALID_QUESTION", `question ${action.questionId} is not the open question`);
             }
 
-            // The submission times come from the drafts, read inside the transaction.
             const times = new Map(ctx.answerDrafts.map((d) => [d.userId, d.answeredMs]));
             const results = action.verdicts.map((verdict) => {
                 const answeredMs = times.get(verdict.playerId);
@@ -61,7 +59,6 @@ export function applyButPhaAction(
 
             const next = finalizeQuestion(state, results);
 
-            // Read back what the engine recorded: a late answer is forced wrong.
             const recorded = new Map(next.answers[questionId].map((a) => [a.playerId, a.correct]));
             const facts: LiveFact[] = results.map((r) => ({
                 type: "judge",

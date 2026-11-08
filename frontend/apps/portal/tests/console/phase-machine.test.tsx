@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
@@ -7,13 +6,6 @@ import { Controller } from "@/console/controller"
 import type { LobbyData, LiveResponse } from "@/lib/live"
 import { stubFetch } from "../helpers/render"
 
-// The console's PHASE MACHINE, rendered for real.
-//
-// use-console-model.test.tsx reads the hook; this file mounts the actual host, so
-// what it asserts is what the operator SEES: which screen a phase draws, and —
-// the one that matters most — that Về sảnh lands on the waiting room WITHOUT the
-// engine confirming it. That flag (atWaiting) is the only thing standing between
-// an ended round and a deck that keeps drawing it.
 
 const T = "t1"
 const M = "m1"
@@ -25,7 +17,6 @@ const ACTIONS = `POST /portal/tournaments/${T}/matches/${M}/live/actions`
 const STATUS = `PATCH /portal/tournaments/${T}/matches/${M}/status`
 const LIVE_PATH = `/portal/tournaments/${T}/matches/${M}/live`
 
-/** A live read mid-round: khoi-dong phase 2 (the buzz race), one open question. */
 function liveView(over: Partial<LiveResponse> = {}): LiveResponse {
     return {
         version: 7,
@@ -75,7 +66,6 @@ function draw(routes: Record<string, { body: unknown; status?: number }> = {}) {
         [LIVE]: { body: liveView() },
         [LOBBY]: { body: lobbyData() },
         [MATCHES]: { body: { items: [], total: 0, limit: 20, offset: 0 } },
-        // RTC is a side-channel: refuse the token so the deck never dials.
         [RTC]: { body: { message: "not live" }, status: 409 },
         [ACTIONS]: { body: { version: 8 } },
         ...routes,
@@ -93,7 +83,6 @@ function draw(routes: Record<string, { body: unknown; status?: number }> = {}) {
 
 describe("the console's phase machine — which screen a phase draws", () => {
     it("says it is reading while the first live read is in flight", () => {
-        // a read that never answers: the deck must hold the frame, not flicker
         vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})))
         const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
         render(
@@ -106,13 +95,11 @@ describe("the console's phase machine — which screen a phase draws", () => {
 
     it("draws the round deck once a live view is in hand", async () => {
         draw()
-        // the round module's controller screen: the strip's Về sảnh control
         expect(await screen.findByRole("button", { name: "Về sảnh" })).toBeTruthy()
     })
 
     it("shows the waiting room when the read fails and the lobby answers", async () => {
         draw({ [LIVE]: { body: { message: "Trận chưa mở" }, status: 500 } })
-        // the room itself is the signal: its rounds navigator is the way in
         expect(await screen.findByRole("button", { name: /Khởi động · Riêng/ })).toBeInTheDocument()
     })
 
@@ -126,7 +113,6 @@ describe("the console's phase machine — which screen a phase draws", () => {
 })
 
 describe("the console's phase machine — Về sảnh", () => {
-    /** How many times the live view was read (the engine's confirmation channel). */
     const liveReads = (fetchMock: ReturnType<typeof stubFetch>) =>
         fetchMock.mock.calls.filter(([url]) => String(url) === LIVE_PATH).length
 
@@ -137,19 +123,14 @@ describe("the console's phase machine — Về sảnh", () => {
 
         await userEvent.click(back)
 
-        // The pushed view still says "phase2, a question is open" — the console
-        // must nevertheless stop drawing the deck. That is atWaiting's whole job.
         expect(await screen.findByRole("heading", { level: 1, name: "Tournament" })).toBeTruthy()
         expect(screen.queryByRole("button", { name: "Về sảnh" })).toBeNull()
-        // and the end plan went out: one action for khoi-dong phase 2 (endRound)
         const sent = fetchMock.mock.calls.map(([url, init]) => `${init?.method ?? "GET"} ${String(url)}`)
         expect(sent).toContain(ACTIONS)
         expect(readsBefore).toBeGreaterThan(0)
     })
 
     it("stays on the waiting room even after the action re-reads the live view", async () => {
-        // the end action invalidates /live; the engine still answers "phase2"
-        // (it is mid-round for another console, or slow). atWaiting must hold.
         const { fetchMock } = draw()
         await userEvent.click(await screen.findByRole("button", { name: "Về sảnh" }))
         const readsAfterClick = liveReads(fetchMock)
@@ -162,7 +143,6 @@ describe("the console's phase machine — Về sảnh", () => {
     it("still offers the rounds navigator from the waiting room", async () => {
         draw()
         await userEvent.click(await screen.findByRole("button", { name: "Về sảnh" }))
-        // the console can start a round again without leaving the lobby
         expect(await screen.findByRole("button", { name: /Khởi động · Chung/ })).toBeTruthy()
     })
 })
@@ -171,7 +151,6 @@ describe("the waiting room before the match is LIVE", () => {
     it("is the ROUNDS navigator, not a lone start button", async () => {
         draw({ [LIVE]: { body: { message: "Trận chưa mở" }, status: 409 } })
 
-        // the operator's unit of work is the round: the same room they get between rounds
         expect(await screen.findByRole("button", { name: /Khởi động · Riêng/ })).toBeInTheDocument()
         expect(screen.queryByRole("button", { name: /Bắt đầu trận/ })).toBeNull()
     })
@@ -181,8 +160,6 @@ describe("the waiting room before the match is LIVE", () => {
             [LIVE]: { body: { message: "Trận chưa mở" }, status: 409 },
             [STATUS]: { body: { id: M, status: "LIVE" } },
         })
-        // Once the match is LIVE, the live read answers a view: the phase re-reads it
-        // for the version the start must carry.
         const base = fetchMock.getMockImplementation()!
         let wentLive = false
         fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -196,13 +173,11 @@ describe("the waiting room before the match is LIVE", () => {
 
         await userEvent.click(await screen.findByRole("button", { name: /Khởi động · Riêng/ }))
 
-        // 1) the match goes LIVE …
         await waitFor(() => {
             const call = fetchMock.mock.calls.find(([url, init]) => `${init?.method ?? "GET"} ${String(url)}` === STATUS)
             expect(call).toBeTruthy()
             expect(JSON.parse(String(call![1]?.body))).toEqual({ status: "LIVE" })
         })
-        // … 2) and the round is started with an action
         await waitFor(() => {
             const sent = fetchMock.mock.calls
                 .filter(([url, init]) => `${init?.method ?? "GET"} ${String(url)}` === ACTIONS)

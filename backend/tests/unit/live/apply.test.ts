@@ -4,8 +4,6 @@ import type { LiveFact } from "../../../src/modules/live/facts.js";
 import { LiveConflictError } from "../../../src/modules/live/conflict.js";
 import { RuleError } from "../../../src/game/engine/turns/errors.js";
 
-// In-memory store that behaves like a transaction: a failing callback leaves the stored
-// record untouched (state and facts together), and a successful one commits both.
 function memoryStore<S>(
     initial: LiveRecord<S>,
     draftsByQuestion: Record<string, AnswerDraft[]> = {}
@@ -170,7 +168,7 @@ describe("applyLiveAction — the transition can read inside the transaction", (
                 return T({ hints: c.state.hints + drafts.filter((d) => !d.judged).length * 10 + drafts.length });
             }
         });
-        expect(out.state).toEqual({ hints: 12 });   // 1 unjudged ×10 + 2 rows
+        expect(out.state).toEqual({ hints: 12 });   
     });
 
     it("a missing question reads as no drafts", async () => {

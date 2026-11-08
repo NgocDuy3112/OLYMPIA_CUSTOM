@@ -5,9 +5,6 @@ import { db } from "../../src/db/pool.js";
 import { users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 
-// AOC: a group match holds THREE or FOUR players, and the team-point scale
-// resolves by the real count at match end. The tournament's format is what allows
-// it; a tournament created without a format gets both counts.
 
 let app: FastifyInstance;
 let cookie: string;

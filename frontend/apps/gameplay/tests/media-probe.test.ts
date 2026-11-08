@@ -1,16 +1,12 @@
 import { describe, expect, it, vi } from "vitest"
 import { probeMediaPermission } from "@shared/lib/rtc"
 
-// The player's camera/mic are asked for ON ARRIVAL, not when the match goes LIVE.
-// Publishing needs a token that is refused (409) until then — without the probe the
-// browser dialog would appear mid-show, at the moment a round starts.
 
 const streamOf = () => {
     const stop = vi.fn()
     return { getTracks: () => [{ stop }, { stop }] } as unknown as MediaStream
 }
 
-// what a browser actually throws — mediaErrorOf keys on DOMException
 const domError = (name: string) => new DOMException(name, name)
 
 describe("probeMediaPermission", () => {
@@ -25,7 +21,6 @@ describe("probeMediaPermission", () => {
         const refusal = await probeMediaPermission({ getUserMedia })
 
         expect(asked).toEqual([{ video: true }, { audio: true }])
-        // two asks × two tracks released — nothing stays open
         expect(stop).toHaveBeenCalledTimes(4)
         expect(refusal).toBeNull()
     })

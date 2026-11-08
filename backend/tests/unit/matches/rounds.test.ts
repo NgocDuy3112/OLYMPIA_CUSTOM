@@ -2,12 +2,6 @@ import { describe, expect, it } from "vitest";
 import { nextRoundId, orderedMatchRounds } from "../../../src/modules/matches/rounds.js";
 import type { RoundConfig, TournamentRound } from "../../../src/game/contracts/index.js";
 
-// Which rounds a match plays. The RULEBOOK is the default now, so a match created
-// with no saved configs still plays the four — filtering on the saved config alone
-// left such a match with an EMPTY navigator and no live record to open.
-//
-// The original rule still holds for a round the app cannot serve: it needs an
-// explicit config to be played.
 
 const SEASON: TournamentRound[] = [
     { id: "ve-dich", name: "Ve Dich", order: 3, chart: "bars" },
@@ -26,7 +20,6 @@ describe("orderedMatchRounds", () => {
     });
 
     it("plays the AOC rounds even when the match saved no configs", () => {
-        // the case that broke: a hand-made match with `roundConfigs: {}` played nothing
         expect(orderedMatchRounds(SEASON, {})).toHaveLength(4);
     });
 

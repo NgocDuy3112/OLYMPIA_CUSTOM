@@ -25,27 +25,9 @@ const matchIdParams = {
     properties: { matchId: { type: "string", pattern: UUID_PATTERN } },
 } as const;
 
-// The viewer mint is the only unauthenticated route here — rate-limit it the
-// way the other public surface does (gameplay-read), per IP.
 const viewerRate = { config: { rateLimit: { max: 20, timeWindow: "1 minute" } } };
 
-/**
- * Join tokens for the match's LiveKit room. Three doors, one mint:
- *
- * - POST /gameplay/matches/:matchId/rtc/token          session + seated  → player
- * - POST /portal/tournaments/…/matches/:matchId/…/token operator          → console
- * - POST /gameplay/matches/:matchId/rtc/viewer-token   no auth           → spectator
- *
- * The LiveKit JWT is minted LOCALLY (pure HMAC with LIVEKIT_API_SECRET, no
- * call to the SFU), after the route's guards have decided the role. All three
- * doors share two refusals: LiveKit un/partially configured → 503, and the
- * match not LIVE → 409 — the room exists exactly while the show does, so a
- * pre-show player warm-up happens in the LIVE match's pending stage, not
- * before the console opens the match.
- */
 export async function rtcRoutes(app: FastifyInstance) {
-    // A mint naming a match that does not exist (or was deleted) must answer
-    // 404, not 500 — the same mapping every other match-scoped module does.
     app.setErrorHandler((error, _request, reply) => {
         if (error instanceof MatchError) {
             reply.code(toHttpStatus(error.code)).send({ error: error.code, message: error.message });
@@ -70,16 +52,10 @@ export async function rtcRoutes(app: FastifyInstance) {
     ) => {
         const rtc = config();
         if (!rtc) throw app.httpErrors.serviceUnavailable("rtc is not configured");
-        // NO status gate. The room is per-match and only seated players (and staff)
-        // can mint a token for it, so opening it before LIVE costs nothing and buys
-        // the thing an operator actually needs: every camera lit up in the WAITING
-        // ROOM, checked before the show starts — instead of a grid of initials and a
-        // permission dialog at the moment a round begins.
         const token = await mintRtcToken(rtc, { room: match.id, role, ...opts });
         return { room: match.id, ...token };
     };
 
-    // A seated player: publish-only in practice, but the grant allows subscribe.
     app.post(
         "/gameplay/matches/:matchId/rtc/token",
         {
@@ -98,7 +74,6 @@ export async function rtcRoutes(app: FastifyInstance) {
         }
     );
 
-    // The console console: subscribe-only, hidden from participant lists.
     app.post(
         "/portal/tournaments/:tournamentId/matches/:matchId/rtc/token",
         {
@@ -114,9 +89,6 @@ export async function rtcRoutes(app: FastifyInstance) {
         }
     );
 
-    // The public spectator link: subscribe-only, hidden, random identity per
-    // viewer. Existence of the match is the only thing this reveals (a live
-    // match's id is already shared to spectators by definition).
     app.post(
         "/gameplay/matches/:matchId/rtc/viewer-token",
         { ...viewerRate, schema: { params: matchIdParams } },

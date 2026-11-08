@@ -10,7 +10,6 @@ import type { PlayerResult } from "@/lib/types"
 
 
 interface RoundChartProps {
-    // The tournament's own rounds, in order — the chart's x-axis is this list.
     rounds: TournamentRound[]
     players: PlayerResult[]
 }

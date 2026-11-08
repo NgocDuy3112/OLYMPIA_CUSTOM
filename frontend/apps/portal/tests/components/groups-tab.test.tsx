@@ -4,8 +4,6 @@ import { describe, expect, it } from "vitest"
 import { GroupsTab } from "@/components/groups-tab"
 import { renderWithProviders, stubFetch } from "../helpers/render"
 
-// The group stage tab: a DERIVED table (never edited here) plus the DRAW, which
-// is the only write. A frame with nobody drawn must still look deliberate.
 
 const TOURNAMENT = "t1"
 const GROUPS_URL = `GET /portal/tournaments/${TOURNAMENT}/groups`
@@ -43,14 +41,12 @@ describe("GroupsTab — the derived tables", () => {
         stubFetch({ [GROUPS_URL]: { body: tables() } })
         render()
 
-        // the card titles — "Nhóm A" also names the draw button, so match all
         await screen.findByText("An")
         expect(screen.getAllByText("Nhóm A").length).toBeGreaterThan(0)
         expect(screen.getAllByText("Nhóm B").length).toBeGreaterThan(0)
 
         expect(screen.getByText("An")).toBeInTheDocument()
         expect(screen.getByText("Bình")).toBeInTheDocument()
-        // the group totals, now named: "Tổng điểm nhóm <n>"
         const totals = screen.getAllByText("Tổng điểm nhóm").map((el) => el.parentElement?.textContent?.replace(/\s+/g, " "))
         expect(totals).toHaveLength(2)
         expect(totals.join(" | ")).toContain("4")
@@ -62,13 +58,10 @@ describe("GroupsTab — the derived tables", () => {
         render()
 
         await screen.findByText("An")
-        // Nhóm A holds 2 of 4; Nhóm B holds 0 of 4 → 6 placeholder rows, each with
-        // three em-dashes now (name · Điểm nhóm · Thành tích TB).
         const emptyRows = screen
             .getAllByRole("row")
             .filter((row) => [...row.querySelectorAll("td")].filter((td) => (td.textContent || "").trim() === "—").length === 3)
         expect(emptyRows).toHaveLength(6)
-        // No cap is implied: the frame is just as tall as the fullest group might be.
         expect(screen.getAllByText("Tổng điểm nhóm")).toHaveLength(2)
     })
 
@@ -76,7 +69,6 @@ describe("GroupsTab — the derived tables", () => {
         stubFetch({ [GROUPS_URL]: { body: tables() } })
         render()
 
-        // the undrawn card is the draw's only surface now (the header caption is gone)
         expect(await screen.findByText("Cường")).toBeInTheDocument()
         expect(screen.getAllByRole("button", { name: "Nhóm A" }).length).toBeGreaterThan(0)
         expect(screen.getAllByRole("button", { name: "Nhóm B" }).length).toBeGreaterThan(0)
@@ -86,7 +78,6 @@ describe("GroupsTab — the derived tables", () => {
         stubFetch({ [GROUPS_URL]: { body: tables({ a: [], b: [], unassigned: [], aPoints: 0 }) } })
         render()
 
-        // an EMPTY ROSTER is not "everyone is drawn": say where contestants are added
         expect(await screen.findByText(/add them in the Thí sinh tab/)).toBeInTheDocument()
         expect(screen.getAllByText("Tổng điểm nhóm")).toHaveLength(2)
     })
@@ -136,7 +127,6 @@ describe("GroupsTab — the draw", () => {
         render()
 
         await screen.findByText("An")
-        // every drawn contestant has a "move to the other group" control
         await user.click(screen.getAllByTitle("Chuyển sang Nhóm B")[0])
 
         await waitFor(() => {
@@ -152,7 +142,6 @@ describe("the two numbers on a group row", () => {
     it("names the group's total instead of a bare '0 pts'", async () => {
         stubFetch({ [GROUPS_URL]: { body: tables({ aPoints: 3 }) } })
         render()
-        // one label per group card, each carrying its own number
         const totals = (await screen.findAllByText("Tổng điểm nhóm")).map((el) => el.parentElement?.textContent?.replace(/\s+/g, " "))
         expect(totals).toHaveLength(2)
         expect(totals.join(" | ")).toContain("3")
@@ -168,14 +157,13 @@ describe("the two numbers on a group row", () => {
         stubFetch({ [GROUPS_URL]: { body: tables({ a: [line("u1", "An", 3, 4, 12.5)] }) } })
         render()
 
-        // two headers, two different numbers: rank paid the group, average per match
         expect((await screen.findAllByText("Thành tích TB")).length).toBe(2)
         expect(screen.getAllByText("Điểm nhóm").length).toBe(2)
 
         const row = screen.getByText("An").closest("tr")!
         const cells = [...row.querySelectorAll("td")].map((td) => (td.textContent || "").trim())
-        expect(cells[2]).toBe("3")      // Điểm nhóm
-        expect(cells[3]).toBe("12.5")   // Thành tích TB
+        expect(cells[2]).toBe("3")      
+        expect(cells[3]).toBe("12.5")   
     })
 
     it("shows — in that column when they have played nothing", async () => {

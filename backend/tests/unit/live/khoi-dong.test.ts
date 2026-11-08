@@ -5,7 +5,6 @@ import { khoiDongPoints, type KhoiDongState } from "../../../src/game/engine/tur
 import { RuleError } from "../../../src/game/engine/turns/errors.js";
 
 const P1 = ["a1", "a2", "a3", "a4", "a5", "a6"];
-// Chung stages SIX questions; the engine refuses any other count.
 const P2 = Array.from({ length: 6 }, (_, i) => `b${i + 1}`);
 const NOW = "2026-01-01T00:00:00.000Z";
 
@@ -16,7 +15,6 @@ const ctx = (over: Partial<KhoiDongContext> = {}): KhoiDongContext => ({
     ...over
 });
 
-/** A submitted card awaiting the console's verdict (the ledger's own shape). */
 const draft = (userId: string, judged = false) =>
     ({ userId, suggestion: "CORRECT" as const, answeredMs: 900, judged });
 
@@ -70,13 +68,11 @@ describe("applyKhoiDongAction — phase 2", () => {
     function finishedPhase1(): KhoiDongState {
         let s = started();
         for (let i = 0; i < 6; i++) s = applyKhoiDongAction(s, { kind: "khoi-dong.recordOral", correct: true, spentS: 1 }, ctx()).state;
-        s = applyKhoiDongAction(s, { kind: "khoi-dong.timeOutRun" }, ctx()).state;   // finish p1's run
+        s = applyKhoiDongAction(s, { kind: "khoi-dong.timeOutRun" }, ctx()).state;   
         return s;
     }
 
     it("cannot begin once phase 1 HAS answers but is unfinished — only an untouched phase skips", () => {
-        // One recorded oral answer = touched: PHASE1_INCOMPLETE keeps guarding
-        // (the skip rule costs phase 1 only while it recorded NOTHING).
         let s = started();
         s = applyKhoiDongAction(s, { kind: "khoi-dong.recordOral", correct: true, spentS: 1 }, ctx()).state;
         expect(() => applyKhoiDongAction(s, { kind: "khoi-dong.beginPhase2" }, ctx()))
@@ -87,7 +83,6 @@ describe("applyKhoiDongAction — phase 2", () => {
         const s = applyKhoiDongAction({} as KhoiDongState, { kind: "khoi-dong.start", phase: 2 }, ctx()).state;
         expect(s.stage).toBe("phase2");
         expect(s.ended).toBe(false);
-        // no oral results carried over — phase 1 scored nothing
         expect(Object.values(s.runs).every((r) => Object.keys(r.results).length === 0)).toBe(true);
     });
 
@@ -95,7 +90,7 @@ describe("applyKhoiDongAction — phase 2", () => {
         const s = applyKhoiDongAction(finishedPhase1(), { kind: "khoi-dong.beginPhase2" }, ctx()).state;
         expect(s.stage).toBe("phase2");
         expect(s.phase2?.questionIds).toEqual(P2);
-        expect(s.phase2?.openedAt).toBeNull();            // nothing runs until Bấm giờ
+        expect(s.phase2?.openedAt).toBeNull();            
     });
 
     it("startWindow opens the window for the question in play — once", () => {
@@ -104,7 +99,6 @@ describe("applyKhoiDongAction — phase 2", () => {
         expect(res.state.phase2?.openedAt).toBe(NOW);
         expect(res.facts).toEqual([]);
 
-        // a second press while the clock runs is refused
         expect(() => applyKhoiDongAction(res.state, { kind: "khoi-dong.startWindow" }, ctx())).toThrow(RuleError);
     });
 
@@ -115,7 +109,7 @@ describe("applyKhoiDongAction — phase 2", () => {
             { kind: "khoi-dong.judge", playerId: "p0", correct: true },
             ctx({ answerDrafts: [draft("p0")] })
         );
-        expect(khoiDongPoints(res.state, "p0")).toBe(60 + 10);     // 60 from the oral runs
+        expect(khoiDongPoints(res.state, "p0")).toBe(60 + 10);     
         expect(res.facts).toEqual([{
             type: "judge", questionId: P2[0], userId: "p0", verdict: "CORRECT", pointsAwarded: 10
         }]);
@@ -160,13 +154,11 @@ describe("applyKhoiDongAction — phase 2", () => {
             { kind: "khoi-dong.startWindow" }, ctx()
         ).state;
 
-        // a card still waiting → the strip may not move
         expect(() => applyKhoiDongAction(
             opened, { kind: "khoi-dong.nextQuestion" },
             ctx({ answerDrafts: [draft("p0")] })
         )).toThrow(RuleError);
 
-        // every card judged → question 2, and its window waits for its own Bấm giờ
         const next = applyKhoiDongAction(
             opened, { kind: "khoi-dong.nextQuestion" },
             ctx({ answerDrafts: [draft("p0", true)] })

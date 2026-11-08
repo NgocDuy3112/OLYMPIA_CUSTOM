@@ -20,8 +20,6 @@ export async function standingsRoutes(app: FastifyInstance) {
         }
     );
 
-    // The AOC group stage: Nhóm A / Nhóm B, derived from the roster's groups and
-    // the phase matches' frozen results. Nothing is stored.
     app.get(
         "/portal/tournaments/:tournamentId/groups",
         { onRequest: staff, schema: { params: tournamentParams } },
@@ -34,7 +32,6 @@ export async function standingsRoutes(app: FastifyInstance) {
         }
     );
 
-    // The table is recomputed whenever a match ends; this is the manual way to redo it.
     app.post(
         "/portal/tournaments/:tournamentId/standings/recompute",
         { onRequest: staff, schema: { params: tournamentParams } },

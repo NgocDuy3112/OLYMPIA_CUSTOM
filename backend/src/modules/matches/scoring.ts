@@ -1,5 +1,3 @@
-// Match-end scoring. Pure: given the competitors and the recorded answers, produce the
-// frozen result. No I/O, so the ranking rules are unit-testable.
 import type { ResultEntry } from "../../game/contracts/index.js";
 
 export interface AnswerForScoring {
@@ -11,13 +9,9 @@ export interface AnswerForScoring {
 export interface MatchResultInput {
     competitors: Array<{ userId: string }>;
     answers: AnswerForScoring[];
-    /** The controller's manual corrections, per player (userId → Σdelta). */
     adjustments?: Record<string, number>;
 }
 
-// Dense ranking: equal totals share a rank, and the next distinct total takes the next
-// rank (scores 100, 90, 90, 80 -> ranks 1, 2, 2, 3). Points are signed, so negatives rank
-// below zero.
 export function denseRanks(entries: Array<{ key: string; total: number }>): Map<string, number> {
     const sorted = [...entries].sort((a, b) => b.total - a.total);
     const ranks = new Map<string, number>();
@@ -41,7 +35,6 @@ export function buildMatchResults(input: MatchResultInput): ResultEntry[] {
     }
 
     for (const answer of input.answers) {
-        // Answers from someone who is not a competitor are ignored, not invented.
         const bucket = byUser.get(answer.userId);
         if (!bucket) continue;
         bucket.total += answer.pointsAwarded;
@@ -49,9 +42,6 @@ export function buildMatchResults(input: MatchResultInput): ResultEntry[] {
             (bucket.roundScores[answer.roundId] ?? 0) + answer.pointsAwarded;
     }
 
-    // Manual corrections join the totals BEFORE ranking — the frozen results
-    // must never disagree with the live scoreboard (scoreTable applies the same
-    // deltas). Match-level: roundScores stay answer-only.
     for (const [userId, delta] of Object.entries(input.adjustments ?? {})) {
         const bucket = byUser.get(userId);
         if (bucket) bucket.total += delta;

@@ -1,8 +1,3 @@
--- The question KIND loses the abbreviation: multiple-choice is CHOICE, and the
--- word "MC" is retired from the system (it named both a question format and the
--- host). The enum is rebuilt; rows are mapped while the column is TEXT, before
--- the cast. The HINT check is dropped first — it compares against the OLD enum,
--- so leaving it in place makes the type swap fail (text <> question_kind).
 ALTER TABLE "question_bank" DROP CONSTRAINT "question_bank_hint_needs_keyword";--> statement-breakpoint
 ALTER TABLE "question_bank" ALTER COLUMN "kind" SET DATA TYPE text;--> statement-breakpoint
 UPDATE "question_bank" SET "kind" = 'CHOICE' WHERE "kind" = 'MC';--> statement-breakpoint

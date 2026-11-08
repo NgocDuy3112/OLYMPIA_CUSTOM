@@ -3,7 +3,6 @@ import type { users, tournaments } from "../db/schema/index.js";
 type SessionUser = typeof users.$inferSelect;
 type TournamentRow = typeof tournaments.$inferSelect;
 
-// PRIVATE = ADMIN only. Callers turn a false into 404 so existence never leaks.
 export function canViewTournament(
     row: Pick<TournamentRow, "visibility">,
     user: SessionUser
@@ -12,7 +11,6 @@ export function canViewTournament(
     return user.role === "ADMIN";
 }
 
-// Writes: ADMIN anywhere, otherwise the owner of a PUBLIC tournament.
 export function canWriteTournament(
     row: Pick<TournamentRow, "visibility" | "ownerId">,
     user: SessionUser

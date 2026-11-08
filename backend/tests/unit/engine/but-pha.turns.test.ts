@@ -53,9 +53,9 @@ describe("but-pha — sequencing", () => {
 describe("but-pha — rules", () => {
     it("the speed order resets for each question", () => {
         let s = startButPha(IDS);
-        s = submitAnswer(s, { playerId: "a", correct: true, atS: 3 });  // q1 order 1: 15×4=60
+        s = submitAnswer(s, { playerId: "a", correct: true, atS: 3 });  
         s = closeQuestion(s);
-        s = submitAnswer(s, { playerId: "b", correct: true, atS: 3 });  // q2 order 1: 15×4=60
+        s = submitAnswer(s, { playerId: "b", correct: true, atS: 3 });  
         expect(butPhaTotal(s, "a")).toBe(60);
         expect(butPhaTotal(s, "b")).toBe(60);
     });
@@ -63,7 +63,7 @@ describe("but-pha — rules", () => {
     it("a wrong answer scores 0 and does not take a speed order", () => {
         let s = startButPha(IDS);
         s = submitAnswer(s, { playerId: "a", correct: false, atS: 1 });
-        s = submitAnswer(s, { playerId: "b", correct: true, atS: 3 });  // still the 1st correct
+        s = submitAnswer(s, { playerId: "b", correct: true, atS: 3 });  
         expect(butPhaTotal(s, "a")).toBe(0);
         expect(butPhaTotal(s, "b")).toBe(60);
     });
@@ -73,14 +73,14 @@ describe("but-pha — rules", () => {
         s = submitAnswer(s, { playerId: "a", correct: true, atS: 1 });
         s = submitAnswer(s, { playerId: "b", correct: true, atS: 1 });
         s = submitAnswer(s, { playerId: "c", correct: true, atS: 1 });
-        s = submitAnswer(s, { playerId: "d", correct: true, atS: 20 }); // 4th: base 5 × 1
+        s = submitAnswer(s, { playerId: "d", correct: true, atS: 20 }); 
         expect(butPhaTotal(s, "d")).toBe(5);
     });
 
     it("an answer after 30 s is rejected: scores 0 and takes no speed order", () => {
         let s = startButPha(IDS);
         s = submitAnswer(s, { playerId: "late", correct: true, atS: 30.5 });
-        s = submitAnswer(s, { playerId: "b", correct: true, atS: 3 });  // still 1st correct
+        s = submitAnswer(s, { playerId: "b", correct: true, atS: 3 });  
         expect(butPhaTotal(s, "late")).toBe(0);
         expect(butPhaTotal(s, "b")).toBe(60);
     });
@@ -139,7 +139,7 @@ describe("but-pha — the per-question clock", () => {
     it("an answer at exactly 30 s is accepted; past 30 s is not", () => {
         const open = openCurrentQuestion(startButPha(IDS), NOW);
         const onTime = submitAnswer(open, { playerId: "a", correct: true, atS: 30 });
-        expect(butPhaTotal(onTime, "a")).toBe(5 * 4);          // base 5 at 30 s, 1st correct
+        expect(butPhaTotal(onTime, "a")).toBe(5 * 4);          
         const late = submitAnswer(open, { playerId: "b", correct: true, atS: 30.5 });
         expect(butPhaTotal(late, "b")).toBe(0);
     });

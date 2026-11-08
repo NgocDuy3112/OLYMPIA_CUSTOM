@@ -9,7 +9,6 @@ import { signToken } from "../../src/lib/jwt.js";
 import { openHint, startGiaiMa } from "../../src/game/engine/turns/giai-ma.js";
 import type { MatchQuestion } from "../../src/game/contracts/index.js";
 
-// The realtime channel needs a listening server: app.inject cannot upgrade a socket.
 
 let app: FastifyInstance;
 let ownerCookie: string;
@@ -54,7 +53,6 @@ beforeAll(async () => {
     }).returning();
     outsiderCookie = signToken(app, "GAMEPLAY", { sub: outsider.id, role: "PLAYER", tokenVersion: 0 });
 
-    // The tournament is the unit: it carries the identity the tournament had.
     const tournamentTags = ["THTH"];
     const tournamentOwner = owner.id;
     const tournamentSlug = "stream-tournament-tournament";
@@ -79,7 +77,6 @@ beforeAll(async () => {
     }).returning();
     matchId = match.id;
 
-    // A round already started, with the first hint's window open.
     const started: Record<string, unknown> = openHint(
         startGiaiMa([player.id], hintIds), hintIds[0], new Date().toISOString()
     ) as unknown as Record<string, unknown>;
@@ -105,7 +102,6 @@ function nextMessage(socket: WebSocket, timeoutMs = 3000): Promise<any> {
     });
 }
 
-// A submission produces a result message AND a pushed view, so read by type, not order.
 function inbox(socket: WebSocket) {
     const queue: any[] = [];
     socket.on("message", (data) => queue.push(JSON.parse(String(data))));
@@ -150,10 +146,10 @@ describe("live stream — a connected player", () => {
 
     it("is pushed an updated view when the controller changes the round", async () => {
         const socket = await connect(playerCookie);
-        await nextMessage(socket);                              // the opening snapshot
+        await nextMessage(socket);                              
 
         const pushed = nextMessage(socket);
-        const res = await act({ kind: "giai-ma.resolveHint", verdicts: [] }); // nobody answered → closes the window
+        const res = await act({ kind: "giai-ma.resolveHint", verdicts: [] }); 
         expect(res.statusCode).toBe(200);
 
         const update = await pushed;
@@ -190,7 +186,7 @@ describe("live stream — submitting over the socket", () => {
     it("a player submits an answer and receives a receipt — not a verdict", async () => {
         const socket = await connect(playerCookie);
         const next = inbox(socket);
-        await next("view");                                  // the snapshot
+        await next("view");                                  
 
         socket.send(JSON.stringify({
             v: 1, type: "answer", requestId: "r1",
@@ -200,7 +196,7 @@ describe("live stream — submitting over the socket", () => {
         const result = await next("ack");
         expect(result).toMatchObject({
             v: 1, type: "ack", requestId: "r1",
-            data: { for: "answer", result: { drafted: true } }   // no correctness, no suggestion
+            data: { for: "answer", result: { drafted: true } }   
         });
         socket.close();
     });
@@ -210,7 +206,7 @@ describe("live stream — submitting over the socket", () => {
         const next = inbox(socket);
         const snapshot = await next("view");
         expect(snapshot.data.view.open[0].questionId).toBe(hintIds[1]);
-        expect(snapshot.data.view.me.answerState).toBe("draft");   // awaiting the console's verdict
+        expect(snapshot.data.view.me.answerState).toBe("draft");   
         socket.close();
     });
 
@@ -247,8 +243,6 @@ describe("live stream — submitting over the socket", () => {
     });
 
     it("a ve-dich command during a giai-ma round is refused", async () => {
-        // The buzz envelope is valid, but this fixture is playing giai-ma: the round check
-        // rejects it before the engine is ever consulted.
         const socket = await connect(playerCookie);
         const next = inbox(socket);
         await next("view");
@@ -265,9 +259,6 @@ describe("live stream — submitting over the socket", () => {
     });
 });
 
-// ── The console's socket twin ──────────────────────────────────────────────────
-// Same fan-out as the players' channel, different payload (the console read),
-// two doors (operator session / spectate public).
 
 const consoleUrl = () => `${baseUrl}/portal/tournaments/${tournamentId}/matches/${matchId}/live/stream`;
 const spectateUrl = () => `${baseUrl}/spectate/tournaments/${tournamentId}/matches/${matchId}/live/stream`;
@@ -289,7 +280,7 @@ describe("live stream — the console", () => {
         const view = message.data.view;
         expect(view.roundId).toBe("giai-ma");
         expect(view.projection.roundId).toBe("giai-ma");
-        expect(view.console).toBeTruthy();               // the console facts ride along
+        expect(view.console).toBeTruthy();               
         expect(Array.isArray(view.questions)).toBe(true);
         expect(typeof view.version).toBe("number");
         socket.close();
@@ -316,13 +307,13 @@ describe("live stream — the console", () => {
 
         const consoleSocket = await connectConsole(ownerCookie);
         const next = inbox(consoleSocket);
-        await next("console");                           // the snapshot
+        await next("console");                           
 
         const playerSocket = await connect(playerCookie);
         const playerNext = inbox(playerSocket);
         await playerNext("view");
 
-        const pushed = next("console", 5000);            // the submission's publish
+        const pushed = next("console", 5000);            
         playerSocket.send(JSON.stringify({
             v: 1, type: "answer", requestId: "push1",
             data: { questionId: hintIds[2], value: { text: "x" } }
@@ -337,7 +328,7 @@ describe("live stream — the console", () => {
 
     it("lists a connected player in `connected`, but never its own socket", async () => {
         const playerSocket = await connect(playerCookie);
-        await nextMessage(playerSocket);                 // the player's snapshot
+        await nextMessage(playerSocket);                 
 
         const socket = await connectConsole(ownerCookie);
         const message = await nextMessage(socket);
@@ -362,6 +353,6 @@ describe("live stream — the console", () => {
 
     it("refuses the operator door with no session", async () => {
         const socket = await connectConsole(null).catch(() => null);
-        expect(socket).toBeNull();                       // upgrade refused → error, never open
+        expect(socket).toBeNull();                       
     });
 });

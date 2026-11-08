@@ -1,14 +1,3 @@
-// The group stage's table — the AOC "Vòng bảng".
-//
-// Two tables, one source: the roster's groups (tournament_players.group) and the
-// FROZEN results of the phase-1/phase-2 matches. The arithmetic is pure and
-// lives in engine/scoring/group-stage.ts; this file only feeds it and names the
-// people in the result.
-//
-// Teams are gone (migration 0030): a "team" here is the roster GROUP (Nhóm A /
-// Nhóm B), and its points are the sum of what its members banked by finishing
-// position. Nothing is stored — a group table is derived on read, so it can
-// never drift from the results it is made of.
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../../db/pool.js";
 import {
@@ -27,33 +16,26 @@ import {
     type GroupMatchInput
 } from "../../game/engine/scoring/group-stage.js";
 
-/** One contestant's line in their group (or in the wildcard table). */
 export interface GroupRow {
     userId: string;
     displayName: string;
     matchesPlayed: number;
-    /** Σ team points this contestant banked for their group. */
     bankedPoints: number;
     averages: Averages;
 }
 
 export interface GroupBlock {
     id: GroupLabel;
-    /** Σ of the members' banked points — the group's own score. */
     teamPoints: number;
     rows: GroupRow[];
 }
 
 export interface GroupTables {
-    /** The two groups, in label order. Rows are rank-ordered (see the engine). */
     groups: GroupBlock[];
-    /** Enrolled players with no group yet — the operator still has to place them. */
     unassigned: Array<{ userId: string; displayName: string }>;
-    /** The wildcard leaderboard: every contestant with ≥ 1 match, best avg first. */
     wildcard: Array<GroupRow & { avg: number }>;
 }
 
-/** Enrolled players, with the group they bank for (null = not drawn yet). */
 async function rosterWithGroups(tournamentId: string): Promise<Array<{
     userId: string;
     displayName: string;
@@ -71,7 +53,6 @@ async function rosterWithGroups(tournamentId: string): Promise<Array<{
         .orderBy(asc(tournamentPlayers.enrolledAt));
 }
 
-/** The GROUP matches of the tournament, with their frozen results. */
 async function groupMatches(tournamentId: string): Promise<GroupMatchInput[]> {
     const stageIds = ["phase-1", "phase-2"];
 
@@ -93,7 +74,7 @@ async function groupMatches(tournamentId: string): Promise<GroupMatchInput[]> {
 
     return rows.flatMap((row) => {
         const phase = phaseOfStage(row.stageId);
-        if (phase === null) return [];                     // not a group match
+        if (phase === null) return [];                     
         const results = (row.results as ResultEntry[])
             .filter((entry) => entry.kind === "user")
             .map((entry) => ({
@@ -105,10 +86,6 @@ async function groupMatches(tournamentId: string): Promise<GroupMatchInput[]> {
     });
 }
 
-/**
- * The group stage as the deck shows it: who is in which Nhóm, what each
- * contestant banked, and who is still to be drawn.
- */
 export async function getGroupTables(tournamentId: string): Promise<GroupTables> {
     const [tournament] = await db
         .select({ id: tournaments.id })
@@ -120,8 +97,6 @@ export async function getGroupTables(tournamentId: string): Promise<GroupTables>
     const roster = await rosterWithGroups(tournamentId);
     const names = new Map(roster.map((row) => [row.userId, row.displayName]));
 
-    // Only drawn contestants take part in the grouping; the rest are the
-    // operator's remaining work and are reported as such.
     const drawn = new Map<string, GroupLabel>();
     for (const row of roster) {
         if (row.group) drawn.set(row.userId, row.group);

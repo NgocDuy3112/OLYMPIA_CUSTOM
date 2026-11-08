@@ -11,7 +11,6 @@ type UserRow = typeof users.$inferSelect;
 
 export type PublicMcpKey = Omit<McpKeyRow, "keyHash">;
 
-// key_hash never leaves the API — not even for the owner (doc: sha256, shown once).
 const publicColumns = {
     id: mcpKeys.id,
     userId: mcpKeys.userId,
@@ -28,7 +27,7 @@ const publicColumns = {
 
 
 export interface IssuedMcpKey {
-    token: string;          // returned exactly once
+    token: string;          
     key: PublicMcpKey;
 }
 
@@ -87,8 +86,6 @@ export async function listMcpKeys(
 }
 
 
-// Revocation is the instant kill (doc) and is never undone — a revoked key is
-// replaced, not restored. Repeat calls are idempotent.
 export async function revokeMcpKey(
     id: string,
     options: { userId?: string } = {}
@@ -146,7 +143,6 @@ export async function verifyMcpToken(
     if (!user) unauthorized("Account not found");
     if (user.disabledAt) unauthorized("Account disabled");
 
-    // Doc: last_used_at on every call; last_ip / last_user_agent on change only.
     const updates: Partial<typeof mcpKeys.$inferInsert> = { lastUsedAt: new Date() };
     if (context.ip && context.ip !== key.lastIp) updates.lastIp = context.ip;
     if (context.userAgent && context.userAgent !== key.lastUserAgent) {

@@ -3,11 +3,6 @@ import { fireEvent, render } from "@testing-library/react"
 
 import { QuestionBlock } from "@shared/deck/stage"
 
-// The question card's three media realities:
-//   none      → the text takes the whole card (no empty gray well)
-//   horizontal→ the well spans the row at the image's aspect
-//   vertical  → the well stays NARROW at the image's aspect (no pillarbox box)
-// plus: a broken URL falls back to the placeholder, audio/video keeps a labeled well.
 
 const image = (url: string) => ({ url, type: "image" })
 
@@ -30,7 +25,6 @@ describe("QuestionBlock — horizontal media", () => {
     it("the well adopts the image's landscape aspect once loaded", () => {
         const { img } = renderCard({ media: image("https://x/h.jpg") })
         expect(img).not.toBeNull()
-        // 16:9 until the browser reports the natural size…
         expect(img!.parentElement!.style.aspectRatio).toBe("16 / 9")
 
         Object.defineProperty(img!, "naturalWidth", { value: 1200 })

@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { flashOf, refusalOf } from "@/lib/flash"
 
-// The refusal line. A rejected write is normal play (the window moved on), so
-// the deck has to say it in a slot — never crash, never go silent. Two rows
-// matter: which error wins, and what a non-Error rejection reads as.
 
 describe("refusalOf", () => {
     it("passes a transport error's message through", () => {

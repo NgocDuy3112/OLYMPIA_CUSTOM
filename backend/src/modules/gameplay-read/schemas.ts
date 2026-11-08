@@ -1,5 +1,3 @@
-// The public read surface's wire shapes. These are the SECOND lock on what leaves the
-// server: the serializer picks fields, and the response schemas strip anything else.
 import "../../lib/typebox-formats.js";
 import { Type, Static } from "@sinclair/typebox";
 import {
@@ -10,8 +8,6 @@ import {
     Uuid
 } from "../../game/contracts/index.js";
 
-// A spectator's URL carries the slug, never the id: it is the human-readable name
-// minted by the tournaments module (slugify → [a-z0-9-], unique index from migration 0016).
 export const slugParams = {
     type: "object",
     required: ["slug"],
@@ -19,10 +15,6 @@ export const slugParams = {
     properties: { slug: { type: "string", pattern: "^[a-z0-9-]{1,100}$" } }
 } as const;
 
-// Pagination arrives as strings: ajv runs with coerceTypes: false (see app.ts), so the
-// parse happens in lib/pagination — same contract as the portal's list routes.
-// Pagination is parsed by lib/pagination — no pattern here, so one validator and
-// one error shape (PaginationError → 400 VALIDATION) rather than two.
 export const PublicPageQuery = Type.Object({
     limit: Type.Optional(Type.String()),
     offset: Type.Optional(Type.String())
@@ -30,7 +22,6 @@ export const PublicPageQuery = Type.Object({
 export type PublicPageQuery = Static<typeof PublicPageQuery>;
 
 
-// ─── A seated player, resolved to a name ─────────────────────────────────────
 
 export const PublicPlayer = Type.Object({
     id: Uuid,
@@ -39,9 +30,6 @@ export const PublicPlayer = Type.Object({
 }, { additionalProperties: false });
 export type PublicPlayer = Static<typeof PublicPlayer>;
 
-// A final result of a FINISHED match — the stored match_results entry, with the
-// player's name resolved. No question-level detail: the totals are the ranking,
-// the stats table is not public.
 export const PublicResultEntry = Type.Object({
     id: Uuid,
     name: Type.String(),
@@ -57,16 +45,13 @@ export const PublicMatch = Type.Object({
     slot: Type.Union([Type.Integer(), Type.Null()]),
     status: Type.Union([Type.Literal("UPCOMING"), Type.Literal("LIVE"), Type.Literal("FINISHED")]),
     scheduledAt: IsoDateTime,
-    // "<stage title> · <label>" — the display string the schedule shows.
     round: Type.String(),
     players: Type.Array(PublicPlayer),
-    // Only FINISHED matches carry results.
     results: Type.Optional(Type.Array(PublicResultEntry))
 }, { additionalProperties: false });
 export type PublicMatch = Static<typeof PublicMatch>;
 
 
-// ─── The tournament ──────────────────────────────────────────────────────────
 
 export const PublicTournament = Type.Object({
     id: Uuid,
@@ -75,19 +60,15 @@ export const PublicTournament = Type.Object({
     current: Type.Boolean(),
     createdAt: IsoDateTime,
     closedAt: Type.Union([IsoDateTime, Type.Null()]),
-    // Derived from the stage list: the earliest start and the latest end.
     start: Type.Union([IsoDateTime, Type.Null()]),
     end: Type.Union([IsoDateTime, Type.Null()]),
-    // The four rounds and their chart data — the match view renders from these.
     rounds: Type.Array(TournamentRoundSchema),
     format: TournamentFormatSchema,
-    // The stage list is the tournament's spine and is meant to be public.
     stages: Type.Array(StageSchema),
     places: Type.Integer()
 }, { additionalProperties: false });
 export type PublicTournament = Static<typeof PublicTournament>;
 
-// The list route: enough to pick a tournament, nothing to leak.
 export const PublicTournamentSummary = Type.Object({
     id: Uuid,
     slug: Type.String(),
@@ -100,7 +81,6 @@ export const PublicTournamentSummary = Type.Object({
 export type PublicTournamentSummary = Static<typeof PublicTournamentSummary>;
 
 
-// ─── Responses ───────────────────────────────────────────────────────────────
 
 export const TournamentListResponse = Type.Object({
     tournaments: Type.Array(PublicTournamentSummary)
@@ -113,8 +93,6 @@ export const ScheduleResponse = Type.Object({
     offset: Type.Integer()
 }, { additionalProperties: false });
 
-// A standings row is the places table's own shape — the engine's PlayerStanding,
-// which is already display data.
 export const PublicStandingRow = Type.Object({
     userId: Uuid,
     displayName: Type.String(),

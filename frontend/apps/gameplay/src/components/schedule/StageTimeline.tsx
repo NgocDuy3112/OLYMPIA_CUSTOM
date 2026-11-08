@@ -2,8 +2,6 @@ import { Check } from "lucide-react"
 import { cn } from "cn"
 import type { Stage } from "@/lib/api"
 
-// The tournament's own stage list — the spine of the show. Each stage window is
-// an ISO datetime on the wire; the timeline compares DAYS.
 
 type StageState = "done" | "current" | "upcoming"
 

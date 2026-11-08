@@ -12,7 +12,6 @@ const adminUrl = testUrl.replace(/\/[^/?]+$/, "/postgres");
 
 
 export default async function globalSetup(): Promise<void> {
-    // 1. Create the test database if it does not exist yet.
     const admin = new pg.Client({ connectionString: adminUrl });
     await admin.connect();
     try {
@@ -20,20 +19,19 @@ export default async function globalSetup(): Promise<void> {
             dbName
         ]);
         if (rows.length === 0) {
-            await admin.query(`CREATE DATABASE "${dbName}"`); // quoted: identifiers may carry odd chars
+            await admin.query(`CREATE DATABASE "${dbName}"`); 
             console.log(`[global-setup] created database ${dbName}`);
         }
     } finally {
         await admin.end();
     }
 
-    // 2. Fresh schema every run, 3. migrations applied.
     const pool = new pg.Pool({ connectionString: testUrl });
     try {
         await pool.query("DROP SCHEMA public CASCADE");
         await pool.query("DROP SCHEMA IF EXISTS drizzle CASCADE");
         await pool.query("CREATE SCHEMA public");
-        await migrate(drizzle(pool), { migrationsFolder: "./migrations" }); // cwd = backend/
+        await migrate(drizzle(pool), { migrationsFolder: "./migrations" }); 
         console.log("[global-setup] schema reset + migrations applied");
     } finally {
         await pool.end();

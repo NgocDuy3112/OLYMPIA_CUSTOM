@@ -6,13 +6,6 @@ import { db } from "../../src/db/pool.js";
 import { auditEvents, matchCodes, matches, tournamentPlayers, tournaments, users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 
-// Room codes and one-time entry codes — the PIN returns, demoted.
-//
-// The rule under test: THE CODE SAYS WHICH ROOM, THE ACCOUNT SAYS WHO YOU ARE.
-// A claim needs BOTH (session + code), an entry code names ONE account and
-// dies on use, and neither ever mints an identity the way the deleted /join
-// claim did. Rotation and expiry are the reasons this is a table and not a
-// column: a leaked code must stop working without touching a seat.
 
 let app: FastifyInstance;
 let ownerCookie: string;
@@ -23,27 +16,15 @@ const SLUG = "code-cup";
 
 const portalAuth = (cookie: string) => ({ cookie: `portal_session=${cookie}` });
 
-/**
- * The rate-limited routes count per IP, and every inject defaults to the same
- * one — each call gets its own address so the limit under test is the route's
- * own behaviour, not this file's traffic.
- */
 let ipTick = 0;
 const perCallIp = () => `10.9.${Math.floor(ipTick / 200)}.${(ipTick++ % 200) + 1}`;
 
-/** What the desk types when it creates an account — the player replaces it. */
 const DESK_PASSWORD = "mat-khau-ban-2026";
 const OWN_PASSWORD = "mat-khau-cua-toi-1";
 
 const sessionCookie = (res: { headers: Record<string, unknown> }) =>
     `gameplay_session=${(String(res.headers["set-cookie"] ?? "").split("gameplay_session=")[1] ?? "").split(";")[0]}`;
 
-/**
- * A player with a working session — the whole step-8 flow in one helper, because
- * there is no shorter way to a session any more: the desk CREATES the account
- * (handle derived from the name, first password typed), the player signs in
- * with it, and the gate only lifts once they set their own password.
- */
 async function makePlayer(displayName: string): Promise<{ id: string; cookie: string }> {
     const created = await app.inject({
         method: "POST",
@@ -187,7 +168,6 @@ describe("the room code — which room is open", () => {
     it("refuses a claim with no session: the code alone is never identity", async () => {
         const res = await claim(code);
         expect(res.statusCode).toBe(401);
-        // and the seat did not move
         expect((await seatsOf(openMatch))).toHaveLength(1);
     });
 
@@ -215,7 +195,6 @@ describe("the room code — which room is open", () => {
         const unknown = await claim("ZZZZZZ", playerC.cookie);
         expect(unknown.statusCode).toBe(404);
 
-        // Expired: the row exists, the clock says no.
         const expiredMatch = await makeMatch("Yesterday", []);
         await db.insert(matchCodes).values({
             code: "EXPIRD",
@@ -244,7 +223,6 @@ describe("the room code — which room is open", () => {
         expect(takesIt.statusCode).toBe(200);
         expect(await seatsOf(lastSeatMatch)).toHaveLength(4);
 
-        // 409, not a half-written seat: the two claims were serialised.
         const refused = await claim(tableCode, playerE.cookie);
         expect(refused.statusCode).toBe(409);
         expect(await seatsOf(lastSeatMatch)).toHaveLength(4);
@@ -266,7 +244,6 @@ describe("the room code — which room is open", () => {
         });
         expect(mint.statusCode).toBe(409);
 
-        // A code minted while the match was still open still says no.
         await db.insert(matchCodes).values({
             code: "FINSHD",
             matchId: finished,
@@ -301,8 +278,6 @@ describe("rotation — a leaked code dies on the spot", () => {
         const dead = await claim(before, player.cookie);
         expect(dead.statusCode).toBe(404);
 
-        // The player who already sat down keeps their seat: rotation is about
-        // the CODE, never about the match.
         expect(await seatsOf(matchId)).toEqual(seatsBefore);
 
         const alive = await claim(after, player.cookie);
@@ -340,8 +315,6 @@ describe("rotation — a leaked code dies on the spot", () => {
     });
 
     it("404s a match that belongs to another tournament", async () => {
-        // The tournament id is part of the lookup: pairing this desk's own
-        // tournament with a match id seen elsewhere must not mint anything.
         const [other] = await db
             .insert(tournaments)
             .values({
@@ -456,9 +429,6 @@ describe("the seat claim lands on the record", () => {
 
 describe("the walk-in's whole path — the done-when, end to end", () => {
     it("is created by the desk, sets their own password, and reaches the deck with the code", async () => {
-        // 1. The DESK creates the account: name in, handle + first password out,
-        //    enrolled in the same call. Nothing is mailed and the player types
-        //    nothing here — registration is gone.
         const created = await app.inject({
             method: "POST",
             url: `/portal/tournaments/${tournamentId}/players/new`,
@@ -469,8 +439,6 @@ describe("the walk-in's whole path — the done-when, end to end", () => {
         const { username } = created.json() as { userId: string; username: string };
         expect(username).toBe("vao-san");
 
-        // 2. Sign in with what the desk handed over — play is still refused:
-        //    the desk's password is not this player's password yet.
         const first = await app.inject({
             method: "POST",
             url: "/gameplay/auth/login",
@@ -488,8 +456,6 @@ describe("the walk-in's whole path — the done-when, end to end", () => {
         expect(blocked.statusCode).toBe(409);
         expect((blocked.json() as { error: string }).error).toBe("PASSWORD_CHANGE_REQUIRED");
 
-        // 3. They set their OWN password: the gate opens, and the session the
-        //    desk's password minted dies with it (tokenVersion moved on).
         const changed = await app.inject({
             method: "POST",
             url: "/gameplay/auth/change-password",
@@ -500,20 +466,16 @@ describe("the walk-in's whole path — the done-when, end to end", () => {
         expect(changed.statusCode).toBe(200);
         const cookie = sessionCookie(changed);
 
-        // 4. Type the room code the desk reads out → seated on the spot.
         const matchId = await makeMatch("Walk-in table", []);
         const code = await mintRoomCode(matchId);
         const seated = await claim(code, cookie);
         expect(seated.statusCode).toBe(200);
         expect(seated.json()).toMatchObject({ matchId, slug: SLUG });
 
-        // 5. Which is exactly what the navbar's one-click «Vào trận» opens.
         const mine = await app.inject({ method: "GET", url: "/gameplay/me/match", headers: { cookie } });
         const items = (mine.json() as { items: Array<{ matchId: string }> }).items;
         expect(items.map((item) => item.matchId)).toContain(matchId);
 
-        // …and the session the DESK's password minted is dead: from here the
-        // player's own password is the only way back in.
         const stale = await app.inject({
             method: "GET",
             url: "/gameplay/me/match",

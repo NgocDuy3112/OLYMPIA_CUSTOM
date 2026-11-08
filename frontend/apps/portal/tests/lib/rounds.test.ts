@@ -4,9 +4,6 @@ import { endRoundPlanOf, nextQuestionPlanOf, railVariantOf } from "@/rounds"
 import { hetLuotAction } from "@/rounds/ve-dich/logic"
 import type { QuestionAnswerRow } from "@/lib/live"
 
-// The controller's round RULES, table-tested through the registry: which rail
-// each round draws and the two action planners behind the deck's buttons
-// (Kết thúc / Hết lượt). A new ruleset = a new module + rows here.
 
 type PlanInput = Parameters<typeof endRoundPlanOf>[1]
 
@@ -30,16 +27,12 @@ const row = (userId: string, verdict: QuestionAnswerRow["verdict"], judged: bool
 
 describe("railVariantOf — identity cards vs answer rows", () => {
     it("the personal rounds draw compact cards; the judging rounds draw answer rows", () => {
-        // khoi-dong's oral round (and an unknown round's phase 1)
         expect(railVariantOf({ roundId: "khoi-dong", stage: "phase1", veDichPhase: null })).toBe("compact")
         expect(railVariantOf({ roundId: "mystery", stage: "phase1", veDichPhase: null })).toBe("compact")
-        // khoi-dong's batch round (and an unknown round's phase 2)
         expect(railVariantOf({ roundId: "khoi-dong", stage: "phase2", veDichPhase: null })).toBe("answers")
         expect(railVariantOf({ roundId: "mystery", stage: "phase2", veDichPhase: null })).toBe("answers")
-        // the fixed judging rounds
         expect(railVariantOf({ roundId: "giai-ma", stage: "hints", veDichPhase: null })).toBe("answers")
         expect(railVariantOf({ roundId: "but-pha", stage: "question", veDichPhase: null })).toBe("answers")
-        // ve-dich: phase 1 judges with answer rows, phase 2 shows identity cards
         expect(railVariantOf({ roundId: "ve-dich", stage: "phase1", veDichPhase: 1 })).toBe("answers")
         expect(railVariantOf({ roundId: "ve-dich", stage: "phase2", veDichPhase: 2 })).toBe("compact")
     })
@@ -72,7 +65,6 @@ describe("endRoundPlanOf — what Kết thúc sends (one press ends the round)",
     })
 
     it("but-pha: ONE press ends — committing the open question first if unjudged", () => {
-        // every row staged → the commit carries EXACTLY those verdicts, then end
         expect(endRoundPlanOf("but-pha", input({
             stage: "question",
             openIds: ["b1"],
@@ -90,8 +82,6 @@ describe("endRoundPlanOf — what Kết thúc sends (one press ends the round)",
             { kind: "but-pha.endRound" },
         ])
 
-        // PARTIALLY staged → only the staged rows travel; the backend refuses the
-        // incomplete set (UNJUDGED_ANSWERS) and the chain stops before endRound
         expect(endRoundPlanOf("but-pha", input({
             stage: "question",
             openIds: ["b1"],
@@ -106,14 +96,12 @@ describe("endRoundPlanOf — what Kết thúc sends (one press ends the round)",
             { kind: "but-pha.endRound" },
         ])
 
-        // NOTHING staged → no commit at all; the end guard carries the refusal
         expect(endRoundPlanOf("but-pha", input({
             stage: "question",
             openIds: ["b1"],
             rows: [row("u2", null, false)],
         }))).toEqual([{ kind: "but-pha.endRound" }])
 
-        // already judged / nobody answered → straight end
         expect(endRoundPlanOf("but-pha", input({
             stage: "question",
             openIds: ["b1"],
@@ -137,7 +125,6 @@ describe("nextQuestionPlanOf — what Tính giờ sends (pick a NEW question)", 
     })
 
     it("mid-round: commit the current question, advance, open the next", () => {
-        // staged → the commit travels with the advance
         expect(nextQuestionPlanOf("but-pha", input({
             stage: "question",
             openIds: ["b1"],
@@ -150,8 +137,6 @@ describe("nextQuestionPlanOf — what Tính giờ sends (pick a NEW question)", 
             { kind: "but-pha.openQuestion" },
         ])
 
-        // nothing staged → no empty commit; closeQuestion's own UNJUDGED_ANSWERS
-        // guard refuses the advance (the console must stage first)
         expect(nextQuestionPlanOf("but-pha", input({
             stage: "question",
             openIds: ["b1"],

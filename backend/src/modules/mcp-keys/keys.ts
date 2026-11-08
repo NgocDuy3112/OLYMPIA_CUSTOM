@@ -1,8 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
 
-// Wire format: ocmcp_<8 hex prefix>_<64 hex secret>
-// The prefix is DISPLAY ONLY (lists, logs, support) — verification always looks
-// up by sha256 hash, so the raw token is never stored and never recoverable.
 const TOKEN_MARKER = "ocmcp";
 const PREFIX_HEX_BYTES = 4;
 const SECRET_HEX_BYTES = 32;
@@ -13,8 +10,6 @@ export interface GeneratedMcpKey {
     keyHash: string;
 }
 
-// SHA-256 (not argon2): verification is a single indexed lookup on key_hash,
-// which is only possible because the hash is deterministic and unsalted.
 export function hashMcpKey(token: string): string {
     return createHash("sha256").update(token).digest("hex");
 }

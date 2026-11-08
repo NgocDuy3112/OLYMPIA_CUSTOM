@@ -2,16 +2,8 @@ import { describe, expect, it } from "vitest";
 import { Value } from "@sinclair/typebox/value";
 import { LiveActionSchema } from "../../../src/modules/live/actions.js";
 
-// The route's door (POST /live/actions) is guarded by Value.Check(LiveActionSchema).
-// This is the contract test for it: every action the CONSOLE's deck may send must
-// pass, and the player-door actions (built server-side from a player's own
-// command, never from a client claiming a playerId) must stay refused.
-//
-// The frontend's mirror of this union lives in
-// frontend/apps/portal/src/lib/live-actions.ts — change one, change both.
 
 const consoleSent: unknown[] = [
-    // giai-ma
     { kind: "giai-ma.start", playerIds: ["p1"], hintIds: ["q1"] },
     { kind: "giai-ma.openHint", hintId: "q1" },
     { kind: "giai-ma.closeHintWindow" },
@@ -19,13 +11,11 @@ const consoleSent: unknown[] = [
     { kind: "giai-ma.submitKeyword", playerId: "p1", questionId: "q1", text: "abc", suggestion: "CORRECT" },
     { kind: "giai-ma.judgeKeyword", playerId: "p1", questionId: "q1", correct: false },
     { kind: "giai-ma.endRound" },
-    // but-pha
     { kind: "but-pha.start" },
     { kind: "but-pha.openQuestion" },
     { kind: "but-pha.closeQuestion" },
     { kind: "but-pha.endRound" },
     { kind: "but-pha.finalize", questionId: "q1", verdicts: [{ playerId: "p1", correct: true }] },
-    // khoi-dong
     { kind: "khoi-dong.start" },
     { kind: "khoi-dong.start", phase: 2 },
     { kind: "khoi-dong.recordOral", correct: true, spentS: 12 },
@@ -35,7 +25,6 @@ const consoleSent: unknown[] = [
     { kind: "khoi-dong.judge", playerId: "u1", correct: false },
     { kind: "khoi-dong.nextQuestion" },
     { kind: "khoi-dong.endRound" },
-    // ve-dich — controller half
     { kind: "ve-dich.start" },
     { kind: "ve-dich.start", phase: 2 },
     { kind: "ve-dich.beginPhase2" },
@@ -46,24 +35,16 @@ const consoleSent: unknown[] = [
     { kind: "ve-dich.resolve", answerer: true, buzzer: false },
     { kind: "ve-dich.advanceTurn" },
     { kind: "ve-dich.endRound" },
-    // ve-dich — the console declares powers for the turn player (regression:
-    // this was missing from the union and every declare button 400'd)
     { kind: "ve-dich.declarePower", playerId: "p1", power: "STAR" },
     { kind: "ve-dich.declarePower", playerId: "p1", power: "ASSIGN", targetId: "p2" },
-    // "Không dùng quyền năng" — the explicit no-power choice (pre-open row)
     { kind: "ve-dich.declarePower", playerId: "p1", power: null },
-    // the console picks for the turn player (the engine guards the playerId)
     { kind: "ve-dich.pick", playerId: "p1", questionId: "q1" },
     { kind: "ve-dich.pickBatch", playerId: "p1", questionIds: ["a", "b", "c"] },
-    // match-level
     { kind: "round.goTo", roundId: "khoi-dong" },
     { kind: "score.adjust", userId: "p1", delta: -10, reason: "Correction" },
     { kind: "reveal.answer", questionId: "q1" },
 ];
 
-// Built ONLY by ve-dich-player.ts from a player's own websocket command —
-// a client claiming a playerId must not reach the console door. (Picking is
-// NOT here: it moved to the console door — the desk picks for the turn player.)
 const playerDoorOnly: unknown[] = [
     { kind: "ve-dich.buzz", playerId: "p1" },
 ];

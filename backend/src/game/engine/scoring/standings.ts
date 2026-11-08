@@ -1,20 +1,3 @@
-// The tournament's standings: a placement table, not a points league.
-//
-// The place of a player is decided by HOW FAR THEY GOT, never by a sum of scores:
-//   - the tournament's stages are ordered (the tournament's stage list is that order);
-//   - inside a stage, the matches are ordered by their slot;
-//   - inside a match, the player's own rank in that match decides.
-//
-// So the tournament's places are the concatenation of the stages, last first, and inside a
-// stage the slots, and inside a slot the match's own result. A player who never took a
-// seat has no place: they are listed at the bottom, with no points.
-//
-// A tie for a placement shares the place (dense numbering), never a silent break.
-// What a place is WORTH is not computed here (nor stored): a standing is the place
-// and how far the player got. The tournament's placement tiers stay as
-// configuration for the places an operator wants to show, not as a stored column.
-
-
 export interface StageRef {
     id: string;
     title: string;
@@ -30,20 +13,19 @@ export interface MatchResultInput {
 export interface PlayerStanding {
     userId: string;
     displayName: string;
-    place: number | null;         // null for a player who never played
+    place: number | null;         
     matchesPlayed: number;
-    stageId: string | null;        // the stage they got to
+    stageId: string | null;        
     stageTitle: string | null;
-    slot: number | null;           // the match they were eliminated in
+    slot: number | null;           
 }
 
 export interface BuildStandingsInput {
-    stages: StageRef[];            // the tournament's stages, in order
-    matches: MatchResultInput[];   // the points matches that were played
-    players: Array<{ userId: string; displayName: string }>;   // the roster
+    stages: StageRef[];            
+    matches: MatchResultInput[];   
+    players: Array<{ userId: string; displayName: string }>;   
 }
 
-// The furthest a player got: the latest stage, then the lowest slot, then the best rank.
 interface Progress {
     stageIndex: number;
     slot: number;
@@ -64,13 +46,12 @@ export function buildStandings(input: BuildStandingsInput): PlayerStanding[] {
     const stageIndex = new Map(input.stages.map((stage, index) => [stage.id, index]));
     const stageTitle = new Map(input.stages.map((stage) => [stage.id, stage.title]));
 
-    // The furthest each player got, and how many matches they played.
     const progress = new Map<string, Progress>();
     const played = new Map<string, number>();
 
     for (const match of input.matches) {
         const index = stageIndex.get(match.stageId);
-        if (index === undefined) continue;      // a match in a stage the tournament does not list
+        if (index === undefined) continue;      
 
         for (const entry of match.results) {
             played.set(entry.userId, (played.get(entry.userId) ?? 0) + 1);
@@ -90,8 +71,6 @@ export function buildStandings(input: BuildStandingsInput): PlayerStanding[] {
         }
     }
 
-    // The order of the tournament's places: the last stage first, then the slots, then the
-    // match's own rank.
     const placed = [...progress.entries()]
         .map(([userId, value]) => ({ userId, value }))
         .sort((a, b) =>
@@ -100,8 +79,6 @@ export function buildStandings(input: BuildStandingsInput): PlayerStanding[] {
             || a.value.rank - b.value.rank
             || a.userId.localeCompare(b.userId));
 
-    // The place numbers: a tie inside a match shares a place, and the next player takes
-    // the next number (dense, the same convention the match's own result uses).
     const rows: PlayerStanding[] = [];
     let place = 0;
     let previous: { userId: string; value: Progress } | null = null;
@@ -126,7 +103,6 @@ export function buildStandings(input: BuildStandingsInput): PlayerStanding[] {
         previous = entry;
     }
 
-    // The players who never took a seat: listed at the bottom, with no place.
     const seated = new Set(progress.keys());
     const idle = input.players
         .filter((row) => !seated.has(row.userId))

@@ -2,10 +2,6 @@ import { describe, expect, it } from "vitest"
 import { s2IndexOf, s2QuestionOf, type S2Selection } from "@/lib/s2"
 import type { PlayerView } from "@shared/deck/types"
 
-// The S2 walk: a player clicks their way through khởi động's twelve questions.
-// The remembered click is only trusted while its question is still OPEN — that
-// is the whole trick that avoids an effect clearing stale state, so it needs a
-// table: a wrong row desyncs the marked square from the drawn question.
 
 type Open = PlayerView["open"]
 
@@ -42,7 +38,6 @@ describe("s2QuestionOf — the walk", () => {
     })
 
     it("falls back to the clamped index when the clicked question closed", () => {
-        // q2 left the batch; the remembered idx (1) now points at q3
         const result = walk({ open: open(["q1", "q3"]), selection: sel("q2", 1) })
         expect(result.question?.questionId).toBe("q3")
         expect(result.idx).toBe(1)
@@ -63,8 +58,6 @@ describe("s2QuestionOf — the walk", () => {
 
 describe("s2QuestionOf — the walk belongs to S2 only", () => {
     it("ignores the remembered QID outside khởi động phase 2 — only the index counts", () => {
-        // ve-dich's batch is not a walk: a remembered qid may not jump the deck
-        // to another question, so the clamped INDEX decides.
         const other = s2QuestionOf({ selection: sel("q3", 0), open: open(["q1", "q2", "q3"]), roundId: "ve-dich", stage: "phase1" })
         expect(other.question?.questionId).toBe("q1")
         expect(other.idx).toBe(0)

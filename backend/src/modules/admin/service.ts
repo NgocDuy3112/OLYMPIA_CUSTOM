@@ -7,10 +7,6 @@ import { signInvite, verifyInvite } from "../../lib/jwt.js";
 
 const MIN_PASSWORD_LENGTH = 12;
 
-// Who may run the show: every account with a staff role — operators and the
-// admins among them. The portal's Operators page reads this — there is no other
-// way to see the roster of access. Disabled accounts stay listed (with their
-// state) so the roster tells the truth about what exists.
 export async function listOperators() {
     return db
         .select({

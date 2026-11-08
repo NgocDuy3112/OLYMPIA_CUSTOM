@@ -84,7 +84,6 @@ describe("POST /portal/mcp-keys — issuance", () => {
         expect(body.key.revokedAt).toBeNull();
         expect(body.key).not.toHaveProperty("keyHash");
 
-        // the raw token is never persisted — only its sha256
         const [row] = await db.select().from(mcpKeys).where(eq(mcpKeys.id, body.key.id));
         expect(row.keyHash).toBe(hashMcpKey(body.token));
         expect(row.keyHash).not.toContain(body.token);
@@ -165,7 +164,7 @@ describe("DELETE /portal/mcp-keys/:id — revocation", () => {
         expect((await revokeKey(id)).statusCode).toBe(204);
 
         const [row] = await db.select().from(mcpKeys).where(eq(mcpKeys.id, id));
-        expect(row.revokedAt).not.toBeNull();          // row survives, just revoked
+        expect(row.revokedAt).not.toBeNull();          
         expect(row.keyHash).toBeTruthy();
     });
 
@@ -225,7 +224,6 @@ describe("verifyMcpToken", () => {
             verifyMcpToken("ocmcp_00000000_" + "0".repeat(64))
         ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
 
-        // same prefix as a real key, wrong secret
         const real = await createKey({ label: "prefix reuse" });
         const [marker, prefix] = real.json().token.split("_");
         await expect(

@@ -8,9 +8,6 @@ import { answers, matchLive, matchResults, matches, tournaments, users } from ".
 import { signToken } from "../../src/lib/jwt.js";
 import type { MatchQuestion } from "../../src/game/contracts/index.js";
 
-// khoi-dong end to end: phase 1 oral (console-recorded, 45 s per player), phase 2
-// the timed batch — six questions, everyone types into the10 s window the console
-// opens with Bấm giờ, and every correct player pays 10.
 
 let app: FastifyInstance;
 let ownerCookie: string;
@@ -47,7 +44,6 @@ beforeAll(async () => {
     playerIds = playerRows.map((u) => u.id);
     playerCookies = playerRows.map((u) => signToken(app, "GAMEPLAY", { sub: u.id, role: "PLAYER", tokenVersion: 0 }));
 
-    // The tournament is the unit: it carries the identity the tournament had.
     const tournamentTags = ["THTH"];
     const tournamentOwner = owner.id;
     const tournamentSlug = "kd-tournament-tournament";
@@ -62,7 +58,6 @@ beforeAll(async () => {
     tournamentId = tournament.id;
 
     const p1 = [1, 2, 3, 4, 5, 6].map((n) => question("phase1", n));
-    // Chung stages SIX questions; the engine refuses any other count.
     const p2 = Array.from({ length: 6 }, (_, i) => question("phase2", i + 1));
     phase1Ids = p1.map((q) => q._id);
     phase2Ids = p2.map((q) => q._id);
@@ -139,16 +134,14 @@ describe("khoi-dong — phase 1 (oral, one run per player)", () => {
             expect(res.statusCode).toBe(200);
         }
         const state = (await live()).state as Record<string, unknown>;
-        expect(state.activeIndex).toBe(1);                       // moved on to player 1
+        expect(state.activeIndex).toBe(1);                       
         const p0 = (state.runs as Record<string, { results: Record<string, { points: number }> }>)[playerIds[0]];
         expect(Object.values(p0.results).every((r) => r.points === 10)).toBe(true);
 
-        // each oral answer is recorded as a fact
         const rows = await db.select().from(answers)
             .where(and(eq(answers.matchId, matchId), eq(answers.userId, playerIds[0])));
         expect(rows).toHaveLength(6);
         expect(rows.every((r) => r.pointsAwarded === 10 && r.autoMatched === false)).toBe(true);
-        // an oral answer is recorded as its own shape, never as empty text
         expect(rows.every((r) => JSON.stringify(r.value) === JSON.stringify({ oral: true }))).toBe(true);
     });
 
@@ -180,7 +173,6 @@ describe("khoi-dong — phase 2: the timed batch", () => {
     it("Bấm giờ opens the window: the question carries a 10 s deadline and both players may type", async () => {
         expect((await act({ kind: "khoi-dong.startWindow" })).statusCode).toBe(200);
 
-        // the player view: one question, its deadline, the field unlocked
         const mine = await app.inject({
             method: "GET", url: `/gameplay/matches/${matchId}/live`, headers: asPlayer(playerCookies[0])
         });
@@ -190,7 +182,6 @@ describe("khoi-dong — phase 2: the timed batch", () => {
         expect(view.me.windowOpen).toBe(true);
         expect(view.me.questionCount).toBe(6);
 
-        // both players submit — the whole field, not a race
         expect((await answer(playerCookies[0], phase2Ids[0], "Hà Nội")).statusCode).toBe(200);
         expect((await answer(playerCookies[1], phase2Ids[0], "Sài Gòn")).statusCode).toBe(200);
     });
@@ -204,7 +195,6 @@ describe("khoi-dong — phase 2: the timed batch", () => {
         expect(right.statusCode).toBe(200);
         expect(right.json().state.phase2.results[phase2Ids[0]][playerIds[0]]).toBe(10);
 
-        // the ledger carries both verdicts, the facts wrote them
         const rows = await db.select().from(answers)
             .where(and(eq(answers.matchId, matchId), eq(answers.questionId, phase2Ids[0])));
         expect(rows).toHaveLength(2);
@@ -223,25 +213,21 @@ describe("khoi-dong — phase 2: the timed batch", () => {
     });
 
     it("the strip waits for every card to be judged, then moves on", async () => {
-        // question 1's cards are both judged (previous test) → the cursor may move
         const advanced = await act({ kind: "khoi-dong.nextQuestion" });
         expect(advanced.statusCode).toBe(200);
         expect(advanced.json().state.phase2.index).toBe(1);
         expect(advanced.json().state.phase2.openedAt).toBeNull();
 
-        // question 2 waits for its OWN Bấm giờ: an early answer is refused
         const early = await answer(playerCookies[0], phase2Ids[1], "Hà Nội");
         expect(early.statusCode).toBe(409);
         expect(early.json().error).toBe("NO_WINDOW");
 
-        // open it, submit — and the advance is refused while the card is unjudged
         expect((await act({ kind: "khoi-dong.startWindow" })).statusCode).toBe(200);
         expect((await answer(playerCookies[0], phase2Ids[1], "Hà Nội")).statusCode).toBe(200);
         const blocked = await act({ kind: "khoi-dong.nextQuestion" });
         expect(blocked.statusCode).toBe(409);
         expect(blocked.json().error).toBe("UNJUDGED_ANSWERS");
 
-        // judged → the strip moves again
         expect((await act({ kind: "khoi-dong.judge", playerId: playerIds[0], correct: true })).statusCode).toBe(200);
         const moved = await act({ kind: "khoi-dong.nextQuestion" });
         expect(moved.statusCode).toBe(200);
@@ -276,8 +262,6 @@ describe("khoi-dong — match end", () => {
         const [row] = await db.select().from(matchResults).where(eq(matchResults.matchId, matchId));
         const p0 = row.results.find((r) => r.userId === playerIds[0])!;
         const p1 = row.results.find((r) => r.userId === playerIds[1])!;
-        // player 0: 6 oral = 60, plus two correct cards in the batch = 80.
-        // player 1: timed out phase 1 (0), and their card was marked wrong (0).
         expect(p0).toMatchObject({ totalScore: 80, rank: 1 });
         expect(p0.roundScores).toEqual({ "khoi-dong": 80 });
         expect(p1).toMatchObject({ totalScore: 0, rank: 2 });

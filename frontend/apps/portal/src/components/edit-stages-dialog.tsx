@@ -16,8 +16,6 @@ interface StageDraft {
     end: string
 }
 
-// The id a stage gets from its title: what the staff type when they place a match.
-// (The transliteration lives in @/lib/slug — pure, unit-tested.)
 
 function toDraft(stage: Stage): StageDraft {
     return {
@@ -29,8 +27,6 @@ function toDraft(stage: Stage): StageDraft {
     }
 }
 
-// The tournament's stages, edited in a dialog. The order of the list is the order of the
-// tournament, so the rows can be moved.
 export function EditStagesDialog({
     tournamentId,
     tournament,
@@ -120,7 +116,6 @@ export function EditStagesDialog({
                                             const title = event.target.value
                                             patch(index, {
                                                 title,
-                                                // The id follows the title until the staff type one.
                                                 id:
                                                     stage.id === slugify(stage.title) || !stage.id
                                                         ? slugify(title)

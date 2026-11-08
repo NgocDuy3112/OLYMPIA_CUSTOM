@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { HINT_TILES, hintTileClass, mcCellClass, playerCellClass, type CellWhere } from "@shared/deck/cells"
 
-// The vé-đích / giải mã class tables: every state must be DISTINGUISHABLE and
-// must say what it is (a taken cell is black on both surfaces, an open one is
-// primary). These are the only places a cell's look is decided, so a wrong row
-// here is a wrong board on the projector.
 
 describe("vé-đích cells", () => {
     it("paints the same state the same way on both surfaces", () => {
@@ -12,10 +8,8 @@ describe("vé-đích cells", () => {
         for (const where of states) {
             const mc = mcCellClass(where, false)
             const player = playerCellClass({ where, chosen: false, actionable: false })
-            // one fixed height, widths from the grid span — the board stays balanced
             expect(mc).toContain("h-[4.43cqw]")
             expect(player).toContain("h-[4.43cqw]")
-            // The state palette is shared, not duplicated per surface.
             const palette = where === "open"
                 ? "bg-primary text-primary-foreground"
                 : where === "pending"
@@ -37,7 +31,6 @@ describe("vé-đích cells", () => {
     it("the console fades a free cell the turn may not pick", () => {
         expect(mcCellClass("free", true)).toContain("opacity-50")
         expect(mcCellClass("free", false)).not.toContain("opacity-50")
-        // A non-free state never gets the "pickable now" treatment.
         expect(mcCellClass("taken", true)).toContain("bg-black")
     })
 
@@ -48,7 +41,6 @@ describe("vé-đích cells", () => {
     })
 
     it("cellFaded is gone with the band rule — deferred alone dims a cell", () => {
-        // (free cells fade only while no pick can happen — mcCellClass's `faded`)
         expect(mcCellClass("deferred", true)).toContain("opacity-50")
         expect(mcCellClass("free", false)).not.toContain("opacity-50")
     })

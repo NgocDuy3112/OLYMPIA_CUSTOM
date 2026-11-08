@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildStandings, type MatchResultInput } from "../../../src/game/engine/scoring/standings.js";
 
-// The tournament's places are decided by how far a player got — never by a sum of points.
 
 const STAGES = [
     { id: "round-1", title: "Round 1" },
@@ -12,7 +11,6 @@ const STAGES = [
 
 const roster = (ids: string[]) => ids.map((userId) => ({ userId, displayName: userId }));
 
-// A match's result: the rank follows the score, the way the engine writes it.
 const match = (
     matchId: string,
     stageId: string,
@@ -54,7 +52,6 @@ describe("the tournament's places", () => {
             players: roster(["a", "b", "c", "d"])
         });
 
-        // The final is the last stage, so its two players take the first two places.
         expect(rows.map((row) => row.userId)).toEqual(["c", "d", "a", "b"]);
         expect(rows.map((row) => row.place)).toEqual([1, 2, 3, 4]);
     });
@@ -69,7 +66,6 @@ describe("the tournament's places", () => {
             players: roster(["a", "b", "c", "d"])
         });
 
-        // Slot 1 first, then slot 2 — the slot, not the points, orders them.
         expect(rows.map((row) => row.userId)).toEqual(["c", "d", "a", "b"]);
         expect(rows.map((row) => row.slot)).toEqual([1, 1, 2, 2]);
     });
@@ -89,14 +85,12 @@ describe("the tournament's places", () => {
         const rows = buildStandings({
             stages: STAGES,
             matches: [
-                // "a" won a big match in an early stage; "b" reached the final and lost it.
                 match("m1", "round-1", 1, [["a", 100], ["b", 1]]),
                 match("m2", "final", 1, [["b", 1], ["c", 0]])
             ],
             players: roster(["a", "b", "c"])
         });
 
-        // "a" scored the most, and is last: the progress decides.
         expect(rows.map((row) => row.userId)).toEqual(["b", "c", "a"]);
     });
 
@@ -107,7 +101,6 @@ describe("the tournament's places", () => {
                 matchId: "m1",
                 stageId: "final",
                 slot: 1,
-                // A draw: both players have 10 points, so they share the rank.
                 results: [
                     { userId: "a", totalScore: 10, rank: 1 },
                     { userId: "b", totalScore: 10, rank: 1 }
@@ -153,7 +146,6 @@ describe("the tournament's places", () => {
         });
 
         expect(rows.map((row) => row.place)).toEqual([1, 2, 3, 4]);
-        // "d" scored the most by far, and has the last place.
         expect(rows[3].userId).toBe("d");
     });
 });

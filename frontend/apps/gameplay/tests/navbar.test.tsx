@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
@@ -6,10 +5,6 @@ import { MemoryRouter, useLocation } from "react-router-dom"
 import { describe, expect, it, vi } from "vitest"
 import { NavBar } from "@/components/layout/NavBar"
 
-// The navbar is the player's whole way into a match. Each state must stand
-// alone: signed out gets the two doors, signed in gets their name and ONE
-// "Vào trận" that either goes somewhere, says why it cannot, or offers the
-// list when they hold several seats.
 
 interface StubRoute { body: unknown; status?: number }
 
@@ -17,8 +12,6 @@ const ME = "GET /gameplay/auth/me"
 const MATCHES = "GET /gameplay/me/match"
 const Tournaments = "GET /gameplay/tournaments"
 
-/** Where the router landed — silent at the entry URL, so a test can tell
- *  "went somewhere" from "stayed put" by the text appearing at all. */
 function WhereAmI() {
     const location = useLocation()
     if (location.pathname === "/") return null
@@ -68,7 +61,6 @@ describe("NavBar — signed out", () => {
         draw({ ...signedOut, ...noTournaments })
         expect(await screen.findByRole("link", { name: "Đăng nhập" })).toBeTruthy()
         expect(screen.getByRole("link", { name: "Nhập mã" })).toBeTruthy()
-        // Accounts are created at the desk: the navbar never offers a form.
         expect(screen.queryByRole("link", { name: "Đăng ký" })).toBeNull()
         expect(screen.queryByRole("button", { name: "Vào trận" })).toBeNull()
     })
@@ -149,7 +141,6 @@ describe("NavBar — the other way in (a room code)", () => {
 
         const box = await screen.findByRole("link", { name: "Nhập mã" })
         expect(box.getAttribute("href")).toBe("/code")
-        // the one-click path for a seated player is untouched
         expect(screen.getByRole("button", { name: "Vào trận" })).toBeTruthy()
     })
 })

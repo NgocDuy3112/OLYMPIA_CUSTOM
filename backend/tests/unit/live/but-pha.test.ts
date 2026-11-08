@@ -57,7 +57,6 @@ describe("applyButPhaAction — finalize computes the speed order", () => {
             [{ playerId: "a", correct: true }, { playerId: "b", correct: true }],
             [draft("a", 3_000), draft("b", 7_000)]
         );
-        // 3 s -> base 15, first correct -> x4 = 60 ; 7 s -> base 10, second -> x3 = 30
         expect(butPhaTotal(res.state, "a")).toBe(60);
         expect(butPhaTotal(res.state, "b")).toBe(30);
     });
@@ -67,7 +66,7 @@ describe("applyButPhaAction — finalize computes the speed order", () => {
             [{ playerId: "b", correct: true }, { playerId: "a", correct: true }],
             [draft("a", 3_000), draft("b", 7_000)]
         );
-        expect(butPhaTotal(res.state, "a")).toBe(60);   // a submitted first, so a is 1st
+        expect(butPhaTotal(res.state, "a")).toBe(60);   
         expect(butPhaTotal(res.state, "b")).toBe(30);
     });
 
@@ -77,12 +76,12 @@ describe("applyButPhaAction — finalize computes the speed order", () => {
             [draft("a", 1_000), draft("b", 3_000)]
         );
         expect(butPhaTotal(res.state, "a")).toBe(0);
-        expect(butPhaTotal(res.state, "b")).toBe(60);   // still the 1st correct
+        expect(butPhaTotal(res.state, "b")).toBe(60);   
     });
 
     it("an answer at exactly 30 s is in time; past 30 s is forced wrong", () => {
         const onTime = finalize([{ playerId: "a", correct: true }], [draft("a", 30_000)]);
-        expect(butPhaTotal(onTime.state, "a")).toBe(20);      // base 5 x4
+        expect(butPhaTotal(onTime.state, "a")).toBe(20);      
 
         const late = finalize([{ playerId: "a", correct: true }], [draft("a", 30_500)]);
         expect(butPhaTotal(late.state, "a")).toBe(0);

@@ -42,10 +42,10 @@ describe("attachHeartbeat", () => {
         const f = fakeSocket();
         const stop = attachHeartbeat(f.socket, 1_000);
 
-        vi.advanceTimersByTime(1_000);   // ping, no pong
+        vi.advanceTimersByTime(1_000);   
         expect(f.calls.terminate).toBe(0);
 
-        vi.advanceTimersByTime(1_000);   // still nothing: give up
+        vi.advanceTimersByTime(1_000);   
         expect(f.calls.terminate).toBe(1);
         stop();
     });

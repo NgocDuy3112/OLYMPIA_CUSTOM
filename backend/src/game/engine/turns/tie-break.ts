@@ -1,25 +1,7 @@
-// The tie-break round: when a match would end with tied totals, the console opens a
-// tie-break for the tied players from the WaitingRoom's Tie-break button.
-//
-// MECHANISM ONLY. The question source is pluggable: startTieBreak receives
-// question ids already assembled into the match (where they come from — the
-// tag bank, a dedicated set — is decided elsewhere).
-//
-// The rules, exactly:
-//   - tie-break points RANK ONLY — they are added to the TIE-BREAK SCORE, never
-//     to a match total. buildMatchResults totals stay untouched;
-//   - the console opens one question at a time, players submit, the console finalizes
-//     verdicts (but-pha style: judging after the window, from the ledger);
-//   - when the round ends, the tie-break scores order the tied players, and a
-//     tie the round did NOT resolve stays a shared rank — the round breaks ties,
-//     it never invents a forced order.
-//
-// Pure, no I/O — same discipline as the other turn modules.
 import { fail } from "./errors.js";
 
-// The round's numbers, frozen when the console opens it.
 export interface TieBreakRules {
-    pointsPerCorrect: number;   // what one correct verdict is worth in the tie-break score
+    pointsPerCorrect: number;   
 }
 
 export const TIE_BREAK_DEFAULTS: TieBreakRules = {
@@ -28,22 +10,19 @@ export const TIE_BREAK_DEFAULTS: TieBreakRules = {
 
 export interface TieBreakAnswer {
     text: string;
-    correct: boolean | null;    // null until the console finalizes this player's answer
+    correct: boolean | null;    
 }
 
 export interface TieBreakState {
     rules: TieBreakRules;
     ended: boolean;
-    players: string[];                          // the tied players, entry order
-    questionIds: string[];                      // the round's questions, in order
-    cursor: number;                             // 0-based; the question the console has open
-    open: boolean;                              // the answer window for the current question
-    // playerId → questionId → the submission and its verdict.
+    players: string[];                          
+    questionIds: string[];                      
+    cursor: number;                             
+    open: boolean;                              
     answers: Record<string, Record<string, TieBreakAnswer>>;
 }
 
-// Open the round for the tied players. The players must be distinct; the
-// questions must exist (an empty list is a mis-assembled match, not a round).
 export function startTieBreak(
     playerIds: string[],
     questionIds: string[],
@@ -67,7 +46,6 @@ export function startTieBreak(
     };
 }
 
-// The question currently in play.
 export function currentQuestionId(state: TieBreakState): string | null {
     if (state.ended) return null;
     return state.questionIds[state.cursor] ?? null;
@@ -81,7 +59,6 @@ function requireOpen(state: TieBreakState): string {
     return id;
 }
 
-// The the console opens the answer window for the current question.
 export function openWindow(state: TieBreakState): TieBreakState {
     if (state.ended) fail("ENDED", "the tie-break has ended");
     if (currentQuestionId(state) === null) fail("NO_QUESTION", "no tie-break question in play");
@@ -89,15 +66,12 @@ export function openWindow(state: TieBreakState): TieBreakState {
     return { ...state, open: true };
 }
 
-// The the console closes the window — submissions stop, judging may begin.
 export function closeWindow(state: TieBreakState): TieBreakState {
     if (state.ended) fail("ENDED", "the tie-break has ended");
     if (!state.open) return state;
     return { ...state, open: false };
 }
 
-// A player submits an answer while the window is open. Re-submitting replaces
-// the previous text — until the console finalizes, nothing is locked.
 export function submit(
     state: TieBreakState,
     params: { playerId: string; text: string }
@@ -118,15 +92,10 @@ export function submit(
     };
 }
 
-// The the console's final verdicts for the current question — but-pha style, judged
-// after the window from what was submitted. Finalizing a player who never
-// submitted is allowed: the verdict stands on the console's call (0 text).
 export function finalize(
     state: TieBreakState,
     params: { verdicts: Array<{ playerId: string; correct: boolean }> }
 ): TieBreakState {
-    // Judging happens on the open window — a closed window means this question
-    // was already finalized (or never opened): refusing beats silently no-oping.
     if (state.ended) fail("ENDED", "the tie-break has ended");
     const questionId = currentQuestionId(state);
     if (questionId === null) fail("NO_QUESTION", "no tie-break question in play");
@@ -145,8 +114,6 @@ export function finalize(
     return { ...closed, answers };
 }
 
-// The console moves to the next question. Every question after the first needs the
-// current one judged first — an open verdict would be lost silently.
 export function nextQuestion(state: TieBreakState): TieBreakState {
     if (state.ended) fail("ENDED", "the tie-break has ended");
     if (state.cursor + 1 >= state.questionIds.length) {
@@ -159,8 +126,6 @@ export function nextQuestion(state: TieBreakState): TieBreakState {
     return { ...state, cursor: state.cursor + 1, open: false };
 }
 
-// The console ends the round — only once every question has been judged, so no
-// verdict the show relied on is dropped.
 export function endTieBreak(state: TieBreakState): TieBreakState {
     if (state.ended) return state;
     if (state.open) fail("WINDOW_OPEN", "close the answer window first");
@@ -171,7 +136,6 @@ export function endTieBreak(state: TieBreakState): TieBreakState {
     return { ...state, ended: true };
 }
 
-// One player's tie-break score: correct verdicts × the frozen points.
 export function tieBreakScore(state: TieBreakState, playerId: string): number {
     const mine = state.answers[playerId] ?? {};
     let correct = 0;
@@ -181,26 +145,12 @@ export function tieBreakScore(state: TieBreakState, playerId: string): number {
     return correct * state.rules.pointsPerCorrect;
 }
 
-// ─── The ranking layer ────────────────────────────────────────────────────────
 
 export interface RankedEntry {
     userId: string;
     totalScore: number;
 }
 
-/**
- * Dense-rank match entries by total, breaking tied totals with tie-break
- * scores — rank only: the returned ranks are the only thing that changes, no
- * total is ever rewritten.
- *
- * - higher total first;
- * - on equal totals, higher tie-break score first;
- * - still equal (a tie the round did not resolve, or no tie-break ran) →
- *   the entries SHARE the rank, dense as before.
- *
- * A player absent from `tieBreak` scores 0 — running the round changes nothing
- * for players it was not opened for.
- */
 export function rankWithTieBreak(
     entries: RankedEntry[],
     tieBreak: Map<string, number> | null

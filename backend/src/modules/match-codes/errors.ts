@@ -1,7 +1,3 @@
-// The refusals of the two code flows (a room code to claim a seat, a one-time
-// entry code to get a session back). Kept apart from MatchError because these
-// are not match edits: they are secrets being refused, and the message is what
-// the desk or the player reads.
 export type CodeErrorCode =
     | "VALIDATION"
     | "FORBIDDEN"

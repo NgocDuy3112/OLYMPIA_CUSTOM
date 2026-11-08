@@ -1,20 +1,3 @@
-// The format's rules, as pure functions.
-//
-// The staff place every match by hand — the engine never draws — but the engine checks
-// what they place against the format:
-//
-//   splitting — the tier draw: the ranking is cut into tiers of `tierSize`, and each
-//               match takes one player from each tier.
-//   playoff   — the ladder: the winner of a match climbs a slot, the other three drop
-//               one; the losers of the bottom match are out.
-//   finale    — the four ladder winners, who take the tournament's places 1–4.
-//
-// Everything here is a total function of its input: no I/O, so the rules are unit
-// testable on their own.
-
-// ── Splitting: the tier draw ─────────────────────────────────────────────────
-
-// The ranking cut into contiguous blocks: the tiers.
 export function tiersOf(ranked: string[], tierSize: number): string[][] {
     const tiers: string[][] = [];
     for (let i = 0; i < ranked.length; i += tierSize) {
@@ -23,15 +6,12 @@ export function tiersOf(ranked: string[], tierSize: number): string[][] {
     return tiers;
 }
 
-// The tier each player is in, by their position in the ranking.
 export function tierOf(ranked: string[], tierSize: number): Map<string, number> {
     const map = new Map<string, number>();
     ranked.forEach((userId, index) => map.set(userId, Math.floor(index / tierSize)));
     return map;
 }
 
-// The tier draw: one player from each tier in every match. The players within a tier
-// are the staff's to choose.
 export function tierDraw(ranked: string[], tierSize: number, matchCount: number): string[][] {
     const tiers = tiersOf(ranked, tierSize);
     const matches: string[][] = [];
@@ -41,8 +21,6 @@ export function tierDraw(ranked: string[], tierSize: number, matchCount: number)
     return matches;
 }
 
-// The violations of the tier rule in a set of matches: a match that seats two players
-// from the same tier, or misses a tier.
 export function tierViolations(
     matches: string[][],
     ranked: string[],
@@ -81,24 +59,22 @@ export function tierViolations(
     return problems;
 }
 
-// ── Playoff: the ladder ──────────────────────────────────────────────────────
 
 export interface LadderMatch {
-    slot: number;        // 1 = the highest match
-    order: string[];     // best first: order[0] is the winner
+    slot: number;        
+    order: string[];     
 }
 
 export interface LadderRound {
-    matches: LadderMatch[];   // contiguous slots from 1
+    matches: LadderMatch[];   
 }
 
 export interface LadderStep {
-    toFinale: string[];        // the winners of the top slots, waiting for the finale
-    eliminated: string[];      // the bottom match's losers, in their match order
-    next: LadderRound;         // one fewer match
+    toFinale: string[];        
+    eliminated: string[];      
+    next: LadderRound;         
 }
 
-// The first round of the ladder: contiguous blocks of `tierSize` in rank order.
 export function initialLadder(ranked: string[], tierSize: number): LadderRound {
     const matches: LadderMatch[] = [];
     for (let i = 0; i < ranked.length; i += tierSize) {
@@ -107,8 +83,6 @@ export function initialLadder(ranked: string[], tierSize: number): LadderRound {
     return { matches };
 }
 
-// One round of the ladder: the winner of each match climbs a slot, the other three drop
-// one, and the bottom match's losers are out.
 export function ladderNext(round: LadderRound, toFinale: string[] = []): LadderStep {
     if (round.matches.length === 0) {
         throw new Error("the ladder round has no matches");
@@ -120,8 +94,8 @@ export function ladderNext(round: LadderRound, toFinale: string[] = []): LadderS
 
     const matches: LadderMatch[] = [];
     for (let i = 0; i < sorted.length - 1; i++) {
-        const upper = sorted[i];        // its losers drop into the next slot
-        const lower = sorted[i + 1];    // its winner climbs into this slot
+        const upper = sorted[i];        
+        const lower = sorted[i + 1];    
         matches.push({
             slot: i + 1,
             order: [lower.order[0], ...upper.order.slice(1)]
@@ -135,9 +109,6 @@ export function ladderNext(round: LadderRound, toFinale: string[] = []): LadderS
     };
 }
 
-// The finale: the ladder winners, in the order they arrived.
-// The violations of the ladder rule: a match whose seats are not the ones the ladder
-// rule puts there.
 export function ladderViolations(
     expected: LadderRound,
     actual: Array<{ slot: number; order: string[] }>

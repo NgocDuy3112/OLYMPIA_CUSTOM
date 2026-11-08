@@ -57,9 +57,9 @@ describe("khoi-dong phase 1 (oral, sequential, 45 s)", () => {
     it("an answer that runs past 45 s is not counted and ends the phase", () => {
         let s = startPhase1(IDS6);
         s = answerPhase1(s, { correct: true, spentS: 30 });
-        s = answerPhase1(s, { correct: true, spentS: 20 });  // would total 50
+        s = answerPhase1(s, { correct: true, spentS: 20 });  
         expect(s.ended).toBe(true);
-        expect(phase1Total(s)).toBe(10);                     // only the first answer counts
+        expect(phase1Total(s)).toBe(10);                     
     });
 
     it("timing out between questions ends the phase; unasked questions score 0", () => {
@@ -80,7 +80,7 @@ const T0 = "2026-01-01T00:00:00.000Z";
 const at = (s: number) => new Date(Date.parse(T0) + s * 1000).toISOString();
 
 describe("khoi-dong phase 2 — the timed batch", () => {
-    const SET = IDS6;                                  // six, like phase 1
+    const SET = IDS6;                                  
     const open = (state = startPhase2(SET), now = T0) => openPhase2Window(state, now);
 
     it("is SIX questions, and refuses anything else", () => {

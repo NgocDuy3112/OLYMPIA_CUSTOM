@@ -6,10 +6,6 @@ import { db } from "../../src/db/pool.js";
 import { auditEvents, matchLive, matchResults, matches, scoreAdjustments, tournaments, users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 
-// score.adjust — the controller's match-level score correction:
-//   version-guarded like every action, written as a score_adjustments row in
-//   the SAME transaction as the version bump (fact → ledger), audited, folded
-//   into the live scoreboard (scoreTable) and frozen into the results at FINISH.
 
 let app: FastifyInstance;
 let ownerCookie: string;
@@ -101,14 +97,14 @@ describe("score.adjust — the version-guarded ledger", () => {
         const live = await app.inject({ method: "GET", url: liveUrl(), headers: auth(ownerCookie) });
         expect(live.statusCode).toBe(200);
         const table = live.json().projection.table as Array<{ id: string; points: number }>;
-        expect(table.find((r) => r.id === playerA)?.points).toBe(7);   // +10 −3, no answers yet
+        expect(table.find((r) => r.id === playerA)?.points).toBe(7);   
         expect(table.find((r) => r.id === playerB)?.points).toBe(0);
     });
 
     it("a replayed version is rejected and writes nothing", async () => {
         const res = await adjust(
             { kind: "score.adjust", userId: playerB, delta: 5, reason: "stale" },
-            1 // current version is 2
+            1 
         );
         expect(res.statusCode).toBe(409);
         const rows = await db.select().from(scoreAdjustments).where(eq(scoreAdjustments.matchId, matchId));
@@ -138,10 +134,9 @@ describe("score.adjust — the version-guarded ledger", () => {
         const totals = Object.fromEntries(
             (frozen!.results as Array<{ userId: string; totalScore: number }>).map((r) => [r.userId, r.totalScore])
         );
-        expect(totals[playerA]).toBe(7);  // adjustments reach the frozen results
+        expect(totals[playerA]).toBe(7);  
         expect(totals[playerB]).toBe(0);
 
-        // frozen matches cannot be adjusted (the route requires LIVE anyway)
         const after = await adjust(
             { kind: "score.adjust", userId: playerA, delta: 1, reason: "too late" },
             2

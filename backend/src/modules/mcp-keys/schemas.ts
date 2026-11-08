@@ -4,7 +4,6 @@ import { Value } from "@sinclair/typebox/value";
 import { IsoDateTime, Uuid } from "../../game/contracts/index.js";
 import { McpKeyError } from "./errors.js";
 
-// Publishing and scoring are deliberately absent: no key can ever reach them.
 export const McpScope = Type.Union([
     Type.Literal("READ"),
     Type.Literal("WRITE"),

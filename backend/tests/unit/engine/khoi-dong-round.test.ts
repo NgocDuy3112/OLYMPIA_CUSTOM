@@ -20,7 +20,6 @@ const beginPhase2At = (state: Parameters<typeof beginPhase2>[0], ids: string[]) 
     beginPhase2(state, ids);
 
 const P1 = ["a1", "a2", "a3", "a4", "a5", "a6"];
-// Chung is SIX questions now — the phase refuses any other count.
 const P2 = Array.from({ length: 6 }, (_, i) => `b${i + 1}`);
 const PLAYERS = ["p0", "p1"];
 
@@ -32,7 +31,6 @@ function codeOf(fn: () => unknown): string {
     return "NO_ERROR";
 }
 
-// Finish the active player's run: answer all 6 correctly.
 function finishRun(state: ReturnType<typeof startKhoiDong>) {
     let s = state;
     for (let i = 0; i < 6; i++) s = recordOral(s, { correct: true, spentS: 1 });
@@ -63,7 +61,6 @@ describe("khoi-dong round — phase 1 is one run per player", () => {
 
     it("each player's run has its own 45 s budget", () => {
         let s = startKhoiDong(PLAYERS, P1);
-        // p0 spends 40 s; p1's run is untouched.
         s = recordOral(s, { correct: true, spentS: 40 });
         expect(s.runs.p0.elapsedS).toBe(40);
         expect(s.runs.p1.elapsedS).toBe(0);
@@ -84,7 +81,7 @@ describe("khoi-dong round — phase 1 is one run per player", () => {
     });
 
     it("a player's phase-1 score is their own", () => {
-        const s = finishRun(startKhoiDong(PLAYERS, P1));   // p0: 6 correct = 60
+        const s = finishRun(startKhoiDong(PLAYERS, P1));   
         expect(khoiDongPoints(s, "p0")).toBe(60);
         expect(khoiDongPoints(s, "p1")).toBe(0);
     });
@@ -92,7 +89,6 @@ describe("khoi-dong round — phase 1 is one run per player", () => {
 
 describe("khoi-dong round — phase 2 begins only after phase 1", () => {
     it("may begin early ONLY while phase 1 recorded nothing (the skip rule)", () => {
-        // Untouched → jumping straight to Chung is the confirmed console choice.
         expect(beginPhase2At(startKhoiDong(PLAYERS, P1), P2).stage).toBe("phase2");
     });
 
@@ -106,7 +102,7 @@ describe("khoi-dong round — phase 2 begins only after phase 1", () => {
         const s = beginPhase2At(done, P2);
         expect(s.stage).toBe("phase2");
         expect(s.phase2?.questionIds).toEqual(P2);
-        expect(activePlayerId(s)).toBeNull();          // no phase-1 run is active any more
+        expect(activePlayerId(s)).toBeNull();          
     });
 
     it("cannot begin twice", () => {
@@ -127,9 +123,9 @@ describe("khoi-dong round — phase 2: the timed batch", () => {
 
         s = judgeCard(s, "p0", true);
         s = judgeCard(s, "p1", true);
-        expect(khoiDongPoints(s, "p0")).toBe(60 + 10);   // 60 from phase 1, +10 for the card
+        expect(khoiDongPoints(s, "p0")).toBe(60 + 10);   
         expect(khoiDongPoints(s, "p1")).toBe(60 + 10);
-        expect(s.phase2?.index).toBe(0);                 // marking never advances on its own
+        expect(s.phase2?.index).toBe(0);                 
     });
 
     it("a wrong card pays nothing, and re-marking corrects the ledger", () => {
@@ -146,7 +142,6 @@ describe("khoi-dong round — phase 2: the timed batch", () => {
         expect(s.phase2?.index).toBe(1);
         expect(s.phase2?.openedAt).toBeNull();
 
-        // question 2 waits for its OWN Bấm giờ — and may be opened again
         const reopened = openWindow(s, OPENED);
         expect(reopened.phase2?.index).toBe(1);
         expect(reopened.phase2?.openedAt).toBe(OPENED);

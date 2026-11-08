@@ -35,10 +35,8 @@ export function Lobby({
         onStart: (roundId: string, phase?: 1 | 2) => void
         opensMatch?: boolean
     }
-    /** One muted line under the cards (waiting reason). */
     hint?: ReactNode
 }) {
-    // This surface's own camera (players); the console passes row.video itself.
     const selfCam = useSelfCam()
 
 
@@ -51,13 +49,10 @@ export function Lobby({
                 {data.title} - {data.label}
             </p>
 
-            {/* seats — the PlayerCard (controller standard): avatar rectangle
-                with the connected dot and the camera, name + score beside it. */}
+            
             <div className="mt-[3.2cqw] flex flex-wrap items-stretch justify-center gap-[1.2cqw]">
                 {data.table.map((row) => {
                     const mine = Boolean(meId) && row.id === meId
-                    // No "connected" dot: the camera answers the same question
-                    // better — a face on screen IS the player being there.
                     const video = row.video ?? (mine && selfCam?.camOn ? selfCam.video : null)
                     return (
                         <div
@@ -97,8 +92,6 @@ export function Lobby({
             {mc && data.rounds.length > 0 && (
                 <div className="mt-[3cqw] flex flex-wrap items-center justify-center gap-[1cqw]">
                     {data.rounds.map((round, i) => {
-                        // A start needs a LIVE match — or a console that opens it as
-                        // part of the same gesture (`opensMatch`).
                         const live =
                             (data.status === "LIVE" || Boolean(mc.opensMatch)) &&
                             Boolean(mc.canStart) &&

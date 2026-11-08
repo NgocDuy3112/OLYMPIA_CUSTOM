@@ -3,9 +3,6 @@ import { DECK_PAD, STRIP_R, pt } from "../geometry"
 import { HINT_TILES, playerHintTileClass } from "../cells"
 import type { AnswerValue } from "../types"
 
-// Giải mã (S3): keyword banner, the count-driven hint tile grid, the lower
-// question card, and a band that is either the hint answer box or the keyword
-// box. Pure: every value comes from the orchestrator, narrowed here.
 type GiaiMaPlayerCtx = PlayerCore & {
     remaining: number
     answerBusy: boolean
@@ -31,8 +28,6 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
                         question={hintWindow.question}
                         answerState={v.me.answerState}
                         verdict={v.me.verdicts?.[hintWindow.questionId]}
-                        // THE LOCK: at zero the window is over — the server
-                        // refuses late answers, and the field greys with it.
                         disabled={remaining <= 0}
                         busy={answerBusy}
                         error={flash}
@@ -60,7 +55,7 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
         >
             <KeywordLengthBanner length={codeLength} />
 
-            {/* the tiles: display squares — muted while a hint window is open */}
+            
             <div className="grid min-h-0 flex-1 content-start gap-x-[2.2cqw] gap-y-[1.1cqw]" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
                 {Array.from({ length: HINT_TILES }, (_, i) => i + 1).map((n) => (
                     <div
@@ -83,7 +78,7 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
                         ? hintWindow.question?.questionText ?? ""
                         : keyword?.question?.questionText ?? "Chờ điều hành mở gợi ý"}
                 </p>
-                {/* Hiện đáp án — the revealed hint's answer, or the keyword */}
+                
                 <AnswerReveal answer={v.revealed?.answer} />
             </MainCard>
         </PlayerStage>

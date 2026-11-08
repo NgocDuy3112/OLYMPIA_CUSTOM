@@ -34,8 +34,6 @@ export function assertPayloadForKind(kind: QuestionKindValue, payload: QuestionP
         return;
     }
 
-    // HINT shares TEXT's shape on purpose: a hint is a typed answer with the
-    // same normalization rules — only its role in a match differs.
     if (kind === "TEXT" || kind === "HINT") {
         if (!Array.isArray(p.acceptedAnswers)) {
             fail("TEXT questions require payload.acceptedAnswers");

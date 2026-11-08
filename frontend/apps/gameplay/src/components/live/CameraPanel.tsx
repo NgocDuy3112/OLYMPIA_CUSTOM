@@ -1,19 +1,6 @@
 import { Camera, CameraOff, Mic, MicOff } from "lucide-react";
 import { useSelfCam, type RtcStatus } from "@shared/lib/rtc";
 
-/**
- * The player's camera CONTROL bar — status + mic/cam toggles floating over
- * the deck. The FEED itself lives in the player's own Rail card (the
- * `mine` rectangle) via SelfBroadcastContext; this bar never renders video.
- *
- * Visibility is decided by the TOKEN refusal, not by local state:
- *   401/403 — not seated → stay away (the deck's Gate explains)
- *   404     — unknown match → the route shows NotFound
- *   409     — match not LIVE yet → nothing to publish into
- *   503     — rtc not configured on the server → feature is off
- * Everything else (connecting, connected, permission denied…) shows, because
- * the player needs to see WHY their camera isn't up.
- */
 
 const SILENT_STATUSES = new Set([401, 403, 404, 409, 503]);
 

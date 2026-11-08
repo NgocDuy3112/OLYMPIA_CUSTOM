@@ -17,12 +17,10 @@ export interface Stage {
     end?: string
 }
 
-/** No team knobs: every seat is a user (mirrors the backend's SeatSchema). */
 export interface TournamentFormat {
     competitorsPerMatch: number
 }
 
-// The list route: enough to pick a tournament.
 interface TournamentSummary {
     id: string
     slug: string
@@ -33,7 +31,6 @@ interface TournamentSummary {
     end: string | null
 }
 
-// One tournament: identity, the stage list, the places.
 export interface TournamentDetail extends TournamentSummary {
     closedAt: string | null
     rounds: TournamentRound[]
@@ -48,13 +45,11 @@ export interface MatchPlayer {
     seed: number
 }
 
-// A final result of a FINISHED match — only such matches carry `results`.
 export interface MatchResult {
     id: string
     name: string
     totalScore: number
     rank: number
-    // Keyed by round id ("khoi-dong"); the adapters rekey it to names.
     roundScores: Record<string, number>
 }
 
@@ -64,13 +59,11 @@ export interface Match {
     slot: number | null
     status: "UPCOMING" | "LIVE" | "FINISHED"
     scheduledAt: string
-    // "<stage title> · <label>", composed by the server.
     round: string
     players: MatchPlayer[]
     results?: MatchResult[]
 }
 
-// A row of the places table: how far the player got, never a sum of scores.
 export interface StandingRow {
     userId: string
     displayName: string

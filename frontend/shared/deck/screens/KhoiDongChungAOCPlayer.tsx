@@ -2,15 +2,7 @@ import { formatRemaining } from "@shared/lib/clock"
 import { AnswerBand, PlayerStage, Progress, QuestionFrame, Rail, Timer, type PlayerCore } from "../player-deck"
 import type { AnswerValue } from "../types"
 
-// Khởi động — lượt chung (S2): the TIMED BATCH. Six questions, everyone types
-// into the SAME window, opened when the controller presses Bấm giờ.
-//
-//   open when the clock starts → LOCKED at zero (the server refuses late answers too)
-//   each correct player → +10, independently — no buzz, no second chance
-//
-// Pure: every value comes from the orchestrator, narrowed to what this screen reads.
 type KhoiDongChungPlayerCtx = PlayerCore & {
-    /** ms left on the window — 0 both before Bấm giờ and after it expires. */
     remaining: number
     answerBusy: boolean
     submitAnswer: (questionId: string, value: AnswerValue) => void
@@ -20,9 +12,6 @@ export function KhoiDongChungAOCPlayer({ ctx }: { ctx: KhoiDongChungPlayerCtx })
     const { v, remaining, myId, flash, answerBusy, submitAnswer } = ctx
     const openQ = ctx.open[0]
     const windowOpen = v.me.windowOpen === true
-    // THE LOCK: the field is editable only while the clock is actually running.
-    // `remaining` is 0 before the console starts the window and0 again the
-    // moment it expires, so both states grey the input out.
     const locked = !windowOpen || remaining <= 0
 
     return (

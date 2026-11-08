@@ -1,16 +1,3 @@
-/**
- * mint-portal-session — a portal session cookie for any user, for dev work.
- *
- * Why it exists: /portal/auth/login requires TOTP, so no unattended browser or
- * script can sign the console in. This prints the same cookie a finished login
- * would set, signed with the app's own JWT plugin (buildApp only, nothing
- * listens). It is a DEV tool: it mints a cookie for a username you already have,
- * it never creates one.
- *
- *   npx tsx --env-file=../configs/.env scripts/mint-portal-session.ts ADMIN
- *
- * Use it as a devtools request header (Cookie: portal_session=…) or with curl.
- */
 import { eq } from "drizzle-orm";
 import { db, pool } from "../src/db/pool.js";
 import { users } from "../src/db/schema/index.js";

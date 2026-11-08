@@ -17,8 +17,6 @@ const testUrl = deriveTestDatabaseUrl(devUrl);
 
 assertTestDatabaseUrl(testUrl);
 
-// Point EVERY consumer at the test database — including src/config/env.ts,
-// which builds its URL from POSTGRES_* instead of reading DATABASE_URL.
 process.env.POSTGRES_DB = TEST_DATABASE_NAME;
 process.env.DATABASE_URL = testUrl;
 

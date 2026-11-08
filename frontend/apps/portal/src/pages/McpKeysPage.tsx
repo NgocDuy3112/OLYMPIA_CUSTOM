@@ -19,7 +19,6 @@ import { EmptyState, ErrorPanel, ListSkeleton, Page, PageHeader } from "@/compon
 
 type Scope = "READ" | "WRITE" | "ANNOUNCE"
 const ALL_SCOPES: Scope[] = ["READ", "WRITE", "ANNOUNCE"]
-// The backend's default when scopes are omitted.
 const DEFAULT_SCOPES: Scope[] = ["READ"]
 
 interface McpKey {
@@ -53,7 +52,6 @@ function messageOf(error: unknown): string {
     return "Something went wrong. Please try again."
 }
 
-// ── issue dialog: form → the one-time token panel ─────────────────────────────
 
 function IssueKeyDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
     const queryClient = useQueryClient()
@@ -202,7 +200,6 @@ function IssueKeyDialog({ open, onClose }: { open: boolean; onClose: () => void 
     )
 }
 
-// ── revoke: one-way → confirm in a dialog ─────────────────────────────────────
 
 function RevokeDialog({ keyRow, onClose }: { keyRow: McpKey | null; onClose: () => void }) {
     const queryClient = useQueryClient()
@@ -248,7 +245,6 @@ function RevokeDialog({ keyRow, onClose }: { keyRow: McpKey | null; onClose: () 
     )
 }
 
-// ── the page ──────────────────────────────────────────────────────────────────
 
 export function McpKeysPage() {
     const list = useQuery({

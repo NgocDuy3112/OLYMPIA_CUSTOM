@@ -59,10 +59,8 @@ import {
 
 const UUID_PATTERN = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$";
 
-// giai-ma.start replaces the state wholesale, so the incoming state is irrelevant.
 const EMPTY_GIAI_MA: GiaiMaState = startGiaiMa([], [], GIAI_MA_DEFAULTS);
 
-// khoi-dong.start replaces the state wholesale; this placeholder only satisfies the types.
 const EMPTY_VE_DICH: VeDichState = {
     rules: VE_DICH_DEFAULTS,
     phase: 1, players: [], remaining: [], turnIndex: 0, pendingPicks: [],
@@ -74,14 +72,11 @@ const EMPTY_KHOI_DONG: KhoiDongState = {
     stage: "phase1", ended: false, order: [], activeIndex: 0, runs: {}, phase2: null
 };
 
-// but-pha.start replaces the state wholesale; this placeholder only satisfies the types.
 const EMPTY_BUT_PHA: ButPhaState = {
     rules: BUT_PHA_DEFAULTS,
     questionIds: [], cursor: 0, questionOpenedAt: null, answers: {}, points: {}, ended: false
 };
 
-// The rulebook's rules for a round, from the match's config. The format's defaults
-// apply wherever the rulebook is silent.
 function rulesFor(match: { roundConfigs: Record<string, RoundConfig> }, roundId: string) {
     const config = match.roundConfigs[roundId];
     switch (roundId) {
@@ -93,8 +88,6 @@ function rulesFor(match: { roundConfigs: Record<string, RoundConfig> }, roundId:
     }
 }
 
-// khoi-dong runs two turns: phase 1 (oral) then phase 2 (typed). The turn order comes from
-// the match's round config, so the split is server-authoritative, not client-chosen.
 function khoiDongContext(
     match: { questions: MatchQuestion[]; roundConfigs: Record<string, RoundConfig>; players: unknown },
     roundId: string,
@@ -119,7 +112,6 @@ function khoiDongContext(
     };
 }
 
-// The ve-dich board: the cell's face value IS the question's points.
 function veDichQuestions(match: { questions: MatchQuestion[] }) {
     return match.questions
         .filter((q) => q.roundId === "ve-dich")
@@ -127,8 +119,6 @@ function veDichQuestions(match: { questions: MatchQuestion[] }) {
         .map((q) => ({ id: q._id, value: q.points, timeLimit: q.timeLimit }));
 }
 
-// The match's questions for a round, in position order. Resolved server-side, so a client
-// never chooses which questions a round plays.
 function roundQuestionIds(match: { questions: MatchQuestion[] }, roundId: string): string[] {
     return match.questions
         .filter((q) => q.roundId === roundId)
@@ -136,9 +126,6 @@ function roundQuestionIds(match: { questions: MatchQuestion[] }, roundId: string
         .map((q) => q._id);
 }
 
-// The live scoreboard: every seated player's match total with the name to show it
-// by. Totals come from the answers ledger (the facts each action commits) PLUS
-// the controller's manual score adjustments; the view only ranks them.
 async function scoreTable(match: MatchRow): Promise<ScoreRow[]> {
     const userIds = match.players.flatMap((seat) =>
         seat.kind === "user" && seat.userId ? [seat.userId] : []);
@@ -154,13 +141,6 @@ async function scoreTable(match: MatchRow): Promise<ScoreRow[]> {
     }));
 }
 
-/**
- * The LOBBY — what both shells show while waiting (match not LIVE yet, round not
- * started): tournament name, match label, the seats with live totals, who holds
- * a socket right now, and the match's rounds in play order (the controller's
- * start buttons). One payload, two surfaces (portal console / gameplay player): the
- * endpoints below only differ in who may ask.
- */
 async function lobbyOf(match: MatchRow): Promise<{
     title: string;
     label: string;
@@ -173,10 +153,7 @@ async function lobbyOf(match: MatchRow): Promise<{
     const { tournament } = await requireMatchScope(match.tournamentId);
     const [table, live] = await Promise.all([scoreTable(match), readLive(match.id)]);
 
-    // The rounds this match actually plays, in the tournament's declared order.
     const ordered = orderedMatchRounds(tournament.rounds, match.roundConfigs);
-    // Per-round status for the navigator: new (never started) · playing (mid-play
-    // or parked) · ended. The active round reads its state, the others their archive.
     const statusOf = (id: string, raw: unknown): "new" | "playing" | "ended" => {
         if (!raw || Object.keys(raw as Record<string, unknown>).length === 0) return "new";
         return isRoundEnded(id, raw) ? "ended" : "playing";
@@ -193,7 +170,6 @@ async function lobbyOf(match: MatchRow): Promise<{
         title: tournament.name,
         label: match.label,
         status: match.status,
-        // The round to start: the live record's (LIVE match) or the first one.
         roundId: live?.roundId ?? ordered[0] ?? null,
         rounds,
         table: rankTable(table),
@@ -228,7 +204,6 @@ const actionBody = {
     },
 } as const;
 
-// A ve-dich player command. The command `type` picks which fields apply.
 const playerCommandBody = {
     type: "object",
     required: ["type"],
@@ -257,8 +232,6 @@ const playerAnswerBody = {
     },
 } as const;
 
-// Server-authoritative context for a giai-ma action: turnId and question membership come
-// from the assembled questions, never from the client.
 function giaiMaContext(
     app: FastifyInstance,
     match: { questions: MatchQuestion[] },
@@ -295,7 +268,7 @@ function giaiMaContext(
 
 function isRoundEnded(roundId: string, raw: unknown): boolean {
     const value = raw as Record<string, unknown> | null;
-    if (!value || Object.keys(value).length === 0) return false;       // never started
+    if (!value || Object.keys(value).length === 0) return false;       
     if (roundId === "giai-ma") return parseGiaiMaState(raw).stage === "ended";
     if (roundId === "but-pha") return parseButPhaState(raw).ended;
     if (roundId === "khoi-dong") return parseKhoiDongState(raw).ended;
@@ -303,9 +276,6 @@ function isRoundEnded(roundId: string, raw: unknown): boolean {
     return true;
 }
 
-// What only the controller needs beyond the shared projection — engine facts,
-// read through the engine's own parsers (never raw-shape guesses on a client).
-// null = the round has not started; {} = nothing extra for this round.
 function consoleFacts(roundId: string, raw: unknown): Record<string, unknown> | null {
     const value = raw as Record<string, unknown> | null;
     if (!value || Object.keys(value).length === 0) return null;
@@ -333,15 +303,9 @@ function consoleFacts(roundId: string, raw: unknown): Record<string, unknown> | 
             buzzerId: state.open?.buzzer ?? null,
             buzzerMs: state.open?.buzzerMs ?? null,
             power: state.open?.power ?? null,
-            // ASSIGN names the partner: the console badges THAT card.
             assignedToId: state.open?.assignedTo ?? null,
             pendingQuestionId: state.pendingPicks[0]?.id ?? null,
-            // The pick board's staged power decision — which of the three
-            // (Ngôi sao hy vọng / Chỉ định đối kháng / Không dùng) is chosen
-            // for this turn, before the question opens.
             stagedPower: state.stagedPower ?? null,
-            // The one-power-per-turn cap: the row goes inert once this turn
-            // spent one (the player's other power waits for their next turn).
             turnPowerUsed: state.turnPowerUsed ?? false
         };
     }
@@ -353,10 +317,6 @@ function consoleFacts(roundId: string, raw: unknown): Record<string, unknown> | 
             ended: state.ended,
             phase2Begun: p2 !== null,
             phase2Closed: p2?.closed ?? false,
-            // The batch's own facts: which of the six is in play, and whether
-            // its window is running RIGHT NOW — time-aware, because Bấm giờ's
-            // button reads this to know it may press (and a clock that ran out
-            // shows as closed even before any client refreshes).
             questionIndex: p2?.index ?? 0,
             questionCount: p2?.questionIds.length ?? 0,
             windowOpen: p2 !== null && isPhase2WindowOpen(p2, new Date().toISOString())
@@ -365,22 +325,13 @@ function consoleFacts(roundId: string, raw: unknown): Record<string, unknown> | 
     if (roundId === "but-pha") {
         const state = parseButPhaState(raw);
         return {
-            // The cursor's question and whether it has been ASKED — the
-            // controller needs both for Hiện đáp án: after the 30 s the shared
-            // projection drops its `open`, which is exactly when the desk
-            // reveals the answer.
             questionId: openQuestionId(state),
             opened: state.questionOpenedAt !== null
         };
     }
-    return {};  // unknown round: the shared projection says what it can
+    return {};  
 }
 
-/**
- * A frozen question as the AUDIENCE may see it: the same shape the screens read,
- * with every ANSWER stripped — no `correctSet`, no `acceptedAnswers`, no keyword
- * `code`. The options and the code LENGTH stay: that is what the deck draws.
- */
 function publicQuestions(questions: MatchQuestion[]): MatchQuestion[] {
     return questions.map((q) => {
         const payload = q.payload as Record<string, unknown>;
@@ -413,7 +364,6 @@ export async function liveRoutes(app: FastifyInstance) {
             reply.code(409).send({ error: error.code, message: error.message });
             return;
         }
-        // ve-dich's engine predates the shared RuleError and carries its code in `detail`.
         if (error instanceof VeDichRuleError) {
             reply.code(409).send({ error: error.detail.code, message: error.message });
             return;
@@ -426,7 +376,6 @@ export async function liveRoutes(app: FastifyInstance) {
             reply.code(404).send({ error: "NOT_FOUND", message: error.message });
             return;
         }
-        // A lobby/live read naming a match that does not exist (or was deleted).
         if (error instanceof MatchError) {
             reply.code(toHttpStatus(error.code)).send({ error: error.code, message: error.message });
             return;
@@ -434,7 +383,6 @@ export async function liveRoutes(app: FastifyInstance) {
         reply.send(error);
     });
 
-    // ── console surface ────────────────────────────────────────────────────────────
     app.post(
         "/portal/tournaments/:tournamentId/matches/:matchId/live/actions",
         {
@@ -476,9 +424,6 @@ export async function liveRoutes(app: FastifyInstance) {
                 {
                     expectedVersion: body.expectedVersion,
                     transition: async (current, tx): Promise<Transition<Record<string, unknown>>> => {
-                        // Manual score correction — match-level like round.goTo, before the
-                        // round guard: the fact writes the score_adjustments row IN THIS
-                        // transaction, so the version bump and the ledger can't disagree.
                         if (action.kind === "score.adjust") {
                             return {
                                 state: current.state,
@@ -492,9 +437,6 @@ export async function liveRoutes(app: FastifyInstance) {
                             };
                         }
 
-                        // Free navigation: any round may become active. Its saved
-                        // state (if any) is restored, so ended AND mid-play rounds
-                        // can be re-opened — the controller's re-visit right.
                         if (action.kind === "round.goTo") {
                             if (!ordered.includes(action.roundId)) {
                                 throw new RuleError("UNKNOWN_ROUND", `round ${action.roundId} is not part of this match`);
@@ -510,10 +452,6 @@ export async function liveRoutes(app: FastifyInstance) {
                             };
                         }
 
-                        // Hiện đáp án — display-only: record WHICH answer every
-                        // screen is showing (the view gates its text to the
-                        // question still in play). The question must belong to
-                        // the ACTIVE round; anything else is a client bug.
                         if (action.kind === "reveal.answer") {
                             if (Object.keys(current.state).length === 0) {
                                 throw new RuleError(
@@ -539,7 +477,6 @@ export async function liveRoutes(app: FastifyInstance) {
                             };
                         }
 
-                        // An action must belong to the round that is active.
                         if (!action.kind.startsWith(`${current.roundId}.`)) {
                             throw new RuleError(
                                 "WRONG_ROUND",
@@ -547,10 +484,6 @@ export async function liveRoutes(app: FastifyInstance) {
                             );
                         }
 
-                        // No round may end while a submitted answer still waits for a
-                        // verdict — the freeze would silently drop it. Read inside this
-                        // transaction. (ve-dich is excluded: its pass-the-turn flow can
-                        // legitimately leave a resolved-later draft behind.)
                         if (action.kind === "giai-ma.endRound"
                             || action.kind === "but-pha.endRound"
                             || action.kind === "khoi-dong.endRound") {
@@ -569,16 +502,12 @@ export async function liveRoutes(app: FastifyInstance) {
                         }
 
                         if (current.roundId === "giai-ma") {
-                            // Resolve coverage is read INSIDE this transaction, so a
-                            // submission that landed just before it cannot be missed.
                             let answerDrafts: AnswerDraft[] = [];
                             if (action.kind === "giai-ma.resolveHint") {
                                 const state = parseGiaiMaState(current.state);
                                 if (state.openHint === null) {
                                     throw new RuleError("NO_OPEN_HINT", "no hint window is open");
                                 }
-                                // Read inside the tx so a submission landing mid-flight
-                                // cannot slip past the coverage check the apply layer runs.
                                 answerDrafts = await tx.readAnswerDrafts(state.openHint);
                             }
 
@@ -596,15 +525,12 @@ export async function liveRoutes(app: FastifyInstance) {
                                 ? EMPTY_BUT_PHA
                                 : parseButPhaState(current.state);
 
-                            // Finalize coverage: both directions (see assertVerdictCoverage).
                             let answerDrafts: AnswerDraft[] = [];
                             if (action.kind === "but-pha.finalize") {
                                 answerDrafts = await tx.readAnswerDrafts(action.questionId);
                                 assertVerdictCoverage(answerDrafts, action.verdicts, "finalizing");
                             }
 
-                            // Strict blocking: the next question requires every answer of the
-                            // current one to have a final verdict.
                             if (action.kind === "but-pha.closeQuestion") {
                                 const open = openQuestionId(engine);
                                 if (open !== null) {
@@ -634,10 +560,6 @@ export async function liveRoutes(app: FastifyInstance) {
                                 ? EMPTY_KHOI_DONG
                                 : parseKhoiDongState(current.state);
 
-                            // The judge's NO_ANSWER and the advance's
-                            // UNJUDGED_ANSWERS read the question in play's drafts
-                            // INSIDE this transaction, so a submission landing
-                            // mid-flight cannot slip past either guard.
                             let answerDrafts: AnswerDraft[] = [];
                             if (action.kind === "khoi-dong.judge" || action.kind === "khoi-dong.nextQuestion") {
                                 const questionId = engine.phase2 === null
@@ -660,15 +582,11 @@ export async function liveRoutes(app: FastifyInstance) {
                                 ? EMPTY_VE_DICH
                                 : parseVeDichState(current.state);
 
-                            // Resolving phase 1 finalizes the answerer's draft, so the engine
-                            // needs to know whether one exists.
                             let drafts: AnswerDraft[] = [];
                             if (action.kind === "ve-dich.resolve" && engine.open !== null) {
                                 drafts = await tx.readAnswerDrafts(engine.open.question.id);
                             }
 
-                            // ve-dich orders phase 1 by score, so the seed is the cumulative
-                            // match score — everyone starts ve-dich itself at zero.
                             const sums = action.kind === "ve-dich.start"
                                 ? await sumPointsByPlayer(matchId)
                                 : {};
@@ -692,7 +610,6 @@ export async function liveRoutes(app: FastifyInstance) {
                 }
             );
 
-            // Tell every connected player their view is stale.
             await publish(matchId);
 
             if (action.kind === "khoi-dong.judge") {
@@ -720,9 +637,6 @@ export async function liveRoutes(app: FastifyInstance) {
         }
     );
 
-    // The answers for a question, with their drafts, so the controller can judge them.
-    // ONE handler, two doors: the operator console and the link-only spectate
-    // twin — the Discord audience watches exactly what the host's screen shows.
     const answersSchema = {
         params: matchParams,
         querystring: {
@@ -743,8 +657,6 @@ export async function liveRoutes(app: FastifyInstance) {
         { onRequest: [requireRole("PORTAL", ["ADMIN", "OPERATOR"])], schema: answersSchema },
         answersHandler
     );
-    // The console's read — what GET /live returns AND what the stream pushes.
-    // Null = no live round yet (the GET 404s; the stream says UNAVAILABLE).
     const consoleViewOf = async (matchId: string): Promise<ConsoleView | null> => {
             const live = await readLive(matchId);
             if (!live) return null;
@@ -753,9 +665,6 @@ export async function liveRoutes(app: FastifyInstance) {
             const table = await scoreTable(match);
             const started = live.state !== null && Object.keys(live.state).length > 0;
 
-            // The shared projection: what console and players both see — stage, open
-            // questions with payloads, the oral run, the board, the table. The
-            // observer's `me` is discarded: the console is not a player.
             const view: PlayerView = started
                 ? buildPlayerView({
                       matchId,
@@ -783,36 +692,20 @@ export async function liveRoutes(app: FastifyInstance) {
                 version: live.version,
                 roundId: live.roundId,
                 state: live.state,
-                // The judge's view: the full frozen set, answers included.
                 questions: match.questions,
                 projection,
                 roundEnded: isRoundEnded(live.roundId, live.state),
-                // Who has a live socket right now — the rail's connected dots
-                // (hub state, so it follows the socket, not the session).
                 connected: connectedUsers(matchId),
                 console: consoleFacts(live.roundId, live.state)
             };
     };
 
-    /**
-     * The AUDIENCE's read — "Khán giả cùng leo núi".
-     *
-     * Same round, same projection (stage, question text, board, table, deadlines),
-     * but the judge's extras are withheld:
-     *   • `questions[]` keep their SHAPE and lose their ANSWERS (no correctSet, no
-     *     acceptedAnswers, no keyword code) — the screens still draw, the room
-     *     cannot read the answer;
-     *   • `mc` (the console's own facts) is not served at all.
-     * The answers ledger has no public twin either: an audience does not judge.
-     */
     const audienceViewOf = async (matchId: string): Promise<ConsoleView | null> => {
         const full = await consoleViewOf(matchId);
         if (!full) return null;
         return { ...full, questions: publicQuestions(full.questions), console: null };
     };
 
-    // Read the current state and version. The console calls this after a 409 —
-    // the audience's twin serves the public read of the same round.
     const liveHandler = async (request: FastifyRequest) => {
             const { matchId } = request.params as { matchId: string };
             const payload = await consoleViewOf(matchId);
@@ -836,11 +729,6 @@ export async function liveRoutes(app: FastifyInstance) {
         audienceHandler
     );
 
-    // ── Console realtime channel ────────────────────────────────────────────────
-    // The console's socket twin: the same payload as the GET above, pushed
-    // whenever the round changes — an console action, a player's buzz, a verdict.
-    // Two doors, as the GET has: the operator console (session-checked) and
-    // the link-only spectate twin (public). The 3 s poll stays as the fallback.
     const openConsoleStream = async (
         socket: WebSocket,
         request: FastifyRequest,
@@ -858,10 +746,7 @@ export async function liveRoutes(app: FastifyInstance) {
             socket.send(JSON.stringify(consoleViewMessage(payload)));
         };
 
-        // A half-open socket would otherwise sit in the hub forever, receiving pushes.
         const stopHeartbeat = attachHeartbeat(socket);
-        // The console's own socket is NOT a player: it subscribes under a sentinel
-        // id so the rail's connected dots keep meaning "a player is here".
         const unsubscribe = subscribe(matchId, { userId: CONSOLE_SUBSCRIBER, push: send });
 
         let stopSessionGuard: () => void = () => {};
@@ -871,8 +756,6 @@ export async function liveRoutes(app: FastifyInstance) {
             unsubscribe();
         };
 
-        // Only the operator's session can be revoked mid-connection; the spectate
-        // door has no session to re-check.
         if (sessionCheck) {
             const connectedAtVersion = sessionCheck.tokenVersion;
             stopSessionGuard = attachSessionGuard({
@@ -910,14 +793,10 @@ export async function liveRoutes(app: FastifyInstance) {
         "/spectate/tournaments/:tournamentId/matches/:matchId/live/stream",
         { websocket: true, ...publicReadRate, schema: { params: matchParams } },
         async (socket, request) => {
-            // The audience door: no session to check, and no judge's extras.
             await openConsoleStream(socket, request, null, true);
         }
     );
 
-    // The LOBBY: same payload before the match is LIVE (the /live read 404s
-    // until then) — the deck's waiting screen for the console. The spectate twin
-    // gives the link-only audience the same waiting room.
     const lobbyHandler = async (request: FastifyRequest) => {
         const { matchId } = request.params as { matchId: string };
         const match = await getMatchById(matchId);
@@ -934,9 +813,7 @@ export async function liveRoutes(app: FastifyInstance) {
         lobbyHandler
     );
 
-    // ── Player surface ────────────────────────────────────────────────────────
 
-    // The realtime channel: the same view as the GET, pushed whenever the round changes.
     app.get(
         "/gameplay/matches/:matchId/live/stream",
         {
@@ -973,28 +850,22 @@ export async function liveRoutes(app: FastifyInstance) {
                           submitted: await readPlayerAnswers(matchId, user.id),
                           questions: match.questions,
                           table,
-                          // Rounds that publish their verdicts show the field's ✓/✗.
                           judged: await readJudgedAnswers(matchId)
                       });
 
                 socket.send(JSON.stringify(viewMessage(view)));
             };
 
-            // A seated player only.
             const match = await getMatchById(matchId);
             if (!isSeatedInMatch(match.players, user.id)) {
                 socket.close(CLOSE_CODES.NOT_SEATED, "not a player in this match");
                 return;
             }
 
-            // A half-open socket would otherwise sit in the hub forever, receiving pushes.
             const stopHeartbeat = attachHeartbeat(socket);
             const unsubscribe = subscribe(matchId, { userId: user.id, push: send });
 
-            // A socket outlives the request that opened it, so re-check the session
-            // (disabled account, revoked tokenVersion) the way HTTP does on every request.
             let stopSessionGuard: () => void = () => {};
-            // Every exit path frees the heartbeat, the guard, and the hub entry.
             const cleanup = () => {
                 stopHeartbeat();
                 stopSessionGuard();
@@ -1012,7 +883,6 @@ export async function liveRoutes(app: FastifyInstance) {
             socket.on("close", cleanup);
             socket.on("error", cleanup);
 
-            // Inbound: one validated envelope per command.
             socket.on("message", async (raw) => {
                 const reply = (message: ServerMessage) => {
                     try { socket.send(JSON.stringify(message)); } catch { /* socket gone */ }
@@ -1077,7 +947,6 @@ export async function liveRoutes(app: FastifyInstance) {
         }
     );
 
-    // What this player should see: the shared flow plus their own private state.
     app.get(
         "/gameplay/matches/:matchId/live",
         {
@@ -1099,7 +968,6 @@ export async function liveRoutes(app: FastifyInstance) {
 
             const table = await scoreTable(match);
 
-            // A round the console has not started yet has an empty state; say so plainly.
             if (!live.state || Object.keys(live.state).length === 0) {
                 return {
                     matchId,
@@ -1122,15 +990,11 @@ export async function liveRoutes(app: FastifyInstance) {
                 submitted: await readPlayerAnswers(matchId, user.id),
                 questions: match.questions,
                 table,
-                // Rounds that publish their verdicts show the field's ✓/✗.
                 judged: await readJudgedAnswers(matchId)
             });
         }
     );
 
-    // The player's LOBBY — the same waiting payload before the round (and before
-    // the match) is LIVE: the /live read above 409s until then, so the player
-    // shell asks this instead while it waits.
     app.get(
         "/gameplay/matches/:matchId/lobby",
         {
@@ -1150,9 +1014,6 @@ export async function liveRoutes(app: FastifyInstance) {
         }
     );
 
-    // A seated player submits a typed answer, only while the console has its window open.
-    // The answer is auto-matched and stored; it does not touch the round state, so it
-    // never conflicts with the console.
     app.post(
         "/gameplay/matches/:matchId/live/answers",
         {
@@ -1174,7 +1035,6 @@ export async function liveRoutes(app: FastifyInstance) {
         }
     );
 
-    // A seated player's ve-dich command, over HTTP (the socket carries the same commands).
     app.post(
         "/gameplay/matches/:matchId/live/commands",
         {
@@ -1196,9 +1056,6 @@ export async function liveRoutes(app: FastifyInstance) {
                 userAgent: request.headers["user-agent"] ?? null
             };
 
-            // A player's ve-dich vocabulary is the BUZZ alone: the pick is the
-            // console's, and powers are staged by the console BEFORE the
-            // question opens (both via POST /live/actions).
             if (body.type === "buzz") {
                 if (!body.questionId) throw app.httpErrors.badRequest("questionId is required");
                 return submitVeDichCommand({ ...base, command: { type: "buzz", questionId: body.questionId } });
@@ -1208,8 +1065,6 @@ export async function liveRoutes(app: FastifyInstance) {
         }
     );
 
-    // A seated player submits their keyword. This DOES change the round state (the player
-    // is locked), so it runs through mutateLive rather than a plain insert.
     app.post(
         "/gameplay/matches/:matchId/live/keyword",
         {

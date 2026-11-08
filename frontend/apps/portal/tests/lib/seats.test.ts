@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { allowedSeatsOf, seatsPhrase } from "@/lib/tournaments"
 
-// AOC: a group match holds 3 or 4 players, and the team-point scale resolves by
-// the real count. The format decides what the New-match dialog may offer.
 
 describe("allowedSeatsOf — what a match of this tournament may hold", () => {
     it("uses the explicit set when the format names one", () => {

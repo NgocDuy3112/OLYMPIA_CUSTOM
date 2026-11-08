@@ -1,17 +1,10 @@
 import { type CSSProperties } from "react"
 
-// ── the deck's typography & constants ────────────────────────────────────────
-// No components in this file (react-refresh): the pure helpers the flow stage
-// (@shared/deck/stage) and both surfaces' screens share. Layout is flex/grid —
-// these are the few numbers left: text sizing, radii, padding, round labels.
 
 const CANVAS_W = 13.3333
 const PT_SCALE = 0.75
-/** Points → container-width units, so text scales with the projection. */
 export const pt = (v: number) => `${+(((v * PT_SCALE) / 72 / CANVAS_W) * 100).toFixed(3)}cqw`
-/** The deck's rounded control radius (0.44-high buttons), in cqw. */
 export const STRIP_R = `${+(((0.44 * 0.31623) / CANVAS_W) * 100).toFixed(3)}cqw`
-/** PowerPoint's default text insets (verified across all 406 bodyPr in the deck). */
 export const DECK_PAD: CSSProperties = {
     paddingLeft: "0.75cqw",
     paddingRight: "0.75cqw",
@@ -19,7 +12,6 @@ export const DECK_PAD: CSSProperties = {
     paddingBottom: "0.375cqw",
 }
 
-// ── deck labels ──────────────────────────────────────────────────────────────
 export const ROUND_LABEL: Record<string, string> = {
     "khoi-dong": "Khởi động",
     "giai-ma": "Giải mã",
@@ -27,17 +19,11 @@ export const ROUND_LABEL: Record<string, string> = {
     "ve-dich": "Về đích",
 }
 
-/** A round the deck knows — anything else has NO screen and waits in the lobby. */
 export const isKnownRound = (roundId: string): boolean => roundId in ROUND_LABEL
 
-// Stages where NO round screen renders — the lobby does. (The khoi-dong engine
-// never sends "ended" — it stops at phase2 — but a waiting stage still covers
-// it defensively, with no round-specific branch anywhere.)
 const WAITING_STAGES = new Set(["pending", "ended", "unknown"])
 export const isWaitingStage = (stage: string): boolean => WAITING_STAGES.has(stage)
 
-/** Two digits — the clock shows SECONDS only (user: "displayed at 2 digits").
- *  Round budgets run ≤ 60s, so `m:ss` collapses to its seconds field. */
 export const toClock = (text: string): string => {
     const seconds = /^\d+$/.test(text)
         ? Number(text)

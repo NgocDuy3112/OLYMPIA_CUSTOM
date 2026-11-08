@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { railCardClass, railCardState, railScoreClass } from "@shared/deck/rail-card"
 
-// The card's state table — one place decides how a player's card reads on BOTH
-// rails. The rule, in the show's words: right = bright, wrong/locked = grey,
-// the live answerer = purple with a dashed white outline, otherwise plain.
 
 describe("railCardState", () => {
     it("a judged CORRECT card is the bright one", () => {
@@ -35,7 +32,6 @@ describe("railCardState", () => {
     it("everything else waits: the card is purple too, only tinted", () => {
         expect(railCardState({})).toBe("waiting")
         expect(railCardClass("waiting")).toContain("bg-primary/10")
-        // …and the LIVE answerer is the same hue, filled: the outline separates them.
         expect(railCardClass("waiting")).not.toContain("outline-dashed")
         expect(railCardClass("buzzing")).toContain("bg-primary ")
     })

@@ -1,19 +1,3 @@
-/**
- * PlayerGateScreen — the four screens a player could be stuck behind.
- *
- * Which one shows is `lib/player-gate`'s call (a tested table); this file draws it.
- * The copy is instructive on purpose: a player reading this is already stuck, so
- * every branch says what to DO — not what failed.
- *
- * The two session gates (expired 401, wrong seat 403) link to `/login` IN PLACE:
- * the message says the session is gone or the seat is not theirs, and the button
- * that fixes it is right there — the player keeps their place in the show (the
- * `?next=` carries this very page back). Those two are drawn full-height
- * (`StageShell fullHeight`) — a form, not a deck.
- *
- * The 409 wait and the loading read stay inside the 16:9 canvas: they are the
- * deck's own states and nothing has to be typed.
- */
 import { Link, useLocation } from "react-router-dom"
 import { StageShell } from "@shared/deck/stage-shell"
 import { Lobby } from "@shared/deck/lobby"
@@ -24,10 +8,8 @@ import { loginLink } from "@/lib/session"
 import type { PlayerGate } from "@/lib/player-gate"
 import type { PlayerModel } from "@/hooks/use-player-model"
 
-/** The deck's primary action, in one place so the gates cannot drift apart. */
 const actionClass = "rounded-lg bg-primary px-4 py-2 font-sans text-sm font-semibold text-primary-foreground"
 
-/** A session gate: the message, and the door that fixes it. */
 function SessionGate({ title, body, next }: { title: string; body: string; next: string }) {
     return (
         <StageShell fullHeight>
@@ -51,8 +33,6 @@ function SessionGate({ title, body, next }: { title: string; body: string; next:
 }
 
 export function PlayerGateScreen({ gate, model }: { gate: PlayerGate; model: PlayerModel }) {
-    // Where to come back to after signing in: this very page (the deck route
-    // carries the tournament slug), carried as ?next= on the login link.
     const here = useLocation().pathname
 
     if (gate === "unauthorized") {
@@ -76,7 +56,6 @@ export function PlayerGateScreen({ gate, model }: { gate: PlayerGate; model: Pla
     }
 
     if (gate === "not-live") {
-        // Not LIVE yet — the lobby IS the waiting screen (the hook keeps polling).
         return (
             <StageShell>
                 {model.lobby.data ? (

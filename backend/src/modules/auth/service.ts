@@ -22,8 +22,6 @@ export async function startLogin(
         .where(eq(users.username, username))
         .limit(1);
 
-    // Same message whether the user is unknown or the password is wrong:
-    // prevents username enumeration.
     const invalidCredentials = () => app.httpErrors.unauthorized("Invalid username or password");
 
     if (!user || !user.passwordHash) throw invalidCredentials();
@@ -36,7 +34,6 @@ export async function startLogin(
     const pendingToken = signPending(app, surface, { sub: user.id, purpose: "mfa" });
 
     if (!user.totpEnabledAt) {
-        // First login (or interrupted enrollment): mint a fresh secret.
         const secret = newTotpSecret();
         await db
             .update(users)

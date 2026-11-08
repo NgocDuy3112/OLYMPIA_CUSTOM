@@ -6,10 +6,6 @@ import { defineConfig } from "vite"
 
 const dir = fileURLToPath(new URL(".", import.meta.url))
 
-// The AUDIENCE host: public, link-only, no session of any kind. It reads ONLY the
-// public twins — /spectate/* (the live projection, answers stripped, no ledger)
-// and /public/* (tournament pages) — so its API family is deliberately two
-// prefixes, and neither the admin nor the player API is reachable from it.
 export default defineConfig({
     root: dir,
     cacheDir: path.resolve(dir, "node_modules/.vite"),

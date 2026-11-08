@@ -1,19 +1,8 @@
-// The flow primitives every deck screen is built from — the frame, the card,
-// its header, the round badge, the progress squares, the clock, the verdict
-// icon, the status line and the gate. Shared by BOTH surfaces: the console console
-// and the player deck draw the same furniture, only the controls below it
-// differ (Strip vs Band).
-//
-// Rules this file keeps:
-// - components only (react-refresh), and no logic: a variant map turns a state
-//   into a class string, so a screen never concatenates class names by hand;
-// - every number comes from `./geometry` (pt, STRIP_R, DECK_PAD).
 import type { ReactNode } from "react"
 import { CheckCircle2, Hourglass, XCircle } from "lucide-react"
 import { formatRemaining } from "@shared/lib/clock"
 import { DECK_PAD, STRIP_R, pt, toClock } from "./geometry"
 
-// ── the frame ────────────────────────────────────────────────────────────────
 
 export function StageLayout({ rail, children }: { rail?: ReactNode; children: ReactNode }) {
     return (
@@ -24,7 +13,6 @@ export function StageLayout({ rail, children }: { rail?: ReactNode; children: Re
     )
 }
 
-/** THE content card — fills the column, everything inside flows top-down. */
 export function MainCard({ className = "", children }: { className?: string; children?: ReactNode }) {
     return (
         <section className={`flex min-h-0 flex-1 flex-col gap-[1.2cqw] overflow-hidden rounded-2xl bg-card p-[1.6cqw] shadow-md ring-1 ring-border ${className}`}>
@@ -33,7 +21,6 @@ export function MainCard({ className = "", children }: { className?: string; chi
     )
 }
 
-/** The card's top line: badges left, optional middle (board chips), clock right. */
 export function CardHeader({ left, mid, right }: { left?: ReactNode; mid?: ReactNode; right?: ReactNode }) {
     return (
         <div className="flex shrink-0 items-start justify-between gap-[1.5cqw]">
@@ -44,9 +31,7 @@ export function CardHeader({ left, mid, right }: { left?: ReactNode; mid?: React
     )
 }
 
-// ── the round badge ──────────────────────────────────────────────────────────
 
-/** Round name (clickable → the rounds navigator on the console's deck) + the mode line. */
 export function Badges({ round, mode, size = 32, onRoundClick }: {
     round: string; mode?: string; size?: number; onRoundClick?: () => void
 }) {
@@ -73,7 +58,6 @@ export function Badges({ round, mode, size = 32, onRoundClick }: {
     )
 }
 
-// ── progress squares ─────────────────────────────────────────────────────────
 
 type SquareState = "done" | "active" | "pending"
 const SQUARE: Record<SquareState, string> = {
@@ -84,7 +68,6 @@ const SQUARE: Record<SquareState, string> = {
 const squareState = (i: number, done: number, active: number): SquareState =>
     i < done ? "done" : i === active ? "active" : "pending"
 
-/** Question index squares: done ▸ active ▸ pending — a row, count-driven. */
 export function Progress({ total, done, active, onPick }: { total: number; done: number; active: number; onPick?: (i: number) => void }) {
     return (
         <div className="flex shrink-0 items-center gap-[0.98cqw]">
@@ -101,9 +84,7 @@ export function Progress({ total, done, active, onPick }: { total: number; done:
     )
 }
 
-// ── the clock ────────────────────────────────────────────────────────────────
 
-/** THE clock — top right of the card, the only one. Seconds only (m:ss collapses). */
 export function Timer({ remaining, fallback = "45", size = 40 }: {
     remaining: number | null; fallback?: string; size?: number
 }) {
@@ -115,7 +96,6 @@ export function Timer({ remaining, fallback = "45", size = 40 }: {
     )
 }
 
-// ── verdict + status ─────────────────────────────────────────────────────────
 
 export function VerdictIcon({ verdict }: { verdict: "CORRECT" | "INCORRECT" | null | undefined }) {
     if (verdict === "CORRECT") return <CheckCircle2 className="size-[1.15em] shrink-0 text-emerald-600" aria-label="Đúng" />
@@ -123,7 +103,6 @@ export function VerdictIcon({ verdict }: { verdict: "CORRECT" | "INCORRECT" | nu
     return <Hourglass className="size-[1.15em] shrink-0 text-amber-500" aria-label="Chưa chấm" />
 }
 
-/** Refusal flash (red) > contextual hint (muted) — right-aligned under the strip. */
 export function Status({ error, hint }: { error?: string | null; hint?: ReactNode }) {
     return (
         <div className="flex shrink-0 items-center justify-end pr-[1cqw] text-right leading-tight" style={{ fontSize: pt(10), ...DECK_PAD }}>
@@ -136,9 +115,7 @@ export function Status({ error, hint }: { error?: string | null; hint?: ReactNod
     )
 }
 
-// ── the gate ─────────────────────────────────────────────────────────────────
 
-/** A centered message — the stage frame stays, the content explains. */
 export function Gate({ title, body, children }: { title: string; body: string; children?: ReactNode }) {
     return (
         <div className="flex h-full items-center justify-center p-[6cqw]">

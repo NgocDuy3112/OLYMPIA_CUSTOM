@@ -1,6 +1,3 @@
-// One place that turns a player's submitted answer into a recorded fact, whatever the
-// transport. The HTTP route and the WebSocket handler both call this, so seat checks,
-// window checks, auto-match, and the write happen exactly once.
 import { Value } from "@sinclair/typebox/value";
 import {
     SubmittedAnswerValueSchema,
@@ -28,13 +25,8 @@ import { isPhase2WindowOpen, phase2QuestionId } from "../../game/engine/turns/kh
 
 export type Suggestion = "CORRECT" | "INCORRECT";
 
-// What every submission ack returns: "received, awaiting the console's verdict".
-// Nothing about correctness crosses the wire — the auto-matcher's opinion stays
-// server-side in the draft (drafts.auto) for the console to review; the player waits
-// for the verdict the console pushes after judging.
 export type AnswerResult = { drafted: true };
 
-// A refusal the caller can turn into an HTTP status, or a socket error message.
 export class SubmitError extends Error {
     constructor(
         public readonly status: number,
@@ -89,8 +81,6 @@ function parseValue(value: unknown): SubmittedAnswerValue {
     return value as SubmittedAnswerValue;
 }
 
-// A player's answer for the round in play. giai-ma hints are recorded outright; the typed
-// rounds produce a draft that the controller finalizes.
 export async function submitAnswer(ctx: SubmitContext): Promise<AnswerResult> {
     const value = parseValue(ctx.value);
     const { match, live, now } = await loadContext(ctx);
@@ -110,9 +100,6 @@ export async function submitAnswer(ctx: SubmitContext): Promise<AnswerResult> {
         const question = match.questions.find((q) => q._id === ctx.questionId);
         if (!question) throw new SubmitError(400, "NOT_IN_MATCH", "question is not part of this match");
 
-        // A hint answer is a DRAFT: the auto-matcher's opinion is stored for the
-        // console, the reveal resolves it (giai-ma.resolveHint judges every row).
-        // Revision while the window is open: last answer wins (writeDraft default).
         const suggestion: Suggestion = autoMatch(question.kind as QuestionKind, question.payload, value)
             ? "CORRECT" : "INCORRECT";
         await writeDraft({
@@ -162,7 +149,7 @@ export async function submitAnswer(ctx: SubmitContext): Promise<AnswerResult> {
             value,
             suggestion,
             answeredMs: Math.round(atS * 1000),
-            revise: false                       // but-pha allows one attempt per question
+            revise: false                       
         });
         await draftAudit(ctx, live.roundId, suggestion);
         await publish(ctx.matchId);
@@ -175,7 +162,6 @@ export async function submitAnswer(ctx: SubmitContext): Promise<AnswerResult> {
         }
         const state = parseKhoiDongState(live.state);
         if (state.stage !== "phase2" || state.phase2 === null) {
-            // Phase 1 is oral: the console records what was said, nothing to type.
             throw new SubmitError(409, "NO_WINDOW", "khởi động riêng is oral — there is nothing to type yet");
         }
         const questionId = phase2QuestionId(state.phase2);
@@ -185,8 +171,6 @@ export async function submitAnswer(ctx: SubmitContext): Promise<AnswerResult> {
         if (questionId !== ctx.questionId) {
             throw new SubmitError(409, "NOT_OPEN", "that question is not the one in play");
         }
-        // THE LOCK, in two words: no clock started → NO_WINDOW; the clock ran
-        // out → WINDOW_CLOSED (the same instant the screen greys the field).
         if (state.phase2.openedAt === null) {
             throw new SubmitError(409, "NO_WINDOW", "the console has not started the clock for this question yet");
         }
@@ -200,9 +184,6 @@ export async function submitAnswer(ctx: SubmitContext): Promise<AnswerResult> {
         const suggestion: Suggestion = autoMatch(question.kind as QuestionKind, question.payload, value)
             ? "CORRECT" : "INCORRECT";
 
-        // Revision while the window runs: last answer wins (the default). At
-        // zero this branch never runs, and a JUDGED row refuses a rewrite — the
-        // console's verdict is the last word, not the player's retyping.
         await writeDraft({
             matchId: ctx.matchId,
             questionId,
@@ -256,9 +237,6 @@ export async function submitAnswer(ctx: SubmitContext): Promise<AnswerResult> {
     throw new SubmitError(409, "NO_ROUND", `round ${live.roundId} does not accept answers yet`);
 }
 
-// The giai-ma keyword. Unlike a hint answer this changes round state: the player is
-// locked out of hints. The typed text is stored as a DRAFT — no verdict, no points
-// until the console judges (giai-ma.judgeKeyword).
 export async function submitKeyword(ctx: SubmitContext): Promise<AnswerResult> {
     const value = parseValue(ctx.value);
     if (!("text" in value)) throw new SubmitError(400, "BAD_VALUE", "a keyword answer must be text");
@@ -291,7 +269,7 @@ export async function submitKeyword(ctx: SubmitContext): Promise<AnswerResult> {
                     playerId: ctx.userId,
                     questionId: keyword._id,
                     text: value.text,
-                    suggestion           // the matcher's OPINION — stored in the draft, never a verdict
+                    suggestion           
                 },
                 {
                     actorId: ctx.userId,

@@ -1,21 +1,9 @@
-// The rulebook, resolved.
-//
-// A round's rules live in the tournament's rulebook (`tournaments.round_rules`), and the
-// engine reads them. This module is where a rulebook entry becomes the numbers the
-// engine uses: what the rulebook says, or the format's default where it says nothing.
-//
-// The defaults are the constants the engine always used — they are the format, and a
-// rulebook that does not mention them keeps them.
 import type { RoundConfig, TurnConfig } from "../contracts/index.js";
 
-// ── khoi-dong: two phases, each with its own clock ───────────────────────────
 
 export const KHOI_DONG_DEFAULTS = {
     phase1Questions: 6,
     phase1BudgetS: 45,
-    // Chung is a TIMED BATCH now: six questions, everyone types into ONE 10 s
-    // window the console opens with Bấm giờ, and every correct answer pays 10 —
-    // independently, no buzz, no second chance, nobody locked out.
     phase2Questions: 6,
     phase2WindowS: 10,
     pointsPerCorrect: 10
@@ -36,16 +24,12 @@ export function khoiDongRules(config: RoundConfig | undefined): KhoiDongRules {
     return {
         phase1Questions: phase1?.questionCount ?? KHOI_DONG_DEFAULTS.phase1Questions,
         phase1BudgetS: phase1?.timeBudgetSeconds ?? KHOI_DONG_DEFAULTS.phase1BudgetS,
-        // Fixed by the show: chung is SIX questions, whatever a rulebook says.
         phase2Questions: KHOI_DONG_DEFAULTS.phase2Questions,
-        // The window the console opens per question — the turn's own time limit
-        // when the rulebook sets one, the show's 10 s otherwise.
         phase2WindowS: phase2?.timeLimitSeconds ?? KHOI_DONG_DEFAULTS.phase2WindowS,
         pointsPerCorrect: constantPoints(config) ?? KHOI_DONG_DEFAULTS.pointsPerCorrect
     };
 }
 
-// ── giai-ma: the hints and the keyword ────────────────────────────────────────
 
 export const GIAI_MA_DEFAULTS = {
     hintCount: 8,
@@ -58,9 +42,9 @@ export const GIAI_MA_DEFAULTS = {
 export interface GiaiMaRules {
     hintCount: number;
     hintWindowS: number;
-    start: number;          // the keyword's starting value
-    dropPerHint: number;    // what each correct hint costs
-    floor: number;          // the keyword never drops below this
+    start: number;          
+    dropPerHint: number;    
+    floor: number;          
 }
 
 export function giaiMaRules(config: RoundConfig | undefined): GiaiMaRules {
@@ -78,7 +62,6 @@ export function giaiMaRules(config: RoundConfig | undefined): GiaiMaRules {
     };
 }
 
-// ── but-pha: the sprint ───────────────────────────────────────────────────────
 
 export const BUT_PHA_DEFAULTS = {
     questionCount: 4,
@@ -114,13 +97,10 @@ export function butPhaRules(config: RoundConfig | undefined): ButPhaRules {
     };
 }
 
-// ── ve-dich: the main event ───────────────────────────────────────────────────
 
 export const VE_DICH_DEFAULTS = {
     correctPct: 1,
     incorrectPct: -0.5,
-    // STAR = the old HOPE: a multiplier on your own answer, usable all round.
-    // (ASSIGN's numbers are the show's duel table in scoring/ve-dich.ts.)
     star: { correct: 1.5, incorrect: -1 },
     buzzWindowS: 5,
     pickCount: 3
@@ -143,14 +123,12 @@ export function veDichRules(config: RoundConfig | undefined): VeDichRules {
     return {
         correctPct: main?.correct ?? VE_DICH_DEFAULTS.correctPct,
         incorrectPct: main?.incorrect ?? VE_DICH_DEFAULTS.incorrectPct,
-        // `powers.star` is the only configurable multiplier (HOPE, renamed).
         star: main?.powers.star ?? VE_DICH_DEFAULTS.star,
         buzzWindowS: phase2?.buzzWindowSeconds ?? VE_DICH_DEFAULTS.buzzWindowS,
         pickCount: phase2?.pickCount ?? VE_DICH_DEFAULTS.pickCount
     };
 }
 
-// ── helpers ──────────────────────────────────────────────────────────────────
 
 function turnOf(config: RoundConfig | undefined, id: string): TurnConfig | undefined {
     return config?.turns.find((turn) => turn.id === id);

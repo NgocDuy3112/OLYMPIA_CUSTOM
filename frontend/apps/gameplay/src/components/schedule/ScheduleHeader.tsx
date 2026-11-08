@@ -24,7 +24,7 @@ export function ScheduleHeader({
         <header className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 md:px-6">
             <h1 className="font-heading text-2xl font-bold md:text-3xl">{title}</h1>
             <div className="flex items-center gap-2">
-                {/* date navigation pill */}
+                
                 <div className="flex items-center overflow-hidden rounded-lg bg-secondary">
                     <Button
                         variant="ghost"
@@ -55,7 +55,7 @@ export function ScheduleHeader({
                 </div>
 
 
-                {/* settings */}
+                
                 <Button
                     variant="ghost"
                     size="icon"

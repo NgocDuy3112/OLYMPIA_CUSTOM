@@ -13,7 +13,6 @@ const IDS = ["a", "b"];
 const H = ["h1", "h2", "h3", "h4", "h5", "h6", "h7", "h8"];
 const NOW = "2026-01-01T00:00:00.000Z";
 
-// One unjudged draft row for a player (the answers ledger's shape).
 const draft = (userId: string): AnswerDraft =>
     ({ userId, suggestion: "CORRECT", answeredMs: 1200, judged: false });
 
@@ -23,7 +22,6 @@ const ctx = (answerDrafts: AnswerDraft[] = []): GiaiMaContext =>
         answerDrafts, now: NOW
     });
 
-// The the console's commit: explicit verdicts for the players they staged.
 const resolve = (verdicts: Array<{ playerId: string; correct: boolean }>) =>
     ({ kind: "giai-ma.resolveHint" as const, verdicts });
 
@@ -42,7 +40,7 @@ describe("applyGiaiMaAction — state transitions", () => {
     it("openHint opens the window for that hint", () => {
         const { state } = applyGiaiMaAction(fresh(), { kind: "giai-ma.openHint", hintId: "h3" }, ctx());
         expect(state.openHint).toBe("h3");
-        expect(state.picked).toEqual([]);          // not consumed until resolved
+        expect(state.picked).toEqual([]);          
     });
 
     it("a second openHint while a window is open is rejected", () => {
@@ -59,21 +57,20 @@ describe("applyGiaiMaAction — state transitions", () => {
         ]), ctx([draft("a"), draft("b")]));
         expect(state.picked).toEqual(["h3"]);
         expect(state.openHint).toBeNull();
-        expect(keywordValueFor(state, "a")).toBe(90);     // a revealed one hint
-        expect(keywordValueFor(state, "b")).toBe(100);    // b's verdict was wrong → nothing
+        expect(keywordValueFor(state, "a")).toBe(90);     
+        expect(keywordValueFor(state, "b")).toBe(100);    
     });
 
     it("a player with no draft gets nothing — they are simply absent from the verdicts", () => {
         const open = applyGiaiMaAction(fresh(), { kind: "giai-ma.openHint", hintId: "h1" }, ctx()).state;
         const { state } = applyGiaiMaAction(open, resolve([{ playerId: "a", correct: true }]),
-            ctx([draft("a")]));                    // b never answered
+            ctx([draft("a")]));                    
         expect(keywordValueFor(state, "a")).toBe(90);
         expect(keywordValueFor(state, "b")).toBe(100);
     });
 
     it("a submitted answer without a verdict BLOCKS the resolve (no auto-verdict)", () => {
         const open = applyGiaiMaAction(fresh(), { kind: "giai-ma.openHint", hintId: "h1" }, ctx()).state;
-        // both submitted, but the console staged only "a" → refuse, nothing is revealed
         expect(() => applyGiaiMaAction(open, resolve([{ playerId: "a", correct: true }]),
             ctx([draft("a"), draft("b")]))).toThrow(RuleError);
         try {
@@ -126,7 +123,7 @@ describe("applyGiaiMaAction — facts", () => {
         expect(facts).toHaveLength(2);
         expect(facts[0]).toMatchObject({
             type: "judge", questionId: "h1", userId: "a",
-            verdict: "CORRECT", pointsAwarded: 0       // a hint never scores match points
+            verdict: "CORRECT", pointsAwarded: 0       
         });
         expect(facts[1]).toMatchObject({
             type: "judge", questionId: "h1", userId: "b",
@@ -149,7 +146,6 @@ describe("applyGiaiMaAction — facts", () => {
             type: "draft", questionId: "kw", userId: "a",
             value: { text: "DIENBIENPHU" }, suggestion: "CORRECT"
         });
-        // locked, but nothing judged and nothing awarded yet
         expect(state.players.find((p) => p.id === "a")!.keywordLocked).toBe(true);
         expect(state.players.find((p) => p.id === "a")!.keywordPoints).toBe(0);
     });
@@ -165,10 +161,9 @@ describe("applyGiaiMaAction — facts", () => {
             kind: "giai-ma.judgeKeyword", playerId: "a", questionId: "kw", correct: true
         }, ctx());
         expect(facts).toHaveLength(1);
-        // JudgeFact: verdict + points, no insert — it updates the draft row
         expect(facts[0]).toMatchObject({
             type: "judge", questionId: "kw", userId: "a",
-            verdict: "CORRECT", pointsAwarded: 100            // fresh round: no hints → 100
+            verdict: "CORRECT", pointsAwarded: 100            
         });
         expect(state.players.find((p) => p.id === "a")!.keywordPoints).toBe(100);
     });

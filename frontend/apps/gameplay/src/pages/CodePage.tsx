@@ -7,23 +7,10 @@ import { Input } from "@shared/ui/input"
 import { ApiError } from "@shared/lib/api"
 import { isUnauthorized, loginLink, useClaimCode, useMe } from "@/lib/session"
 
-/** Only a path inside this app — the same rule LoginPage applies to ?next=. */
 function isGone(error: unknown): boolean {
     return error instanceof ApiError && error.status === 401
 }
 
-/**
- * /code — the walk-in's door.
- *
- * The desk reads a room code aloud; the player types it here and lands in the
- * match it names. It is HALF an entrance on purpose: the code says WHICH room
- * is open, the account says WHO the player is, so a signed-out visitor is sent
- * to the login door with this page waiting as `?next=` — the same round trip
- * every other gate in the app makes.
- *
- * No name is ever typed here. Identity is not chosen at the door, which is the
- * whole reason the old PIN path was deleted.
- */
 export function CodePage() {
     const me = useMe()
     const claim = useClaimCode()
@@ -31,8 +18,6 @@ export function CodePage() {
 
     const [code, setCode] = useState("")
 
-    // A definitive 401 means the session is gone; while `me` is still pending
-    // the form stands (flashing a login gate at a signed-in player is worse).
     const signedOut = isUnauthorized(me.error) || me.data === null
 
     const submit = (event: FormEvent) => {
@@ -78,8 +63,6 @@ export function CodePage() {
         )
     }
 
-    // The session died while the page was open: the message says so, and the
-    // door that fixes it carries this page (and the typed code's destination).
     const sessionGone = isGone(claim.error)
 
     return (

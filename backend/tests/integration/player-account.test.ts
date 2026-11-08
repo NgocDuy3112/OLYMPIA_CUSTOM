@@ -6,14 +6,6 @@ import { db } from "../../src/db/pool.js";
 import { matches, tournaments, users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 
-// A player's account, as step 8 issues it: the DESK creates the row (handle
-// derived from the name, first password typed by the operator), the player
-// signs in with that handle, and their own password is not optional — until it
-// exists, every authenticated route except whoami/logout/change-password says
-// so with 409.
-//
-// Nothing here types an email to sign up with: registration is gone, and so is
-// the verification mail it used to carry.
 
 let app: FastifyInstance;
 let ownerCookie: string;
@@ -23,7 +15,6 @@ const FIRST_PASSWORD = "mat-khau-2026";
 
 const auth = (cookie: string) => ({ cookie: `portal_session=${cookie}` });
 
-/** The rate-limited routes count per IP — one address per call. */
 let ipTick = 0;
 const perCallIp = () => `10.6.${Math.floor(ipTick / 200)}.${(ipTick++ % 200) + 1}`;
 
@@ -31,7 +22,6 @@ const cookieOf = (res: { headers: Record<string, unknown> }) => String(res.heade
 const sessionOf = (res: { headers: Record<string, unknown> }) =>
     `gameplay_session=${(cookieOf(res).split("gameplay_session=")[1] ?? "").split(";")[0]}`;
 
-/** Create the account the way the roster does: name in, handle + first password out. */
 async function createPlayer(displayName: string, password = FIRST_PASSWORD) {
     const res = await app.inject({
         method: "POST",
@@ -98,7 +88,7 @@ describe("the desk creates the account", () => {
 
     it("gives the SAME handle to nobody else — the second Ngọc Duy is #-2", async () => {
         const first = await createPlayer("Trần Thị Hoa");
-        const second = await createPlayer("Trần  Thị   Hoa"); // same name, different spacing
+        const second = await createPlayer("Trần  Thị   Hoa"); 
         expect(first.username).toBe("tran-thi-hoa");
         expect(second.username).toBe("tran-thi-hoa-2");
     });
@@ -173,15 +163,12 @@ describe("the gate — the desk's password is not the player's", () => {
         const session = await login(created.username, FIRST_PASSWORD);
         const cookie = sessionOf(session);
 
-        // whoami is exempt: the navbar has to show a name to explain itself
         const me = await app.inject({ method: "GET", url: "/gameplay/auth/me", headers: { cookie } });
         expect(me.statusCode).toBe(200);
 
-        // the logout door is exempt too
         const logout = await app.inject({ method: "POST", url: "/gameplay/auth/logout", headers: { cookie } });
         expect(logout.statusCode).toBe(200);
 
-        // and play is not
         const seat = await app.inject({ method: "GET", url: "/gameplay/me/match", headers: { cookie } });
         expect(seat.statusCode).toBe(409);
         expect((seat.json() as { error: string }).error).toBe("PASSWORD_CHANGE_REQUIRED");
@@ -213,7 +200,6 @@ describe("the gate — the desk's password is not the player's", () => {
         expect(ok.statusCode).toBe(200);
         expect(ok.json()).toMatchObject({ ok: true });
 
-        // The flag is gone, and the NEW password is what signs them in now.
         const [row] = await db.select().from(users).where(eq(users.id, created.userId));
         expect(row.mustChangePassword).toBe(false);
 
@@ -234,11 +220,9 @@ describe("the gate — the desk's password is not the player's", () => {
         expect(changed.statusCode).toBe(200);
         const renewed = sessionOf(changed);
 
-        // the player walks straight on: no second login after the change
         const seat = await app.inject({ method: "GET", url: "/gameplay/me/match", headers: { cookie: renewed } });
         expect(seat.statusCode).toBe(200);
 
-        // …while the session the DESK's password minted is dead (tokenVersion moved)
         const stale = await app.inject({ method: "GET", url: "/gameplay/me/match", headers: { cookie } });
         expect(stale.statusCode).toBe(401);
     });

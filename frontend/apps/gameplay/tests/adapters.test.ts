@@ -2,8 +2,6 @@ import { describe, expect, it } from "vitest"
 import type { Match, TournamentRound } from "@/lib/api"
 import { roundNameOf, showDate, showTime, toMatch, toStandings } from "@/lib/adapters"
 
-// The adapters' three jobs: the show's wall clock, the seat+result merge, and
-// the round-id → round-name rekey.
 
 const ROUNDS: TournamentRound[] = [
     { id: "khoi-dong", name: "Khởi động", order: 1, chart: "bars" },
@@ -17,7 +15,6 @@ const wireMatch = (overrides: Partial<Match> = {}): Match => ({
     stageId: "playoffs",
     slot: 1,
     status: "UPCOMING",
-    // 03:30 UTC = 10:30 in Asia/Ho_Chi_Minh (UTC+7, no DST).
     scheduledAt: "2026-02-01T03:30:00.000Z",
     round: "Vòng Playoffs · Quarterfinal 1",
     players: [
@@ -36,7 +33,6 @@ describe("the show's wall clock", () => {
     })
 
     it("rolls the date over at Vietnamese midnight, not UTC's", () => {
-        // 17:30 UTC = 00:30 the NEXT day in Ho Chi Minh City.
         const view = toMatch(
             wireMatch({ scheduledAt: "2026-01-31T17:30:00.000Z" }),
             ROUNDS
@@ -50,7 +46,6 @@ describe("the show's wall clock", () => {
     })
 
     it("formatting is timezone-stable regardless of the environment", () => {
-        // Same instant, expressed for every test run the same way.
         expect(showDate("2026-02-01T03:30:00.000Z")).toBe("2026-02-01")
         expect(showTime("2026-02-01T03:30:00.000Z")).toBe("10:30")
     })
@@ -97,7 +92,6 @@ describe("toMatch — the merge", () => {
         const [first, second] = view.players
         expect(first).toMatchObject({ score: 24, rank: 1 })
         expect(second).toMatchObject({ score: 21, rank: 2 })
-        // The round scores arrive rekeyed to names.
         expect(first!.roundScores).toEqual({ "Khởi động": 10, "Về đích": 14 })
     })
 

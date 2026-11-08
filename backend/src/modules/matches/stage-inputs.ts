@@ -1,6 +1,3 @@
-// The saved rules for this tournament's rounds — the only thing a match still
-// takes from the rulebook. Question STAGING is gone: matches name their own
-// questions at creation (the New-match picker) or stay empty until assembled.
 import { tournaments } from "../../db/schema/index.js";
 import type { RoundConfig } from "../../game/contracts/index.js";
 import { resolveRoundRules } from "../../game/engine/aoc-rulebook.js";
@@ -9,9 +6,6 @@ import { MatchError } from "./errors.js";
 type TournamentRow = typeof tournaments.$inferSelect;
 
 
-// The rules for this tournament's rounds: what it saved, else the AOC rulebook.
-// A match needs them to know each turn's shape, and every round the deck can play
-// has a default — only an id the app does not know is a real gap.
 export function tournamentRoundConfigs(tournament: TournamentRow): Record<string, RoundConfig> {
     const resolved = resolveRoundRules(tournament.rounds, tournament.roundRules);
 

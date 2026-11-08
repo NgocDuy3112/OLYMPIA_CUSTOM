@@ -6,8 +6,6 @@ import { ME_QUERY_KEY } from "@/lib/session"
 import "./index.css"
 import App from "./App"
 
-// Public surface, but it has one session question ("am I signed in?") whose
-// 401 is an answer — that query is the one to invalidate on a session loss.
 const queryClient = createQueryClient({ sessionQueryKey: ME_QUERY_KEY })
 
 createRoot(document.getElementById("root")!).render(

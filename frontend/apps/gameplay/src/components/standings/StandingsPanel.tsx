@@ -18,8 +18,6 @@ import { Trophy, ArrowRight } from "lucide-react"
 import { cn } from "cn"
 import type { StandingRow } from "@/lib/types"
 
-// The places table: a player is ranked by HOW FAR THEY GOT — the last stage they
-// reached, and their rank inside it. A place has no stored worth to show.
 
 interface StandingsPanelProps {
     rows: StandingRow[]

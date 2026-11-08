@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { slugify } from "../../../src/modules/tournaments/slug.js";
 
-// The tournament slug that lands in the spectator URL. Pins the Vietnamese fix:
-// the old slugify DELETED non-[a-z0-9] characters, so "Giải đấu" became the
-// unreadable "gi-i-u" (or "" → the "tournament" fallback). Transliterate (NFD +
-// đ→d), never delete.
 
 describe("slugify (tournament name → url slug)", () => {
     it("transliterates Vietnamese instead of deleting it", () => {
@@ -16,7 +12,7 @@ describe("slugify (tournament name → url slug)", () => {
     it("leaves ASCII alone and trims separators", () => {
         expect(slugify("Tournament One")).toBe("tournament-one");
         expect(slugify("  Same   Name  ")).toBe("same-name");
-        expect(slugify("---")).toBe("");   // uniqueSlug falls back to "tournament"
+        expect(slugify("---")).toBe("");   
     });
 
     it("stays inside the public URL's pattern (^[a-z0-9-]{1,100}$)", () => {

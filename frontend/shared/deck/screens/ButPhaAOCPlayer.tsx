@@ -3,8 +3,6 @@ import { AnswerBand, PlayerStage, Progress, QuestionFrame, Rail, Timer, type Pla
 import { pt } from "../geometry"
 import type { AnswerValue } from "../types"
 
-// Bứt phá (S4): sequential typed questions, one open at a time. Pure: every
-// value comes from the orchestrator, narrowed to what this screen reads.
 type ButPhaPlayerCtx = PlayerCore & {
     remaining: number
     answerBusy: boolean
@@ -25,8 +23,6 @@ export function ButPhaAOCPlayer({ ctx }: { ctx: ButPhaPlayerCtx }) {
                         question={openQ.question}
                         answerState={v.me.answerState}
                         verdict={v.me.verdicts?.[openQ.questionId]}
-                        // THE LOCK: the question's 30 s are over — the field
-                        // greys at zero, the same instant the server refuses.
                         disabled={remaining <= 0}
                         busy={answerBusy}
                         error={flash}

@@ -9,7 +9,6 @@ import {
     tiersOf
 } from "../../../src/game/engine/bracket.js";
 
-// The format's rules, as the engine checks them against what the staff placed.
 
 const FIELD = ["p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9", "p10", "p11", "p12",
     "p13", "p14", "p15", "p16"];
@@ -39,7 +38,6 @@ describe("the tiers", () => {
             expect(match).toHaveLength(4);
             expect(new Set(match.map((id) => tierOf(FIELD, 4).get(id))).size).toBe(4);
         }
-        // every player is drawn exactly once
         expect(matches.flat().sort()).toEqual([...FIELD].sort());
     });
 });
@@ -53,13 +51,11 @@ describe("the tier rule", () => {
     it("refuses a match with two players from the same tier", () => {
         const problems = tierViolations([["p1", "p2", "p5", "p9"]], FIELD, 4);
         expect(problems.join(" ")).toContain("2 players from tier 0");
-        // and the tier it misses is reported too
         expect(problems.join(" ")).toContain("no player from tier 3");
     });
 
     it("refuses a match that misses a tier", () => {
         const problems = tierViolations([["p1", "p5", "p9", "p10"]], FIELD, 4);
-        // p9 and p10 are both in tier 2, and tier 3 is missing
         expect(problems.join(" ")).toContain("2 players from tier 2");
         expect(problems.join(" ")).toContain("no player from tier 3");
     });
@@ -79,7 +75,6 @@ describe("the ladder", () => {
     });
 
     it("climbs the winner and drops the losers", () => {
-        // The winner of the match below climbs into the slot above.
         const round = {
             matches: [
                 { slot: 1, order: ["a1", "a2", "a3", "a4"] },
@@ -90,7 +85,6 @@ describe("the ladder", () => {
 
         expect(step.next.matches).toHaveLength(1);
         expect(step.next.matches[0].order).toEqual(["b1", "a2", "a3", "a4"]);
-        // the bottom match's losers are out, the top match's winner waits for the finale
         expect(step.eliminated).toEqual(["b2", "b3", "b4"]);
         expect(step.toFinale).toEqual(["a1"]);
     });

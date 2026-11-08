@@ -1,30 +1,11 @@
-// The console's ACTION contract — a hand-written mirror of the backend's
-// LiveActionSchema (backend/src/modules/live/actions.ts). The route validates
-// every POST /live/actions body against that schema; this union lets the
-// compiler validate it BEFORE the round trip.
-//
-// Change one, change both:
-//   - backend:  add the action to LiveActionSchema
-//               (locked by backend/tests/unit/live/live-action-schema.test.ts)
-//   - frontend: add it here; every send site becomes a compiler error until
-//               it knows the new shape — that is the point of this file.
-//
-// Deliberately ABSENT: ve-dich.buzz. It is a player-door action, built
-// server-side from a player's own command — the route refuses it (see the
-// backend contract test), and so does this union: a console screen cannot
-// claim a playerId through it. (PICKING is console-side: ve-dich.pick /
-// pickBatch ARE here — the desk picks for the turn player, and the engine
-// guards the playerId.)
 import type { ConsoleQuestion } from "./live"
 
-/** One player's verdict, as the judging commits send it. */
 export interface Verdict {
     playerId: string
     correct: boolean
 }
 
 export type LiveAction =
-    // ── giai-ma ────────────────────────────────────────────────────────────────
     | { kind: "giai-ma.start"; playerIds: string[]; hintIds: string[] }
     | { kind: "giai-ma.openHint"; hintId: string }
     | { kind: "giai-ma.closeHintWindow" }
@@ -69,19 +50,6 @@ export type LiveAction =
     /** Hiện đáp án — reveal one question's correct answer to every screen. */
     | { kind: "reveal.answer"; questionId: string }
 
-/**
- * The `start` action for a round — the ONE dynamic action: the kind is
- * `${roundId}.start`, so it is built here, in a switch the compiler checks
- * member by member, never from a template string at the call site.
- *
- * Returns null for a round this contract does not know: such a start would be
- * refused by the backend schema anyway (400), so the navigator navigates
- * without it instead of sending a guaranteed refusal.
- *
- * `phase: 2` skips the untouched phase 1 in the SAME start (the engine refuses
- * a phase-1 skip on an already-touched round); phase 1 is the default and is
- * never sent.
- */
 export function startAction(
     roundId: string,
     opts: { phase?: 1 | 2; playerIds: string[]; questions: ConsoleQuestion[] }
@@ -89,8 +57,6 @@ export function startAction(
     const { phase, playerIds, questions } = opts
     switch (roundId) {
         case "giai-ma": {
-            // The hint order the engine expects: the frozen set's non-keyword
-            // questions, by position — resolved here the way the server would.
             const hintIds = questions
                 .filter((q) => q.roundId === "giai-ma" && q.kind !== "KEYWORD")
                 .sort((a, b) => a.position - b.position)

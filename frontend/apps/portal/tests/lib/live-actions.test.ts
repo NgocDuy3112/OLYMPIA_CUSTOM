@@ -3,8 +3,6 @@ import { describe, expect, it } from "vitest"
 import { startAction, type LiveAction } from "@/lib/live-actions"
 import type { ConsoleQuestion } from "@/lib/live"
 
-// The ONE dynamic action, table-tested: which round → which start shape.
-// Everything else in live-actions.ts is a type — the compiler checks it.
 
 const question = (over: Partial<ConsoleQuestion>): ConsoleQuestion => ({
     _id: "q",
@@ -43,10 +41,6 @@ describe("startAction", () => {
         expect(startAction("ve-dich", { playerIds: ["p1"], questions }))
             .toEqual({ kind: "ve-dich.start" })
 
-        // The paired rounds' "· Chung/· Riêng" second entry skips phase 1 in
-        // the SAME start; phase 1 is the default and is never sent. Unpaired
-        // rounds (giai-ma) have no phase field in the contract — it is dropped,
-        // not forwarded.
         expect(startAction("khoi-dong", { phase: 2, playerIds: ["p1"], questions }))
             .toEqual({ kind: "khoi-dong.start", phase: 2 })
         expect(startAction("ve-dich", { phase: 2, playerIds: ["p1"], questions }))

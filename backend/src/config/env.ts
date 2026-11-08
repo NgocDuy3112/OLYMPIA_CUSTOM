@@ -55,10 +55,6 @@ export const env = {
         secretAccessKey: optional("S3_SECRET_ACCESS_KEY"),
     },
 
-    // LiveKit (the WebRTC SFU for player webcams) — optional by design: without
-    // these the rtc routes answer 503 and everything else runs untouched, so
-    // dev boxes and CI never need the vars. A PARTIALLY set trio still refuses
-    // (isRtcConfigured) — a typo must not mint a token that cannot join.
     livekit: {
         url: optional("LIVEKIT_URL"),
         apiKey: optional("LIVEKIT_API_KEY"),

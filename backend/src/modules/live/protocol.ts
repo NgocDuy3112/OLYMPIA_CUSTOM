@@ -1,6 +1,3 @@
-// The live socket protocol. One envelope in both directions, one version field, and a
-// schema per client command. Every server message carries `v` and `type`; replies carry
-// the requestId they answer, so a result can be matched even though view pushes interleave.
 import { Type, Static } from "@sinclair/typebox";
 import { SubmittedAnswerValueSchema, type MatchQuestion } from "../../game/contracts/index.js";
 import type { PlayerView } from "./view.js";
@@ -8,7 +5,6 @@ import type { PlayerView } from "./view.js";
 export const PROTOCOL_VERSION = 1;
 const V = Type.Literal(PROTOCOL_VERSION);
 
-// ── Client → server ───────────────────────────────────────────────────────────
 
 export const AnswerCommand = Type.Object({
     v: V,
@@ -30,10 +26,6 @@ export const KeywordCommand = Type.Object({
     })
 });
 
-// ve-dich's ONLY player command: the buzz. The player is always taken from
-// the session, never from the message. Picking is the console's, and powers
-// are staged by the console BEFORE the question opens — neither is a player
-// command (POST /live/actions for both).
 export const BuzzCommand = Type.Object({
     v: V,
     type: Type.Literal("buzz"),
@@ -46,20 +38,14 @@ export const ClientMessageSchema = Type.Union([
 ]);
 export type ClientMessage = Static<typeof ClientMessageSchema>;
 
-// ── Server → client ───────────────────────────────────────────────────────────
 
-// `at` is the server's clock at send time. Round deadlines are absolute SERVER times, so
-// a client whose own clock is off would render a wrong countdown; it uses `at` to work out
-// the offset once and correct every deadline. It is display only — never authority.
 export interface ServerEnvelope {
     v: typeof PROTOCOL_VERSION;
     type: "view" | "console" | "ack" | "error";
-    at: string;                  // ISO, server time
+    at: string;                  
     requestId?: string;
 }
 
-// The console's read — what GET .../live returns: the shared projection plus
-// the judge's extras (the full frozen set, mc facts, socket presence).
 export interface ConsoleView {
     version: number;
     roundId: string;
@@ -68,7 +54,6 @@ export interface ConsoleView {
     projection: Omit<PlayerView, "me">;
     roundEnded: boolean;
     connected: string[];
-    /** The console's own facts (never a player's): powers, buzzers, race state. */
     console: Record<string, unknown> | null;
 }
 
@@ -114,15 +99,11 @@ export function errorMessage(
     };
 }
 
-// Codes a client may see, so the frontend can switch on them without guessing.
-// WebSocket close codes a client must handle. 4xxx is the application range; 1000/1006
-// are the browser's own normal/unclean codes.
 export const CLOSE_CODES = {
     SESSION_ENDED: 4401,   // the session was revoked or the account disabled mid-connection
-    NOT_SEATED: 4403       // the caller is not a player in this match
+    NOT_SEATED: 4403       
 } as const;
 
-// Read a requestId off a message that failed validation, so the error can still be matched.
 export function requestIdOf(raw: unknown): string | undefined {
     if (typeof raw !== "object" || raw === null) return undefined;
     const id = (raw as { requestId?: unknown }).requestId;

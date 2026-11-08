@@ -28,8 +28,6 @@ type Step =
   | { kind: "credentials"; notice?: string }
   | { kind: "code"; pendingToken: string; otpauthUri?: string; notice?: string }
 
-// otpauth://totp/ISSUER:user?secret=XXXX — the secret lets someone type it in
-// when they can't scan the screen.
 function secretFromUri(uri: string): string {
   try {
     return new URL(uri).searchParams.get("secret") ?? ""
@@ -52,7 +50,6 @@ export function LoginForm({
   const navigate = useNavigate()
   const location = useLocation()
 
-  // Set by RequireAuth once it exists; harmless until then.
   const from = (location.state as { from?: string } | null)?.from ?? "/"
 
   const submitCredentials = (event: SubmitEvent<HTMLFormElement>) => {
@@ -87,7 +84,6 @@ export function LoginForm({
           const failure = classifyMfaFailure(error)
           setCode("")
 
-          // The 5-minute pending token is gone — restart, keeping the username.
           if (failure === "expired") {
             setStep({
               kind: "credentials",

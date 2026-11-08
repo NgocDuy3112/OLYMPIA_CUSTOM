@@ -2,11 +2,7 @@ import type { FastifyRequest } from "fastify";
 import { db } from "../../db/pool.js";
 import { auditEvents } from "../../db/schema/index.js";
 
-// The doc's action vocabulary, plus the few our current code genuinely needs.
-// Deliberately absent: per-question open/close (doc's volume rule — that state
-// is recoverable from matches.live) and any content-only edit.
 export type AuditAction =
-    // doc list
     | "totp_reset"
     | "operator_disabled"
     | "match_started"
@@ -35,7 +31,7 @@ export type AuditAction =
 export interface AuditEvent {
     action: AuditAction;
     actorId?: string | null;
-    targetId?: string | null;      // audit_events.target_id references users
+    targetId?: string | null;      
     matchId?: string | null;
     details?: Record<string, unknown> | null;
     ip?: string | null;
@@ -73,7 +69,6 @@ export async function auditFromRequest(
     });
 }
 
-// Doc convention: every mcp_tool_call names its key in details.mcpKeyId.
 export function mcpAuditDetails(
     mcpKeyId: string,
     extra: Record<string, unknown> = {}

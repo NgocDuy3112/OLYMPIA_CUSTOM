@@ -3,11 +3,6 @@ import { GiaiMaAOCController, type GiaiMaCtx } from "./GiaiMaAOCController"
 import type { GiaiMaConsole } from "@/lib/live"
 import { screenCore, type RoundAction, type RoundModule } from "../types"
 
-// Giải mã — the AOC ruleset: hints open as timed windows, the keyword is
-// typed once. Kết thúc closes the open hint window, else ends the round.
-// NOTHING is auto-scored: the console clicks the players who are CORRECT (multi-
-// select) and commits — Đúng resolves the open hint with explicit verdicts,
-// Đúng từ khoá judges the keyword drafts (selected = correct, rest = wrong).
 
 function giaiMaCtx(f: ConsoleFacts): GiaiMaCtx {
     return {

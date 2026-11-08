@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
@@ -6,10 +5,6 @@ import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom"
 import { describe, expect, it, vi } from "vitest"
 import { CodePage } from "@/pages/CodePage"
 
-// The walk-in's door. The rule it draws: the code says WHICH room, the account
-// says WHO — so a signed-out visitor never reaches the box (the login door
-// carries this page as ?next=), and a signed-in one types a code that only
-// ever buys a seat.
 
 interface StubRoute { body: unknown; status?: number }
 
@@ -59,7 +54,6 @@ describe("CodePage — signed out", () => {
 
         const door = await screen.findByRole("link", { name: "Đăng nhập" })
         expect(door.getAttribute("href")).toBe("/login?next=%2Fcode")
-        // no code box: a session is the other half of the entrance
         expect(screen.queryByLabelText("Mã phòng")).toBeNull()
         expect(screen.getByText(/mã nói trận nào mở, tài khoản nói bạn là ai/)).toBeTruthy()
     })
@@ -99,7 +93,6 @@ describe("CodePage — signed in", () => {
         await userEvent.click(screen.getByRole("button", { name: "Vào trận" }))
 
         expect(await screen.findByRole("alert")).toHaveTextContent(/không đúng hoặc đã hết hạn/)
-        // the form stays: the player can retype the code
         expect(screen.getByLabelText("Mã phòng")).toBeTruthy()
     })
 

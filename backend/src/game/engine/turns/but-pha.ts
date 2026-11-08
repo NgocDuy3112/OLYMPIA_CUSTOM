@@ -1,4 +1,3 @@
-// but-pha: 4 sequential questions, 30 s each, typed. Pure state transitions.
 import { basePointsForTime, speedMultiplier } from "../scoring/but-pha.js";
 import { fail } from "./errors.js";
 import { BUT_PHA_DEFAULTS, type ButPhaRules } from "../rules.js";
@@ -6,23 +5,17 @@ import { BUT_PHA_DEFAULTS, type ButPhaRules } from "../rules.js";
 export interface Answer {
     playerId: string;
     correct: boolean;
-    atS: number;            // seconds from question open
+    atS: number;            
 }
 
 export interface ButPhaState {
-    // The rulebook's numbers, frozen when the round opened.
     rules: ButPhaRules;
     questionIds: string[];
-    cursor: number;                                // which question is open
-    questionOpenedAt: string | null;               // ISO time the current question opened
-    answers: Record<string, Answer[]>;             // questionId → answers in arrival order
-    points: Record<string, Record<string, number>>; // questionId → playerId → points
+    cursor: number;                                
+    questionOpenedAt: string | null;               
+    answers: Record<string, Answer[]>;             
+    points: Record<string, Record<string, number>>; 
     ended: boolean;
-    /**
-     * The console's Hiện đáp án: the question whose CORRECT ANSWER every screen
-     * is showing. Display-only; the view exposes the text only while that
-     * question is still the cursor's. Optional on pre-reveal states.
-     */
     revealedAnswer?: string | null;
 }
 
@@ -36,14 +29,12 @@ export function startButPha(questionIds: string[], rules: ButPhaRules = BUT_PHA_
     };
 }
 
-// The console starts the clock for the current question.
 export function openCurrentQuestion(state: ButPhaState, openedAt: string): ButPhaState {
     if (state.ended) fail("ENDED", "but-pha is over");
     if (state.questionOpenedAt !== null) fail("QUESTION_OPEN", "the question is already open");
     return { ...state, questionOpenedAt: openedAt };
 }
 
-// Seconds since the current question opened. Throws if the clock has not started.
 export function elapsedSeconds(state: ButPhaState, nowIso: string): number {
     if (state.questionOpenedAt === null) fail("QUESTION_NOT_OPEN", "no question is open");
     return (Date.parse(nowIso) - Date.parse(state.questionOpenedAt)) / 1000;
@@ -53,10 +44,6 @@ export function openQuestionId(state: ButPhaState): string | null {
     return state.ended ? null : state.questionIds[state.cursor];
 }
 
-// Record one answer for the open question. Rules:
-// - rejected after 30 s (scores 0, takes no speed order); exactly 30 s is in time
-// - the player may answer only once per question
-// - speed order counts correct answers only, in arrival order
 export function submitAnswer(state: ButPhaState, answer: Answer): ButPhaState {
     if (state.ended) fail("ENDED", "but-pha is over");
     const qid = state.questionIds[state.cursor];
@@ -66,7 +53,6 @@ export function submitAnswer(state: ButPhaState, answer: Answer): ButPhaState {
         fail("ALREADY_ANSWERED", "this player already answered this question");
     }
 
-    // Late: recorded as wrong, no speed order, no points.
     const late = answer.atS > state.rules.questionLimitS || answer.atS < 0;
     const effective: Answer = late ? { ...answer, correct: false } : answer;
 
@@ -86,7 +72,6 @@ export function submitAnswer(state: ButPhaState, answer: Answer): ButPhaState {
     return { ...state, answers, points };
 }
 
-// Close the open question and move to the next one, or end the round.
 export function closeQuestion(state: ButPhaState): ButPhaState {
     if (state.ended) fail("ENDED", "but-pha is over");
     const cursor = state.cursor + 1;
@@ -98,16 +83,12 @@ export function closeQuestion(state: ButPhaState): ButPhaState {
     };
 }
 
-// A player's answer, finalized by the controller. `atS` is the submission time, measured
-// from the question opening and stored in the answers ledger.
 export interface FinalResult {
     playerId: string;
     correct: boolean;
     atS: number;
 }
 
-// Finalize the open question. Points are computed HERE, not at submission: the speed
-// multiplier ranks the answers the controller marked correct, by submission time.
 export function finalizeQuestion(state: ButPhaState, results: FinalResult[]): ButPhaState {
     if (state.ended) fail("ENDED", "but-pha is over");
     const qid = state.questionIds[state.cursor];
@@ -143,13 +124,11 @@ export function finalizeQuestion(state: ButPhaState, results: FinalResult[]): Bu
     };
 }
 
-// The console ends the round early.
 export function endButPha(state: ButPhaState): ButPhaState {
     if (state.ended) return state;
     return { ...state, ended: true, questionOpenedAt: null };
 }
 
-// Total for one player across the round.
 export function butPhaTotal(state: ButPhaState, playerId: string): number {
     return Object.values(state.points).reduce(
         (sum, byPlayer) => sum + (byPlayer[playerId] ?? 0),

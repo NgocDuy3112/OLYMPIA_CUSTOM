@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { readinessOf, type ReadinessInput } from "@/console/lib/phase"
 
-// The console's gate: does a round screen draw, and must the lobby be asked for?
-// Every row here is a screen an operator either sees or does not — a wrong row
-// is a dead deck or a deck drawing a round that already ended.
 
 function input(over: Partial<ReadinessInput> = {}): ReadinessInput {
     return {

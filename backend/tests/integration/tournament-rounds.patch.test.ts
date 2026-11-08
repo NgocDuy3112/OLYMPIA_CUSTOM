@@ -6,12 +6,6 @@ import { tournaments, users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 import type { RoundConfig } from "../../src/game/contracts/index.js";
 
-// A tournament's round LIST and its RULES are one edit to an operator: the round
-// picker checks a box and fills the rules beside it, then saves once.
-//
-// The server used to validate the rules against the rounds it ALREADY had, so a
-// single request could never add a round with its rules — every save of a fresh
-// tournament answered "unknown round id". These tests are that contract.
 
 let app: FastifyInstance;
 let ownerCookie: string;
@@ -51,7 +45,6 @@ beforeAll(async () => {
             visibility: "PUBLIC",
             slug: "rules-tournament",
             name: "Rules Tournament",
-            // the state the operator is stuck in: no rounds at all
             rounds: [],
             format: { competitorsPerMatch: 4 },
             stages: [{ id: "s1", title: "Stage s1" }]
@@ -96,7 +89,6 @@ describe("adding a round and its rules in one save", () => {
     it("still refuses rules for a round the request does not keep", async () => {
         const res = await patch({
             rounds: [{ id: "khoi-dong", name: "Khởi động", order: 0, chart: "bars" }],
-            // no rounds list: the rules must match what the tournament HAS
             roundRules: { "but-pha": rules(10) }
         });
 
@@ -109,8 +101,6 @@ describe("adding a round and its rules in one save", () => {
             rounds: [{ id: "khong-ton-tai", name: "X", order: 0, chart: "bars" }],
             roundRules: { "khong-ton-tai": rules(10) }
         });
-        // the id is not one of the engine's rounds: the format check refuses it later,
-        // but the rules pairing itself is consistent, so this must NOT be a 400 now
         expect(res.statusCode).toBe(200);
     });
 });

@@ -28,7 +28,7 @@ describe("attachSessionGuard", () => {
         expect(onInvalid).toHaveBeenCalledTimes(1);
 
         await vi.advanceTimersByTimeAsync(5_000);
-        expect(onInvalid).toHaveBeenCalledTimes(1);   // no repeats, no further checks
+        expect(onInvalid).toHaveBeenCalledTimes(1);   
         stop();
     });
 
@@ -55,7 +55,7 @@ describe("attachSessionGuard", () => {
             check: async () => {
                 concurrent += 1;
                 maxConcurrent = Math.max(maxConcurrent, concurrent);
-                await new Promise((r) => setTimeout(r, 5_000));   // slower than the interval
+                await new Promise((r) => setTimeout(r, 5_000));   
                 concurrent -= 1;
                 return true;
             },

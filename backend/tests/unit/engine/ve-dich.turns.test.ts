@@ -27,15 +27,11 @@ import {
 const NOW = "2026-01-01T00:00:00.000Z";
 const at = (sec: number) => new Date(Date.parse(NOW) + sec * 1000).toISOString();
 
-// The show's board carries NO category labels — a cell IS its score, and the
-// ordinal tells the same-score cells apart ("40-1" reads better than a uuid).
 const cell = (value: number, n: number, timeLimit: number | null = 30): VeDichQuestion =>
     ({ id: `${value}-${n}`, value, timeLimit });
 const cells = (value: number, count: number, timeLimit: number | null = 30): VeDichQuestion[] =>
     Array.from({ length: count }, (_, i) => cell(value, i + 1, timeLimit));
 
-// A REAL board: 6×20, 6×30, 4×40, 4×50 — createVeDich refuses anything else, so
-// a fixture that is not the show's composition cannot even build a round.
 const board = (): VeDichQuestion[] => [
     ...cells(20, 6), ...cells(30, 6), ...cells(40, 4), ...cells(50, 4)
 ];
@@ -58,8 +54,6 @@ function codeOf(fn: () => unknown): string {
     return "NO_ERROR";
 }
 
-// Powers are staged BEFORE the open (the pick board's row) — the question then
-// opens already powered, exactly as the show runs it.
 const stageOpen = (
     picked: VeDichState,
     playerId: string,
@@ -166,7 +160,7 @@ describe("Chung is a 20/30 table — the partition rule", () => {
 
     it("the summit pool = deferred 40/50 PLUS every unplayed 20/30", () => {
         const state = beginPhase2(createVeDich(POOL, [player("a", 0)]));
-        expect(state.remaining).toHaveLength(POOL.length);      // all 20 cells
+        expect(state.remaining).toHaveLength(POOL.length);      
         expect(countOf(state.remaining, 40)).toBe(4);
         expect(countOf(state.remaining, 50)).toBe(4);
         expect(state.deferred).toEqual([]);
@@ -280,7 +274,6 @@ describe("powers — ASSIGN", () => {
         const s = twoUp();
         const a = s.players[0].id;
         const b = s.players[1].id;
-        // 40-1 carries a 30 s limit in the fixture
         const after = stageOpen(s, a, "ASSIGN", b);
         expect(buzzWindowSeconds(after)).toBe(30);
         expect(isBuzzOpen(after, at(20))).toBe(true);
@@ -295,7 +288,6 @@ describe("powers — ASSIGN", () => {
         const after = stageOpen(s, a, "ASSIGN", b);
 
         expect(codeOf(() => buzz(after, outsider, at(1)))).toBe("NOT_YOUR_TURN");
-        // the answerer may now buzz — the normal rule does not apply to a duel
         expect(codeOf(() => buzz(after, a, at(1)))).toBe("NO_ERROR");
         expect(codeOf(() => buzz(after, b, at(1)))).toBe("NO_ERROR");
     });
@@ -308,7 +300,6 @@ describe("powers — ASSIGN", () => {
 
         const afterA = buzz(racing, a, at(1));
         expect(afterA.open?.buzzer).toBe(a);
-        // B is still inside the question's 30 s clock, and still not allowed in.
         expect(codeOf(() => buzz(afterA, b, at(2)))).toBe("ALREADY_OPEN");
 
         const afterB = buzz(racing, b, at(1));
@@ -358,7 +349,7 @@ describe("powers — ASSIGN", () => {
         const a = s.players[0].id;
         const b = s.players[1].id;
         let after = stageOpen(s, a, "ASSIGN", b);
-        after = resolveQuestion(after, { answerer: false });           // no buzzer verdict needed
+        after = resolveQuestion(after, { answerer: false });           
 
         expect(after.players.find((p) => p.id === a)!.score).toBe(-20);
         expect(after.players.find((p) => p.id === b)!.score).toBe(-20);
@@ -370,11 +361,9 @@ describe("powers — ASSIGN", () => {
         const b = s.players[1].id;
         const racing = stageOpen(s, a, "ASSIGN", b);
 
-        // Nothing has been buzzed yet, and the 30 s clock is still running…
         expect(isBuzzOpen(racing, at(1))).toBe(true);
         const locked = lockBuzzWindow(racing);
 
-        // …the lock ends it anyway, for both halves, at any later time.
         expect(isBuzzOpen(locked, at(1))).toBe(false);
         expect(codeOf(() => buzz(locked, a, at(2)))).toBe("WINDOW_CLOSED");
         expect(codeOf(() => buzz(locked, b, at(2)))).toBe("WINDOW_CLOSED");
@@ -409,7 +398,6 @@ describe("powers — ASSIGN", () => {
         const a = s.players[0].id;
         const locked = lockBuzzWindow(closeCurrentAnswer(openPhase2Question(s, "40-1"), NOW));
         const nextTurn = advanceTurn(resolveQuestion(locked, { answerer: true }));
-        // The lock belonged to that question, not to the round.
         expect(nextTurn.buzzLocked).toBe(false);
     });
 
@@ -423,7 +411,6 @@ describe("powers — ASSIGN", () => {
 });
 
 describe("Phase 2 flow", () => {
-    // Phase 2: lowest score plays first. Player "c" (score 10) starts.
     const players = [player("a", 40), player("b", 90), player("c", 10)];
 
     it("the current player picks exactly 3 distinct questions", () => {
@@ -503,8 +490,6 @@ describe("Phase 2 flow", () => {
         state = openPhase2Question(state, "50-1");
         state = closeCurrentAnswer(state, NOW);
         state = buzz(state, "a", NOW);
-        // Too late for ANYONE once the question is open — a buzzer, and even
-        // the current player, get the same pre-open refusal.
         expect(codeOf(() => declarePower(state, "a", "STAR"))).toBe("ALREADY_OPEN");
         expect(codeOf(() => declarePower(state, "c", "STAR"))).toBe("ALREADY_OPEN");
     });
@@ -521,7 +506,6 @@ describe("Phase 2 flow", () => {
 describe("phase transitions", () => {
     const players = [player("a", 40), player("b", 90), player("c", 10)];
 
-    // Phase 1 is complete once every player has had a turn.
     function phase1Done() {
         let s = createVeDich(POOL, players);
         for (let i = 0; i < players.length; i++) s = advanceTurn(s);
@@ -540,7 +524,6 @@ describe("phase transitions", () => {
 
     it("an open question blocks completion", () => {
         const done = phase1Done();
-        // A question is in play: the phase is not over, whatever the turn cursor says.
         const withOpen = {
             ...done,
             open: {
@@ -563,8 +546,6 @@ describe("phase transitions", () => {
     });
 
     it("beginPhase2 skips an untouched phase 1 but refuses a touched one", () => {
-        // Untouched → "Về đích · Riêng" may start the summit directly (confirmed rule);
-        // one completed turn = touched → PHASE1_INCOMPLETE keeps guarding.
         expect(beginPhase2(createVeDich(POOL, players)).phase).toBe(2);
         expect(codeOf(() => beginPhase2(advanceTurn(createVeDich(POOL, players))))).toBe("PHASE1_INCOMPLETE");
     });
@@ -626,8 +607,6 @@ describe("the 5 s buzz window", () => {
 });
 
 describe("powers — staged on the pick board BEFORE the question opens", () => {
-    // The show's row: Ngôi sao hy vọng / Chỉ định đối kháng / Không dùng quyền
-    // năng — pressed pre-open; the question then opens ALREADY powered.
     const riengStaged = () => {
         let s = beginPhase2(createVeDich(POOL, [player("a", 0), player("b", 0)]));
         s = pickPhase2(s, s.players[0].id, ["40-1", "50-1", "30-1"]);
@@ -638,30 +617,27 @@ describe("powers — staged on the pick board BEFORE the question opens", () => 
         const { state, a } = riengStaged();
         const staged = declarePower(state, a, "STAR");
         expect(staged.stagedPower).toEqual({ power: "STAR" });
-        expect(staged.players.find((p) => p.id === a)!.powersLeft).toEqual(["STAR", "ASSIGN"]); // not yet
+        expect(staged.players.find((p) => p.id === a)!.powersLeft).toEqual(["STAR", "ASSIGN"]); 
 
         const opened = openPhase2Question(staged, "40-1", NOW);
         expect(opened.open?.power).toBe("STAR");
         expect(opened.stagedPower ?? null).toBeNull();
-        expect(opened.players.find((p) => p.id === a)!.powersLeft).toEqual(["ASSIGN"]);         // spent now
+        expect(opened.players.find((p) => p.id === a)!.powersLeft).toEqual(["ASSIGN"]);         
     });
 
     it("\"Không dùng quyền năng\" is NOT a pick — it never locks or clears", () => {
         const { state, a, b } = riengStaged();
         const none = declarePower(state, a, null);
         expect(none.stagedPower ?? null).toBeNull();
-        expect(none.turnPowerUsed ?? false).toBe(false);     // excluded from the one-pick rule
+        expect(none.turnPowerUsed ?? false).toBe(false);     
         expect(none.players.find((p) => p.id === a)!.powersLeft).toEqual(["STAR", "ASSIGN"]);
 
-        // the row stays live: the REAL pick follows — and locks it
         const star = declarePower(none, a, "STAR");
         expect(star.stagedPower).toEqual({ power: "STAR" });
         expect(star.turnPowerUsed).toBe(true);
 
-        // from here the powers are locked: the first press stands
         expect(codeOf(() => declarePower(star, a, "ASSIGN", { targetId: b }))).toBe("ONE_POWER_PER_TURN");
 
-        // none never clears it either — the question opens WITH the pick
         const opened = openPhase2Question(star, "40-1", NOW);
         expect(opened.open?.power).toBe("STAR");
         expect(opened.players.find((p) => p.id === a)!.powersLeft).toEqual(["ASSIGN"]);
@@ -680,14 +656,13 @@ describe("powers — staged on the pick board BEFORE the question opens", () => 
         const star = declarePower(state, a, "STAR");
         expect(star.stagedPower).toEqual({ power: "STAR" });
         expect(star.turnPowerUsed).toBe(true);
-        expect(star.players.find((p) => p.id === a)!.powersLeft).toEqual(["STAR", "ASSIGN"]); // not yet spent
+        expect(star.players.find((p) => p.id === a)!.powersLeft).toEqual(["STAR", "ASSIGN"]); 
 
-        // no swapping — and none cannot undo it either: the press STANDS
         expect(codeOf(() => declarePower(star, a, "ASSIGN", { targetId: b }))).toBe("ONE_POWER_PER_TURN");
-        const afterNone = declarePower(star, a, null);        // legal — but a pure no-op
+        const afterNone = declarePower(star, a, null);        
         expect(afterNone.stagedPower).toEqual({ power: "STAR" });
         expect(afterNone.turnPowerUsed).toBe(true);
-        expect(star.stagedPower).toEqual({ power: "STAR" });            // the first pick stands
+        expect(star.stagedPower).toEqual({ power: "STAR" });            
     });
 
     it("a staged ASSIGN opens the RACE with the question — nobody answers first", () => {
@@ -696,14 +671,14 @@ describe("powers — staged on the pick board BEFORE the question opens", () => 
         const opened = openPhase2Question(staged, "40-1", at(5));
         expect(opened.open).toMatchObject({ stage: "buzz", power: "ASSIGN", assignedTo: b });
         expect(opened.buzzOpenedAt).toBe(at(5));
-        expect(opened.players.find((p) => p.id === a)!.powersLeft).toEqual(["STAR"]); // ASSIGN spent
+        expect(opened.players.find((p) => p.id === a)!.powersLeft).toEqual(["STAR"]); 
     });
 
     it("abandoning the turn clears the staging unspent", () => {
         const { state, a } = riengStaged();
         const moved = advanceTurn(declarePower(state, a, "STAR"));
         expect(moved.stagedPower ?? null).toBeNull();
-        expect(moved.turnPowerUsed).toBe(false);           // the pick died with the turn — no cap
+        expect(moved.turnPowerUsed).toBe(false);           
         expect(moved.players.find((p) => p.id === a)!.powersLeft).toEqual(["STAR", "ASSIGN"]);
     });
 
@@ -721,10 +696,8 @@ describe("powers — staged on the pick board BEFORE the question opens", () => 
         let s = openPhase2Question(declarePower(state, a, "STAR"), "40-1", NOW);
         s = resolveQuestion(closeCurrentAnswer(s, NOW), { answerer: true });
 
-        // the turn still has picks left — but the pick already stands…
         expect(s.pendingPicks.length).toBeGreaterThan(0);
         expect(codeOf(() => declarePower(s, a, "ASSIGN", { targetId: b }))).toBe("ONE_POWER_PER_TURN");
-        // none is excluded from the rule — a legal no-op that changes nothing
         expect(codeOf(() => declarePower(s, a, null))).toBe("NO_ERROR");
         expect(s.players.find((p) => p.id === a)!.powersLeft).toEqual(["ASSIGN"]);
     });
@@ -737,7 +710,6 @@ describe("powers — staged on the pick board BEFORE the question opens", () => 
         expect(s.turnPowerUsed).toBe(false);
         expect(s.stagedPower ?? null).toBeNull();
 
-        // the next player picks their three and may spend THEIR power
         const next = s.players[s.turnIndex].id;
         s = pickPhase2(s, next, s.remaining.slice(0, 3).map((q) => q.id));
         const partner = s.players.find((p) => p.id !== next)!.id;

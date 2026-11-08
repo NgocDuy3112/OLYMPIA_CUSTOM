@@ -1,10 +1,5 @@
 import { useState } from "react"
 
-/**
- * The controller's score correction — one audited, match-level delta (the
- * backend ledger folds it into the scoreboard and the frozen results). Rendered
- * by the controller host whenever a rail card's ± chip opened it.
- */
 export function AdjustScoreDialog({ playerName, onCancel, onSubmit }: {
     playerName: string
     onCancel: () => void

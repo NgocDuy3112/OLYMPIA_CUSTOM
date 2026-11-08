@@ -131,10 +131,6 @@ async function provisionPlayer(claims: GoogleClaims) {
         return byEmail;
     }
 
-    // A handle for the new player, derived the same way the desk's own accounts
-    // derive theirs (`lib/username.ts`). Two first sign-ins racing for one name
-    // is rare, but a retry costs nothing and "Sign-in failed" for a collision
-    // would be a confusing way to learn about it.
     for (let attempt = 1; ; attempt += 1) {
         try {
             return await db.transaction(async (tx) => {
@@ -147,8 +143,6 @@ async function provisionPlayer(claims: GoogleClaims) {
                         role: "PLAYER",
                         username,
                         email,
-                        // Google asserted the address itself, so this account is
-                        // born verified — no mail link exists to wait for.
                         emailVerified: true,
                         displayName,
                         avatarUrl: claims.picture,
@@ -196,7 +190,6 @@ async function findOrCreatePlayer(claims: GoogleClaims) {
 }
 
 
-/** Is Google set up on this deployment? (The sign-in route is useless without it.) */
 export function googleConfigured(): boolean {
     try {
         googleEnv();
@@ -209,9 +202,6 @@ export function googleConfigured(): boolean {
 export async function googleAuthRoutes(app: FastifyInstance) {
     const perIp = { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } };
 
-    // What a PLAYER may sign in with besides their own password: Google, and
-    // only when this deployment configured it — the login page only offers it
-    // when this says so, so it can never render a dead button.
     app.get("/gameplay/auth/methods", perIp, async () => ({
         google: googleConfigured(),
     }));
@@ -221,9 +211,6 @@ export async function googleAuthRoutes(app: FastifyInstance) {
         try {
             config = await getConfig();
         } catch (error) {
-            // Unconfigured OIDC is a service condition, not a crash. This route is
-            // opened by a BROWSER (it is a link), so answering with a 503 JSON blob
-            // showed players a wall of braces. Send them to the door that works.
             if (error instanceof SignInError) {
                 return reply.redirect("/login?notice=google-off");
             }

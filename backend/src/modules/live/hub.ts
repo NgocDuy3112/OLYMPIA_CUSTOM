@@ -1,15 +1,8 @@
-// A tiny per-match fan-out. Subscribers (one per connected player) are asked to push
-// their own view when the round changes. In-memory and single-process by design: if the
-// server is ever scaled out, this becomes a shared bus (e.g. Postgres LISTEN/NOTIFY).
-
 export interface Subscriber {
     userId: string;
     push: () => Promise<void>;
 }
 
-// The console (and its spectate twin) subscribes for pushes under this id:
-// a live socket that is NOT a player, so the rail's connected dots keep
-// meaning "a contestant is here".
 export const CONSOLE_SUBSCRIBER = "__console__";
 
 const byMatch = new Map<string, Set<Subscriber>>();
@@ -28,8 +21,6 @@ export function subscribe(matchId: string, subscriber: Subscriber): () => void {
     };
 }
 
-// Best-effort: a subscriber that fails to push is skipped, never breaking the action
-// that triggered the publish.
 export async function publish(matchId: string): Promise<void> {
     const set = byMatch.get(matchId);
     if (!set || set.size === 0) return;
@@ -46,7 +37,6 @@ export function subscriberCount(matchId: string): number {
     return byMatch.get(matchId)?.size ?? 0;
 }
 
-/** The user ids with a live socket right now — the console's "connected" dots. */
 export function connectedUsers(matchId: string): string[] {
     const set = byMatch.get(matchId);
     if (!set) return [];

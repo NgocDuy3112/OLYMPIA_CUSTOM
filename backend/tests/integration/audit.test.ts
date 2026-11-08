@@ -110,7 +110,6 @@ describe("audit writer", () => {
     });
 
     it("is best-effort: a failing insert never throws to the caller", async () => {
-        // action column is varchar(100) — a longer value must fail in SQL, not in the caller
         await expect(
             audit({ action: "x".repeat(200) as AuditAction, details: { overflow: true } })
         ).resolves.toBeUndefined();
@@ -171,7 +170,6 @@ describe("audit wiring — the question review gate", () => {
         const questionId = created.json().id;
         const url = `/portal/questions/${questionId}/status`;
 
-        // a plain content edit is not an audit event
         await app.inject({
             method: "PATCH",
             url: `/portal/questions/${questionId}`,
@@ -183,7 +181,6 @@ describe("audit wiring — the question review gate", () => {
         await app.inject({ method: "PATCH", url, headers: auth(ownerCookie), payload: { status: "PENDING" } });
         expect(await eventsFor("question_submitted", (d) => d.questionId === questionId)).toHaveLength(1);
 
-        // sending it back is not an audited action
         await app.inject({ method: "PATCH", url, headers: auth(ownerCookie), payload: { status: "DRAFT" } });
         expect(await eventsFor("question_submitted", (d) => d.questionId === questionId)).toHaveLength(1);
 
@@ -191,7 +188,7 @@ describe("audit wiring — the question review gate", () => {
         await app.inject({ method: "PATCH", url, headers: auth(adminCookie), payload: { status: "PUBLISHED" } });
         const published = await eventsFor("question_published", (d) => d.questionId === questionId);
         expect(published).toHaveLength(1);
-        expect(published[0].actorId).toBe(adminId);            // the reviewer is recorded
+        expect(published[0].actorId).toBe(adminId);            
         expect(published[0].details).toMatchObject({ kind: "CHOICE" });
 
         await app.inject({
@@ -247,7 +244,6 @@ describe("audit wiring — match lifecycle", () => {
             .filter((row) => row.matchId === matchId);
         expect(ended).toHaveLength(1);
 
-        // same-status no-op must not produce another event
         await app.inject({ method: "PATCH", url: statusUrl, headers: auth(ownerCookie), payload: { status: "FINISHED" } });
         const endedAgain = (await db.select().from(auditEvents).where(eq(auditEvents.action, "match_ended")))
             .filter((row) => row.matchId === matchId);

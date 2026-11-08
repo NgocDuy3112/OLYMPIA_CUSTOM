@@ -39,7 +39,7 @@ export function PlayerDrawer({
                         "data-closed:animate-out data-closed:fade-out-0 data-closed:slide-out-to-right"
                     )}
                 >
-                    {/* header */}
+                    
                     <div className="flex items-start justify-between gap-3">
                         <div className="flex flex-col gap-1">
                             <DialogTitle className="font-heading text-3xl font-semibold">
@@ -61,7 +61,7 @@ export function PlayerDrawer({
                         </div>
                     </div>
 
-                    {/* history */}
+                    
                     <div className="flex flex-col gap-2">
                         <h2 className="text-xl font-semibold">Lịch sử thi đấu</h2>
                         {history.length === 0 ? (
@@ -123,7 +123,6 @@ function Stat({
                 className={cn(
                     "font-heading text-3xl font-bold tabular-nums leading-none",
                     strong ? "text-foreground" : "text-muted-foreground",
-                    // A stage title is words, not a number — it must not shout.
                     typeof value === "string" && value.startsWith("#") === false && "text-lg"
                 )}
             >

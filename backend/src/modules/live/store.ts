@@ -1,5 +1,3 @@
-// Postgres-backed LiveStore. Every console action runs inside one transaction that locks
-// the match_live row, so concurrent actions serialize and a rollback leaves no trace.
 import { and, eq } from "drizzle-orm";
 import { db } from "../../db/pool.js";
 import { answers, matchEvents, matchLive, scoreAdjustments, users } from "../../db/schema/index.js";
@@ -18,7 +16,6 @@ export function pgLiveStore<S>(matchId: string): LiveStore<S> {
     return {
         transact<T>(fn: (tx: LiveTx<S>) => Promise<T>): Promise<T> {
             return db.transaction(async (tx) => {
-                // FOR UPDATE: a second concurrent action waits here until this one commits.
                 const [row] = await tx
                     .select()
                     .from(matchLive)
@@ -51,13 +48,9 @@ export function pgLiveStore<S>(matchId: string): LiveStore<S> {
                             })
                             .where(eq(matchLive.matchId, matchId));
                     },
-                    // Facts are idempotent: the unique keys on answers and match_events
-                    // make a retried write harmless, so a double submit cannot double-count.
                     async recordFacts(facts: LiveFact[]): Promise<void> {
                         const draftRows = facts.filter((f) => f.type === "draft");
                         if (draftRows.length > 0) {
-                            // A submission stored as a DRAFT: no verdict, no points —
-                            // the console judges later (judge fact UPDATEs this row).
                             await tx.insert(answers).values(draftRows.map((f) => ({
                                 matchId,
                                 questionId: f.questionId,
@@ -92,7 +85,6 @@ export function pgLiveStore<S>(matchId: string): LiveStore<S> {
                                     eq(answers.userId, f.userId)
                                 ))
                                 .returning({ id: answers.id });
-                            // Judging an answer nobody submitted is a mistake, not a no-op.
                             if (updated.length === 0) {
                                 throw new RuleError(
                                     "NO_ANSWER",
@@ -115,9 +107,6 @@ export function pgLiveStore<S>(matchId: string): LiveStore<S> {
 
                         const adjustRows = facts.filter((f) => f.type === "adjust");
                         if (adjustRows.length > 0) {
-                            // Append-only match-level ledger. No idempotency key needed:
-                            // the version guard rejects a replayed action BEFORE this
-                            // transaction ever runs, so a row can't double-count.
                             await tx.insert(scoreAdjustments).values(adjustRows.map((f) => ({
                                 matchId,
                                 userId: f.userId,
@@ -154,8 +143,6 @@ export function pgLiveStore<S>(matchId: string): LiveStore<S> {
     };
 }
 
-// The auto-matcher's suggestion for an answer, pending the controller's final verdict.
-// Written outside the version-guarded flow: it does not change round state.
 export const AUTO_DRAFTER = "auto";
 
 export async function writeDraft(params: {
@@ -165,8 +152,8 @@ export async function writeDraft(params: {
     value: { text: string } | { picked: string[] };
     suggestion: "CORRECT" | "INCORRECT";
     draftedBy?: string;
-    answeredMs?: number;      // ms from the question opening; the round's clock source
-    revise?: boolean;         // default true; but-pha allows only one attempt
+    answeredMs?: number;      
+    revise?: boolean;         
 }): Promise<void> {
     const draftedBy = params.draftedBy ?? AUTO_DRAFTER;
     const where = and(
@@ -190,7 +177,6 @@ export async function writeDraft(params: {
             .set({
                 value: params.value,
                 drafts,
-                // answered_ms follows every revision; first_answered_ms is set once
                 ...(params.answeredMs === undefined ? {} : { answeredMs: params.answeredMs })
             })
             .where(where);
@@ -209,8 +195,6 @@ export async function writeDraft(params: {
     }
 }
 
-// Each player's cumulative points in the match so far. ve-dich orders its first phase by
-// score, and everyone starts ve-dich at zero, so the seed must be the earlier rounds.
 export async function sumPointsByPlayer(matchId: string): Promise<Record<string, number>> {
     const rows = await db
         .select({ userId: answers.userId, points: answers.pointsAwarded })
@@ -224,9 +208,6 @@ export async function sumPointsByPlayer(matchId: string): Promise<Record<string,
     return sums;
 }
 
-// The controller's manual score corrections per player — folded into the live
-// scoreboard (scoreTable) and the frozen results at FINISH. Match-level: the
-// round engines' own points (and the ve-dich start seed) stay untouched.
 export async function sumAdjustmentsByPlayer(matchId: string): Promise<Record<string, number>> {
     const rows = await db
         .select({ userId: scoreAdjustments.userId, delta: scoreAdjustments.delta })
@@ -240,8 +221,6 @@ export async function sumAdjustmentsByPlayer(matchId: string): Promise<Record<st
     return sums;
 }
 
-// Is the session behind a live socket still valid? Mirrors the HTTP guard: the account
-// must exist, not be disabled, and not have been revoked via tokenVersion.
 export async function isSessionActive(userId: string, tokenVersion: number): Promise<boolean> {
     const [row] = await db
         .select({ disabledAt: users.disabledAt, tokenVersion: users.tokenVersion })
@@ -252,10 +231,6 @@ export async function isSessionActive(userId: string, tokenVersion: number): Pro
     return row !== undefined && row.disabledAt === null && row.tokenVersion === tokenVersion;
 }
 
-// A player's own answers in a match, so the player view knows what they have
-// submitted — judged rows carry the verdict, drafts leave it null (they have no
-// verdict yet). Their rows only; the user id is the session's, never a parameter
-// a client can aim at someone else.
 export async function readPlayerAnswers(matchId: string, userId: string): Promise<Array<{
     questionId: string;
     judged: boolean;
@@ -271,7 +246,6 @@ export async function readPlayerAnswers(matchId: string, userId: string): Promis
         .where(and(eq(answers.matchId, matchId), eq(answers.userId, userId)));
 }
 
-// The answers for a question, for the controller to review before judging.
 export async function readQuestionAnswers(matchId: string, questionId: string) {
     return db.select({
         userId: answers.userId,
@@ -283,11 +257,6 @@ export async function readQuestionAnswers(matchId: string, questionId: string) {
     }).from(answers).where(and(eq(answers.matchId, matchId), eq(answers.questionId, questionId)));
 }
 
-/**
- * Every JUDGED row of the match — the public verdict board some rounds show.
- * Bounded by (players × questions of one match), so a scan is cheap and it needs
- * no round knowledge: the caller decides which of them may be published.
- */
 export async function readJudgedAnswers(matchId: string): Promise<Array<{
     questionId: string;
     userId: string;
@@ -300,7 +269,6 @@ export async function readJudgedAnswers(matchId: string): Promise<Array<{
     }).from(answers).where(and(eq(answers.matchId, matchId), eq(answers.judged, true)));
 }
 
-// Current version and state, for the console to reload after a 409.
 export async function readLive(matchId: string): Promise<{
     version: number;
     roundId: string;

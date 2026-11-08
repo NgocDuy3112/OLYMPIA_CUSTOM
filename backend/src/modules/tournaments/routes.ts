@@ -25,7 +25,6 @@ const tournamentParams = {
 
 
 export async function tournamentRoutes(app: FastifyInstance) {
-    // Scoped to this plugin; other modules keep their own handlers.
     app.setErrorHandler((error, request, reply) => {
         if (error instanceof PaginationError) {
             reply.code(400).send({ error: "VALIDATION", message: error.message });
@@ -44,7 +43,6 @@ export async function tournamentRoutes(app: FastifyInstance) {
 
     const staff = [requireRole("PORTAL", ["ADMIN", "OPERATOR"])];
 
-    // Create — the creator owns it.
     app.post(
         "/portal/tournaments",
         {
@@ -59,7 +57,6 @@ export async function tournamentRoutes(app: FastifyInstance) {
         }
     );
 
-    // List — the tournaments of the portal: the public ones, and the private ones of an admin.
     app.get(
         "/portal/tournaments",
         {
@@ -79,7 +76,6 @@ export async function tournamentRoutes(app: FastifyInstance) {
         }
     );
 
-    // Read one — PRIVATE → only an admin or the owner.
     app.get(
         "/portal/tournaments/:tournamentId",
         { onRequest: staff, schema: { params: tournamentParams } },
@@ -93,13 +89,10 @@ export async function tournamentRoutes(app: FastifyInstance) {
             }
 
             const places = await tournamentPlaces(tournamentId);
-            // Effective rules, not "what somebody typed": the operator no longer
-            // edits them, and the match picker still needs the turn shapes.
             return { ...tournament, roundRules: resolveRoundRules(tournament.rounds, tournament.roundRules), places };
         }
     );
 
-    // Update — the owner or an admin.
     app.patch(
         "/portal/tournaments/:tournamentId",
         {
@@ -124,8 +117,6 @@ export async function tournamentRoutes(app: FastifyInstance) {
         }
     );
 
-    // Soft delete — ADMIN only. Clears current so the partial unique index
-    // never blocks a future promotion.
     app.delete(
         "/portal/tournaments/:tournamentId",
         {

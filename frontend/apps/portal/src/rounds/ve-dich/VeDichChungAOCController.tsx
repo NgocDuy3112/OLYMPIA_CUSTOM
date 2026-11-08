@@ -2,12 +2,9 @@ import { ConsoleStage, QuestionFrame, Rail, Timer, VeDichStripCells } from "@/co
 import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
 import { COPY } from "@shared/deck/copy"
 
-// Về đích — câu hỏi mở, phase 1 (S7): the shared round — the picked player
-// types the answer, the console judges. Pure: everything comes from its ctx.
 import type { VeDichConsole } from "@/lib/live"
 import type { ScreenCore } from "../types"
 
-/** Về đích · phase 1 question: the typed answer + the judging strip. */
 export type VeDichChungCtx = ScreenCore & {
     remaining: number | null
     consoleVeDich: VeDichConsole | null
@@ -35,8 +32,6 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
                 ...verdictActions({ canVerdict: ctx.target !== null, onVerdict: ctx.setVerdict }),
                 {
                     label: "Hiện đáp án",
-                    // The open question's answer, on every screen — before Hết
-                    // lượt closes it (the server hides the text at that point).
                     onClick: openNow
                         ? () => ctx.send({ kind: "reveal.answer", questionId: openNow.questionId })
                         : undefined,

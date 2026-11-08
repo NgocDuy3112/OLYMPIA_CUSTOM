@@ -2,9 +2,6 @@ import { describe, expect, it } from "vitest"
 import { railCardsOf, type RailCardsInput } from "@/console/lib/rail-cards"
 import type { GiaiMaConsole, KhoiDongConsole, QuestionAnswerRow, VeDichConsole } from "@/lib/live"
 
-// The console rail's card table. Before this file the whole projection lived in
-// a loop inside useConsoleModel and was only typecheck-covered: a wrong ring or
-// a badge on the wrong player is a wrong projector, so every rule gets a row.
 
 const TABLE = [
     { id: "u1", displayName: "An", points: 10, rank: 1 },
@@ -70,7 +67,6 @@ describe("railCardsOf — the ring: giai-ma marks the multi-select, other rounds
             roundId: "giai-ma",
             judgingId: "q1",
             selectedIds: new Set(["u2"]),
-            // a verdict target must NOT ring on giai-ma — the multi-select owns it
             target: "u1",
         }))
         expect(ringOf(cards, "u2")).toBe("selected")
@@ -122,8 +118,6 @@ describe("railCardsOf — the answers rail", () => {
             railVariant: "answers",
             railQ: "q1",
             judgingId: "q1",
-            // the staged override outranks the submitted verdict — the rail must
-            // report what verdictOf says, not what the row says
             verdictOf: () => "CORRECT",
         }))
         expect(cards[0].answer).toBe("“một đáp án”")
@@ -169,7 +163,6 @@ describe("railCardsOf — the live answerer wears the purple card", () => {
     })
 
     it("marks nobody on a round whose buzz belongs to another mechanic", () => {
-        // but-pha never wears the purple card, even with a stale buzzer in hand
         const khoiDong = { questionIndex: 0, questionCount: 6, windowOpen: true } as KhoiDongConsole
         const cards = railCardsOf(input({ roundId: "but-pha", khoiDong }))
         expect(cards.every((c) => c.buzzing === undefined)).toBe(true)

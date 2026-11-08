@@ -1,7 +1,3 @@
-// The public read surface's I/O: a spectator sees a tournament, its schedule and its
-// places without a session. PRIVATE and deleted tournaments are a 404 — the module's
-// rule is the portal's: existence never leaks, so a private tournament is simply
-// "not found", never "forbidden".
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../../db/pool.js";
 import { matchResults, tournaments } from "../../db/schema/index.js";
@@ -21,8 +17,6 @@ import type { PublicMatch, PublicTournament, PublicTournamentSummary } from "./s
 
 type TournamentRow = typeof tournaments.$inferSelect;
 
-// A public tournament, by the slug its URL carries. The slug has a unique index
-// (migration 0016), so this is one row or none.
 export async function requirePublicTournamentBySlug(slug: string): Promise<TournamentRow> {
     const [row] = await db
         .select()
@@ -38,15 +32,11 @@ export async function requirePublicTournamentBySlug(slug: string): Promise<Tourn
     return row;
 }
 
-// The identity view: the tournament and its places — the same things the portal's
-// single read returns.
 export async function publicTournament(slug: string): Promise<PublicTournament> {
     const row = await requirePublicTournamentBySlug(slug);
     return presentTournament(row, await tournamentPlaces(row.id));
 }
 
-// Every public tournament, small: enough to pick one, nothing to leak. A spectator
-// surface does not page — a deployment has a handful of tournaments.
 export async function listPublicTournaments(): Promise<PublicTournamentSummary[]> {
     const rows = await db
         .select()
@@ -60,9 +50,6 @@ export async function listPublicTournaments(): Promise<PublicTournamentSummary[]
     return rows.map(presentTournamentSummary);
 }
 
-// The schedule: the tournament's matches, staged and labelled, with the stored
-// results embedded for the FINISHED ones. Names are resolved here — the app shows
-// people, not uuids.
 export async function publicSchedule(slug: string, page: Page): Promise<PageResult<PublicMatch>> {
     const tournament = await requirePublicTournamentBySlug(slug);
     const listed = await listMatches(tournament.id, {}, page);
@@ -73,7 +60,6 @@ export async function publicSchedule(slug: string, page: Page): Promise<PageResu
 
     const resultsByMatch = await resultEntriesOf(finishedIds);
 
-    // Every seat and every result names a user (teams are gone); the schedule shows them all.
     const ids = new Set<string>();
     for (const row of listed.items) {
         for (const seat of row.players) ids.add(seat.userId);
@@ -93,7 +79,6 @@ export async function publicSchedule(slug: string, page: Page): Promise<PageResu
     };
 }
 
-// One query for the whole page — the stored results of the finished matches.
 async function resultEntriesOf(matchIds: string[]): Promise<Map<string, ResultEntry[]>> {
     const byMatch = new Map<string, ResultEntry[]>();
     if (matchIds.length === 0) return byMatch;
@@ -107,7 +92,6 @@ async function resultEntriesOf(matchIds: string[]): Promise<Map<string, ResultEn
     return byMatch;
 }
 
-// The standings: the places table, read back out of how far each player got.
 export async function publicStandings(slug: string) {
     const tournament = await requirePublicTournamentBySlug(slug);
     return { rows: (await getStandings(tournament.id)).map(presentStanding) };

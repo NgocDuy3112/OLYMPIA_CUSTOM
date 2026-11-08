@@ -6,11 +6,6 @@ import { db } from "../../src/db/pool.js";
 import { matches, tournaments, users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 
-// The LOBBY endpoints — the waiting screen both shells render:
-//   portal   GET /portal/tournaments/:tid/matches/:mid/lobby   (the console)
-//   gameplay GET /gameplay/matches/:mid/lobby                  (a seated player)
-// Same payload (lobbyOf); only the gate differs. Proves identity, rounds in
-// tournament order, the seats' totals, presence, and that the gates hold.
 
 let app: FastifyInstance;
 let ownerCookie: string;
@@ -49,7 +44,6 @@ beforeAll(async () => {
         ownerId: owner.id, visibility: "PUBLIC", 
         slug: `lobby-${randomUUID().slice(0, 8)}`,
         name: "Lobby Cup",
-        // Deliberately NOT alphabetical: the lobby must show declared order.
         rounds: [
             { id: "but-pha", name: "But Pha", order: 1, chart: "bars" },
             { id: "khoi-dong", name: "Khoi Dong", order: 0, chart: "bars" }
@@ -63,7 +57,6 @@ beforeAll(async () => {
         tournamentId, stageId: "s1", scheduledAt: new Date(), label: "Lobby Match", status: "UPCOMING",
         players: [{ kind: "user", userId: player.id, seed: 1 }],
         roundConfigs: {
-            // Both orders present; the tournament's order (khoi-dong first) wins.
             "but-pha": { allowedKinds: ["TEXT"], scoring: { template: "constant", points: 10 }, turns: [] },
             "khoi-dong": { allowedKinds: ["TEXT"], scoring: { template: "constant", points: 10 }, turns: [] }
         },
@@ -71,7 +64,6 @@ beforeAll(async () => {
     }).returning();
     matchId = match.id;
 
-    // The lobby must also answer for a match that never went LIVE (no live row).
     missingMatchId = randomUUID();
 });
 
@@ -91,7 +83,6 @@ describe("the console's lobby (portal)", () => {
             roundId: "khoi-dong",           // no live row → the match's FIRST round
             connected: [],
         });
-        // Tournament's declared order, not the config object's.
         expect(body.rounds.map((r: { id: string }) => r.id)).toEqual(["khoi-dong", "but-pha"]);
         expect(body.rounds.map((r: { name: string }) => r.name)).toEqual(["Khoi Dong", "But Pha"]);
         expect(body.table).toHaveLength(1);
@@ -135,8 +126,6 @@ describe("the player's lobby (gameplay)", () => {
 
 describe("presence on the lobby", () => {
     it("connected follows the hub: subscribe → dot appears → unsubscribe → gone", async () => {
-        // The hub is in-process; subscribe directly (the HTTP shape is asserted
-        // above) — this proves connectedUsers feeds the lobby payload.
         const { connectedUsers, subscribe } = await import("../../src/modules/live/hub.js");
         const fakeId = "00000000-0000-4000-8000-000000000001";
 

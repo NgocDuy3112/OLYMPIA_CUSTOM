@@ -1,12 +1,6 @@
-# The portal host: its own bundle, no other app's code shipped.
-#
-# Build from the FRONTEND ROOT (the shared kit lives outside apps/):
-#   podman build -f deploy/portal.Dockerfile -t oc-portal ..
-
 FROM docker.io/library/node:24-alpine AS build
 WORKDIR /app
 
-# The whole frontend is the build context: apps/, shared/, public/, configs.
 COPY package.json package-lock.json ./
 RUN npm ci
 

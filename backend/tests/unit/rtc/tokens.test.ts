@@ -8,9 +8,6 @@ import {
     type RtcConfig,
 } from "../../../src/modules/rtc/tokens.js";
 
-// The token is a real JWT — verify it with the SDK's own verifier (signature +
-// expiry included), then assert the GRANTS, which are the security-relevant
-// part: what each role may do inside the room.
 
 const config: RtcConfig = {
     url: "http://localhost:7880",
@@ -59,7 +56,6 @@ describe("mintRtcToken", () => {
 
         expect(first.token.identity).toMatch(/^spectator-[0-9a-f]{16}$/);
         expect(first.claims.sub).toBe(first.token.identity);
-        // Two viewers must never share an identity — LiveKit would kick one.
         expect(second.token.identity).not.toBe(first.token.identity);
         expect(first.claims.video).toMatchObject({
             roomJoin: true,
@@ -103,7 +99,6 @@ describe("isRtcConfigured", () => {
         expect(isRtcConfigured({})).toBe(false);
         expect(isRtcConfigured({ ...full, apiKey: undefined })).toBe(false);
         expect(isRtcConfigured({ ...full, apiSecret: undefined })).toBe(false);
-        // url is set but the signing pair is not — must never half-mint
         expect(isRtcConfigured({ ...full, url: undefined })).toBe(false);
     });
 });

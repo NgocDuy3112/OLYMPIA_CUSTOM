@@ -29,7 +29,6 @@ const H = ["h1", "h2", "h3", "h4", "h5", "h6", "h7", "h8"];
 const NOW = "2026-01-01T00:00:00.000Z";
 const at = (sec: number) => new Date(Date.parse(NOW) + sec * 1000).toISOString();
 
-// The the console opens a hint window, players answer, the console resolves it.
 function playHints(
     ids: string[],
     hintOrder: string[],
@@ -111,13 +110,13 @@ describe("giai-ma — resolution and reveals", () => {
 
     it("a missing answer counts as wrong: no reveal, no drop", () => {
         let s = openHint(startGiaiMa(["a", "b"], H), "h1", NOW);
-        s = resolveOpenHint(s, { a: true });         // b never answered
+        s = resolveOpenHint(s, { a: true });         
         expect(keywordValueFor(s, "b")).toBe(100);
         expect(s.players.find((p) => p.id === "b")!.revealed).toEqual([]);
     });
 
     it("a locked player is not revealed the hint", () => {
-        let s = lockKeyword(startGiaiMa(["a", "b"], H), "a");   // a is out
+        let s = lockKeyword(startGiaiMa(["a", "b"], H), "a");   
         s = openHint(s, "h1", NOW);
         s = resolveOpenHint(s, { a: true, b: true });
         expect(s.players.find((p) => p.id === "a")!.revealed).toEqual([]);
@@ -138,7 +137,7 @@ describe("giai-ma — keyword submission and judgment", () => {
         s = resolveOpenHint(openHint(s, "h2", NOW), { a: true, b: false });
         s = lockKeyword(s, "a");
         expect(s.players.find((p) => p.id === "a")!.keywordLocked).toBe(true);
-        expect(giaiMaPoints(s, "a")).toBe(0);              // pending the console's verdict
+        expect(giaiMaPoints(s, "a")).toBe(0);              
         expect(s.players.find((p) => p.id === "a")!.eliminated).toBe(false);
     });
 
@@ -146,8 +145,7 @@ describe("giai-ma — keyword submission and judgment", () => {
         let s = startGiaiMa(["a", "b"], H);
         s = resolveOpenHint(openHint(s, "h1", NOW), { a: true, b: false });
         s = resolveOpenHint(openHint(s, "h2", NOW), { a: true, b: false });
-        s = lockKeyword(s, "a");                          // a locked at 80
-        // judge arrives later — the lock froze hintsRevealed, so 80 stands
+        s = lockKeyword(s, "a");                          
         s = judgeKeyword(s, "a", true);
         expect(giaiMaPoints(s, "a")).toBe(80);
         expect(s.players.find((p) => p.id === "a")!.eliminated).toBe(false);
@@ -174,10 +172,10 @@ describe("giai-ma — keyword submission and judgment", () => {
         let s = lockKeyword(startGiaiMa(["a", "b"], H), "a");
         expect(s.stage).toBe("hints");
         s = lockKeyword(s, "b");
-        expect(s.stage).toBe("hints");              // judgment is still pending
+        expect(s.stage).toBe("hints");              
         s = judgeKeyword(s, "a", true);
         s = judgeKeyword(s, "b", false);
-        expect(s.stage).toBe("hints");              // still the console's call
+        expect(s.stage).toBe("hints");              
         expect(endGiaiMa(s).stage).toBe("ended");
     });
 
@@ -243,7 +241,7 @@ describe("giai-ma — who may answer", () => {
 
     it("an eliminated player may not answer", () => {
         let s = lockKeyword(startGiaiMa(["a", "b"], H), "a");
-        s = judgeKeyword(s, "a", false);          // wrong verdict → eliminated
+        s = judgeKeyword(s, "a", false);          
         s = openHint(s, "h1", NOW);
         expect(canPlayerAnswer(s, "a", NOW)).toBe(false);
     });

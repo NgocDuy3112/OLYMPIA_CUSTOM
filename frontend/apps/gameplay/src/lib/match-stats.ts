@@ -2,18 +2,13 @@ import type { TournamentRound } from "@/lib/api"
 import type { Match, PlayerResult } from "@/lib/types"
 
 export interface RoundRow {
-    /** The round's display name, in the tournament's order. */
     round: string
-    /** Points this round, per player — 0 when the player sat it out. */
     scores: Array<{ playerId: string; name: string; points: number }>
-    /** Top scorer(s) of this round — a tie shares the win. */
     winnerIds: string[]
-    /** top − bottom across the players who carry round scores. */
     gap: number
 }
 
 interface MatchStatistics {
-    /** Rounds in tournament order, kept only when someone scored in them. */
     rounds: RoundRow[]
     totalPoints: number
     topScore: number

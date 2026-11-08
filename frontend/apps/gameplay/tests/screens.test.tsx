@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { render } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import type { PlayerCtx, PlayerView } from "@shared/deck/types"
@@ -10,10 +9,6 @@ import { VeDichChungAOCPlayer } from "@shared/deck/screens/VeDichChungAOCPlayer"
 import { VeDichPickAOCPlayer } from "@shared/deck/screens/VeDichPickAOCPlayer"
 import { VeDichRiengAOCPlayer } from "@shared/deck/screens/VeDichRiengAOCPlayer"
 
-// A smoke test per player screen: the deck is PURE (ctx in, JSX out), so each
-// screen must render from a plain fixture with no provider, no socket and no
-// camera. This is what catches the refactor class of bug — a screen that starts
-// depending on something the orchestrator no longer hands it.
 
 const question = (id: string, kind: "CHOICE" | "TEXT" | "KEYWORD" = "TEXT") => ({
     questionId: id,
@@ -96,8 +91,6 @@ describe("player screens render from a plain fixture", () => {
         expect(queryByLabelText("Câu trả lời của bạn")).toBeNull()
     })
 
-    // a REAL text question: AnswerBand draws the input for one, and nothing for
-    // the bare { question: null } fixture above
     const windowLive = () =>
         view({
             roundId: "khoi-dong",
@@ -114,7 +107,6 @@ describe("player screens render from a plain fixture", () => {
     })
 
     it("khởi động · lượt chung — and LOCKS the moment the clock hits zero", () => {
-        // greyed in place, not removed: the player SEES the window ended
         const { getByLabelText } = render(
             <KhoiDongChungAOCPlayer ctx={ctx({ v: windowLive(), remaining: 0 })} />
         )
@@ -189,7 +181,6 @@ describe("player screens render from a plain fixture", () => {
     it("về đích · the board — a picker with the fixed bands", () => {
         const v = view({ roundId: "ve-dich", stage: "phase2", me: { isMyTurn: true } })
         const { getAllByText, getByTitle } = render(<VeDichPickAOCPlayer ctx={ctx({ v })} />)
-        // the badge, and the mode line under it — both say the round's name
         expect(getAllByText("Về đích").length).toBeGreaterThan(0)
         expect(getByTitle("đã dùng")).toBeTruthy()
     })
@@ -197,7 +188,6 @@ describe("player screens render from a plain fixture", () => {
     it("về đích · the board — display-only: the console picks, the player watches", () => {
         const v = view({ roundId: "ve-dich", stage: "phase2", me: { isMyTurn: true } })
         const { queryByText, getByText } = render(<VeDichPickAOCPlayer ctx={ctx({ v })} />)
-        // no confirm button ever — picking happens on the console (prod parity)
         expect(queryByText("Chốt 3 câu")).toBeNull()
         expect(queryByText("Chọn câu này")).toBeNull()
         expect(getByText(/điều hành bốc 3 câu/)).toBeTruthy()

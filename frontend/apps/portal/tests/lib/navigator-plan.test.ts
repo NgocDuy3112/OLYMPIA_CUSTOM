@@ -4,8 +4,6 @@ import { expandRoundEntries, navigatorStartPlan } from "@/console/navigator-plan
 import { startAction, type LiveAction } from "@/lib/live-actions"
 import type { LobbyData } from "@/lib/live"
 
-// The rounds navigator's click: what the controller sends to open a round.
-// Pure (table-tested) — the model only executes the plan.
 
 const lobby = (over: Partial<LobbyData> = {}): LobbyData => ({
     title: "T",
@@ -46,8 +44,6 @@ describe("navigatorStartPlan — what a round button sends", () => {
     })
 
     it("a round the lobby doesn't list still gets go — and no start the contract can't type", () => {
-        // startAction returns null for a round it doesn't know: the old code
-        // sent `{kind: "mystery.start"}` anyway and the backend 400'd it.
         const unknown = startAction("mystery", { playerIds: [], questions: [] })
         expect(unknown).toBeNull()
         expect(navigatorStartPlan(lobby(), "mystery", unknown))
@@ -78,7 +74,7 @@ describe("expandRoundEntries — Khởi động/Về đích become phase pairs",
         const entries = expandRoundEntries(rounds)
         const kd = entries.filter((e) => e.id === "khoi-dong")
         expect(kd).toHaveLength(2)
-        expect(new Set(entries.map((e) => `${e.id}:${e.name}`)).size).toBe(entries.length) // keys stay unique
+        expect(new Set(entries.map((e) => `${e.id}:${e.name}`)).size).toBe(entries.length) 
     })
 
     it("the phase order matches each round's rule (khoi-dong riêng→chung, ve-dich chung→riêng)", () => {
@@ -91,7 +87,7 @@ describe("expandRoundEntries — Khởi động/Về đích become phase pairs",
     it("is idempotent — already-split entries pass through, never double-splitting", () => {
         const once = expandRoundEntries(rounds)
         const twice = expandRoundEntries(once)
-        expect(twice).toEqual(once) // stale/prepared data can't spawn phantom buttons
+        expect(twice).toEqual(once) 
         expect(twice).toHaveLength(6)
         expect(twice.map((e) => e.name)).not.toContain("Khởi động · Riêng · Riêng")
     })

@@ -8,8 +8,6 @@ const dir = fileURLToPath(new URL(".", import.meta.url))
 
 export default defineConfig({
     root: dir,
-    // Per-app optimizer cache: the portal and gameplay dev servers must never
-    // fight over one .vite dir (concurrent dev = stale-hash 504 loops).
     cacheDir: path.resolve(dir, "node_modules/.vite"),
     publicDir: path.resolve(dir, "../../public"),
     plugins: [react(), tailwindcss()],
@@ -22,9 +20,6 @@ export default defineConfig({
     server: {
         port: 5175,
         proxy: {
-            // Dev backends may not sit on 3000 (another process can hold it).
-            // ws: true — the live socket rides this proxy; without it the upgrade
-            // never reaches the backend.
             "/gameplay": { target: process.env.API_PROXY_TARGET ?? "http://localhost:3000", changeOrigin: false, ws: true },
         },
     },

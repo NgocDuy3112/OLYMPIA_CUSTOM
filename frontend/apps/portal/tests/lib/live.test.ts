@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { hintPool, mergedVerdicts, type ConsoleQuestion, type GiaiMaConsole, type QuestionAnswerRow } from "@/lib/live"
 
-// The console's pure decisions: which hints remain and which verdicts a
-// finalize sends (engine draft, MC overwrite wins). The start action's own
-// table lives in tests/lib/live-actions.test.ts.
 
 const question = (over: Partial<ConsoleQuestion>): ConsoleQuestion => ({
     _id: "q",
@@ -77,10 +74,8 @@ describe("mergedVerdicts", () => {
             row({ userId: "p2", verdict: "INCORRECT" }),
             row({ userId: "p3", verdict: null }),
         ]
-        // only p2 was staged → the others are ABSENT: the backend refuses this
-        // incomplete set (UNJUDGED_ANSWERS) instead of silently judging it
         expect(mergedVerdicts("q9", rows, { "q9:p2": true })).toEqual([
-            { playerId: "p2", correct: true }    // exactly what the console clicked
+            { playerId: "p2", correct: true }    
         ])
         expect(mergedVerdicts("q9", rows, {})).toEqual([])
     })
@@ -90,6 +85,6 @@ describe("mergedVerdicts", () => {
         expect(mergedVerdicts("q1", rows, { "q1:p1": true })).toEqual([
             { playerId: "p1", correct: true }
         ])
-        expect(mergedVerdicts("q2", rows, { "q1:p1": true })).toEqual([])   // nothing staged for q2
+        expect(mergedVerdicts("q2", rows, { "q1:p1": true })).toEqual([])   
     })
 })
