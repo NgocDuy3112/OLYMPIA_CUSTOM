@@ -444,3 +444,8 @@ prompts/
 
 # Playwright MCP snapshots (browser walkthrough output)
 .playwright-mcp/
+
+# .NET build output
+bin/
+obj/
+*.user
