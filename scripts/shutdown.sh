@@ -7,5 +7,5 @@ COMPOSE=(podman compose --env-file configs/.env)
 echo "==> Stopping stack"
 "${COMPOSE[@]}" down
 
-echo "==> Database data kept in data/postgresql"
+echo "==> Database data kept in aoc-postgresql"
 echo "==> Done"

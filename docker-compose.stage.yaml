@@ -1,0 +1,172 @@
+services:
+  postgres:
+    container_name: aoc-postgresql
+    image: docker.io/library/postgres:18-trixie
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    # Not published: the stage box's Postgres stays on the compose network.
+    volumes:
+      - aoc-postgresql:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    container_name: aoc-backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./configs/.env
+    environment:
+      POSTGRES_HOST: postgres
+      NODE_ENV: production
+      # Browser-facing LIVEKIT_URL is localhost:7880 — wrong from inside this
+      # container; the EgressClient must dial the service name instead.
+      LIVEKIT_INTERNAL_URL: http://livekit:7880
+      # On stage the record page is the audience CONTAINER, not host Vite —
+      # the backend builds this string, egress fetches it over the network.
+      RECORD_PAGE_BASE_URL: http://audience
+    # Not published: only the proxy reaches :3000 on the compose network.
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  livekit:
+    container_name: aoc-livekit
+    image: docker.io/livekit/livekit-server:v1.13.11
+    restart: unless-stopped
+    env_file:
+      - ./configs/.env
+    depends_on:
+      redis:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        cat > /tmp/livekit.yaml <<EOF
+        port: 7880
+        keys:
+          $${LIVEKIT_API_KEY}: $${LIVEKIT_API_SECRET}
+        redis:
+          address: redis:6379
+        rtc:
+          node_ip: $${LIVEKIT_NODE_IP:-127.0.0.1}
+          udp_port: 7882
+          tcp_port: 7881
+        EOF
+        exec /livekit-server --config /tmp/livekit.yaml
+    ports:
+      - "7880:7880"
+      - "7881:7881/tcp"
+      - "7882:7882/udp"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "7880"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    # Same shared bus as main compose: livekit-server discovers egress through it.
+    container_name: aoc-redis
+    image: docker.io/library/redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Web egress worker — headless Chrome renders the audience /record page and
+  # uploads the MP4 to the S3 bucket. Opt-in: --profile recordings.
+  # Chrome compositing wants ~4 CPU / 4GB free (livekit docs).
+  egress:
+    profiles: ["recordings"]
+    container_name: aoc-egress
+    image: docker.io/livekit/egress:v1.15.0
+    restart: unless-stopped
+    env_file:
+      - ./configs/.env
+    depends_on:
+      redis:
+        condition: service_healthy
+      livekit:
+        condition: service_healthy
+    # Mirrors the image's entrypoint.sh — pulseaudio MUST start before Chrome
+    # or the recording comes out silent — with a config write in front; the
+    # stock entrypoint takes no args, so EGRESS_CONFIG_FILE is exported here.
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -euo pipefail
+        : "$${S3_ACCESS_KEY_ID:?set S3_ACCESS_KEY_ID in configs/.env}"
+        : "$${S3_SECRET_ACCESS_KEY:?set S3_SECRET_ACCESS_KEY in configs/.env}"
+        : "$${S3_ENDPOINT:?set S3_ENDPOINT in configs/.env}"
+        : "$${S3_BUCKET:?set S3_BUCKET in configs/.env}"
+        cat > /tmp/egress.yaml <<EOF
+        logging:
+          level: info
+        api_key: $${LIVEKIT_API_KEY}
+        api_secret: $${LIVEKIT_API_SECRET}
+        ws_url: ws://livekit:7880
+        insecure: true
+        redis:
+          address: redis:6379
+        session_limits:
+          file_output_max_duration: 4h
+        storage:
+          s3:
+            access_key: $${S3_ACCESS_KEY_ID}
+            secret: $${S3_SECRET_ACCESS_KEY}
+            region: $${S3_REGION:-us-east-1}
+            endpoint: $${S3_ENDPOINT}
+            bucket: $${S3_BUCKET}
+        EOF
+        rm -rf /home/egress/tmp/* || true
+        ulimit -n 65536 || true
+        rm -rf /var/run/pulse /var/lib/pulse /home/egress/.config/pulse /home/egress/.cache/xdgr/pulse || true
+        pulseaudio -D --verbose --exit-idle-time=-1 --disallow-exit >/dev/null 2>&1 || true
+        export EGRESS_CONFIG_FILE=/tmp/egress.yaml
+        exec egress
+
+  portal:
+    container_name: aoc-portal
+    build:
+      context: ./frontend
+      dockerfile: deploy/portal.Dockerfile
+    restart: unless-stopped
+    expose: ["80"]
+
+  gameplay:
+    container_name: aoc-gameplay
+    build:
+      context: ./frontend
+      dockerfile: deploy/gameplay.Dockerfile
+    restart: unless-stopped
+    expose: ["80"]
+
+  audience:
+    container_name: aoc-audience
+    build:
+      context: ./frontend
+      dockerfile: deploy/audience.Dockerfile
+    restart: unless-stopped
+    expose: ["80"]
+
+volumes:
+  aoc-postgresql:
+    external: true
+  oc-caddy-data:
+  oc-caddy-config:

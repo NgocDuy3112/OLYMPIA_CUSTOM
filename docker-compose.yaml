@@ -1,6 +1,6 @@
 services:
   postgres:
-    container_name: oc-postgresql-18
+    container_name: aoc-postgresql
     image: docker.io/library/postgres:18-trixie
     restart: unless-stopped
     environment:
@@ -10,7 +10,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./data/oc-postgresql:/var/lib/postgresql
+      - aoc-postgresql:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
       interval: 5s
@@ -18,7 +18,7 @@ services:
       retries: 10
 
   backend:
-    container_name: oc-backend
+    container_name: aoc-backend
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -27,6 +27,7 @@ services:
       - ./configs/.env
     environment:
       POSTGRES_HOST: postgres
+      LIVEKIT_INTERNAL_URL: http://livekit:7880
     ports:
       - "3000:3000"
     depends_on:
@@ -38,12 +39,25 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    container_name: aoc-redis
+    image: docker.io/library/redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   livekit:
-    container_name: oc-livekit
+    container_name: aoc-livekit
     image: docker.io/livekit/livekit-server:v1.13.11
     restart: unless-stopped
     env_file:
       - ./configs/.env
+    depends_on:
+      redis:
+        condition: service_healthy
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -52,6 +66,8 @@ services:
         port: 7880
         keys:
           $${LIVEKIT_API_KEY}: $${LIVEKIT_API_SECRET}
+        redis:
+          address: redis:6379
         rtc:
           node_ip: 127.0.0.1
           udp_port: 7882
@@ -67,3 +83,53 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
+
+  egress:
+    profiles: ["recordings"]
+    container_name: aoc-egress
+    image: docker.io/livekit/egress:v1.15.0
+    restart: unless-stopped
+    env_file:
+      - ./configs/.env
+    depends_on:
+      redis:
+        condition: service_healthy
+      livekit:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -euo pipefail
+        : "$${S3_ACCESS_KEY_ID:?set S3_ACCESS_KEY_ID in configs/.env}"
+        : "$${S3_SECRET_ACCESS_KEY:?set S3_SECRET_ACCESS_KEY in configs/.env}"
+        : "$${S3_ENDPOINT:?set S3_ENDPOINT in configs/.env}"
+        : "$${S3_BUCKET:?set S3_BUCKET in configs/.env}"
+        cat > /tmp/egress.yaml <<EOF
+        logging:
+          level: info
+        api_key: $${LIVEKIT_API_KEY}
+        api_secret: $${LIVEKIT_API_SECRET}
+        ws_url: ws://livekit:7880
+        insecure: true
+        redis:
+          address: redis:6379
+        session_limits:
+          file_output_max_duration: 4h
+        storage:
+          s3:
+            access_key: $${S3_ACCESS_KEY_ID}
+            secret: $${S3_SECRET_ACCESS_KEY}
+            region: $${S3_REGION}
+            endpoint: $${S3_ENDPOINT}
+            bucket: $${S3_BUCKET}
+        EOF
+        rm -rf /home/egress/tmp/* || true
+        ulimit -n 65536 || true
+        rm -rf /var/run/pulse /var/lib/pulse /home/egress/.config/pulse /home/egress/.cache/xdgr/pulse || true
+        pulseaudio -D --verbose --exit-idle-time=-1 --disallow-exit >/dev/null 2>&1 || true
+        export EGRESS_CONFIG_FILE=/tmp/egress.yaml
+        exec egress
+
+volumes:
+  aoc-postgresql:
+    external: true
