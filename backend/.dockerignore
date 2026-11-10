@@ -1,0 +1,4 @@
+**/bin/
+**/obj/
+Olympia.Tests/
+nohup.out
