@@ -1,5 +1,5 @@
 import { useCountdown, useServerClock } from "@shared/lib/clock"
-import { fetchOperatorRtcToken, useAudioGate, useRtcPeerTracks, useRtcRoom } from "@shared/lib/rtc"
+import { fetchOperatorRtcToken, useAudioGate, useHostBroadcast, useRtcPeerTracks, useRtcRoom, type HostBroadcast } from "@shared/lib/rtc"
 import { useLive, useLiveAction, type ConsoleQuestion, type LiveResponse, type Projection } from "@/lib/live"
 import type { LiveAction } from "@/lib/live-actions"
 import { useMatches } from "@/lib/tournament"
@@ -19,6 +19,7 @@ export interface ConsoleTransport {
     table: Projection["table"]
     byId: (id: string) => ConsoleQuestion | null
     peers: ReturnType<typeof useRtcPeerTracks>
+    host: HostBroadcast
     send: (action: LiveAction) => void
     sendChain: (actions: LiveAction[]) => Promise<void>
     flash: string | null
@@ -43,6 +44,7 @@ export function useConsoleTransport(tournamentId: string, matchId: string): Cons
             fetchOperatorRtcToken(tournamentId, matchId),
     })
     const peers = useRtcPeerTracks(rtc.room)
+    const host = useHostBroadcast(rtc.room)
     useAudioGate(rtc.room, projection?.audioGate)
 
     const send = (action: LiveAction) =>
@@ -78,6 +80,7 @@ export function useConsoleTransport(tournamentId: string, matchId: string): Cons
         table: projection?.table ?? [],
         byId: (id) => questions.find((q) => q._id === id) ?? null,
         peers,
+        host,
         send,
         sendChain,
         flash: writer.isError

@@ -1,4 +1,5 @@
 import { useState } from "react"
+import type { HostBroadcast } from "@shared/lib/rtc"
 import type { ConsoleFacts } from "@/components/stage/deck"
 import { railVariantOf, roundModuleOf, type RoundModule } from "@/rounds"
 import { useLobby, type GiaiMaConsole, type KhoiDongConsole, type LobbyData, type VeDichConsole } from "@/lib/live"
@@ -51,9 +52,10 @@ type ConsoleModel = {
         lobby: LobbyData
         onStart: (roundId: string, phase?: 1 | 2) => void
         busy: boolean
+        host: HostBroadcast
     }
     /** a round is running — the round module draws the controller's screen */
-    | { phase: "deck"; facts: ConsoleFacts; roundModule: RoundModule | null }
+    | { phase: "deck"; facts: ConsoleFacts; roundModule: RoundModule | null; host: HostBroadcast }
 )
 
 export function useConsoleModel(tournamentId: string, matchId: string): ConsoleModel {
@@ -164,6 +166,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
             lobby: prepareLobby(lobby.data),
             onStart: plans.onStart,
             busy: writer.isPending,
+            host: transport.host,
         }
     }
 
@@ -198,5 +201,5 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         watch,
         openAdjust: adjust.openAdjust,
     })
-    return { phase: "deck", facts, roundModule: roundModuleOf(roundId), ...adjust }
+    return { phase: "deck", facts, roundModule: roundModuleOf(roundId), host: transport.host, ...adjust }
 }

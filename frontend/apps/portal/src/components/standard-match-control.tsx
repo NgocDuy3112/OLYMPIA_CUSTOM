@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react"
+import { useState } from "react"
 import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
 import { Input } from "@shared/ui/input"
@@ -36,61 +36,62 @@ export function StandardMatchControl({
         })
     }
 
-    return (
-        <div className="flex flex-col gap-6">
-            
-            <Section>
-                <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
-                    <Fact label="Vòng thi">{match.stageId}</Fact>
-                    <Fact label="Slot">{match.slot ?? "—"}</Fact>
-                    <Fact label="Lịch thi">
-                        {new Date(match.scheduledAt).toLocaleString("en-GB", {
-                            day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
-                        })}
-                    </Fact>
-                </dl>
-            </Section>
+    const when = new Date(match.scheduledAt).toLocaleString("en-GB", {
+        day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+    })
 
-            
+    return (
+        <section className="rounded-xl border bg-card p-5">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
+                <span>{match.stageId}</span>
+                <span aria-hidden="true">·</span>
+                <span>Slot {match.slot ?? "—"}</span>
+                <span aria-hidden="true">·</span>
+                <span>{when}</span>
+            </div>
+
             {match.status === "UPCOMING" && (
-                <Section>
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                        <div className="flex flex-col gap-1">
-                            <p className="text-sm font-semibold">Sẵn sàng bắt đầu?</p>
-                            <p className="text-sm text-muted-foreground">
-                                Bắt đầu chuyển trận sang LIVE — socket live mở cho thí sinh của
-                                trận. Nhập kết quả sẽ kết thúc trận.
-                            </p>
-                        </div>
-                        <Button
-                            onClick={() => transition.mutate({ matchId: match.id, status: "LIVE" })}
-                            disabled={transition.isPending}
-                        >
-                            {transition.isPending ? "Đang bắt đầu…" : "Bắt đầu trận ▶"}
-                        </Button>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex flex-col gap-1">
+                        <p className="text-sm font-semibold">Sẵn sàng bắt đầu?</p>
+                        <p className="text-sm text-muted-foreground">
+                            Bắt đầu chuyển trận sang LIVE — socket live mở cho thí sinh của trận.
+                            Nhập kết quả bên dưới sẽ kết thúc trận.
+                        </p>
                     </div>
-                    {transitionError && (
-                        <p role="alert" className="mt-3 text-sm text-destructive">{transitionError}</p>
-                    )}
-                </Section>
+                    <Button
+                        onClick={() => transition.mutate({ matchId: match.id, status: "LIVE" })}
+                        disabled={transition.isPending}
+                    >
+                        {transition.isPending ? "Đang bắt đầu…" : "Bắt đầu trận ▶"}
+                    </Button>
+                </div>
             )}
 
             {match.status === "LIVE" && (
-                <Section>
-                    <p className="text-sm text-muted-foreground">
-                        <Badge variant="destructive" className="mr-2">LIVE</Badge>
-                        Phần chơi chạy qua socket live. Nhập kết quả bên dưới sẽ kết thúc trận.
-                    </p>
-                </Section>
+                <p className="mt-4 text-sm text-muted-foreground">
+                    <Badge variant="destructive" className="mr-2">LIVE</Badge>
+                    Phần chơi chạy qua socket live — nhập điểm bên dưới khi trận xong.
+                </p>
             )}
 
-            
-            {match.status !== "FINISHED" && (
-                <Section>
-                    <h2 className="mb-1 text-lg font-semibold">Nhập kết quả</h2>
-                    <p className="mb-4 text-sm text-muted-foreground">
-                        Tổng điểm cuối cùng của từng thí sinh. Lưu sẽ kết thúc trận và cập
-                        nhật bảng xếp hạng.
+            {transitionError && (
+                <p role="alert" className="mt-3 text-sm text-destructive">{transitionError}</p>
+            )}
+
+            <hr className="my-4" />
+
+            {match.status === "FINISHED" ? (
+                <p className="text-sm text-muted-foreground">
+                    <Badge variant="secondary" className="mr-2">Đã kết thúc</Badge>
+                    Kết quả đã được ghi nhận — bảng xếp hạng và bracket đọc từ đây.
+                </p>
+            ) : (
+                <>
+                    <p className="text-sm font-semibold">Nhập kết quả</p>
+                    <p className="mb-3 mt-1 text-sm text-muted-foreground">
+                        Tổng điểm cuối cùng của từng thí sinh. Lưu sẽ kết thúc trận và cập nhật
+                        bảng xếp hạng.
                     </p>
                     <div className="flex flex-col gap-3">
                         {seated.map((player) => (
@@ -116,30 +117,15 @@ export function StandardMatchControl({
                             {save.isPending ? "Đang lưu…" : "Lưu kết quả & kết thúc"}
                         </Button>
                     </div>
-                </Section>
+                </>
             )}
-
-            {match.status === "FINISHED" && (
-                <Section>
-                    <p className="text-sm text-muted-foreground">
-                        <Badge variant="secondary" className="mr-2">Đã kết thúc</Badge>
-                        Kết quả đã được ghi nhận — bảng xếp hạng và bracket đọc từ đây.
-                    </p>
-                </Section>
-            )}
-        </div>
+        </section>
     )
 }
 
-function Section({ children }: { children: ReactNode }) {
-    return <section className="rounded-xl border bg-card p-5">{children}</section>
-}
 
-function Fact({ label, children }: { label: string; children: ReactNode }) {
-    return (
-        <div className="flex flex-col gap-1">
-            <dt className="text-xs uppercase tracking-wider text-muted-foreground">{label}</dt>
-            <dd className="font-medium">{children}</dd>
-        </div>
-    )
+export function StatusBadge({ status }: { status: MatchSummary["status"] }) {
+    if (status === "LIVE") return <Badge variant="destructive">LIVE</Badge>
+    if (status === "FINISHED") return <Badge variant="secondary">Đã kết thúc</Badge>
+    return <Badge variant="outline">Sắp diễn ra</Badge>
 }

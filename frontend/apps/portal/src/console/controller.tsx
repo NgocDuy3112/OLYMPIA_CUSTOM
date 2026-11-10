@@ -3,6 +3,7 @@ import { Lobby } from "@shared/deck/lobby"
 import { Badges, StageLayout } from "@/components/stage/deck"
 import { ROUND_LABEL, pt } from "@shared/deck/geometry"
 import { AdjustScoreDialog } from "./AdjustScoreDialog"
+import { ConsoleToolbar } from "./ConsoleToolbar"
 import { useConsoleModel } from "./use-console-model"
 
 
@@ -65,6 +66,11 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
                         onStart: model.onStart,
                     }}
                 />
+                <ConsoleToolbar
+                    tournamentId={tournamentId}
+                    matchId={matchId}
+                    host={model.host}
+                />
             </StageShell>
         )
     }
@@ -83,6 +89,11 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
     return (
         <StageShell>
             {screen}
+            <ConsoleToolbar
+                tournamentId={tournamentId}
+                matchId={matchId}
+                host={model.host}
+            />
             {model.adjustFor && (
                 <AdjustScoreDialog
                     playerName={facts.baseCards.find((c) => c.id === model.adjustFor)?.name ?? model.adjustFor}

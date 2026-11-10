@@ -384,3 +384,71 @@ export function useSelfBroadcast(matchId: string): SelfBroadcast {
 
     return { status, error, mediaError, video, camOn, micOn, toggleCam, toggleMic, setSpeakGate };
 }
+
+
+export interface HostBroadcast {
+    connected: boolean
+    mediaError: string | null
+    video: LocalVideoTrack | null
+    camOn: boolean
+    micOn: boolean
+    toggleCam: () => void
+    toggleMic: () => void
+}
+
+// The console's host camera/mic, published on the room use-console-transport
+// ALREADY owns — a second connection with the same identity would evict it.
+// Unlike the player deck nothing auto-enables and nothing probes on mount:
+// the operator flips the host on deliberately from the toolbar.
+export function useHostBroadcast(room: Room | null): HostBroadcast {
+    const [video, setVideo] = useState<LocalVideoTrack | null>(null)
+    const [camOn, setCamOn] = useState(false)
+    const [micOn, setMicOn] = useState(false)
+    const [mediaError, setMediaError] = useState<string | null>(null)
+
+    // A reconnect hands back a fresh localParticipant — the old track object
+    // is dead, so the toolbar must fall back to its off state.
+    useEffect(() => {
+        if (!room) {
+            setVideo(null)
+            setCamOn(false)
+            setMicOn(false)
+        }
+    }, [room])
+
+    const toggleCam = () => {
+        if (!room) return
+        const next = !camOn
+        void room.localParticipant
+            .setCameraEnabled(next)
+            .then((pub) => {
+                setCamOn(next)
+                const track = pub?.track
+                if (next && track && track.kind === "video") {
+                    setVideo(track as LocalVideoTrack)
+                } else if (!next) {
+                    setVideo(null)
+                }
+            })
+            .catch((e: unknown) => setMediaError(mediaErrorOf(e)))
+    }
+
+    const toggleMic = () => {
+        if (!room) return
+        const next = !micOn
+        void room.localParticipant
+            .setMicrophoneEnabled(next)
+            .then(() => setMicOn(next))
+            .catch((e: unknown) => setMediaError(mediaErrorOf(e)))
+    }
+
+    return {
+        connected: room !== null,
+        mediaError,
+        video,
+        camOn,
+        micOn,
+        toggleCam,
+        toggleMic,
+    }
+}

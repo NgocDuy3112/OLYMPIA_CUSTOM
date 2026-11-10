@@ -1,31 +1,25 @@
-import type { ReactNode } from "react"
 import { Link, useParams } from "react-router-dom"
-import { SearchX } from "lucide-react"
-import { PageHeader, EmptyState, ErrorPanel } from "@/components/page"
-import { useMatches } from "@/lib/tournament"
-import { StandardMatchControl } from "@/components/standard-match-control"
+import { ChevronRight, SearchX } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/ui/tabs"
+import { Page, PageHeader, EmptyState, ErrorPanel } from "@/components/page"
+import { useMatches, useTournament } from "@/lib/tournament"
+import { StandardMatchControl, StatusBadge } from "@/components/standard-match-control"
 import { MatchQuestionSurface } from "@/components/match-question-surface"
+import { RecordingsTab } from "@/components/recordings-tab"
 import { Controller } from "@/console/controller"
 
-
-function FullPage({ children }: { children: ReactNode }) {
-    return (
-        <div className="flex w-full flex-col gap-6 px-4 py-6 sm:px-6 lg:px-10">
-            {children}
-        </div>
-    )
-}
 
 export function MatchPage() {
     const { tournamentId, matchId } = useParams()
     const matches = useMatches(tournamentId ?? "")
+    const tournament = useTournament(tournamentId ?? "")
     const back = `/tournaments/${tournamentId}`
 
     if (matches.isPending) {
         return (
-            <FullPage>
+            <Page>
                 <div role="status" aria-label="Đang tải trận" className="h-64 animate-pulse rounded-xl bg-muted" />
-            </FullPage>
+            </Page>
         )
     }
 
@@ -34,16 +28,16 @@ export function MatchPage() {
 
     if (matches.isError) {
         return (
-            <FullPage>
+            <Page>
                 <PageHeader title="Không tải được trận đấu" />
                 <ErrorPanel message={matches.error.message} />
-            </FullPage>
+            </Page>
         )
     }
 
     if (!match) {
         return (
-            <FullPage>
+            <Page>
                 <PageHeader title="Không tìm thấy trận đấu" />
                 <EmptyState
                     icon={SearchX}
@@ -55,17 +49,57 @@ export function MatchPage() {
                         </Link>
                     }
                 />
-            </FullPage>
+            </Page>
         )
     }
 
+    // UPCOMING opens on the assembly surface; once running or done, scoring is the job.
+    const defaultTab = match.status === "UPCOMING" ? "cau-hoi" : "ket-qua"
+
     return (
-        <FullPage>
+        <Page>
+            <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Link className="transition-colors hover:text-foreground" to="/">Tournaments</Link>
+                <ChevronRight className="size-3.5" />
+                <Link className="transition-colors hover:text-foreground" to={back}>
+                    {tournament.data?.name ?? "…"}
+                </Link>
+                <ChevronRight className="size-3.5" />
+                <span className="text-foreground">{match.label}</span>
+            </nav>
+
+            <PageHeader
+                title={match.label}
+                actions={<StatusBadge status={match.status} />}
+            />
+
             {match.status === "LIVE" && (
                 <Controller tournamentId={tournamentId!} matchId={match.id} />
             )}
-            <StandardMatchControl tournamentId={tournamentId!} match={match} />
-            <MatchQuestionSurface tournamentId={tournamentId!} match={match} />
-        </FullPage>
+
+            <Tabs defaultValue={defaultTab}>
+                <TabsList variant="line" className="justify-start gap-6 border-b">
+                    <TabsTrigger value="cau-hoi">Câu hỏi</TabsTrigger>
+                    <TabsTrigger value="ket-qua">Kết quả</TabsTrigger>
+                    {match.status !== "UPCOMING" && (
+                        <TabsTrigger value="ban-ghi">Bản ghi</TabsTrigger>
+                    )}
+                </TabsList>
+
+                <TabsContent value="cau-hoi">
+                    <MatchQuestionSurface tournamentId={tournamentId!} match={match} />
+                </TabsContent>
+
+                <TabsContent value="ket-qua">
+                    <StandardMatchControl tournamentId={tournamentId!} match={match} />
+                </TabsContent>
+
+                {match.status !== "UPCOMING" && (
+                    <TabsContent value="ban-ghi">
+                        <RecordingsTab tournamentId={tournamentId!} matchId={match.id} />
+                    </TabsContent>
+                )}
+            </Tabs>
+        </Page>
     )
 }
