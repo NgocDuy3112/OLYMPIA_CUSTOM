@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Olympia.Api/Olympia.Api.csproj" />
+  <Project Path="Olympia.Domain/Olympia.Domain.csproj" />
+  <Project Path="Olympia.Infrastructure/Olympia.Infrastructure.csproj" />
+  <Project Path="Olympia.Tests/Olympia.Tests.csproj" />
+</Solution>
