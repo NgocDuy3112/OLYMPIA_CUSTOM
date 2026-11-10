@@ -85,7 +85,10 @@ describe("LoginForm", () => {
         const user = userEvent.setup()
         stubFetch({
             "POST /portal/auth/login": { body: { state: "mfa", pendingToken: "p4" } },
-            "POST /portal/auth/mfa": { body: { message: "Invalid or reused code" }, status: 401 },
+            "POST /portal/auth/mfa": {
+                body: { message: "This code was already used" },
+                status: 401,
+            },
         })
         renderLoginForm()
 
@@ -96,6 +99,26 @@ describe("LoginForm", () => {
 
         expect(await screen.findByRole("alert")).toHaveTextContent(/already used/i)
         expect(otp).toHaveValue("")
+    })
+
+    it("does not claim reuse for a code that simply did not match", async () => {
+        const user = userEvent.setup()
+        stubFetch({
+            "POST /portal/auth/login": { body: { state: "mfa", pendingToken: "p6" } },
+            "POST /portal/auth/mfa": {
+                body: { message: "That code didn't match" },
+                status: 401,
+            },
+        })
+        renderLoginForm()
+
+        await submitCredentials(user)
+        await user.type(await screen.findByRole("textbox"), "333333")
+        await user.click(screen.getByRole("button", { name: "Confirm" }))
+
+        const alert = await screen.findByRole("alert")
+        expect(alert).toHaveTextContent(/didn't work/i)
+        expect(alert).not.toHaveTextContent(/already used/i)
     })
 
     it("returns to the credentials step when the pending token expires", async () => {

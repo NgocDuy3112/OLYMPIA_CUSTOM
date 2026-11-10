@@ -37,11 +37,14 @@ export function useVerifyMfa() {
 type MfaFailure = "expired" | "reused" | "rate-limited" | "other"
 
 
+// The backend sends one distinct sentence per reason, and no machine-readable
+// code (fastify serializes every 401 as error: "Unauthorized"), so match the
+// wording deliberately — see FinishMfa in backend/Olympia.Api/Modules/Auth/AuthRoutes.cs.
 export function classifyMfaFailure(error: unknown): MfaFailure {
     if (!(error instanceof ApiError)) return "other"
     if (error.status === 429) return "rate-limited"
     if (error.message.includes("expired")) return "expired"
-    if (error.message.includes("reused")) return "reused"
+    if (error.message.includes("already used")) return "reused"
     return "other"
 }
 
