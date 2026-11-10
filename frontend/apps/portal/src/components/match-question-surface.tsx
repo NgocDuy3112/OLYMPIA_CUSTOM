@@ -105,11 +105,22 @@ const DEFAULT_QUESTION_COUNTS: Record<string, Record<string, number>> = {
     "but-pha": { phase1: 4 },
 }
 
-function requiredFor(group: GroupDef, rules: Record<string, RoundConfig> | null | undefined): number {
+function requiredFor(
+    group: GroupDef,
+    rules: Record<string, RoundConfig> | null | undefined,
+    playerCount = 1
+): number {
     if (group.points !== undefined) return BOARD_COMPOSITION[group.points] ?? 0
     const fromRules = rules?.[group.roundId]?.turns.find((turn) => turn.id === group.turnId)?.questionCount
-    if (typeof fromRules === "number") return fromRules
-    return DEFAULT_QUESTION_COUNTS[group.roundId]?.[group.turnId] ?? 0
+    const base =
+        typeof fromRules === "number"
+            ? fromRules
+            : DEFAULT_QUESTION_COUNTS[group.roundId]?.[group.turnId] ?? 0
+    // Khởi động Riêng is ONE SET PER PLAYER (the engine hands seat 1 the first
+    // six, seat 2 the next six), so the target scales with the seated count.
+    // Chung stays a single shared set.
+    if (group.bucket === "khoi-dong:rieng") return base * Math.max(1, playerCount)
+    return base
 }
 
 
@@ -552,7 +563,7 @@ export function MatchQuestionSurface({
         <div className="grid gap-4">
             {tab.groups.map((group) => {
                 const entries = shown[group.bucket] ?? []
-                const required = requiredFor(group, rules)
+                const required = requiredFor(group, rules, match.players.length)
                 const filled =
                     group.bucket === "giai-ma"
                         ? entries.filter((entry) => entry.kind === "HINT").length

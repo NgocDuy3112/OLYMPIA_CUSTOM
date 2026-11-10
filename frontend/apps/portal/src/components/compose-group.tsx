@@ -1,6 +1,7 @@
-import { useCallback } from "react"
+import { useCallback, useState } from "react"
 import {
     DndContext,
+    DragOverlay,
     KeyboardSensor,
     PointerSensor,
     closestCenter,
@@ -35,6 +36,10 @@ interface ActiveData {
     groupId?: string
     index?: number
     sourceId?: string
+    // Rendered by the DragOverlay ghost — without these the overlay has
+    // nothing to show while the source item sits dimmed in its slot.
+    label?: string
+    badge?: string
 }
 
 interface OverData {
@@ -86,13 +91,37 @@ export function ComposeDndProvider({
         [onAdd, onReorder]
     )
 
+    const [dragging, setDragging] = useState<ActiveData | null>(null)
+
     return (
         <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
+            onDragStart={(event) =>
+                setDragging((event.active.data.current as ActiveData | undefined) ?? null)
+            }
+            onDragCancel={() => setDragging(null)}
+            onDragEnd={(event) => {
+                setDragging(null)
+                handleDragEnd(event)
+            }}
         >
             {children}
+            {/* The ghost that follows the pointer. Portalled to <body>, so no
+                ancestor transform can throw its coordinates off. */}
+            <DragOverlay>
+                {dragging?.label && (
+                    <div className="pointer-events-none flex max-w-64 items-center gap-2 rounded-md border border-primary bg-background px-2 py-1.5 text-sm shadow-lg">
+                        <GripVertical className="size-4 shrink-0 text-muted-foreground" />
+                        <span className="min-w-0 truncate">{dragging.label}</span>
+                        {dragging.badge && (
+                            <Badge variant="outline" className="shrink-0">
+                                {dragging.badge}
+                            </Badge>
+                        )}
+                    </div>
+                )}
+            </DragOverlay>
         </DndContext>
     )
 }
@@ -211,7 +240,13 @@ function SortableGroupRow({
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
         useSortable({
             id: row.id,
-            data: { role: "row", groupId, index } satisfies ActiveData,
+            data: {
+                role: "row",
+                groupId,
+                index,
+                label: row.primary,
+                badge: row.badge,
+            } satisfies ActiveData,
             disabled: !editable,
         })
 
@@ -290,7 +325,7 @@ export function BankPickerItem({
 }: BankPickerItemProps) {
     const { setNodeRef, attributes, listeners, isDragging } = useDraggable({
         id: `picker:${sourceId}`,
-        data: { role: "picker", sourceId } satisfies ActiveData,
+        data: { role: "picker", sourceId, label: primary, badge: typeBadge } satisfies ActiveData,
         disabled,
     })
 
