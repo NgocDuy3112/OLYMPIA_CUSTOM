@@ -92,6 +92,14 @@ aoc.olympia-custom.io.vn {
 	handle @api {
 		import api
 	}
+
+	# The record page (the egress composite) mints its spectator token through
+	# the gameplay door — ONE narrow path, never the whole /gameplay surface,
+	# so this host keeps its "player APIs unreachable" property.
+	@viewerToken path_regexp ^/gameplay/matches/[^/]+/rtc/viewer-token$
+	handle @viewerToken {
+		import api
+	}
 	handle {
 		reverse_proxy {$AUDIENCE_APP:audience:80}
 	}
