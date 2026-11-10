@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Archive, Braces, Copy, Download, ExternalLink, EyeOff, FileText, Globe, Lightbulb, ListPlus, Pencil, Plus, Search, Send, ShieldCheck, Sheet, Undo2, X } from "lucide-react"
+import { Archive, Copy, Download, ExternalLink, EyeOff, FileText, Globe, Lightbulb, ListPlus, Pencil, Plus, Search, Send, ShieldCheck, Undo2, X } from "lucide-react"
 import { cn } from "cn"
 import { ApiError, api } from "@shared/lib/api"
 import { Badge } from "@shared/ui/badge"
@@ -73,7 +73,6 @@ interface ExcelReport extends BatchReport {
 }
 
 const WINDOW = 500
-const MAX_BATCH = 500
 const HINT_MAX = 8
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" })
 
@@ -241,14 +240,6 @@ interface Normalize {
 function messageOf(error: unknown): string {
     if (error instanceof ApiError) return error.message
     return "Something went wrong. Please try again."
-}
-
-function normSummary(norm?: Partial<Normalize> | null): string {
-    if (!norm) return "exact match"
-    const parts = [norm.caseSensitive === false ? "case-insensitive" : "case-sensitive"]
-    if (norm.trim !== false) parts.push("ignore surrounding spaces")
-    if (norm.stripAccents) parts.push("ignore accents")
-    return parts.join(" · ")
 }
 
 function answerSummary(row: BankQuestion): string | null {
@@ -475,6 +466,43 @@ function SelectBox({
 }
 
 
+// Header checkbox for one section's table: it covers exactly the rows listed
+// under it, reusing the per-row toggle so there is one source of truth for
+// `selected`.
+function SelectAllBox({
+    rows,
+    selected,
+    onToggle,
+}: {
+    rows: BankQuestion[]
+    selected: Map<string, BankQuestion>
+    onToggle: (row: BankQuestion) => void
+}) {
+    const picked = rows.filter((row) => selected.has(row.id)).length
+    const all = rows.length > 0 && picked === rows.length
+    const some = picked > 0 && !all
+
+    return (
+        <input
+            type="checkbox"
+            ref={(element) => {
+                if (element) element.indeterminate = some
+            }}
+            checked={all}
+            disabled={rows.length === 0}
+            onChange={() => {
+                const select = !all
+                for (const row of rows) {
+                    if (selected.has(row.id) !== select) onToggle(row)
+                }
+            }}
+            aria-label="Chọn tất cả câu trong nhóm"
+            className="size-4 shrink-0 accent-primary"
+        />
+    )
+}
+
+
 function QuestionTable({
     rows,
     showKind,
@@ -504,7 +532,7 @@ function QuestionTable({
                 <TableHeader>
                     <TableRow>
                         <TableHead className="w-8">
-                            <span className="sr-only">Chọn</span>
+                            <SelectAllBox rows={rows} selected={selected} onToggle={onToggleSelect} />
                         </TableHead>
                         <TableHead>Question</TableHead>
                         {showKind && <TableHead className="w-20">Kind</TableHead>}
@@ -686,28 +714,34 @@ function KeywordSetCard({
         staleTime: 15_000,
     })
 
-    const hintRows = hints.data?.items ?? []
+    // The bank orders by (created_at, id): one import batch gives every hint
+    // the same timestamp, so the tiebreak is a random UUID — and this list is
+    // numbered 1.–8. Sort naturally by text for a stable, readable order.
+    const hintRows = [...(hints.data?.items ?? [])].sort((a, b) =>
+        a.questionText.localeCompare(b.questionText, "vi", {
+            numeric: true,
+            sensitivity: "base",
+        })
+    )
     const shown = hintRows.slice(0, HINT_MAX)
     const overLimit = hintRows.length > HINT_MAX
     const published = hintRows.filter((hint) => hint.status === "PUBLISHED").length
 
     return (
         <div className="overflow-hidden rounded-xl border bg-card">
-            <div className="relative overflow-hidden px-5 py-6">
-                <div className="relative grid gap-1.5">
-                    <div className="w-fit">
-                        <SelectBox row={row} selected={selected} onToggle={onToggleSelect} />
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => onPreview(row)}
-                        title="Preview this question"
-                        className="min-w-0 break-all text-left text-2xl font-bold hover:opacity-80 sm:text-3xl"
-                    >
-                        {payload.code || "(no keyword set)"}
-                    </button>
-                </div>
-
+            {/* One compact header line: at text-3xl the code duplicated the
+                bucket header's look. This is the authoring surface — the big
+                keyword display belongs to the deck, not the bank. */}
+            <div className="flex items-center gap-3 px-5 py-4">
+                <SelectBox row={row} selected={selected} onToggle={onToggleSelect} />
+                <button
+                    type="button"
+                    onClick={() => onPreview(row)}
+                    title="Preview this question"
+                    className="min-w-0 break-all text-left text-base font-semibold hover:opacity-80"
+                >
+                    {payload.code || "(no keyword set)"}
+                </button>
             </div>
 
             
@@ -726,7 +760,13 @@ function KeywordSetCard({
                 <div className="flex items-baseline justify-between gap-3">
                     <span className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Hints</span>
                     <span className="text-sm font-semibold">
-                        {published} <span className="font-normal text-muted-foreground">/ {HINT_MAX}</span>
+                        {hintRows.length}
+                        <span className="font-normal text-muted-foreground"> / {HINT_MAX}</span>
+                        {published !== hintRows.length && (
+                            <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                                {published} published
+                            </span>
+                        )}
                     </span>
                 </div>
 
@@ -814,6 +854,18 @@ function bucketLabel(bucket: string | null): string | null {
     for (const tabDef of TABS) {
         for (const group of tabDef.groups) {
             if (group.bucket === bucket) return `${tabDef.label} · ${group.label}`
+        }
+    }
+    return bucket
+}
+
+// Group labels are unique across TABS, so the bare label is unambiguous — and it
+// matches the section header the selected rows are sitting under.
+function groupLabelOf(bucket: string | null): string | null {
+    if (!bucket) return null
+    for (const tabDef of TABS) {
+        for (const group of tabDef.groups) {
+            if (group.bucket === bucket) return group.label
         }
     }
     return bucket
@@ -917,9 +969,6 @@ function InspectorDrawer({ row, onClose }: { row: BankQuestion | null; onClose: 
                                     <li key={answer}>{answer}</li>
                                 ))}
                             </ul>
-                            <span className="text-xs text-muted-foreground">
-                                {normSummary(payload.normalize)}
-                            </span>
                         </div>
                     )}
 
@@ -929,9 +978,6 @@ function InspectorDrawer({ row, onClose }: { row: BankQuestion | null; onClose: 
                                 Keyword (bí mật)
                             </span>
                             <p className="rounded-lg border px-3 py-2">{payload.code}</p>
-                            <span className="text-xs text-muted-foreground">
-                                {normSummary(payload.normalize)}
-                            </span>
                         </div>
                     )}
 
@@ -1029,79 +1075,14 @@ function ArchiveConfirmDialog({
 
 function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
     const queryClient = useQueryClient()
-    const [mode, setMode] = useState<"json" | "excel">("json")
-    const [text, setText] = useState("")
-    const [questions, setQuestions] = useState<unknown[] | null>(null)
     const [file, setFile] = useState<File | null>(null)
-    const [mediaFiles, setMediaFiles] = useState<File[]>([])
     const [parseError, setParseError] = useState<string | null>(null)
-    const [report, setReport] = useState<BatchReport | null>(null)
     const [excel, setExcel] = useState<ExcelReport | null>(null)
-    const [validatedText, setValidatedText] = useState<string | null>(null)
     const [validatedFile, setValidatedFile] = useState<File | null>(null)
-    const [validatedMedia, setValidatedMedia] = useState<File[] | null>(null)
-
-    const parse = (): unknown[] | null => {
-        setQuestions(null)
-        setReport(null)
-        setValidatedText(null)
-        setParseError(null)
-
-        let parsed: unknown
-        try {
-            parsed = JSON.parse(text)
-        } catch {
-            setParseError("That is not valid JSON.")
-            return null
-        }
-        const envelope = parsed as { questions?: unknown }
-        const rows = Array.isArray(parsed) ? parsed : Array.isArray(envelope?.questions) ? envelope.questions : null
-        if (!rows) {
-            setParseError('Paste a JSON array of questions (or an object with a "questions" array).')
-            return null
-        }
-        if (rows.length === 0) {
-            setParseError("The array is empty — nothing to import.")
-            return null
-        }
-        if (rows.length > MAX_BATCH) {
-            setParseError(`A batch may contain at most ${MAX_BATCH} questions.`)
-            return null
-        }
-        setQuestions(rows)
-        return rows
-    }
-
-    const validate = useMutation({
-        mutationFn: (rows: unknown[]) =>
-            api<BatchReport>("/portal/questions/batch", {
-                method: "POST",
-                body: JSON.stringify({ dryRun: true, questions: rows }),
-            }),
-        onSuccess: (result) => {
-            setReport(result)
-            setValidatedText(text)
-        },
-        onError: (cause) => setParseError(messageOf(cause)),
-    })
-
-    const runImport = useMutation({
-        mutationFn: (rows: unknown[]) =>
-            api<BatchReport>("/portal/questions/batch", {
-                method: "POST",
-                body: JSON.stringify({ dryRun: false, questions: rows }),
-            }),
-        onSuccess: () => {
-            void queryClient.invalidateQueries({ queryKey: ["questions"] })
-            void queryClient.invalidateQueries({ queryKey: ["bucket-counts"] })
-            onClose()
-        },
-    })
 
     const postExcel = (dryRun: boolean, chosen: File) => {
         const form = new FormData()
         form.append("file", chosen, chosen.name)
-        for (const media of mediaFiles) form.append("media", media, media.name)
         return api<ExcelReport>(`/portal/questions/import-excel?dryRun=${dryRun}`, {
             method: "POST",
             body: form,
@@ -1113,7 +1094,6 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
         onSuccess: (result, chosen) => {
             setExcel(result)
             setValidatedFile(chosen)
-            setValidatedMedia(mediaFiles)
         },
         onError: (cause) => setParseError(messageOf(cause)),
     })
@@ -1131,62 +1111,25 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
     })
 
     const onValidate = () => {
-        if (mode === "excel") {
-            if (file) validateExcel.mutate(file)
-            return
-        }
-        const rows = parse()
-        if (rows) validate.mutate(rows)
+        if (file) validateExcel.mutate(file)
     }
     const onImport = () => {
-        if (mode === "excel") {
-            if (file && excel) runExcelImport.mutate(file)
-            return
-        }
-        if (questions) runImport.mutate(questions)
+        if (file && excel) runExcelImport.mutate(file)
     }
 
-    const switchMode = (next: "json" | "excel") => {
-        if (next === mode) return
-        setMode(next)
-        setText("")
-        setQuestions(null)
-        setFile(null)
-        setMediaFiles([])
-        setReport(null)
-        setExcel(null)
-        setValidatedText(null)
-        setValidatedFile(null)
-        setValidatedMedia(null)
-        setParseError(null)
-    }
+    const currentReport = excel
+    const busy = validateExcel.isPending || runExcelImport.isPending
+    const importError = runExcelImport
 
-    const currentReport = mode === "excel" ? excel : report
-    const busy =
-        validate.isPending ||
-        runImport.isPending ||
-        validateExcel.isPending ||
-        runExcelImport.isPending
-    const importError = mode === "excel" ? runExcelImport : runImport
-
-    const changedSinceValidation = validatedText !== null && validatedText !== text
     const reason = (() => {
         if (parseError) return parseError
-        if (mode === "excel") {
-            if (!file) return "Choose an .xlsx file, then validate"
-            if (!excel) return "Validate first (dry run)"
-            if (validatedFile !== file) return "File changed since validation — validate again"
-            if (validatedMedia !== mediaFiles) return "Media files changed since validation — validate again"
-            return null
-        }
-        if (questions === null) return "Paste JSON, then validate"
-        if (report === null) return "Validate first (dry run)"
-        if (report.errors.length > 0) return `Fix ${report.errors.length} error(s) above`
-        if (changedSinceValidation) return "Changed since validation — validate again"
+        if (!file) return "Choose a .zip or .xlsx file, then validate"
+        if (!excel) return "Validate first (dry run)"
+        if (validatedFile !== file) return "File changed since validation — validate again"
         return null
     })()
 
-    const willStage = mode === "excel" && currentReport !== null && currentReport.errors.length > 0
+    const willStage = currentReport !== null && currentReport.errors.length > 0
 
     return (
         <Dialog
@@ -1199,105 +1142,27 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
                 <DialogHeader>
                     <DialogTitle>Import questions</DialogTitle>
                     <DialogDescription>
-                        {mode === "json"
-                            ? `Paste a JSON batch (max ${MAX_BATCH}). Validate runs a dry run: the server checks every row — payload shape, duplicates — without writing anything.`
-                            : "Upload the AOC workbook with the media its File column names (max 5 MB + 100 files). Validate runs a dry run: every row is checked — group IDs, payload shape, duplicates, missing media — without writing anything."}
+                        Upload one bundle — a .zip holding the workbook and the media its File column names,
+                        or a bare .xlsx (max 5 MB + 100 files). Validate runs a dry run: every row is checked —
+                        group IDs, payload shape, duplicates, missing media — without writing anything.
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="grid gap-3">
-                    <div className="flex w-fit gap-1 rounded-lg border p-1" role="group" aria-label="Import source">
-                        <Button
-                            size="sm"
-                            variant={mode === "json" ? "secondary" : "ghost"}
-                            aria-label="JSON"
-                            title="JSON"
-                            onClick={() => switchMode("json")}
-                        >
-                            <Braces className="size-4" aria-hidden />
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant={mode === "excel" ? "secondary" : "ghost"}
-                            aria-label="Excel (.xlsx)"
-                            title="Excel (.xlsx)"
-                            onClick={() => switchMode("excel")}
-                        >
-                            <Sheet className="size-4" aria-hidden />
-                        </Button>
-                    </div>
-
-                    {mode === "json" ? (
-                        <>
-                            <label className="grid gap-1 text-sm" htmlFor="import-json">
-                                Questions (JSON array, or {"{ \"questions\": [...] }"})
-                            </label>
-                            <textarea
-                                id="import-json"
-                                value={text}
-                                onChange={(event) => {
-                                    setText(event.target.value)
-                                    setParseError(null)
-                                }}
-                                rows={10}
-                                spellCheck={false}
-                                placeholder={'[\n  { "kind": "TEXT", "questionText": "…", "payload": { "acceptedAnswers": ["…"], "normalize": { "caseSensitive": false, "trim": true, "stripAccents": true } } }\n]'}
-                                className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-xs"
-                            />
-                        </>
-                    ) : (
-                        <>
-                            <label className="grid gap-1 text-sm" htmlFor="import-xlsx">
-                                Workbook (.xlsx)
-                            </label>
-                            <input
-                                id="import-xlsx"
-                                type="file"
-                                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                                onChange={(event) => {
-                                    setFile(event.target.files?.[0] ?? null)
-                                    setExcel(null)
-                                    setParseError(null)
-                                }}
-                                className="block w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm file:mr-3 file:cursor-pointer file:rounded-lg file:border file:border-input file:bg-muted file:px-3 file:py-1 file:text-sm"
-                            />
-                            <p className="text-xs text-muted-foreground">
-                                Template <span className="font-medium text-foreground">AOC_M00.xlsx</span> — sheets
-                                KHOI_DONG · GIAI_MA · BUT_PHA · VE_DICH, columns ID · Câu hỏi · Đáp án · Giải thích ·
-                                Ghi chú · File ảnh/video/audio. One accepted answer per line (Alt+Enter); GM_KEY
-                                carries the keyword and GM_1…GM_8 its hints. Rows the template leaves empty are
-                                skipped, never imported.
-                            </p>
-
-                            <label className="grid gap-1 text-sm" htmlFor="import-media">
-                                Media files (optional)
-                            </label>
-                            <input
-                                id="import-media"
-                                type="file"
-                                multiple
-                                onChange={(event) => {
-                                    setMediaFiles(Array.from(event.target.files ?? []))
-                                    setExcel(null)
-                                    setParseError(null)
-                                }}
-                                className="block w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm file:mr-3 file:cursor-pointer file:rounded-lg file:border file:border-input file:bg-muted file:px-3 file:py-1 file:text-sm"
-                            />
-                            <p className="text-xs text-muted-foreground">
-                                The <span className="font-medium text-foreground">File ảnh/video/audio</span> column
-                                names a file — bundle the ones you want stored and they upload with the import. A
-                                cell naming a file you did NOT pick is reported as a warning: the row still
-                                imports, without its media.
-                            </p>
-                            {mediaFiles.length > 0 && (
-                                <p className="text-xs text-muted-foreground">
-                                    {mediaFiles.length} file{mediaFiles.length === 1 ? "" : "s"} selected:{" "}
-                                    {mediaFiles.slice(0, 6).map((media) => media.name).join(", ")}
-                                    {mediaFiles.length > 6 ? ` … +${mediaFiles.length - 6} more` : ""}
-                                </p>
-                            )}
-                        </>
-                    )}
+                    <label className="grid gap-1 text-sm" htmlFor="import-xlsx">
+                        Bundle (.zip or .xlsx)
+                    </label>
+                    <input
+                        id="import-xlsx"
+                        type="file"
+                        accept=".zip,.xlsx,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        onChange={(event) => {
+                            setFile(event.target.files?.[0] ?? null)
+                            setExcel(null)
+                            setParseError(null)
+                        }}
+                        className="block w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm file:mr-3 file:cursor-pointer file:rounded-lg file:border file:border-input file:bg-muted file:px-3 file:py-1 file:text-sm"
+                    />
 
                     {currentReport && currentReport.errors.length === 0 && (
                         <p className="rounded-lg border border-emerald-600/40 bg-emerald-500/10 px-3 py-2 text-sm">
@@ -1386,7 +1251,7 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
                         aria-label="Validate (dry run)"
                         title="Validate (dry run)"
                         onClick={onValidate}
-                        disabled={busy || (mode === "json" ? !text.trim() : !file)}
+                        disabled={busy || !file}
                     >
                         <ShieldCheck className="size-4" aria-hidden />
                     </Button>
@@ -1394,12 +1259,7 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
                         aria-label={willStage ? "Import & review" : "Import"}
                         title={willStage ? "Import & review" : "Import"}
                         onClick={onImport}
-                        disabled={
-                            reason !== null ||
-                            currentReport === null ||
-                            (mode === "json" && currentReport.errors.length > 0) ||
-                            busy
-                        }
+                        disabled={reason !== null || currentReport === null || busy}
                     >
                         <Download className="size-4" aria-hidden />
                     </Button>
@@ -1440,6 +1300,9 @@ function QuestionDialog({
                 questionText: input.questionText,
                 payload: input.payload,
                 tags: input.tags,
+                // Always sent: `null` clears a removed media attachment, and an
+                // unchanged url is a no-op on PATCH.
+                media: input.media,
             }
             if (input.timeLimit != null) body.timeLimit = input.timeLimit
             if (input.keywordId) body.keywordId = input.keywordId
@@ -1511,7 +1374,17 @@ function GroupSection({
 }) {
     const keywords = rows.filter((row) => row.kind === "KEYWORD")
     const choices = rows.filter((row) => row.kind === "CHOICE")
-    const plain = rows.filter((row) => row.kind !== "KEYWORD" && row.kind !== "CHOICE")
+    // HINT rows already render inside their keyword card's HINTS list — showing
+    // them again as TEXT-looking table rows duplicated every hint on screen.
+    // Orphans (parent not in this view, e.g. search matched the hint only)
+    // stay in the table so they remain reachable.
+    const keywordIds = new Set(keywords.map((row) => row.id))
+    const plain = rows.filter(
+        (row) =>
+            row.kind !== "KEYWORD" &&
+            row.kind !== "CHOICE" &&
+            !(row.kind === "HINT" && row.keywordId != null && keywordIds.has(row.keywordId))
+    )
 
     return (
         <section className="grid gap-3" aria-label={`Nhóm ${group.label}`}>
@@ -1874,6 +1747,105 @@ export function QuestionsPage() {
             
             <StagedImportBanner />
 
+            {/* Sticky at the top: as a Page child it sits in the content box, so
+                it aligns with the table and clears the sidebar, and it pins to the
+                viewport top while scrolling instead of floating over the bottom
+                row. */}
+            {selected.size > 0 && (
+                <div className="sticky top-0 z-40 border-b bg-card/95 py-3 shadow-[0_4px_16px_rgba(0,0,0,0.08)] backdrop-blur">
+                    <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 text-sm">
+                        <span className="font-semibold">{selected.size} đã chọn</span>
+                        <span className="text-xs text-muted-foreground">
+                            ở{" "}
+                            {[...new Set(
+                                [...selected.values()].map(
+                                    (row) => groupLabelOf(bucketOf(row)) ?? "chưa gán"
+                                )
+                            )].join(", ")}
+                        </span>
+                        <Button
+                            className="ml-auto"
+                            size="sm"
+                            variant="outline"
+                            aria-label="Nộp duyệt"
+                            title="Nộp duyệt"
+                            disabled={bulkBusy}
+                            onClick={() => bulkStatus("PENDING")}
+                        >
+                            <Send className="size-4" aria-hidden />
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            aria-label="Đăng"
+                            title="Đăng"
+                            disabled={bulkBusy || !isAdmin}
+                            onClick={() => bulkStatus("PUBLISHED")}
+                        >
+                            <Globe className="size-4" aria-hidden />
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            aria-label="Nhân bản"
+                            title="Nhân bản"
+                            disabled={bulkBusy}
+                            onClick={bulkDuplicate}
+                        >
+                            <Copy className="size-4" aria-hidden />
+                        </Button>
+                        <select
+                            value=""
+                            disabled={bulkBusy}
+                            aria-label="Gắn nhóm cho các câu đã chọn"
+                            onChange={(event) => {
+                                if (event.target.value) bulkBucket(event.target.value)
+                            }}
+                            className="h-8 rounded-lg border border-input bg-transparent px-2 text-sm"
+                        >
+                            <option value="">Gắn nhóm…</option>
+                            {TABS.flatMap((tabDef) =>
+                                tabDef.groups.map((group) => (
+                                    <option
+                                        key={group.bucket ?? group.label}
+                                        value={group.bucket ?? ""}
+                                    >
+                                        {tabDef.label} · {group.label}
+                                    </option>
+                                ))
+                            )}
+                        </select>
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            aria-label="Thêm vào trận"
+                            title="Thêm vào trận"
+                            disabled={bulkBusy}
+                            onClick={() => setAddRows([...selected.values()])}
+                        >
+                            <ListPlus className="size-4" aria-hidden />
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            aria-label="Bỏ chọn"
+                            title="Bỏ chọn"
+                            disabled={bulkBusy}
+                            onClick={clearSelection}
+                        >
+                            <X className="size-4" aria-hidden />
+                        </Button>
+                        {bulkBusy && (
+                            <span className="text-xs text-muted-foreground">Đang xử lý…</span>
+                        )}
+                    </div>
+                    {bulkFlash && (
+                        <p className="mx-auto max-w-6xl pt-1 text-xs text-muted-foreground" role="status">
+                            {bulkFlash}
+                        </p>
+                    )}
+                </div>
+            )}
             
             <div className="flex flex-wrap items-end gap-3">
                 <label className="grid gap-1 text-sm">
@@ -2001,99 +1973,6 @@ export function QuestionsPage() {
             {importOpen && <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} />}
 
             
-            {selected.size > 0 && (
-                <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 px-4 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.08)] backdrop-blur">
-                    <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 text-sm">
-                        <span className="font-semibold">{selected.size} đã chọn</span>
-                        <span className="text-xs text-muted-foreground">
-                            ở{" "}
-                            {[...new Set([...selected.values()].map((row) => bucketOf(row) ?? "chưa gán"))].join(
-                                ", "
-                            )}
-                        </span>
-                        <Button
-                            className="ml-auto"
-                            size="sm"
-                            variant="outline"
-                            aria-label="Nộp duyệt"
-                            title="Nộp duyệt"
-                            disabled={bulkBusy}
-                            onClick={() => bulkStatus("PENDING")}
-                        >
-                            <Send className="size-4" aria-hidden />
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            aria-label="Đăng"
-                            title="Đăng"
-                            disabled={bulkBusy || !isAdmin}
-                            onClick={() => bulkStatus("PUBLISHED")}
-                        >
-                            <Globe className="size-4" aria-hidden />
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            aria-label="Nhân bản"
-                            title="Nhân bản"
-                            disabled={bulkBusy}
-                            onClick={bulkDuplicate}
-                        >
-                            <Copy className="size-4" aria-hidden />
-                        </Button>
-                        <select
-                            value=""
-                            disabled={bulkBusy}
-                            aria-label="Gắn nhóm cho các câu đã chọn"
-                            onChange={(event) => {
-                                if (event.target.value) bulkBucket(event.target.value)
-                            }}
-                            className="h-8 rounded-lg border border-input bg-transparent px-2 text-sm"
-                        >
-                            <option value="">Gắn nhóm…</option>
-                            {TABS.flatMap((tabDef) =>
-                                tabDef.groups.map((group) => (
-                                    <option
-                                        key={group.bucket ?? group.label}
-                                        value={group.bucket ?? ""}
-                                    >
-                                        {tabDef.label} · {group.label}
-                                    </option>
-                                ))
-                            )}
-                        </select>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            aria-label="Thêm vào trận"
-                            title="Thêm vào trận"
-                            disabled={bulkBusy}
-                            onClick={() => setAddRows([...selected.values()])}
-                        >
-                            <ListPlus className="size-4" aria-hidden />
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant="ghost"
-                            aria-label="Bỏ chọn"
-                            title="Bỏ chọn"
-                            disabled={bulkBusy}
-                            onClick={clearSelection}
-                        >
-                            <X className="size-4" aria-hidden />
-                        </Button>
-                        {bulkBusy && (
-                            <span className="text-xs text-muted-foreground">Đang xử lý…</span>
-                        )}
-                    </div>
-                    {bulkFlash && (
-                        <p className="mx-auto max-w-6xl pt-1 text-xs text-muted-foreground" role="status">
-                            {bulkFlash}
-                        </p>
-                    )}
-                </div>
-            )}
             {addRows !== null && (
                 <AddToMatchDialog rows={addRows} onClose={() => setAddRows(null)} />
             )}

@@ -31,6 +31,9 @@ function stubBank() {
         },
         "GET /portal/questions?limit=500&bucket=khoi-dong": list([draftRow]),
         "GET /portal/questions/bucket-counts": { body: {} },
+        "POST /portal/questions/media": {
+            body: { url: "https://cdn.example/anh.png", type: "image" },
+        },
         "POST /portal/questions": { body: { id: "q2" } },
         "PATCH /portal/questions/q1/status": { body: { ...draftRow, status: "PENDING" } },
     })
@@ -72,6 +75,7 @@ describe("QuestionsPage", () => {
         const body = JSON.parse(post![1]?.body as string)
         expect(body).toEqual({
             kind: "TEXT",
+            media: null,
             questionText: "Thủ đô của Việt Nam là?",
             payload: {
                 type: "TEXT",
@@ -81,6 +85,43 @@ describe("QuestionsPage", () => {
             tags: ["khoi-dong:chung"],
         })
         await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+    })
+
+    it("uploads media the moment a file is picked, and saves it with the question", async () => {
+        const user = userEvent.setup()
+        const fetchMock = stubBank()
+        renderWithProviders(<QuestionsPage />)
+
+        await user.click(await screen.findByRole("button", { name: /New question/ }))
+        const dialog = await screen.findByRole("dialog")
+
+        await user.type(within(dialog).getByLabelText("Question"), "Có hình minh hoạ")
+        await user.type(within(dialog).getByLabelText(/Accepted answers/), "Đáp án")
+        await user.selectOptions(within(dialog).getByLabelText("Round group"), "khoi-dong:chung")
+
+        await user.upload(
+            within(dialog).getByLabelText(/Tải ảnh/),
+            new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], "anh.png", {
+                type: "image/png",
+            })
+        )
+
+        // uploaded on pick — before any save — so the preview is the stored object
+        await waitFor(() =>
+            expect(
+                fetchMock.mock.calls.some(([url]) => url === "/portal/questions/media")
+            ).toBe(true)
+        )
+        expect(await within(dialog).findByRole("button", { name: /Gỡ media/ })).toBeInTheDocument()
+
+        await user.click(within(dialog).getByRole("button", { name: "Save" }))
+
+        const post = fetchMock.mock.calls.find(
+            ([url, init]) => url === "/portal/questions" && init?.method === "POST"
+        )
+        expect(post).toBeTruthy()
+        const body = JSON.parse(post![1]?.body as string)
+        expect(body.media).toEqual({ url: "https://cdn.example/anh.png", type: "image" })
     })
 
     it("shows the server's reason when saving is refused (empty question)", async () => {

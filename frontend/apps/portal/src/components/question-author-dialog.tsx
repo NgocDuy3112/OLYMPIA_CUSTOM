@@ -1,7 +1,7 @@
 import { useState } from "react"
-import { useQuery } from "@tanstack/react-query"
-import { Link2, Plus, Save, X } from "lucide-react"
-import { api } from "@shared/lib/api"
+import { useMutation, useQuery } from "@tanstack/react-query"
+import { Link2, Plus, Save, Upload, X } from "lucide-react"
+import { api, ApiError } from "@shared/lib/api"
 import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
 import {
@@ -22,6 +22,11 @@ export interface Normalize {
     stripAccents: boolean
 }
 
+export interface QuestionMedia {
+    url: string
+    type: "image" | "audio" | "video"
+}
+
 export interface AuthorDraft {
     bucket: string
     questionText: string
@@ -31,7 +36,7 @@ export interface AuthorDraft {
     correct: string[] 
     code: string
     keywordId: string 
-    norm: Normalize
+    media: QuestionMedia | null
 }
 
 export interface AuthorSave {
@@ -41,6 +46,7 @@ export interface AuthorSave {
     keywordId: string | null
     payload: Record<string, unknown>
     tags: string[]
+    media: QuestionMedia | null
 }
 
 export interface AuthorRow {
@@ -51,6 +57,7 @@ export interface AuthorRow {
     keywordId?: string | null
     payload?: Record<string, unknown>
     tags?: string[]
+    media?: QuestionMedia | null
 }
 
 export interface AuthorDialogProps {
@@ -133,7 +140,7 @@ function draftFrom(row: AuthorRow | null | undefined, bucket?: string, presetKey
         correct: [],
         code: "",
         keywordId: row?.keywordId ?? presetKeywordId ?? "",
-        norm: { ...DEFAULT_NORM },
+        media: row?.media ?? null,
     }
     if (!base.bucket && (presetKeywordId || row?.kind === "HINT")) base.bucket = "giai-ma"
     if (!base.bucket && row) {
@@ -157,14 +164,13 @@ function draftFrom(row: AuthorRow | null | undefined, bucket?: string, presetKey
         base.accepted = (payload.acceptedAnswers as string[]).join("\n")
     }
     if (typeof payload.code === "string") base.code = payload.code
-    if (typeof payload.normalize === "object" && payload.normalize !== null) {
-        base.norm = { ...DEFAULT_NORM, ...(payload.normalize as Partial<Normalize>) }
-    }
     return base
 }
 
 function buildPayload(type: QuestionType, draft: AuthorDraft): Record<string, unknown> | null {
-    const normalize = { ...draft.norm }
+    // Answer matching is no longer editable: matching is always UPPERCASE-blind
+    // (ignore case + trim + strip accents), the same default the Excel import uses.
+    const normalize = { ...DEFAULT_NORM }
     if (type === "TEXT" || type === "ORAL") {
         const acceptedAnswers = draft.accepted
             .split("\n")
@@ -242,6 +248,11 @@ function AudiencePreview({ type, draft }: { type: QuestionType; draft: AuthorDra
 }
 
 
+function messageOf(error: unknown): string {
+    if (error instanceof ApiError) return error.message
+    return "Không tải lên được tệp — thử lại."
+}
+
 export function QuestionAuthorDialog({
     open,
     row = null,
@@ -258,6 +269,24 @@ export function QuestionAuthorDialog({
     const hintMode = row?.kind === "HINT" || Boolean(presetKeywordId)
 
     const patch = (part: Partial<AuthorDraft>) => setDraft((prev) => ({ ...prev, ...part }))
+
+    const [uploadError, setUploadError] = useState<string | null>(null)
+
+    // Uploaded the moment a file is picked, so the preview shows the real stored
+    // object and the save only has to remember its { url, type }. Cancelling the
+    // dialog after picking therefore leaves an orphan in the bucket — accepted.
+    const upload = useMutation({
+        mutationFn: (file: File) => {
+            const form = new FormData()
+            form.append("file", file, file.name)
+            return api<QuestionMedia>("/portal/questions/media", { method: "POST", body: form })
+        },
+        onSuccess: (media) => {
+            setUploadError(null)
+            patch({ media })
+        },
+        onError: (cause) => setUploadError(messageOf(cause)),
+    })
 
     const type = typeForBucket(draft.bucket, linking)
     const showLink = draft.bucket === "giai-ma" && (linking || hintMode)
@@ -341,7 +370,9 @@ export function QuestionAuthorDialog({
                 (draft.timeLimit ? Number(draft.timeLimit) : null) !== (row.timeLimit ?? null) ||
                 (draft.keywordId || null) !== (row.keywordId ?? null) ||
                 JSON.stringify(stripBridge(builtPayload)) !==
-                    JSON.stringify(stripBridge(row.payload ?? {}))
+                    JSON.stringify(stripBridge(row.payload ?? {})) ||
+                JSON.stringify(draft.media ?? null) !==
+                    JSON.stringify(row.media ?? null)
             if (!changed) return "No changes to save."
         }
         return null
@@ -356,6 +387,7 @@ export function QuestionAuthorDialog({
             keywordId: draft.keywordId || null,
             payload: builtPayload,
             tags: [...(row?.tags ?? []).filter((tag) => !BUCKET_VALUES.has(tag)), draft.bucket],
+            media: draft.media,
         })
     }
 
@@ -374,37 +406,52 @@ export function QuestionAuthorDialog({
                 </DialogHeader>
 
                 <div className="grid gap-4">
-                    
-                    <div className="grid gap-2">
-                        <label className="text-sm font-medium" htmlFor="q-bucket">Round group</label>
-                        <select
-                            id="q-bucket"
-                            value={draft.bucket}
-                            onChange={(event) => changeBucket(event.target.value)}
-                            className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
-                        >
-                            <option value="">— pick a group —</option>
-                            {BUCKET_GROUPS.map((group) => (
-                                <optgroup key={group.group} label={group.group}>
-                                    {group.choices.map((choice) => (
-                                        <option key={choice.value} value={choice.value}>
-                                            {choice.label} · {choice.typeLabel}
-                                        </option>
-                                    ))}
-                                </optgroup>
-                            ))}
-                        </select>
-                        {draft.bucket && (
-                            <p className="text-xs text-muted-foreground">
-                                Dạng trả lời:{" "}
-                                <Badge variant="outline">{type}</Badge>
-                                {type === "ORAL"
-                                    ? " — thí sinh trả lời miệng, khán giả chọn ô trả lời"
-                                    : type === "KEYWORD"
-                                      ? " — ô nhập bí mật cho Giải mã"
-                                      : " — gõ câu trả lời"}
-                            </p>
-                        )}
+                    {/* Round group and time limit share a row: both are short, and
+                        stacked they push the dialog to three screens. */}
+                    <div className="grid gap-4 sm:grid-cols-[1fr_11rem]">
+                        <div className="grid gap-2">
+                            <label className="text-sm font-medium" htmlFor="q-bucket">Round group</label>
+                            <select
+                                id="q-bucket"
+                                value={draft.bucket}
+                                onChange={(event) => changeBucket(event.target.value)}
+                                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
+                            >
+                                <option value="">— pick a group —</option>
+                                {BUCKET_GROUPS.map((group) => (
+                                    <optgroup key={group.group} label={group.group}>
+                                        {group.choices.map((choice) => (
+                                            <option key={choice.value} value={choice.value}>
+                                                {choice.label} · {choice.typeLabel}
+                                            </option>
+                                        ))}
+                                    </optgroup>
+                                ))}
+                            </select>
+                            {draft.bucket && (
+                                <p className="text-xs text-muted-foreground">
+                                    Dạng trả lời:{" "}
+                                    <Badge variant="outline">{type}</Badge>
+                                    {type === "ORAL"
+                                        ? " — thí sinh trả lời miệng, khán giả chọn ô trả lời"
+                                        : type === "KEYWORD"
+                                          ? " — ô nhập bí mật cho Giải mã"
+                                          : " — gõ câu trả lời"}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="grid gap-2">
+                            <label className="text-sm font-medium" htmlFor="q-limit">Time limit (s, optional)</label>
+                            <Input
+                                id="q-limit"
+                                type="number"
+                                min={1}
+                                value={draft.timeLimit}
+                                onChange={(event) => patch({ timeLimit: event.target.value })}
+                                placeholder="—"
+                            />
+                        </div>
                     </div>
 
                     <div className="grid gap-2">
@@ -415,18 +462,6 @@ export function QuestionAuthorDialog({
                             onChange={(event) => patch({ questionText: event.target.value })}
                             rows={3}
                             className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm"
-                        />
-                    </div>
-
-                    <div className="grid gap-2">
-                        <label className="text-sm font-medium" htmlFor="q-limit">Time limit (s, optional)</label>
-                        <Input
-                            id="q-limit"
-                            type="number"
-                            min={1}
-                            value={draft.timeLimit}
-                            onChange={(event) => patch({ timeLimit: event.target.value })}
-                            placeholder="—"
                         />
                     </div>
 
@@ -567,39 +602,57 @@ export function QuestionAuthorDialog({
                     )}
 
                     <div className="grid gap-2">
-                        <span className="text-sm font-medium">Answer matching</span>
-                        <div className="flex flex-wrap gap-4 text-sm">
-                            <label className="flex items-center gap-1.5">
+                        <span className="text-sm font-medium">Media (optional)</span>
+                        {draft.media ? (
+                            <div className="flex items-center gap-3 rounded-lg border p-2">
+                                {draft.media.type === "image" ? (
+                                    <img
+                                        src={draft.media.url}
+                                        alt=""
+                                        className="size-14 shrink-0 rounded-md border object-cover"
+                                    />
+                                ) : (
+                                    <span className="flex size-14 shrink-0 items-center justify-center rounded-md border bg-muted text-xs text-muted-foreground">
+                                        {draft.media.type}
+                                    </span>
+                                )}
+                                <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                                    {draft.media.url}
+                                </span>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    aria-label="Gỡ media"
+                                    title="Gỡ media"
+                                    onClick={() => patch({ media: null })}
+                                >
+                                    <X className="size-4" aria-hidden />
+                                </Button>
+                            </div>
+                        ) : (
+                            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-5 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground">
+                                <Upload className="size-4" aria-hidden />
+                                <span>
+                                    {upload.isPending ? "Đang tải lên…" : "Tải ảnh / video / âm thanh"}
+                                </span>
                                 <input
-                                    type="checkbox"
-                                    checked={!draft.norm.caseSensitive}
-                                    onChange={(event) =>
-                                        patch({ norm: { ...draft.norm, caseSensitive: !event.target.checked } })
-                                    }
+                                    type="file"
+                                    accept="image/*,audio/*,video/*"
+                                    className="sr-only"
+                                    disabled={upload.isPending}
+                                    onChange={(event) => {
+                                        const file = event.target.files?.[0]
+                                        if (file) upload.mutate(file)
+                                        event.target.value = ""
+                                    }}
                                 />
-                                ignore case
                             </label>
-                            <label className="flex items-center gap-1.5">
-                                <input
-                                    type="checkbox"
-                                    checked={draft.norm.trim}
-                                    onChange={(event) =>
-                                        patch({ norm: { ...draft.norm, trim: event.target.checked } })
-                                    }
-                                />
-                                trim spaces
-                            </label>
-                            <label className="flex items-center gap-1.5">
-                                <input
-                                    type="checkbox"
-                                    checked={draft.norm.stripAccents}
-                                    onChange={(event) =>
-                                        patch({ norm: { ...draft.norm, stripAccents: event.target.checked } })
-                                    }
-                                />
-                                strip accents
-                            </label>
-                        </div>
+                        )}
+                        {uploadError && (
+                            <p role="alert" className="text-xs text-destructive">
+                                {uploadError}
+                            </p>
+                        )}
                     </div>
 
                     <AudiencePreview type={type} draft={draft} />
