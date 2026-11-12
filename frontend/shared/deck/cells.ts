@@ -30,7 +30,7 @@ export function playerCellClass({ where, chosen, actionable }: {
 
 export const HINT_TILES = 8
 
-const TILE = "flex aspect-[203/132] items-center justify-center rounded-2xl font-display font-bold leading-none shadow-md"
+const TILE = "flex items-center justify-center rounded-2xl font-display font-bold leading-none shadow-md"
 
 export type HintTile = "free" | "open" | "used" | "absent"
 

@@ -62,7 +62,13 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
             <KeywordLengthBanner length={keywordLength} />
 
             
-            <div className="grid min-h-0 flex-1 content-start gap-x-[2.2cqw] gap-y-[1.1cqw]" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
+            <div
+                className="grid min-h-0 flex-1 gap-x-[2.2cqw] gap-y-[1.1cqw]"
+                style={{
+                    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+                    gridTemplateRows: `repeat(${Math.ceil(HINT_TILES / 4)}, minmax(0, 1fr))`,
+                }}
+            >
                 {tiles.map((q, i) => {
                     const state: HintTile = q ? tileState(q._id) : "absent"
                     const interactive = state === "free"
@@ -91,9 +97,9 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
                 round="Giải mã"
                 size={28}
                 onRoundClick={openRounds}
-                right={<Timer remaining={remaining} size={32} />}
+                right={<Timer remaining={open[0]?.deadlineAt ? remaining : null} size={32} />}
                 question={open.length > 0 ? open[0].question?.questionText ?? "" : "Chọn một hint để mở cửa sổ trả lời"}
-                className="min-h-[16cqw] flex-none"
+                className="flex-none"
             />
         </ConsoleStage>
     )

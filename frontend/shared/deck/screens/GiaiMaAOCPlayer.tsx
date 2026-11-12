@@ -42,7 +42,15 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
         >
             <KeywordLengthBanner length={codeLength} />
 
-            <div className="grid min-h-0 flex-1 content-start gap-x-[2.2cqw] gap-y-[1.1cqw]" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
+            <div
+                className="grid min-h-0 flex-1 gap-x-[2.2cqw] gap-y-[1.1cqw]"
+                style={{
+                    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+                    // rows share the leftover height, so the tiles fill the gap
+                    // instead of leaving a dead band above the card
+                    gridTemplateRows: `repeat(${Math.ceil(HINT_TILES / 4)}, minmax(0, 1fr))`,
+                }}
+            >
                 {Array.from({ length: HINT_TILES }, (_, i) => i + 1).map((n) => (
                     <div
                         key={n}
@@ -57,7 +65,7 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
             <QuestionCard
                 round="Giải mã"
                 size={28}
-                right={<Timer remaining={remaining} size={32} />}
+                right={<Timer remaining={hintWindow?.deadlineAt ? remaining : null} size={32} />}
                 question={
                     hintWindow
                         ? hintWindow.question?.questionText ?? ""
