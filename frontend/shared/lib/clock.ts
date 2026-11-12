@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export const URGENT_BELOW_MS = 5_000;
 
@@ -46,7 +46,10 @@ export function useServerClock(): ServerClock {
 
     const skew = useCallback(() => skewRef.current, []);
 
-    return { sync, skew };
+    // a fresh object every render would re-run every effect that depends on the
+    // clock (useCountdown recomputes inside one) — and a ticking countdown then
+    // updates forever, until React gives up with "maximum update depth exceeded"
+    return useMemo(() => ({ sync, skew }), [sync, skew]);
 }
 
 export function useCountdown(deadlineAt: string | null, clock: ServerClock): number {
