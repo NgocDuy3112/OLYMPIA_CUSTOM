@@ -55,7 +55,7 @@ public sealed class LiveService(
         List<string> Connected,
         Dictionary<string, object?>? Console);
 
-    public async Task<ConsoleView?> ConsoleViewOfAsync(Guid matchId)
+    public async Task<ConsoleView?> ConsoleViewOfAsync(Guid matchId, bool revealAll = true)
     {
         var live = await reader.ReadLiveAsync(matchId);
         if (live is null) return null;
@@ -78,7 +78,8 @@ public sealed class LiveService(
                 [],
                 null,
                 match.QuestionsList,
-                table));
+                table,
+                revealAll));
             view.Remove("me");
             projection = view;
         }
@@ -109,7 +110,8 @@ public sealed class LiveService(
 
     public async Task<ConsoleView?> AudienceViewOfAsync(Guid matchId)
     {
-        var full = await ConsoleViewOfAsync(matchId);
+        // the audience is with the players: no question before the reveal
+        var full = await ConsoleViewOfAsync(matchId, revealAll: false);
         if (full is null) return null;
         return full with
         {

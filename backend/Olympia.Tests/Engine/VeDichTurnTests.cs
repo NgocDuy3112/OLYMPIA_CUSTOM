@@ -51,8 +51,10 @@ public class VeDichTurnTests
 
     private static VeDichState StageOpen(VeDichState picked, string playerId, Power power,
         string? targetId = null, string questionId = "40-1")
-        => VeDichTurn.OpenPhase2Question(
-            VeDichTurn.DeclarePower(picked, playerId, power, targetId), questionId, Now);
+        => VeDichTurn.RevealQuestion(
+            VeDichTurn.OpenPhase2Question(
+                VeDichTurn.DeclarePower(picked, playerId, power, targetId), questionId, Now),
+            Now);
 
     // ---- turn order ------------------------------------------------------------
 
@@ -297,6 +299,37 @@ public class VeDichTurnTests
         Assert.Equal("buzz", after.Open!.Stage);
         Assert.Equal(Now, after.BuzzOpenedAt);
         Assert.Equal([Power.STAR], after.Players.First(p => p.Id == a).PowersLeft);
+    }
+
+    [Fact]
+    public void Reveal_GatesTheQuestionAndTheBuzzRace()
+    {
+        var s = TwoUp();
+        var a = s.Players[0].Id;
+        var b = s.Players[1].Id;
+        var opened = VeDichTurn.OpenPhase2Question(
+            VeDichTurn.DeclarePower(s, a, Power.ASSIGN, b), "40-1", Now);
+
+        Assert.False(opened.Open!.Revealed);
+        Assert.Null(opened.BuzzOpenedAt); // nobody races before the controller shows the question
+
+        var revealed = VeDichTurn.RevealQuestion(opened, Now);
+        Assert.True(revealed.Open!.Revealed);
+        Assert.Equal(Now, revealed.BuzzOpenedAt); // …and the race starts on the reveal
+    }
+
+    [Fact]
+    public void Clock_StartClockWaitsForTheReveal()
+    {
+        var picked = VeDichTurn.PickPhase1(
+            VeDichTurn.CreateVeDich(Pool, [Player("a", 0)]), "a", "30-1", Now);
+
+        Assert.False(picked.Open!.Revealed);
+        Assert.Null(picked.Open!.OpenedAt);
+        Assert.Equal("NOT_REVEALED", CodeOf(() => VeDichTurn.StartClock(picked, Now)));
+
+        var running = VeDichTurn.StartClock(VeDichTurn.RevealQuestion(picked, Now), Now);
+        Assert.Equal(Now, running.Open!.OpenedAt);
     }
 
     [Fact]
@@ -801,7 +834,8 @@ public class VeDichTurnTests
     {
         var (state, a, b) = RiengStaged();
         var staged = VeDichTurn.DeclarePower(state, a, Power.ASSIGN, b);
-        var opened = VeDichTurn.OpenPhase2Question(staged, "40-1", At(5));
+        var opened = VeDichTurn.RevealQuestion(
+            VeDichTurn.OpenPhase2Question(staged, "40-1", At(5)), At(5));
         Assert.Equal("buzz", opened.Open!.Stage);
         Assert.Equal(Power.ASSIGN, opened.Open!.Power);
         Assert.Equal(b, opened.Open!.AssignedTo);

@@ -30,7 +30,8 @@ public static class LiveView
         List<SubmittedAnswerRow> Submitted,
         List<JudgedRow>? Judged = null,
         List<MatchQuestion>? Questions = null,
-        List<ScoreRow>? Table = null);
+        List<ScoreRow>? Table = null,
+        bool RevealAll = false);
 
     private static string PlusSeconds(string iso, double seconds)
     {
@@ -157,23 +158,30 @@ public static class LiveView
         var questionId = ButPhaTurn.OpenQuestionId(state);
         var open = new List<object?>();
 
-        if (questionId is not null && state.QuestionOpenedAt is not null)
+        if (questionId is not null && state.QuestionRevealedAt is not null)
         {
-            double atS;
-            try
+            // no clock yet = no deadline: the revealed question stays on screen
+            // until Tính giờ starts ticking its30-second window
+            double? atS = null;
+            if (state.QuestionOpenedAt is not null)
             {
-                atS = ButPhaTurn.ElapsedSeconds(state, input.Now);
+                try
+                {
+                    atS = ButPhaTurn.ElapsedSeconds(state, input.Now);
+                }
+                catch (RuleError)
+                {
+                    atS = double.PositiveInfinity;
+                }
             }
-            catch (RuleError)
-            {
-                atS = double.PositiveInfinity;
-            }
-            if (atS <= 30)
+            if (atS is null || atS <= 30)
             {
                 open.Add(new Dictionary<string, object?>
                 {
                     ["questionId"] = questionId,
-                    ["deadlineAt"] = PlusSeconds(state.QuestionOpenedAt, 30),
+                    ["deadlineAt"] = state.QuestionOpenedAt is not null
+                        ? PlusSeconds(state.QuestionOpenedAt, 30)
+                        : null,
                     ["question"] = QuestionOf(input, questionId)
                 });
             }
@@ -282,7 +290,9 @@ public static class LiveView
             {
                 ["questionId"] = open.Question.Id,
                 ["deadlineAt"] = VeDichDeadline(state, open),
-                ["question"] = QuestionOf(input, open.Question.Id)
+                ["question"] = open.Revealed || input.RevealAll
+                    ? QuestionOf(input, open.Question.Id)
+                    : null
             });
         }
 
@@ -494,6 +504,11 @@ public static class LiveFacts
                     ["turnPlayerId"] = state.TurnIndex < state.Players.Count
                         ? state.Players[state.TurnIndex].Id : null,
                     ["openStage"] = state.Open?.Stage,
+                    ["revealed"] = state.Open?.Revealed ?? false,
+                    ["clockStarted"] = state.Open is not null
+                        && (state.Open.Stage == "buzz"
+                            ? state.BuzzOpenedAt is not null
+                            : state.Open.OpenedAt is not null),
                     ["answererId"] = state.Open?.Answerer,
                     ["buzzerId"] = state.Open?.Buzzer,
                     ["buzzerMs"] = state.Open?.BuzzerMs,
@@ -528,7 +543,8 @@ public static class LiveFacts
                 return new Dictionary<string, object?>
                 {
                     ["questionId"] = ButPhaTurn.OpenQuestionId(state),
-                    ["opened"] = state.QuestionOpenedAt is not null
+                    ["opened"] = state.QuestionRevealedAt is not null,
+                    ["clockStarted"] = state.QuestionOpenedAt is not null
                 };
             }
             default:

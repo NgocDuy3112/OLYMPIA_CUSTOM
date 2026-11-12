@@ -102,6 +102,9 @@ public static class ButPhaApplier
             case LiveAction.ButPhaCloseQuestion:
                 return (ButPhaTurn.CloseQuestion(state), []);
 
+            case LiveAction.ButPhaStartClock:
+                return (ButPhaTurn.StartClock(state, ctx.Now), []);
+
             case LiveAction.ButPhaEndRound:
                 return (ButPhaTurn.EndButPha(state), []);
 
@@ -297,6 +300,12 @@ public static class VeDichApplier
 
             case LiveAction.VeDichLockBuzz:
                 return (VeDichTurn.LockBuzzWindow(state), []);
+
+            case LiveAction.VeDichReveal:
+                return (VeDichTurn.RevealQuestion(state, ctx.Now), []);
+
+            case LiveAction.VeDichStartClock:
+                return (VeDichTurn.StartClock(state, ctx.Now), []);
 
             case LiveAction.VeDichCloseCurrentAnswer:
                 return (VeDichTurn.CloseCurrentAnswer(state, ctx.Now), []);

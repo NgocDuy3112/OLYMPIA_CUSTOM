@@ -17,6 +17,8 @@ public sealed record ButPhaState
     [JsonPropertyName("questionIds")] public List<string> QuestionIds { get; init; } = [];
     [JsonPropertyName("cursor")] public int Cursor { get; init; }
     [JsonPropertyName("questionOpenedAt")] public string? QuestionOpenedAt { get; init; }
+    /// <summary>When the controller revealed the question — the clock waits for Tính giờ.</summary>
+    [JsonPropertyName("questionRevealedAt")] public string? QuestionRevealedAt { get; init; }
     [JsonPropertyName("answers")] public Dictionary<string, List<ButPhaAnswer>> Answers { get; init; } = new();
     [JsonPropertyName("points")] public Dictionary<string, Dictionary<string, int>> Points { get; init; } = new();
     [JsonPropertyName("ended")] public bool Ended { get; init; }
@@ -44,8 +46,16 @@ public static class ButPhaTurn
     public static ButPhaState OpenCurrentQuestion(ButPhaState state, string openedAt)
     {
         if (state.Ended) throw Err("ENDED", "but-pha is over");
-        if (state.QuestionOpenedAt is not null) throw Err("QUESTION_OPEN", "the question is already open");
-        return state with { QuestionOpenedAt = openedAt };
+        if (state.QuestionRevealedAt is not null) throw Err("QUESTION_OPEN", "the question is already open");
+        return state with { QuestionRevealedAt = openedAt, QuestionOpenedAt = null };
+    }
+
+    /// <summary>Tính giờ — the revealed question's clock starts here.</summary>
+    public static ButPhaState StartClock(ButPhaState state, string nowIso)
+    {
+        if (state.Ended) throw Err("ENDED", "but-pha is over");
+        if (state.QuestionRevealedAt is null) throw Err("QUESTION_NOT_REVEALED", "reveal the question first");
+        return state with { QuestionOpenedAt = nowIso };
     }
 
     public static double ElapsedSeconds(ButPhaState state, string nowIso)
@@ -107,6 +117,7 @@ public static class ButPhaTurn
         {
             Cursor = cursor,
             QuestionOpenedAt = null,
+            QuestionRevealedAt = null,
             Ended = cursor >= state.Rules.QuestionCount
         };
     }
@@ -149,7 +160,7 @@ public static class ButPhaTurn
     }
 
     public static ButPhaState EndButPha(ButPhaState state)
-        => state.Ended ? state : state with { Ended = true, QuestionOpenedAt = null };
+        => state.Ended ? state : state with { Ended = true, QuestionOpenedAt = null, QuestionRevealedAt = null };
 
     public static int ButPhaTotal(ButPhaState state, string playerId)
         => state.Points.Values.Sum(byPlayer => byPlayer.GetValueOrDefault(playerId));

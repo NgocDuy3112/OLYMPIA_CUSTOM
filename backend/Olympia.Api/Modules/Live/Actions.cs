@@ -62,6 +62,11 @@ public abstract record LiveAction
         public override string Kind => "but-pha.closeQuestion";
     }
 
+    public sealed record ButPhaStartClock : LiveAction
+    {
+        public override string Kind => "but-pha.startClock";
+    }
+
     public sealed record ButPhaEndRound : LiveAction
     {
         public override string Kind => "but-pha.endRound";
@@ -127,6 +132,16 @@ public abstract record LiveAction
     public sealed record VeDichOpenQuestion(string QuestionId) : LiveAction
     {
         public override string Kind => "ve-dich.openQuestion";
+    }
+
+    public sealed record VeDichReveal : LiveAction
+    {
+        public override string Kind => "ve-dich.reveal";
+    }
+
+    public sealed record VeDichStartClock : LiveAction
+    {
+        public override string Kind => "ve-dich.startClock";
     }
 
     public sealed record VeDichCloseCurrentAnswer : LiveAction
@@ -290,6 +305,7 @@ public sealed class LiveActionConverter : JsonConverter<LiveAction>
             "but-pha.start" => new LiveAction.ButPhaStart(),
             "but-pha.openQuestion" => new LiveAction.ButPhaOpenQuestion(),
             "but-pha.closeQuestion" => new LiveAction.ButPhaCloseQuestion(),
+            "but-pha.startClock" => new LiveAction.ButPhaStartClock(),
             "but-pha.endRound" => new LiveAction.ButPhaEndRound(),
             "but-pha.finalize" => new LiveAction.ButPhaFinalize(Str("questionId"), VerdictList("verdicts")),
 
@@ -305,6 +321,8 @@ public sealed class LiveActionConverter : JsonConverter<LiveAction>
             "ve-dich.start" => new LiveAction.VeDichStart(OptInt("phase")),
             "ve-dich.beginPhase2" => new LiveAction.VeDichBeginPhase2(),
             "ve-dich.openQuestion" => new LiveAction.VeDichOpenQuestion(Str("questionId")),
+            "ve-dich.reveal" => new LiveAction.VeDichReveal(),
+            "ve-dich.startClock" => new LiveAction.VeDichStartClock(),
             "ve-dich.closeCurrentAnswer" => new LiveAction.VeDichCloseCurrentAnswer(),
             "ve-dich.lockBuzz" => new LiveAction.VeDichLockBuzz(),
             "ve-dich.resolve" => new LiveAction.VeDichResolve(

@@ -137,21 +137,30 @@ public class ButPhaTurnTests
     }
 
     [Fact]
-    public void Clock_OpeningStartsItAndCannotRestart()
+    public void Clock_OpeningRevealsAndTheClockWaitsForStartClock()
     {
         var open = ButPhaTurn.OpenCurrentQuestion(ButPhaTurn.StartButPha(Ids, RoundRules.DefaultButPha()), Now);
-        Assert.Equal(Now, open.QuestionOpenedAt);
+        Assert.Equal(Now, open.QuestionRevealedAt);
+        Assert.Null(open.QuestionOpenedAt);
         Assert.Equal("QUESTION_OPEN", CodeOf(() => ButPhaTurn.OpenCurrentQuestion(open, Now)));
+
+        var running = ButPhaTurn.StartClock(open, Now);
+        Assert.Equal(Now, running.QuestionOpenedAt);
+        Assert.Equal("QUESTION_NOT_REVEALED", CodeOf(() => ButPhaTurn.StartClock(
+            ButPhaTurn.StartButPha(Ids, RoundRules.DefaultButPha()), Now)));
     }
 
     [Fact]
-    public void Clock_ElapsedMeasuredFromOpen()
+    public void Clock_ElapsedMeasuredFromStartClock()
     {
         var open = ButPhaTurn.OpenCurrentQuestion(ButPhaTurn.StartButPha(Ids, RoundRules.DefaultButPha()), Now);
-        Assert.Equal(0, ButPhaTurn.ElapsedSeconds(open, Now));
-        Assert.Equal(3, ButPhaTurn.ElapsedSeconds(open, At(3)));
-        Assert.Equal(30, ButPhaTurn.ElapsedSeconds(open, At(30)));
-        Assert.Equal(30.5, ButPhaTurn.ElapsedSeconds(open, At(30.5)));
+        Assert.Equal("QUESTION_NOT_OPEN", CodeOf(() => ButPhaTurn.ElapsedSeconds(open, Now)));
+
+        var running = ButPhaTurn.StartClock(open, Now);
+        Assert.Equal(0, ButPhaTurn.ElapsedSeconds(running, Now));
+        Assert.Equal(3, ButPhaTurn.ElapsedSeconds(running, At(3)));
+        Assert.Equal(30, ButPhaTurn.ElapsedSeconds(running, At(30)));
+        Assert.Equal(30.5, ButPhaTurn.ElapsedSeconds(running, At(30.5)));
     }
 
     [Fact]

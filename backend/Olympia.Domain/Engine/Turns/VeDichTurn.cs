@@ -39,6 +39,10 @@ public sealed record OpenQuestion
     [JsonPropertyName("openedAt")]
     public string? OpenedAt { get; init; }
 
+    /// <summary>The controller revealed it — players and the audience see the question only from here.</summary>
+    [JsonPropertyName("revealed")]
+    public bool Revealed { get; init; }
+
     [JsonPropertyName("buzzer")] public string? Buzzer { get; init; }
 
     [JsonPropertyName("buzzerMs")]
@@ -206,7 +210,8 @@ public static class VeDichTurn
                 Answerer = playerId,
                 Power = null,
                 Stage = "current",
-                OpenedAt = nowIso,
+                OpenedAt = null,
+                Revealed = false,
                 Buzzer = null,
                 AssignedTo = null
             },
@@ -310,13 +315,38 @@ public static class VeDichTurn
                 Answerer = answerer,
                 Power = staged?.Power,
                 Stage = isAssign ? "buzz" : "current",
-                OpenedAt = nowIso,
+                OpenedAt = null,
+                Revealed = false,
                 Buzzer = null,
                 AssignedTo = isAssign ? staged!.TargetId : null
             },
-            BuzzOpenedAt = isAssign ? nowIso : null,
+            BuzzOpenedAt = null,
             BuzzLocked = false
         };
+    }
+
+    /// <summary>The controller shows the question — players, the audience and (for an
+    /// assigned power) the buzz window all start here.</summary>
+    public static VeDichState RevealQuestion(VeDichState state, string nowIso)
+    {
+        if (state.Open is null) throw Err("NOTHING_OPEN", "no question is open");
+        if (state.Open.Revealed) return state;
+
+        var open = state.Open with { Revealed = true };
+        if (open.Stage == "buzz" && state.BuzzOpenedAt is null)
+            return state with { Open = open, BuzzOpenedAt = nowIso };
+        return state with { Open = open };
+    }
+
+    /// <summary>Tính giờ — starts (or restarts) the clock, once the question is revealed.</summary>
+    public static VeDichState StartClock(VeDichState state, string nowIso)
+    {
+        if (state.Open is null) throw Err("NOTHING_OPEN", "no question is open");
+        if (!state.Open.Revealed) throw Err("NOT_REVEALED", "reveal the question first");
+
+        if (state.Open.Stage == "buzz")
+            return state with { BuzzOpenedAt = nowIso };
+        return state with { Open = state.Open with { OpenedAt = nowIso } };
     }
 
     public static VeDichState CloseCurrentAnswer(VeDichState state, string openedAt)
