@@ -10,7 +10,7 @@ function runLabel(mine: boolean, playerName: string | null): string {
 }
 
 export function KhoiDongRiengAOCPlayer({ ctx }: { ctx: KhoiDongRiengPlayerCtx }) {
-    const { v, myId, flash, nameOf, audience } = ctx
+    const { v, myId, nameOf, audience } = ctx
     const oral = v.oral
     const mine = v.me.isMyRun === true
     const spent = oral ? Math.min(1, oral.elapsedS / Math.max(1, oral.budgetS)) : 0
@@ -36,8 +36,6 @@ export function KhoiDongRiengAOCPlayer({ ctx }: { ctx: KhoiDongRiengPlayerCtx })
                     )}
                 </>
             }
-            hint={oral ? `câu ${oral.index + 1}/${oral.total}` : "mọi thí sinh cùng xem"}
-            flash={flash}
         >
             <QuestionFrame
                 round="Khởi động"

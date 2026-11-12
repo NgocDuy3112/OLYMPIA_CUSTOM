@@ -20,7 +20,7 @@ function boardLabel(v: { pendingPicks?: string[]; isMyTurn?: boolean }, phase2: 
 }
 
 export function VeDichPickAOCPlayer({ ctx }: { ctx: VeDichPickPlayerCtx }) {
-    const { v, myId, flash } = ctx
+    const { v, myId } = ctx
     const phase2 = ctx.stage === "phase2"
     const board = v.board ?? []
     const rows = boardRows(board, (cell) => cell.value)
@@ -37,7 +37,6 @@ export function VeDichPickAOCPlayer({ ctx }: { ctx: VeDichPickPlayerCtx }) {
                     {boardLabel(v.me, phase2, need)}
                 </span>
             }
-            flash={flash}
         >
             <MainCard>
                 <CardHeader left={<Badges round="Về đích" mode={phase2 ? "Lượt cá nhân" : "Lượt chung"} />} />

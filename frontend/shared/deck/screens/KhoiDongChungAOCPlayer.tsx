@@ -1,4 +1,3 @@
-import { formatRemaining } from "@shared/lib/clock"
 import { AnswerBand, PlayerStage, Progress, QuestionFrame, Rail, Timer, type PlayerCore } from "../player-deck"
 import type { AnswerValue } from "../types"
 
@@ -44,14 +43,6 @@ export function KhoiDongChungAOCPlayer({ ctx }: { ctx: KhoiDongChungPlayerCtx })
                     />
                 )
             }
-            hint={
-                openQ
-                    ? windowOpen
-                        ? `còn ${formatRemaining(remaining)}`
-                        : "chờ bấm giờ"
-                    : "chờ điều hành"
-            }
-            flash={flash}
         >
             <QuestionFrame
                 round="Khởi động"
