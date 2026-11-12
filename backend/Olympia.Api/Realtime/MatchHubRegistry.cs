@@ -6,7 +6,7 @@ public sealed record HubSubscriber(string UserId, Func<Task> Push);
 /// Port of live/hub.ts — in-process match→subscribers registry.
 /// (Single backend instance; SignalR delivers the pushes.)
 /// </summary>
-public sealed class MatchHubRegistry
+public sealed class MatchHubRegistry(ILogger<MatchHubRegistry> logger)
 {
     public const string ConsoleSubscriber = "__console__";
 
@@ -53,9 +53,11 @@ public sealed class MatchHubRegistry
             {
                 await subscriber.Push();
             }
-            catch
+            catch (Exception ex)
             {
-                // the connection cleans itself up on failure
+                // the connection cleans itself up on failure — but a push that
+                // never lands is invisible, so say why it was dropped
+                logger.LogWarning(ex, "live push to a subscriber of match {MatchId} failed", matchId);
             }
         }
     }

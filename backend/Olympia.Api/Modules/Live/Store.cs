@@ -41,14 +41,17 @@ internal sealed class PgLiveTx(OlympiaDbContext db, Guid matchId, MatchLiveEntit
             ? archive.Deserialize<Dictionary<string, JsonElement>>(JsonApi.Options) ?? []
             : [];
 
-    public Task Save(LiveRecord<JsonElement> next)
+    public async Task Save(LiveRecord<JsonElement> next)
     {
         row.Version = next.Version;
         row.RoundId = next.RoundId;
         row.State = next.State;
         row.Archive = JsonSerializer.SerializeToElement(next.Archive, JsonApi.Options);
         row.UpdatedAt = DateTime.UtcNow;
-        return Task.CompletedTask;
+        // Flush the row INSIDE the transaction — committing without this only
+        // commits whatever facts happened to be staged, so a transition with no
+        // facts (round.goTo, *.start) returned a version that never landed.
+        await db.SaveChangesAsync();
     }
 
     public async Task RecordFacts(List<LiveFact> facts)

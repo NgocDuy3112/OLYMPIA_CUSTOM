@@ -20,6 +20,15 @@ public abstract class LiveHubBase(MatchHubRegistry registry) : Hub
 {
     protected string MatchId = "";
 
+    /// <summary>
+    /// This connection's own proxy, captured while SignalR still fills Context and
+    /// Clients: both are cleared the moment OnConnectedAsync returns, and every
+    /// registry push fires later — from whatever action changed the match state.
+    /// </summary>
+    protected IClientProxy? Self { get; private set; }
+
+    protected void ArmSelf(IClientProxy self) => Self = self;
+
     protected static string ParseMatchId(HttpContext http)
     {
         var segments = http.Request.Path.Value?.Split('/', StringSplitOptions.RemoveEmptyEntries) ?? [];
@@ -36,7 +45,7 @@ public abstract class LiveHubBase(MatchHubRegistry registry) : Hub
     }
 
     protected async Task PushAsync(Dictionary<string, object?> envelope)
-        => await Clients.Caller.SendAsync("message", envelope);
+        => await (Self ?? Clients.Caller).SendAsync("message", envelope);
 
     protected Action Subscribe(string userId, Func<Task> push)
         => registry.Subscribe(MatchId, new HubSubscriber(userId, push));
@@ -45,15 +54,18 @@ public abstract class LiveHubBase(MatchHubRegistry registry) : Hub
 /// <summary>/gameplay/matches/:matchId/live/stream — seated players.</summary>
 public sealed class PlayerLiveHub(
     MatchHubRegistry registry,
-    LiveService live,
-    LiveReader reader,
     SubmitService submit,
-    SessionTokens tokens)
+    SessionTokens tokens,
+    IHubContext<PlayerLiveHub> self,
+    IServiceScopeFactory scopes)
     : LiveHubBase(registry)
 {
     public override async Task OnConnectedAsync()
     {
         var http = Context.GetHttpContext()!;
+        // Context is nulled on release, but the session guard below outlives it.
+        var hubContext = Context;
+        ArmSelf(self.Clients.Client(Context.ConnectionId));
         try
         {
             await ResolveMatchIdAsync();
@@ -94,46 +106,48 @@ public sealed class PlayerLiveHub(
 
         async Task SendAsync()
         {
-            var matchRow = await matches.GetMatchByIdAsync(MatchId);
-            var liveSnapshot = await reader.ReadLiveAsync(Guid.Parse(MatchId));
+            // Registry pushes fire long after this connection's scope was disposed,
+            // so read the state through a scope of our own.
+            using var scope = scopes.CreateScope();
+            var provider = scope.ServiceProvider;
+            var matchRow = await provider.GetRequiredService<MatchesService>().GetMatchByIdAsync(MatchId);
+            var liveSnapshot = await provider.GetRequiredService<LiveReader>().ReadLiveAsync(Guid.Parse(MatchId));
             if (matchRow.Status != MatchStatus.LIVE || liveSnapshot is null)
             {
                 await PushAsync(Protocol.Error("UNAVAILABLE", "the match is not live"));
                 return;
             }
 
-            var view = await live.PlayerViewOfAsync(Guid.Parse(MatchId), userId);
+            var view = await provider.GetRequiredService<LiveService>().PlayerViewOfAsync(Guid.Parse(MatchId), userId);
             await PushAsync(Protocol.View(view));
         }
 
         var stop = Subscribe(userId.ToString(), SendAsync);
 
         // Session guard: drop the connection when the session is revoked.
-        var services = http.RequestServices;
         _ = Task.Run(async () =>
         {
-            while (!Context.ConnectionAborted.IsCancellationRequested)
+            while (!hubContext.ConnectionAborted.IsCancellationRequested)
             {
                 try
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(30), Context.ConnectionAborted);
+                    await Task.Delay(TimeSpan.FromSeconds(30), hubContext.ConnectionAborted);
                 }
                 catch (OperationCanceledException)
                 {
                     break;
                 }
-                using var scope = services.CreateScope();
+                using var scope = scopes.CreateScope();
                 var scopedReader = scope.ServiceProvider.GetRequiredService<LiveReader>();
                 if (!await scopedReader.IsSessionActiveAsync(userId, tokenVersion))
                 {
                     try
                     {
-                        await Clients.Caller.SendAsync("message",
-                            Protocol.Error("SESSION_ENDED", "session ended"));
+                        await PushAsync(Protocol.Error("SESSION_ENDED", "session ended"));
                     }
                     catch { /* connection gone */ }
                     stop();
-                    Context.Abort();
+                    hubContext.Abort();
                     break;
                 }
             }
@@ -240,12 +254,18 @@ public sealed class PlayerLiveHub(
 }
 
 /// <summary>/portal/tournaments/:tournamentId/matches/:matchId/live/stream — console.</summary>
-public sealed class ConsoleLiveHub(MatchHubRegistry registry, LiveService live)
+public sealed class ConsoleLiveHub(
+    MatchHubRegistry registry,
+    IHubContext<ConsoleLiveHub> self,
+    IServiceScopeFactory scopes)
     : LiveHubBase(registry)
 {
     public override async Task OnConnectedAsync()
     {
         var http = Context.GetHttpContext()!;
+        // Context is nulled on release, but the session guard below outlives it.
+        var hubContext = Context;
+        ArmSelf(self.Clients.Client(Context.ConnectionId));
         try
         {
             await ResolveMatchIdAsync();
@@ -271,7 +291,11 @@ public sealed class ConsoleLiveHub(MatchHubRegistry registry, LiveService live)
 
         async Task SendAsync()
         {
-            var payload = await live.ConsoleViewOfAsync(Guid.Parse(MatchId));
+            // Registry pushes fire long after this connection's scope was disposed,
+            // so read the state through a scope of our own.
+            using var scope = scopes.CreateScope();
+            var payload = await scope.ServiceProvider.GetRequiredService<LiveService>()
+                .ConsoleViewOfAsync(Guid.Parse(MatchId));
             if (payload is null)
             {
                 await PushAsync(Protocol.Error("UNAVAILABLE", "no live round"));
@@ -284,31 +308,29 @@ public sealed class ConsoleLiveHub(MatchHubRegistry registry, LiveService live)
 
         var userId = user.Id;
         var tokenVersion = user.TokenVersion;
-        var services = http.RequestServices;
         _ = Task.Run(async () =>
         {
-            while (!Context.ConnectionAborted.IsCancellationRequested)
+            while (!hubContext.ConnectionAborted.IsCancellationRequested)
             {
                 try
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(30), Context.ConnectionAborted);
+                    await Task.Delay(TimeSpan.FromSeconds(30), hubContext.ConnectionAborted);
                 }
                 catch (OperationCanceledException)
                 {
                     break;
                 }
-                using var scope = services.CreateScope();
+                using var scope = scopes.CreateScope();
                 var scopedReader = scope.ServiceProvider.GetRequiredService<LiveReader>();
                 if (!await scopedReader.IsSessionActiveAsync(userId, tokenVersion))
                 {
                     try
                     {
-                        await Clients.Caller.SendAsync("message",
-                            Protocol.Error("SESSION_ENDED", "session ended"));
+                        await PushAsync(Protocol.Error("SESSION_ENDED", "session ended"));
                     }
                     catch { /* connection gone */ }
                     stop();
-                    Context.Abort();
+                    hubContext.Abort();
                     break;
                 }
             }
@@ -329,12 +351,16 @@ public sealed class ConsoleLiveHub(MatchHubRegistry registry, LiveService live)
 }
 
 /// <summary>/spectate/tournaments/:tournamentId/matches/:matchId/live/stream — audience.</summary>
-public sealed class SpectateLiveHub(MatchHubRegistry registry, LiveService live)
+public sealed class SpectateLiveHub(
+    MatchHubRegistry registry,
+    IHubContext<SpectateLiveHub> self,
+    IServiceScopeFactory scopes)
     : LiveHubBase(registry)
 {
     public override async Task OnConnectedAsync()
     {
         var http = Context.GetHttpContext()!;
+        ArmSelf(self.Clients.Client(Context.ConnectionId));
         try
         {
             await ResolveMatchIdAsync();
@@ -348,7 +374,11 @@ public sealed class SpectateLiveHub(MatchHubRegistry registry, LiveService live)
 
         async Task SendAsync()
         {
-            var payload = await live.AudienceViewOfAsync(Guid.Parse(MatchId));
+            // Registry pushes fire long after this connection's scope was disposed,
+            // so read the state through a scope of our own.
+            using var scope = scopes.CreateScope();
+            var payload = await scope.ServiceProvider.GetRequiredService<LiveService>()
+                .AudienceViewOfAsync(Guid.Parse(MatchId));
             if (payload is null)
             {
                 await PushAsync(Protocol.Error("UNAVAILABLE", "no live round"));
