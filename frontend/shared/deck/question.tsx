@@ -101,30 +101,41 @@ export function AnswerReveal({ answer }: { answer?: string | null }) {
     )
 }
 
-export function QuestionFrame({ round, mode, size, onRoundClick, mid, right, question, media, answer, face, onReveal }: {
+/**
+ * The one card every round screen draws: the header slots, the question (a
+ * click on the controller reveals it), the answer reveal and the answer/status
+ * strip. Pages pass slots — they never hand-roll the card.
+ */
+export function QuestionCard({ round, mode, size, onRoundClick, mid, right, question, media, answer, face, onReveal, footer, className, children }: {
     round: string
     mode?: string
     size?: number
     onRoundClick?: () => void
     mid?: ReactNode
     right?: ReactNode
-    question: string | null
+    question?: string | null
     media?: { url: string; type: string } | null
     answer?: string | null
     face?: ReactNode
-    /** click the card to show the question to everyone */
+    /** controller only — click the card to show the question to everyone */
     onReveal?: () => void
+    /** the answer/status strip the stage used to hold */
+    footer?: ReactNode
+    className?: string
+    /** replaces the question body — for boards that are not a question */
+    children?: ReactNode
 }) {
     return (
-        <MainCard>
+        <MainCard className={className}>
             <CardHeader
                 left={<Badges round={round} mode={mode} size={size} onRoundClick={onRoundClick} />}
                 mid={mid}
                 right={right}
             />
-            <QuestionBlock question={question} media={media} onReveal={onReveal} />
+            {children ?? <QuestionBlock question={question ?? null} media={media} onReveal={onReveal} />}
             {face}
             <AnswerReveal answer={answer} />
+            {footer}
         </MainCard>
     )
 }

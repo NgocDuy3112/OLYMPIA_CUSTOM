@@ -1,4 +1,4 @@
-import { AudienceFace, PlayerStage, Progress, QuestionFrame, Rail, Timer, type PlayerCore } from "../player-deck"
+import { AudienceFace, PlayerStage, Progress, QuestionCard, Rail, Timer, type PlayerCore } from "../player-deck"
 import { STRIP_R, pt } from "../geometry"
 
 type KhoiDongRiengPlayerCtx = PlayerCore
@@ -18,7 +18,24 @@ export function KhoiDongRiengAOCPlayer({ ctx }: { ctx: KhoiDongRiengPlayerCtx })
     return (
         <PlayerStage
             rail={<Rail variant="compact" view={v} myId={myId} />}
-            band={
+        >
+            <QuestionCard
+                round="Khởi động"
+                mode="Lượt cá nhân"
+                right={
+                    <>
+                        <Progress total={oral?.total ?? 6} done={oral?.index ?? 0} active={oral?.index ?? 0} />
+                        <Timer remaining={null} fallback={budgetLeft !== null ? String(budgetLeft) : "45"} />
+                    </>
+                }
+                question={oral?.question?.questionText ?? null}
+                media={oral?.question?.media ?? null}
+                face={
+                    audience ? (
+                        <AudienceFace options={oral?.question?.payload.options ?? []} />
+                    ) : undefined
+                }
+                footer={
                 <>
                     <span
                         className={`flex h-[3.3cqw] items-center rounded-lg px-[1.2cqw] font-sans font-semibold ${mine ? "bg-primary text-primary-foreground" : "bg-muted text-foreground ring-1 ring-border"}`}
@@ -35,23 +52,7 @@ export function KhoiDongRiengAOCPlayer({ ctx }: { ctx: KhoiDongRiengPlayerCtx })
                         </span>
                     )}
                 </>
-            }
-        >
-            <QuestionFrame
-                round="Khởi động"
-                mode="Lượt cá nhân"
-                right={
-                    <>
-                        <Progress total={oral?.total ?? 6} done={oral?.index ?? 0} active={oral?.index ?? 0} />
-                        <Timer remaining={null} fallback={budgetLeft !== null ? String(budgetLeft) : "45"} />
-                    </>
-                }
-                question={oral?.question?.questionText ?? null}
-                media={oral?.question?.media ?? null}
-                face={
-                    audience ? (
-                        <AudienceFace options={oral?.question?.payload.options ?? []} />
-                    ) : undefined
+            
                 }
             />
         </PlayerStage>

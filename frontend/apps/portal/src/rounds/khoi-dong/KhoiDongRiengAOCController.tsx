@@ -1,6 +1,6 @@
 import { formatRemaining } from "@shared/lib/clock"
 import { COPY } from "@shared/deck/copy"
-import { ConsoleStage, Progress, QuestionFrame, Rail, Timer } from "@/components/stage/deck"
+import { ConsoleStage, Progress, QuestionCard, Rail, Timer } from "@/components/stage/deck"
 import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
 
 import type { ScreenCore } from "../types"
@@ -35,7 +35,7 @@ export function KhoiDongRiengAOCController({ ctx }: { ctx: KhoiDongRiengCtx }) {
             ]}
             flash={flash}
         >
-            <QuestionFrame
+            <QuestionCard
                 round="Khởi động"
                 mode="Lượt cá nhân"
                 onRoundClick={openRounds}

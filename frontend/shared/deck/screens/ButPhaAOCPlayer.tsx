@@ -1,4 +1,4 @@
-import { AnswerBand, PlayerStage, Progress, QuestionFrame, Rail, Timer, type PlayerCore } from "../player-deck"
+import { AnswerBand, PlayerStage, Progress, QuestionCard, Rail, Timer, type PlayerCore } from "../player-deck"
 import { pt } from "../geometry"
 import type { AnswerValue } from "../types"
 
@@ -16,7 +16,19 @@ export function ButPhaAOCPlayer({ ctx }: { ctx: ButPhaPlayerCtx }) {
     return (
         <PlayerStage
             rail={<Rail variant="answers" view={v} myId={myId} currentQid={openQ?.questionId ?? null} />}
-            band={
+        >
+            <QuestionCard
+                round="Bứt phá"
+                right={
+                    <>
+                        <Progress total={4} done={done} active={pos ?? done} />
+                        <Timer remaining={openQ?.deadlineAt ? remaining : null} />
+                    </>
+                }
+                question={openQ?.question?.questionText ?? null}
+                media={openQ?.question?.media ?? null}
+                answer={v.revealed?.answer}
+                footer={
                 openQ ? (
                     <AnswerBand
                         question={openQ.question}
@@ -30,19 +42,8 @@ export function ButPhaAOCPlayer({ ctx }: { ctx: ButPhaPlayerCtx }) {
                 ) : (
                     <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>Chờ điều hành mở câu tiếp theo…</span>
                 )
-            }
-        >
-            <QuestionFrame
-                round="Bứt phá"
-                right={
-                    <>
-                        <Progress total={4} done={done} active={pos ?? done} />
-                        <Timer remaining={openQ?.deadlineAt ? remaining : null} />
-                    </>
+            
                 }
-                question={openQ?.question?.questionText ?? null}
-                media={openQ?.question?.media ?? null}
-                answer={v.revealed?.answer}
             />
         </PlayerStage>
     )

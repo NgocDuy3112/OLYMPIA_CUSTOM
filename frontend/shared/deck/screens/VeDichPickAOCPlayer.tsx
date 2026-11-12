@@ -1,4 +1,4 @@
-import { Badges, CardHeader, MainCard, PlayerStage, Rail, type PlayerCore } from "../player-deck"
+import { PlayerStage, QuestionCard, Rail, type PlayerCore } from "../player-deck"
 import { DECK_PAD, STRIP_R, pt } from "../geometry"
 import { mcCellClass, type CellWhere } from "../cells"
 import { VE_GRID_COLUMNS, boardRows } from "../ve-dich-board"
@@ -29,17 +29,19 @@ export function VeDichPickAOCPlayer({ ctx }: { ctx: VeDichPickPlayerCtx }) {
     return (
         <PlayerStage
             rail={<Rail variant={phase2 ? "compact" : "answers"} view={v} myId={myId} />}
-            band={
-                <span
-                    className="flex h-[3.3cqw] items-center rounded-lg bg-muted px-[1.2cqw] font-sans font-semibold text-foreground ring-1 ring-border"
-                    style={{ fontSize: pt(12), borderRadius: STRIP_R }}
-                >
-                    {boardLabel(v.me, phase2, need)}
-                </span>
-            }
         >
-            <MainCard>
-                <CardHeader left={<Badges round="Về đích" mode={phase2 ? "Lượt cá nhân" : "Lượt chung"} />} />
+            <QuestionCard
+                round="Về đích"
+                mode={phase2 ? "Lượt cá nhân" : "Lượt chung"}
+                footer={
+                    <span
+                        className="flex h-[3.3cqw] items-center rounded-lg bg-muted px-[1.2cqw] font-sans font-semibold text-foreground ring-1 ring-border"
+                        style={{ fontSize: pt(12), borderRadius: STRIP_R }}
+                    >
+                        {boardLabel(v.me, phase2, need)}
+                    </span>
+                }
+            >
                 <div className="flex min-h-0 flex-1 flex-col justify-start gap-[0.9cqw]">
                     {rows.map((row) => (
                         <div
@@ -65,7 +67,7 @@ export function VeDichPickAOCPlayer({ ctx }: { ctx: VeDichPickPlayerCtx }) {
                         </div>
                     ))}
                 </div>
-            </MainCard>
+            </QuestionCard>
         </PlayerStage>
     )
 }

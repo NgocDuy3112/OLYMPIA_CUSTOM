@@ -1,5 +1,5 @@
 import { Hand } from "lucide-react"
-import { AnswerBand, AudienceFace, PlayerStage, QuestionFrame, Rail, Timer, VeDichStripCells, type PlayerCore } from "../player-deck"
+import { AnswerBand, AudienceFace, PlayerStage, QuestionCard, Rail, Timer, VeDichStripCells, type PlayerCore } from "../player-deck"
 import { STRIP_R, pt } from "../geometry"
 import { stripCellsOf } from "../ve-dich-board"
 import { formatBuzzMs } from "@shared/lib/clock"
@@ -33,7 +33,20 @@ export function VeDichRiengAOCPlayer({ ctx }: { ctx: VeDichRiengPlayerCtx }) {
     return (
         <PlayerStage
             rail={<Rail variant="compact" view={v} myId={myId} currentQid={qid || null} />}
-            band={
+        >
+            <QuestionCard
+                round="Về đích"
+                mode="Lượt cá nhân"
+                mid={<VeDichStripCells cells={stripCellsOf(v.board)} phase2 />}
+                right={<Timer remaining={openQ?.deadlineAt ? remaining : null} />}
+                question={openQ.question?.questionText ?? null}
+                media={openQ.question?.media ?? null}
+                face={
+                    audience ? (
+                        <AudienceFace options={openQ.question?.payload.options ?? []} />
+                    ) : undefined
+                }
+                footer={
                 <>
                     {v.me.canBuzz && openQ ? (
                         <button
@@ -61,19 +74,7 @@ export function VeDichRiengAOCPlayer({ ctx }: { ctx: VeDichRiengPlayerCtx }) {
                         </span>
                     )}
                 </>
-            }
-        >
-            <QuestionFrame
-                round="Về đích"
-                mode="Lượt cá nhân"
-                mid={<VeDichStripCells cells={stripCellsOf(v.board)} phase2 />}
-                right={<Timer remaining={openQ?.deadlineAt ? remaining : null} />}
-                question={openQ.question?.questionText ?? null}
-                media={openQ.question?.media ?? null}
-                face={
-                    audience ? (
-                        <AudienceFace options={openQ.question?.payload.options ?? []} />
-                    ) : undefined
+            
                 }
             />
         </PlayerStage>

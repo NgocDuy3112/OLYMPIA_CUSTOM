@@ -1,4 +1,4 @@
-import { ConsoleStage, QuestionFrame, Rail, Timer, VeDichStripCells } from "@/components/stage/deck"
+import { ConsoleStage, QuestionCard, Rail, Timer, VeDichStripCells } from "@/components/stage/deck"
 import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
 import { COPY } from "@shared/deck/copy"
 import { formatBuzzMs } from "@shared/lib/clock"
@@ -57,7 +57,7 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
             ]}
             flash={flash}
         >
-            <QuestionFrame
+            <QuestionCard
                 round="Về đích"
                 mode="Lượt cá nhân"
                 onRoundClick={openRounds}

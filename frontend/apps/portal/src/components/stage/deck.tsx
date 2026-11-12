@@ -4,7 +4,7 @@ export {
     KeywordLengthBanner,
     MainCard,
     Progress,
-    QuestionFrame,
+    QuestionCard,
     StageLayout,
     Timer,
     VeDichStripCells,

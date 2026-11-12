@@ -1,4 +1,4 @@
-import { AnswerBand, PlayerStage, QuestionFrame, Rail, Timer, VeDichStripCells, type PlayerCore } from "../player-deck"
+import { AnswerBand, PlayerStage, QuestionCard, Rail, Timer, VeDichStripCells, type PlayerCore } from "../player-deck"
 import type { AnswerValue } from "../types"
 import { stripCellsOf } from "../ve-dich-board"
 
@@ -15,7 +15,16 @@ export function VeDichChungAOCPlayer({ ctx }: { ctx: VeDichChungPlayerCtx }) {
     return (
         <PlayerStage
             rail={<Rail variant="answers" view={v} myId={myId} currentQid={qid || null} />}
-            band={
+        >
+            <QuestionCard
+                round="Về đích"
+                mode="Lượt chung"
+                mid={<VeDichStripCells cells={stripCellsOf(v.board)} phase2={false} />}
+                right={<Timer remaining={openQ.deadlineAt ? remaining : null} />}
+                question={openQ.question?.questionText ?? null}
+                media={openQ.question?.media ?? null}
+                answer={v.revealed?.answer}
+                footer={
                 <>
                     {openQ.question && (
                         <AnswerBand
@@ -28,16 +37,8 @@ export function VeDichChungAOCPlayer({ ctx }: { ctx: VeDichChungPlayerCtx }) {
                         />
                     )}
                 </>
-            }
-        >
-            <QuestionFrame
-                round="Về đích"
-                mode="Lượt chung"
-                mid={<VeDichStripCells cells={stripCellsOf(v.board)} phase2={false} />}
-                right={<Timer remaining={openQ.deadlineAt ? remaining : null} />}
-                question={openQ.question?.questionText ?? null}
-                media={openQ.question?.media ?? null}
-                answer={v.revealed?.answer}
+            
+                }
             />
         </PlayerStage>
     )

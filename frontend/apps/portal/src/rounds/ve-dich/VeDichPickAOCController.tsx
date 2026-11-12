@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Badges, CardHeader, ConsoleStage, MainCard, Rail } from "@/components/stage/deck"
+import { ConsoleStage, QuestionCard, Rail } from "@/components/stage/deck"
 import { backToLobbyAction } from "@/components/stage/actions"
 import { pt, DECK_PAD } from "@shared/deck/geometry"
 import { playerCellClass, type CellWhere } from "@shared/deck/cells"
@@ -127,8 +127,11 @@ function VeDichPickBoard({ ctx }: { ctx: VeDichPickCtx }) {
             ]}
             flash={flash}
         >
-            <MainCard>
-                <CardHeader left={<Badges round="Về đích" mode={phase2 ? "Lượt cá nhân" : "Lượt chung"} onRoundClick={openRounds} />} />
+            <QuestionCard
+                round="Về đích"
+                mode={phase2 ? "Lượt cá nhân" : "Lượt chung"}
+                onRoundClick={openRounds}
+            >
                 <div className="flex min-h-0 flex-1 flex-col justify-start gap-[0.9cqw]">
                     {rows.map((row) => (
                         <div
@@ -161,7 +164,7 @@ function VeDichPickBoard({ ctx }: { ctx: VeDichPickCtx }) {
                         </div>
                     ))}
                 </div>
-            </MainCard>
+            </QuestionCard>
         </ConsoleStage>
     )
 }

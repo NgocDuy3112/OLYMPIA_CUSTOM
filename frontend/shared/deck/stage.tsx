@@ -8,6 +8,6 @@ export {
     Timer,
     } from "./primitives"
 
-export { KeywordLengthBanner, QuestionBlock, QuestionFrame } from "./question"
+export { KeywordLengthBanner, QuestionBlock, QuestionCard } from "./question"
 
 export { Strip, VeDichStripCells, type StripItem } from "./strip"

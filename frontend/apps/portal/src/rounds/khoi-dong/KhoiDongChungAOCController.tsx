@@ -1,4 +1,4 @@
-import { ConsoleStage, Progress, QuestionFrame, Rail, Timer } from "@/components/stage/deck"
+import { ConsoleStage, Progress, QuestionCard, Rail, Timer } from "@/components/stage/deck"
 import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
 import type { KhoiDongConsole } from "@/lib/live"
 import type { ScreenCore } from "../types"
@@ -43,7 +43,7 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
             ]}
             flash={flash}
         >
-            <QuestionFrame
+            <QuestionCard
                 round="Khởi động"
                 mode="Lượt chung"
                 onRoundClick={openRounds}

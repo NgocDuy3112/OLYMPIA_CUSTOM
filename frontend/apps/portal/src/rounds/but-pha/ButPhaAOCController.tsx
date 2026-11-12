@@ -1,4 +1,4 @@
-import { ConsoleStage, Progress, QuestionFrame, Rail, Timer } from "@/components/stage/deck"
+import { ConsoleStage, Progress, QuestionCard, Rail, Timer } from "@/components/stage/deck"
 import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
 import { COPY } from "@shared/deck/copy"
 
@@ -45,7 +45,7 @@ export function ButPhaAOCController({ ctx }: { ctx: ButPhaCtx }) {
             ]}
             flash={flash}
         >
-            <QuestionFrame
+            <QuestionCard
                 round="Bứt phá"
                 onRoundClick={openRounds}
                 right={

@@ -1,6 +1,6 @@
-import { Badges, CardHeader, ConsoleStage, KeywordLengthBanner, MainCard, Rail, Timer } from "@/components/stage/deck"
+import { ConsoleStage, KeywordLengthBanner, QuestionCard, Rail, Timer } from "@/components/stage/deck"
 import { backToLobbyAction } from "@/components/stage/actions"
-import { pt, DECK_PAD } from "@shared/deck/geometry"
+import { pt } from "@shared/deck/geometry"
 import { HINT_TILES, hintTileClass, type HintTile } from "@shared/deck/cells"
 import { COPY } from "@shared/deck/copy"
 
@@ -87,15 +87,14 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
                 })}
             </div>
 
-            <MainCard className="min-h-[16cqw] flex-none">
-                <CardHeader
-                    left={<Badges round="Giải mã" size={28} onRoundClick={openRounds} />}
-                    right={<Timer remaining={remaining} size={32} />}
-                />
-                <p className="font-sans font-medium leading-snug text-foreground" style={{ fontSize: pt(14), ...DECK_PAD }}>
-                    {open.length > 0 ? open[0].question?.questionText ?? "" : "Chọn một hint để mở cửa sổ trả lời"}
-                </p>
-            </MainCard>
+            <QuestionCard
+                round="Giải mã"
+                size={28}
+                onRoundClick={openRounds}
+                right={<Timer remaining={remaining} size={32} />}
+                question={open.length > 0 ? open[0].question?.questionText ?? "" : "Chọn một hint để mở cửa sổ trả lời"}
+                className="min-h-[16cqw] flex-none"
+            />
         </ConsoleStage>
     )
 }

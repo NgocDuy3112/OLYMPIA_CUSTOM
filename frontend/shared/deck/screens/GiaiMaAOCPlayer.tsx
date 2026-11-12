@@ -1,5 +1,5 @@
-import { AnswerBand, AnswerBandIdle, AnswerReveal, Badges, CardHeader, KeywordBox, KeywordLengthBanner, MainCard, PlayerStage, Rail, Timer, VerdictIcon, type PlayerCore } from "../player-deck"
-import { DECK_PAD, STRIP_R, pt } from "../geometry"
+import { AnswerBand, AnswerBandIdle, KeywordBox, KeywordLengthBanner, PlayerStage, QuestionCard, Rail, Timer, VerdictIcon, type PlayerCore } from "../player-deck"
+import { STRIP_R, pt } from "../geometry"
 import { HINT_TILES, playerHintTileClass } from "../cells"
 import type { AnswerValue } from "../types"
 
@@ -39,28 +39,9 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
     return (
         <PlayerStage
             rail={<Rail variant="answers" view={v} myId={myId} currentQid={hintWindow?.questionId ?? keyword?.questionId ?? null} />}
-            band={
-                <div className="flex w-full flex-col gap-[0.7cqw]">
-                    {hintWindow ? (
-                        <AnswerBand
-                            question={hintWindow.question}
-                            answerState={v.me.answerState}
-                            verdict={v.me.verdicts?.[hintWindow.questionId]}
-                            disabled={remaining <= 0}
-                            busy={answerBusy}
-                            error={flash}
-                            onSubmit={(value) => submitAnswer(hintWindow.questionId, value)}
-                        />
-                    ) : (
-                        <AnswerBandIdle />
-                    )}
-                    {keywordSlot}
-                </div>
-            }
         >
             <KeywordLengthBanner length={codeLength} />
 
-            
             <div className="grid min-h-0 flex-1 content-start gap-x-[2.2cqw] gap-y-[1.1cqw]" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
                 {Array.from({ length: HINT_TILES }, (_, i) => i + 1).map((n) => (
                     <div
@@ -73,19 +54,36 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
                 ))}
             </div>
 
-            <MainCard className="min-h-[16cqw] flex-none">
-                <CardHeader
-                    left={<Badges round="Giải mã" size={28} />}
-                    right={<Timer remaining={remaining} size={32} />}
-                />
-                <p className="font-sans font-medium leading-snug text-foreground" style={{ fontSize: pt(14), ...DECK_PAD }}>
-                    {hintWindow
+            <QuestionCard
+                round="Giải mã"
+                size={28}
+                right={<Timer remaining={remaining} size={32} />}
+                question={
+                    hintWindow
                         ? hintWindow.question?.questionText ?? ""
-                        : keyword?.question?.questionText ?? "Chờ điều hành mở gợi ý"}
-                </p>
-                
-                <AnswerReveal answer={v.revealed?.answer} />
-            </MainCard>
+                        : keyword?.question?.questionText ?? "Chờ điều hành mở gợi ý"
+                }
+                answer={v.revealed?.answer}
+                className="min-h-[16cqw] flex-none"
+                footer={
+                    <div className="flex w-full flex-col gap-[0.7cqw]">
+                        {hintWindow ? (
+                            <AnswerBand
+                                question={hintWindow.question}
+                                answerState={v.me.answerState}
+                                verdict={v.me.verdicts?.[hintWindow.questionId]}
+                                disabled={remaining <= 0}
+                                busy={answerBusy}
+                                error={flash}
+                                onSubmit={(value) => submitAnswer(hintWindow.questionId, value)}
+                            />
+                        ) : (
+                            <AnswerBandIdle />
+                        )}
+                        {keywordSlot}
+                    </div>
+                }
+            />
         </PlayerStage>
     )
 }
