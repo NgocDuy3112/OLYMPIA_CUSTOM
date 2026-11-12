@@ -60,10 +60,6 @@ export function ChangePasswordPage() {
                             <h1 className="font-display text-2xl font-bold uppercase leading-none text-foreground">
                                 Đặt mật khẩu
                             </h1>
-                            <p className="font-sans text-sm text-muted-foreground">
-                                Phiên đã hết hạn — đăng nhập lại bằng mật khẩu ban điều hành cấp, rồi
-                                đặt mật khẩu của bạn.
-                            </p>
                         </div>
                         <Link
                             to={loginLink(`/password?next=${encodeURIComponent(back)}`)}
@@ -92,11 +88,6 @@ export function ChangePasswordPage() {
                                 <h1 className="font-display text-2xl font-bold uppercase leading-none text-foreground">
                                     Đặt mật khẩu của bạn
                                 </h1>
-                                <p className="font-sans text-sm text-muted-foreground">
-                                    {me.data ? `${me.data.displayName} — ` : ""}mật khẩu ban điều hành cấp
-                                    chỉ dùng cho lần đăng nhập đầu: hãy đặt mật khẩu riêng của bạn, rồi
-                                    mọi thứ mở ra.
-                                </p>
                             </div>
 
                             <Field>

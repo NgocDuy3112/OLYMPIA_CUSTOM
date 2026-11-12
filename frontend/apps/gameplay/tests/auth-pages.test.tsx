@@ -182,7 +182,6 @@ describe("ChangePasswordPage — where the desk's password ends", () => {
         const href = door.getAttribute("href") ?? ""
         expect(href).toContain("/login?next=")
         expect(decodeURIComponent(decodeURIComponent(href))).toContain("/password?next=/code")
-        expect(screen.getByText(/đăng nhập lại bằng mật khẩu ban điều hành cấp/)).toBeTruthy()
         expect(screen.queryByLabelText("Mật khẩu mới")).toBeNull()
     })
 })

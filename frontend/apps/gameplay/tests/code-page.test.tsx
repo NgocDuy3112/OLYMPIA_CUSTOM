@@ -55,7 +55,6 @@ describe("CodePage — signed out", () => {
         const door = await screen.findByRole("link", { name: "Đăng nhập" })
         expect(door.getAttribute("href")).toBe("/login?next=%2Fcode")
         expect(screen.queryByLabelText("Mã phòng")).toBeNull()
-        expect(screen.getByText(/mã nói trận nào mở, tài khoản nói bạn là ai/)).toBeTruthy()
     })
 
     it("sends an account-less walk-in to the DESK, not to a form — signup is gone", async () => {

@@ -42,10 +42,6 @@ export function CodePage() {
                             <h1 className="font-display text-2xl font-bold uppercase leading-none text-foreground">
                                 Nhập mã
                             </h1>
-                            <p className="font-sans text-sm text-muted-foreground">
-                                Mã vào trận chỉ mở được khi bạn đã đăng nhập — mã nói trận nào mở, tài
-                                khoản nói bạn là ai.
-                            </p>
                         </div>
                         <Link
                             to={loginLink("/code")}
@@ -75,9 +71,6 @@ export function CodePage() {
                                 <h1 className="font-display text-2xl font-bold uppercase leading-none text-foreground">
                                     Nhập mã vào trận
                                 </h1>
-                                <p className="font-sans text-sm text-muted-foreground">
-                                    Mã do ban điều hành cấp cho phòng thi — gõ để vào ghế của bạn.
-                                </p>
                             </div>
 
                             <Field>

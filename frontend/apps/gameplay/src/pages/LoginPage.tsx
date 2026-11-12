@@ -51,9 +51,6 @@ export function LoginPage() {
                                 <h1 className="font-display text-2xl font-bold uppercase leading-none text-foreground">
                                     Đăng nhập
                                 </h1>
-                                <p className="font-sans text-sm text-muted-foreground">
-                                    Tên đăng nhập do ban điều hành cấp.
-                                </p>
                             </div>
 
                             {notice === "google-off" ? (
