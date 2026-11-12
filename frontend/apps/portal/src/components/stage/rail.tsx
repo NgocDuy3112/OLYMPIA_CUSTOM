@@ -59,6 +59,31 @@ export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answe
                     locked: c.dimmed === true,
                     buzzing: c.buzzing === true
                 })
+                const badgeNode = c.badge ? (
+                    <span className={badgePill(c.badge.tone)} style={{ fontSize: pt(9) }}>{c.badge.text}</span>
+                ) : null
+                // the same slot the player card uses for its verdict line — and the
+                // same rule: nothing to say means nothing shown (no "—" placeholder)
+                const hasAnswer = typeof c.answer === "string" && c.answer !== "" && c.answer !== "—"
+                const statusLine = isAnswers ? (
+                    hasAnswer || c.badge ? (
+                        <span
+                            className="flex min-w-0 items-center justify-center gap-[0.3cqw] font-sans leading-none text-foreground/85"
+                            style={{ fontSize: pt(12) }}
+                            title={c.answer}
+                        >
+                            {hasAnswer && <span className="truncate">{c.answer}</span>}
+                            {!c.badge && typeof c.value === "string" && c.value !== "" && c.value !== "—" && (
+                                <span className={`shrink-0 font-semibold tabular-nums ${railScoreClass(state)}`}>
+                                    · {c.value}
+                                </span>
+                            )}
+                            {badgeNode}
+                        </span>
+                    ) : null
+                ) : badgeNode ? (
+                    <span className="flex shrink-0 items-center justify-center">{badgeNode}</span>
+                ) : null
                 return (
                 <Interactive
                     key={c.id}
@@ -79,39 +104,15 @@ export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answe
                             {c.video && <CardVideo track={c.video} />}
                         </div>
                         <div className="flex min-w-0 flex-1 flex-col justify-start gap-[0.3cqw] pt-[0.2cqw] text-center">
-                            <span className="truncate font-display font-medium leading-none text-foreground" style={{ fontSize: pt(12) }}>
-                                {c.name}
+                            <span className="flex min-w-0 items-center justify-center gap-[0.3cqw] font-display font-semibold leading-none text-foreground" style={{ fontSize: pt(16) }}>
+                                <span className="truncate">{c.name}</span>
                             </span>
                             <span className={`font-display font-bold leading-none tabular-nums ${railScoreClass(state)}`} style={{ fontSize: pt(isAnswers ? 44 : 34) }}>
                                 {c.points}
                             </span>
+                            {statusLine}
                         </div>
                     </div>
-                    {isAnswers && (
-                        <div className="shrink-0 truncate px-[0.4cqw] text-center font-sans leading-snug text-muted-foreground" style={{ fontSize: pt(10) }} title={c.answer}>
-                            {c.answer ?? "—"}
-                        </div>
-                    )}
-                    
-                    {c.badge && !isAnswers ? (
-                        <div className="flex shrink-0 justify-end" style={{ fontSize: pt(9) }}>
-                            <span className={badgePill(c.badge.tone)}>{c.badge.text}</span>
-                        </div>
-                    ) : isAnswers ? (
-                        <div className="flex shrink-0 items-center justify-center gap-[0.4cqw]">
-                            {c.badge ? (
-                                <span style={{ fontSize: pt(9) }} className={badgePill(c.badge.tone)}>
-                                    {c.badge.text}
-                                </span>
-                            ) : (
-                                <>
-                                    <span className={`truncate font-sans font-semibold tabular-nums ${railScoreClass(state)}`} style={{ fontSize: pt(12) }}>
-                                        {c.value ?? "—"}
-                                    </span>
-                                </>
-                            )}
-                        </div>
-                    ) : null}
                 </Interactive>
                 )
             })}

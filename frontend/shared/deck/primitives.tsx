@@ -8,7 +8,7 @@ export function StageLayout({ rail, children }: { rail?: ReactNode; children: Re
     return (
         <div className="absolute inset-0 flex gap-[4cqw] p-[3cqw] pt-[2.9cqw]">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-[1.2cqw]">{children}</div>
-            {rail && <aside className="flex w-[23.4cqw] shrink-0 flex-col gap-[1cqw]">{rail}</aside>}
+            {rail && <aside className="flex w-[27cqw] shrink-0 flex-col gap-[1cqw]">{rail}</aside>}
         </div>
     )
 }

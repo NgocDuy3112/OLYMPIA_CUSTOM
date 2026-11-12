@@ -1,8 +1,10 @@
 import { useEffect, useRef } from "react"
 import type { LocalVideoTrack } from "livekit-client"
+import { formatBuzzMs } from "@shared/lib/clock"
 import { useSelfCam } from "@shared/lib/rtc"
 import { pt } from "./geometry"
 import { railCardClass, railCardState, railScoreClass } from "./rail-card"
+import { SelfCamControls } from "./cam-controls"
 import type { PlayerView } from "./types"
 
 function SelfVideo({ track }: { track: LocalVideoTrack }) {
@@ -50,6 +52,17 @@ export function Rail({ variant, view, myId, currentQid }: {
                     buzzing: view.me.buzzer === row.id,
                 })
                 const activeRun = view.oral?.playerId === row.id
+                const buzzed = view.me.buzzer === row.id
+                const statusText = buzzed
+                    ? "Đã bấm chuông"
+                    : state === "correct"
+                        ? "đúng"
+                        : state === "wrong"
+                            ? "chưa đúng"
+                            : ""
+                const buzzTime = buzzed && view.me.buzzerMs !== null && view.me.buzzerMs !== undefined
+                    ? formatBuzzMs(view.me.buzzerMs)
+                    : null
                 return (
                     <div
                         key={row.id}
@@ -60,28 +73,28 @@ export function Rail({ variant, view, myId, currentQid }: {
                             <div
                                 className="relative flex w-[52%] shrink-0 items-center justify-center rounded-lg bg-primary/10 font-display font-bold text-primary/70"
                                 style={{ fontSize: pt(16) }}
-                                aria-hidden
                             >
-                                {initialsOf(row.displayName)}
+                                <span aria-hidden>{initialsOf(row.displayName)}</span>
                                 {mine && selfCam?.camOn && selfCam.video && <SelfVideo track={selfCam.video} />}
+                                {mine && <SelfCamControls />}
                             </div>
                             <div className="flex min-w-0 flex-1 flex-col justify-start gap-[0.3cqw] pt-[0.2cqw] text-center">
-                                <span className="flex min-w-0 items-center justify-center gap-[0.3cqw] font-display font-medium leading-none text-foreground" style={{ fontSize: pt(12) }}>
+                                <span className="flex min-w-0 items-center justify-center gap-[0.3cqw] font-display font-semibold leading-none text-foreground" style={{ fontSize: pt(16) }}>
                                     <span className="truncate">{row.displayName}</span>
-                                    {mine && <span className="rounded bg-sky-500 px-[0.3cqw] text-[0.65em] leading-none text-white">BẠN</span>}
                                 </span>
                                 <span className={`font-display font-bold leading-none tabular-nums ${railScoreClass(state)}`} style={{ fontSize: pt(compact ? 34 : 44) }}>
                                     {row.points}
                                 </span>
+                                {!compact && statusText && (
+                                    <span className="flex min-w-0 items-center justify-center gap-[0.3cqw] font-sans leading-none text-foreground/85" style={{ fontSize: pt(12) }}>
+                                        <span className="truncate">{statusText}</span>
+                                        {buzzTime && (
+                                            <span className="shrink-0 tabular-nums text-muted-foreground">· {buzzTime}</span>
+                                        )}
+                                    </span>
+                                )}
                             </div>
                         </div>
-                        {!compact && (
-                            <div className="flex shrink-0 items-center justify-center gap-[0.4cqw] text-center" style={{ fontSize: pt(12) }}>
-                                <span className="inline-flex items-center gap-[0.3cqw]">
-                                    {state === "waiting" ? "chờ chấm" : state === "correct" ? "đúng" : state === "wrong" ? "chưa đúng" : "đang trả lời"}
-                                </span>
-                            </div>
-                        )}
                     </div>
                 )
             })}
