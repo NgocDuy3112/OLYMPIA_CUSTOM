@@ -6,7 +6,6 @@ import { useMatches, useTournament } from "@/lib/tournament"
 import { StandardMatchControl, StatusBadge } from "@/components/standard-match-control"
 import { MatchQuestionSurface } from "@/components/match-question-surface"
 import { RecordingsTab } from "@/components/recordings-tab"
-import { Controller } from "@/console/controller"
 
 
 export function MatchPage() {
@@ -72,15 +71,6 @@ export function MatchPage() {
                 title={match.label}
                 actions={<StatusBadge status={match.status} />}
             />
-
-            {match.status === "LIVE" && (
-                // the stage sizes itself from its container's height (container-type:
-                // size), and flex-1 inside this auto-height page gave it 0 — the
-                // aspect box is the definite height it was missing
-                <div className="flex w-full flex-col aspect-video min-h-[380px]">
-                    <Controller tournamentId={tournamentId!} matchId={match.id} />
-                </div>
-            )}
 
             <Tabs defaultValue={defaultTab}>
                 <TabsList variant="line" className="justify-start gap-6 border-b">
