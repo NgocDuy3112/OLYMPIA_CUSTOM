@@ -16,6 +16,18 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+  
+  redis:
+    container_name: aoc-redis
+    image: docker.io/library/redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - aoc-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   backend:
     container_name: aoc-backend
@@ -33,23 +45,13 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:3000/health"]
       interval: 15s
       timeout: 5s
       retries: 5
-
-  redis:
-    container_name: aoc-redis
-    image: docker.io/library/redis:7-alpine
-    restart: unless-stopped
-    volumes:
-      - aoc-redis:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
 
   livekit:
     container_name: aoc-livekit
@@ -136,3 +138,4 @@ volumes:
   aoc-postgresql:
     external: true
   aoc-redis:
+    external: true
