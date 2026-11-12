@@ -1,7 +1,7 @@
 import { useState, type SubmitEvent } from "react"
 import { Button } from "@shared/ui/button"
 import {
-    Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+    Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@shared/ui/dialog"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@shared/ui/field"
 import { Input } from "@shared/ui/input"
@@ -43,10 +43,6 @@ export function NewTournamentDialog({
                     <FieldGroup>
                         <DialogHeader>
                             <DialogTitle>New tournament</DialogTitle>
-                            <DialogDescription>
-                                A tournament is one run: its roster, its stages, its matches and
-                                its standings.
-                            </DialogDescription>
                         </DialogHeader>
 
                         <Field>

@@ -3,7 +3,6 @@ import { Badge } from "@shared/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/ui/tabs"
 import { Page, PageHeader } from "@/components/page"
 import { useMatches, useTournament } from "@/lib/tournament"
-import { allowedSeatsOf, seatsPhrase } from "@/lib/tournaments"
 import { MatchesTab } from "@/components/matches-tab"
 import { StagesTab } from "@/components/stages-tab"
 import { StandingsTab } from "@/components/standings-tab"
@@ -33,9 +32,6 @@ export function TournamentDetailPage() {
             </nav>
             <PageHeader
                 title={s.name}
-                description={
-                    `${s.rounds.length} rounds · matches of ${seatsPhrase(allowedSeatsOf(s.format))}`
-                }
                 actions={
                     <div className="flex gap-2">
                         {s.current && <Badge>Current</Badge>}

@@ -7,7 +7,6 @@ import { Button } from "@shared/ui/button"
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -94,10 +93,6 @@ function InviteOperatorDialog({ open, onClose }: { open: boolean; onClose: () =>
                     <>
                         <DialogHeader>
                             <DialogTitle>Invite created — shown once</DialogTitle>
-                            <DialogDescription>
-                                Send this to <span className="font-medium not-italic">{username.trim()}</span>.
-                                The token is not stored anywhere — losing it means creating the operator again.
-                            </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-2">
                             <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3">
@@ -136,9 +131,6 @@ function InviteOperatorDialog({ open, onClose }: { open: boolean; onClose: () =>
                     <>
                         <DialogHeader>
                             <DialogTitle>New operator</DialogTitle>
-                            <DialogDescription>
-                                An operator may run matches, judge and manage questions — everything except creating more operators.
-                            </DialogDescription>
                         </DialogHeader>
 
                         <div className="grid gap-4">

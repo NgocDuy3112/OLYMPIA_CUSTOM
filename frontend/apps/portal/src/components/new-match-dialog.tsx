@@ -1,10 +1,9 @@
 import { useState } from "react"
 import { Button } from "@shared/ui/button"
 import {
-    Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+    Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@shared/ui/dialog"
 import { Input } from "@shared/ui/input"
-import { seatsPhrase } from "@/lib/tournaments"
 import { useCreateMatch, useEnrolled } from "@/lib/tournament"
 import type { TournamentDetail } from "@/lib/tournament"
 
@@ -81,10 +80,6 @@ export function NewMatchDialog({
                 <div className="flex flex-col gap-6">
                     <DialogHeader>
                         <DialogTitle>New match</DialogTitle>
-                        <DialogDescription>
-                            Pick {allowedSeats.length > 1 ? seatsPhrase(allowedSeats) : seatCount} players.
-                            Questions are added on the match page after it&apos;s created.
-                        </DialogDescription>
                     </DialogHeader>
 
                     <label className="flex flex-col gap-2 text-sm">

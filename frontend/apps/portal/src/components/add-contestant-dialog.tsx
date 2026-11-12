@@ -3,7 +3,6 @@ import { Button } from "@shared/ui/button"
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -85,9 +84,6 @@ export function AddContestantDialog({
                     <FieldGroup>
                         <DialogHeader>
                             <DialogTitle>Thêm thí sinh</DialogTitle>
-                            <DialogDescription>
-                                Tạo tài khoản cho thí sinh, hoặc ghi danh một tài khoản đã có.
-                            </DialogDescription>
                         </DialogHeader>
 
                         <Tabs

@@ -7,7 +7,6 @@ import { Button } from "@shared/ui/button"
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -106,9 +105,6 @@ function IssueKeyDialog({ open, onClose }: { open: boolean; onClose: () => void 
                     <>
                         <DialogHeader>
                             <DialogTitle>Key issued — shown once</DialogTitle>
-                            <DialogDescription>
-                                The server keeps only a hash. Copy it now — closing this dialog loses it forever.
-                            </DialogDescription>
                         </DialogHeader>
                         <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3">
                             <code className="min-w-0 flex-1 break-all font-mono text-xs">{issued}</code>
@@ -139,9 +135,6 @@ function IssueKeyDialog({ open, onClose }: { open: boolean; onClose: () => void 
                     <>
                         <DialogHeader>
                             <DialogTitle>New MCP key</DialogTitle>
-                            <DialogDescription>
-                                A key lets an MCP agent read (and with WRITE, edit) within its scopes — never publish or score.
-                            </DialogDescription>
                         </DialogHeader>
 
                         <div className="grid gap-4">
@@ -224,10 +217,6 @@ function RevokeDialog({ keyRow, onClose }: { keyRow: McpKey | null; onClose: () 
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle>Revoke this key?</DialogTitle>
-                    <DialogDescription>
-                        <code className="font-mono">{keyRow?.prefix}…</code> ({keyRow?.label}) stops working
-                        immediately. This cannot be undone.
-                    </DialogDescription>
                 </DialogHeader>
                 {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
                 <DialogFooter className="gap-2">

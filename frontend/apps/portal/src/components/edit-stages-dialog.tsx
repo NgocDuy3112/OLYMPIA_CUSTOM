@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Button } from "@shared/ui/button"
 import {
-    Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+    Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@shared/ui/dialog"
 import { Input } from "@shared/ui/input"
 import { useUpdateTournament, type TournamentDetail } from "@/lib/tournament"
@@ -88,11 +88,6 @@ export function EditStagesDialog({
                 <div className="flex flex-col gap-6">
                     <DialogHeader>
                         <DialogTitle>Stages</DialogTitle>
-                        <DialogDescription>
-                            The order of the tournament. The last stage a player reached is what
-                            places them; the id is what a match names. A stage's rule is what the
-                            engine checks its matches against.
-                        </DialogDescription>
                     </DialogHeader>
 
                     <div className="flex max-h-[50vh] flex-col gap-3 overflow-y-auto">
