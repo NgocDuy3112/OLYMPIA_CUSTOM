@@ -2,6 +2,7 @@ import { useEffect, useRef, type ReactNode } from "react"
 import type { LocalVideoTrack, RemoteVideoTrack } from "livekit-client"
 import { useSelfCam } from "@shared/lib/rtc"
 import { pt } from "./geometry"
+import { SelfCamControls } from "./cam-controls"
 import type { LobbyData } from "./types"
 
 
@@ -66,10 +67,12 @@ export function Lobby({
                                 <div
                                     className="relative flex w-[52%] shrink-0 items-center justify-center rounded-lg bg-muted font-display font-bold text-muted-foreground"
                                     style={{ fontSize: pt(16) }}
-                                    aria-hidden
                                 >
-                                    {row.displayName.replace(/[^A-Za-zÀ-ỹ0-9]/g, "").slice(0, 2).toUpperCase() || "??"}
+                                    <span aria-hidden>
+                                        {row.displayName.replace(/[^A-Za-zÀ-ỹ0-9]/g, "").slice(0, 2).toUpperCase() || "??"}
+                                    </span>
                                     {video && <LobbyVideo track={video} />}
+                                    {mine && <SelfCamControls />}
                                 </div>
                                 <div className="flex min-w-0 flex-1 flex-col justify-start gap-[0.3cqw] pt-[0.2cqw] text-center">
                                     <span className="truncate font-display font-semibold leading-none text-foreground" style={{ fontSize: pt(16) }}>

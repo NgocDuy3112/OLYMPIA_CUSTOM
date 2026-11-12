@@ -4,7 +4,6 @@ import { Lobby } from "@shared/deck/lobby"
 import { Gate } from "@shared/deck/player-deck"
 import { Card, CardContent } from "@shared/ui/card"
 import { NOT_LIVE_HINT } from "@/lib/lobby-hint"
-import { CameraPanel } from "@/components/live/CameraPanel"
 import { loginLink } from "@/lib/session"
 import type { PlayerGate } from "@/lib/player-gate"
 import type { PlayerModel } from "@/hooks/use-player-model"
@@ -28,7 +27,6 @@ function SessionGate({ title, body, next }: { title: string; body: string; next:
                         </Link>
                     </CardContent>
                 </Card>
-                <CameraPanel />
             </div>
         </StageShell>
     )
@@ -65,33 +63,26 @@ export function PlayerGateScreen({ gate, model }: { gate: PlayerGate; model: Pla
                         data={model.lobby.data}
                         meId={model.myId}
                         hint={NOT_LIVE_HINT}
-                        belowHint={<CameraPanel />}
                     />
                 </StageShell>
             )
         }
         return (
-            <>
-                <StageShell>
-                    <Gate title="Trận chưa bắt đầu" body="Điều hành chưa mở trận — trang tự cập nhật khi trận sang LIVE.">
-                        <button onClick={model.retry} className={actionClass}>Thử lại</button>
-                    </Gate>
-                </StageShell>
-                <CameraPanel />
-            </>
+            <StageShell>
+                <Gate title="Trận chưa bắt đầu" body="Điều hành chưa mở trận — trang tự cập nhật khi trận sang LIVE.">
+                    <button onClick={model.retry} className={actionClass}>Thử lại</button>
+                </Gate>
+            </StageShell>
         )
     }
 
     return (
-        <>
-            <StageShell>
-                <Gate title="Đang tải…" body={model.failureMessage ?? "Đọc trạng thái vòng thi"}>
-                    {model.failureMessage ? (
-                        <button onClick={model.retry} className={actionClass}>Thử lại</button>
-                    ) : null}
-                </Gate>
-            </StageShell>
-            <CameraPanel />
-        </>
+        <StageShell>
+            <Gate title="Đang tải…" body={model.failureMessage ?? "Đọc trạng thái vòng thi"}>
+                {model.failureMessage ? (
+                    <button onClick={model.retry} className={actionClass}>Thử lại</button>
+                ) : null}
+            </Gate>
+        </StageShell>
     )
 }

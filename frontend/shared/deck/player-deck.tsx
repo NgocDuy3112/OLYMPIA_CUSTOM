@@ -15,7 +15,7 @@ export { VeDichStripCells } from "./strip"
 
 export { Rail } from "./rail"
 
-export { AnswerBand, KeywordBox } from "./answer-controls"
+export { AnswerBand, AnswerBandIdle, KeywordBox } from "./answer-controls"
 
 export { PlayerStage } from "./screen"
 

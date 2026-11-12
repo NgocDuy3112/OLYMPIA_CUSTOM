@@ -235,9 +235,14 @@ interface SelfBroadcast {
     video: LocalVideoTrack | null;
     camOn: boolean;
     micOn: boolean;
+    /** every incoming stream is cut while this is on */
+    deafen: boolean;
     toggleCam: () => void;
     toggleMic: () => void;
+    toggleDeafen: () => void;
     setSpeakGate: (allowed: boolean | null) => void;
+    /** who may be heard — the view's audio gate; null hears nobody */
+    setAudioGate: (gate: { allowed: string[] } | null) => void;
 }
 
 export const SelfBroadcastContext = createContext<SelfBroadcast | null>(null);
@@ -301,6 +306,8 @@ export function useSelfBroadcast(matchId: string): SelfBroadcast {
     const [camOn, setCamOn] = useState(true);
     const [micOn, setMicOn] = useState(true);
     const [mediaError, setMediaError] = useState<string | null>(null);
+    const [deafen, setDeafen] = useState(false);
+    const [audioGate, setAudioGateState] = useState<{ allowed: string[] } | null>(null);
 
     const speakGate = useRef<boolean | null>(null);
     const micIntent = useRef(true);
@@ -345,6 +352,40 @@ export function useSelfBroadcast(matchId: string): SelfBroadcast {
         if (status !== "connected" && status !== "reconnecting") setVideo(null);
     }, [status]);
 
+    // The room connects with autoSubscribe: false, so the incoming audio is ours
+    // to ask for: subscribe while not deafened, and only let the gate's speakers
+    // through — nobody hears a thing without a gate.
+    useEffect(() => {
+        if (!room) return;
+        const allowed = audioGate ? new Set(audioGate.allowed) : null;
+        const sync = () => {
+            for (const participant of room.remoteParticipants.values()) {
+                for (const publication of participant.trackPublications.values()) {
+                    if (publication.kind !== "audio") continue;
+                    const want = !deafen;
+                    if (publication.isSubscribed !== want) publication.setSubscribed(want);
+                    const track = publication.track;
+                    if (track) {
+                        const audible = !deafen && allowed !== null && allowed.has(participant.identity);
+                        (track as RemoteAudioTrack).setVolume(audible ? 1 : 0);
+                    }
+                }
+            }
+        };
+        sync();
+        const events = [
+            RoomEvent.TrackPublished,
+            RoomEvent.TrackSubscribed,
+            RoomEvent.TrackUnpublished,
+            RoomEvent.ParticipantConnected,
+            RoomEvent.ParticipantDisconnected,
+        ] as const;
+        for (const event of events) room.on(event, sync);
+        return () => {
+            for (const event of events) room.off(event, sync);
+        };
+    }, [room, deafen, audioGate]);
+
     const toggleCam = () => {
         if (!room) return;
         const next = !camOn;
@@ -382,7 +423,13 @@ export function useSelfBroadcast(matchId: string): SelfBroadcast {
         }
     }, []);
 
-    return { status, error, mediaError, video, camOn, micOn, toggleCam, toggleMic, setSpeakGate };
+    const toggleDeafen = () => setDeafen((prev) => !prev);
+
+    const setAudioGate = useCallback((gate: { allowed: string[] } | null) => {
+        setAudioGateState((prev) => (prev === gate ? prev : gate));
+    }, []);
+
+    return { status, error, mediaError, video, camOn, micOn, deafen, toggleCam, toggleMic, toggleDeafen, setSpeakGate, setAudioGate };
 }
 
 
