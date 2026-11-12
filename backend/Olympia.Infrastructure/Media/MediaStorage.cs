@@ -96,7 +96,12 @@ public static class MediaStorage
             var config = new AmazonS3Config
             {
                 RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(s3.Region),
-                ForcePathStyle = s3.Endpoint is not null
+                ForcePathStyle = s3.Endpoint is not null,
+                // SDK v4 defaults to WHEN_SUPPORTED: it signs x-amz-checksum-* headers
+                // that Vietnix's S3 rejects with a bodyless 403, leaving
+                // AmazonS3Exception.Message empty. Checksums only when required —
+                // the same behavior as the aws CLI, which uploads fine.
+                RequestChecksumCalculation = Amazon.Runtime.RequestChecksumCalculation.WHEN_REQUIRED
             };
             if (s3.Endpoint is not null)
                 config.ServiceURL = s3.Endpoint;
@@ -137,7 +142,11 @@ public static class MediaStorage
             BucketName = s3.Bucket,
             Key = key,
             InputStream = new MemoryStream(file.Content),
-            ContentType = file.ContentType
+            ContentType = file.ContentType,
+            // Vietnix's S3 rejects the SDK v4 default aws-chunked transfer encoding
+            // with a bodyless 403 AccessDenied. A plain Content-Length PUT (what the
+            // aws CLI sends) succeeds for every size — measured0/4 vs4/4.
+            UseChunkEncoding = false
         };
         await S3().PutObjectAsync(request);
 
