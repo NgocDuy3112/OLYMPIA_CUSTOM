@@ -424,15 +424,28 @@ describe("VeDichRieng — the powers and the duel", () => {
 });
 
 describe("ButPha — S4", () => {
-    it("Tính giờ opens the sprint, Về sảnh ends the round", async () => {
+    it("Tính giờ starts the revealed question's clock, Về sảnh ends the round", async () => {
         const user = userEvent.setup()
-        const f = renderRound("but-pha", { send: vi.fn() })
+        const f = renderRound(
+            "but-pha",
+            { send: vi.fn() },
+            { open: [openQ] },
+            { questionId: "q1", opened: true, clockStarted: false },
+        )
 
         expectButtonsInOrder(["Tính giờ", "Về sảnh"])
         await user.click(screen.getByRole("button", { name: "Tính giờ" }))
-        expect(f.pickQuestion).toHaveBeenCalledOnce()
+        expect(f.send).toHaveBeenCalledWith({ kind: "but-pha.startClock" })
         await user.click(screen.getByRole("button", { name: "Về sảnh" }))
         expect(f.backToLobby).toHaveBeenCalledOnce()
+    })
+
+    it("clicking the question card reveals the next question", async () => {
+        const user = userEvent.setup()
+        const f = renderRound("but-pha", { pickQuestion: vi.fn() })
+
+        await user.click(screen.getByRole("button", { name: "Mở câu hỏi" }))
+        expect(f.pickQuestion).toHaveBeenCalledOnce()
     })
 
     it("Hiện đáp án reveals the cursor's question once it has been asked", async () => {
@@ -531,6 +544,33 @@ describe("VeDichPick — S5/S6, the board", () => {
 })
 
 describe("VeDichChung — S7, phase 1 question", () => {
+    it("the question card reveals the question — Tính giờ waits for it", async () => {
+        const user = userEvent.setup()
+        const f = renderRound(
+            "ve-dich",
+            {},
+            { open: [openQ] },
+            veDichMc({ phase: 1, revealed: false, clockStarted: false }),
+        )
+
+        expect(screen.queryByRole("button", { name: "Tính giờ" })).toBeNull()
+        await user.click(screen.getByRole("button", { name: "Mở câu hỏi" }))
+        expect(f.send).toHaveBeenCalledWith({ kind: "ve-dich.reveal" })
+    })
+
+    it("Tính giờ starts the clock once the question is revealed", async () => {
+        const user = userEvent.setup()
+        const f = renderRound(
+            "ve-dich",
+            {},
+            { open: [openQ] },
+            veDichMc({ phase: 1, revealed: true, clockStarted: false }),
+        )
+
+        await user.click(screen.getByRole("button", { name: "Tính giờ" }))
+        expect(f.send).toHaveBeenCalledWith({ kind: "ve-dich.startClock" })
+    })
+
     it("keeps Hết lượt locked while the answerer has no verdict", () => {
         renderRound("ve-dich", { target: "u1" }, { open: [openQ] }, veDichMc({ phase: 1 }))
         expect(screen.queryByRole("button", { name: "Hết lượt" })).toBeNull()

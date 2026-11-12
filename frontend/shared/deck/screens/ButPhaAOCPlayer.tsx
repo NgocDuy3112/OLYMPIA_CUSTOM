@@ -1,4 +1,3 @@
-import { formatRemaining } from "@shared/lib/clock"
 import { AnswerBand, PlayerStage, Progress, QuestionFrame, Rail, Timer, type PlayerCore } from "../player-deck"
 import { pt } from "../geometry"
 import type { AnswerValue } from "../types"
@@ -32,15 +31,13 @@ export function ButPhaAOCPlayer({ ctx }: { ctx: ButPhaPlayerCtx }) {
                     <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>Chờ điều hành mở câu tiếp theo…</span>
                 )
             }
-            hint={openQ ? `còn ${formatRemaining(remaining)}` : "chờ điều hành"}
-            flash={flash}
         >
             <QuestionFrame
                 round="Bứt phá"
                 right={
                     <>
                         <Progress total={4} done={done} active={pos ?? done} />
-                        <Timer remaining={openQ ? remaining : null} fallback="30s" />
+                        <Timer remaining={openQ?.deadlineAt ? remaining : null} />
                     </>
                 }
                 question={openQ?.question?.questionText ?? null}

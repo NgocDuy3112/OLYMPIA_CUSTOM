@@ -22,12 +22,18 @@ export function ButPhaAOCController({ ctx }: { ctx: ButPhaCtx }) {
     const pos = openQ ? (ctx.byId(openQ.questionId)?.position ?? 0) : null
     const done = pos ?? 0
     const revealId = consoleButPha?.opened === true ? consoleButPha.questionId : null
+    const clockStarted = consoleButPha?.clockStarted === true
 
     return (
         <ConsoleStage
             rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} />}
             actions={[
-                { label: COPY.startClock, onClick: ctx.pickQuestion },
+                {
+                    label: COPY.startClock,
+                    onClick: openQ && !clockStarted
+                        ? () => ctx.send({ kind: "but-pha.startClock" })
+                        : undefined,
+                },
                 ...verdictActions({ canVerdict: ctx.target !== null && openQ !== null, onVerdict: ctx.setVerdict }),
                 {
                     label: "Hiện đáp án",
@@ -45,11 +51,12 @@ export function ButPhaAOCController({ ctx }: { ctx: ButPhaCtx }) {
                 right={
                     <>
                         <Progress total={4} done={done} active={pos ?? done} />
-                        <Timer remaining={remaining} />
+                        <Timer remaining={openQ?.deadlineAt ? remaining : null} />
                     </>
                 }
-                question={openQ?.question?.questionText ?? "Nhấn Tính giờ để mở câu tiếp theo"}
+                question={openQ?.question?.questionText ?? "Nhấn vào thẻ để mở câu tiếp theo"}
                 media={openQ?.question?.media ?? null}
+                onReveal={() => ctx.pickQuestion()}
             />
         </ConsoleStage>
     )

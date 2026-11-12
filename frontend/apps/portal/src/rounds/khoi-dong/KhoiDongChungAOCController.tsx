@@ -65,6 +65,9 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
                     (index >= total ? "Đã hết sáu câu — Kết thúc vòng để chốt điểm" : "Chờ mở câu tiếp theo…")
                 }
                 media={openNow?.question?.media ?? null}
+                onReveal={!openNow && index < total
+                    ? () => ctx.send({ kind: "khoi-dong.nextQuestion" })
+                    : undefined}
             />
         </ConsoleStage>
     )

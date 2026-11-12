@@ -1,5 +1,4 @@
 import { Hand } from "lucide-react"
-import { formatRemaining } from "@shared/lib/clock"
 import { AnswerBand, AudienceFace, PlayerStage, QuestionFrame, Rail, Timer, VeDichStripCells, type PlayerCore } from "../player-deck"
 import { STRIP_R, pt } from "../geometry"
 import { stripCellsOf } from "../ve-dich-board"
@@ -47,7 +46,7 @@ export function VeDichRiengAOCPlayer({ ctx }: { ctx: VeDichRiengPlayerCtx }) {
                         >
                             <Hand className="size-4" aria-hidden /> {COPY.buzz}
                         </button>
-                    ) : v.me.canAnswer && openQ ? (
+                    ) : v.me.canAnswer && openQ?.question ? (
                         <AnswerBand
                             question={openQ.question}
                             answerState={v.me.answerState}
@@ -63,14 +62,12 @@ export function VeDichRiengAOCPlayer({ ctx }: { ctx: VeDichRiengPlayerCtx }) {
                     )}
                 </>
             }
-            hint={remaining !== null ? `còn ${formatRemaining(remaining)}` : undefined}
-            flash={flash}
         >
             <QuestionFrame
                 round="Về đích"
                 mode="Lượt cá nhân"
                 mid={<VeDichStripCells cells={stripCellsOf(v.board)} phase2 />}
-                right={<Timer remaining={openQ ? remaining : null} fallback="—" />}
+                right={<Timer remaining={openQ?.deadlineAt ? remaining : null} />}
                 question={openQ.question?.questionText ?? null}
                 media={openQ.question?.media ?? null}
                 face={

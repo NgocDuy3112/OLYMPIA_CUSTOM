@@ -22,6 +22,7 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
     const stripCells = (projection.board ?? []).filter((c) => c.where === "open" || c.where === "pending")
     const openNow = projection.open[0]
     const qid = openNow.questionId
+    const revealed = consoleVeDich?.revealed ?? false
     const needsVerdict =
         consoleVeDich?.answererId ? ctx.verdictOf(qid, consoleVeDich.answererId) === null : true
 
@@ -29,6 +30,12 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
         <ConsoleStage
             rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} />}
             actions={[
+                {
+                    label: "Tính giờ",
+                    onClick: openNow && revealed
+                        ? () => ctx.send({ kind: "ve-dich.startClock" })
+                        : undefined,
+                },
                 ...verdictActions({ canVerdict: ctx.target !== null, onVerdict: ctx.setVerdict }),
                 {
                     label: "Hiện đáp án",
@@ -46,9 +53,12 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
                 mode="Lượt chung"
                 onRoundClick={openRounds}
                 mid={<VeDichStripCells cells={stripCells} phase2={false} />}
-                right={<Timer remaining={remaining} />}
+                right={<Timer remaining={openNow.deadlineAt ? remaining : null} />}
                 question={openNow.question?.questionText ?? ""}
                 media={openNow.question?.media ?? null}
+                onReveal={openNow && !revealed
+                    ? () => ctx.send({ kind: "ve-dich.reveal" })
+                    : undefined}
             />
         </ConsoleStage>
     )

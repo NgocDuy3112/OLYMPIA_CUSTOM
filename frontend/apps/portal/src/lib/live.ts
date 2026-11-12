@@ -58,6 +58,10 @@ export interface VeDichConsole {
     phase: 1 | 2
     turnPlayerId: string | null
     openStage: "current" | "buzz" | null
+    /** the controller clicked the card — players see the question from here */
+    revealed?: boolean
+    /** Tính giờ has been pressed for the open question */
+    clockStarted?: boolean
     answererId: string | null
     buzzerId: string | null
     buzzerMs: number | null
@@ -79,6 +83,8 @@ export interface KhoiDongConsole {
 export interface ButPhaConsole {
     questionId: string | null
     opened: boolean
+    /** Tính giờ has been pressed for the revealed question */
+    clockStarted?: boolean
 }
 
 export interface LiveResponse {

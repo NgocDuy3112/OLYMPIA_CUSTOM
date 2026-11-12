@@ -85,10 +85,14 @@ export function Progress({ total, done, active, onPick }: { total: number; done:
 }
 
 
-export function Timer({ remaining, fallback = "45", size = 40 }: {
-    remaining: number | null; fallback?: string; size?: number
+export function Timer({ remaining, fallback, size = 40 }: {
+    remaining: number | null
+    /** shown only while no countdown is running — omit it and the slot stays empty */
+    fallback?: string
+    size?: number
 }) {
-    const text = toClock(remaining !== null ? formatRemaining(remaining) : fallback)
+    if (remaining === null && fallback === undefined) return null
+    const text = toClock(remaining !== null ? formatRemaining(remaining) : fallback as string)
     return (
         <span className="shrink-0 text-right font-display font-bold leading-none tabular-nums text-foreground" style={{ fontSize: pt(size) }}>
             {text}

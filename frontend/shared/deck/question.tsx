@@ -1,15 +1,37 @@
-import { useState, type ReactNode } from "react"
+import { useState, type KeyboardEvent, type ReactNode } from "react"
 import { DECK_PAD, pt } from "./geometry"
 import { Badges, CardHeader, MainCard } from "./primitives"
 import { COPY } from "./copy"
 
-export function QuestionBlock({ question, media, mediaHint = "hình ảnh câu hỏi" }: {
+export function QuestionBlock({ question, media, mediaHint = "hình ảnh câu hỏi", onReveal }: {
     question: string | null
     media?: { url: string; type: string } | null
     mediaHint?: string
+    /** click the card to show the question to everyone */
+    onReveal?: () => void
 }) {
+    const revealProps = onReveal
+        ? {
+            role: "button",
+            tabIndex: 0,
+            "aria-label": "Mở câu hỏi",
+            title: "Nhấn để mở câu hỏi",
+            onClick: onReveal,
+            onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
+                if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault()
+                    onReveal()
+                }
+            },
+        }
+        : {}
     return (
-        <div className={`flex min-h-0 flex-1 items-stretch gap-[1.4cqw] ${media ? "pr-[1.2cqw]" : ""}`}>
+        <div
+            className={`flex min-h-0 flex-1 items-stretch gap-[1.4cqw] ${media ? "pr-[1.2cqw]" : ""} ${
+                onReveal ? "cursor-pointer rounded-xl ring-1 ring-transparent transition hover:ring-primary/40" : ""
+            }`}
+            {...revealProps}
+        >
             <p
                 className={`min-w-0 font-sans font-medium leading-snug text-foreground ${media ? "w-[26.7cqw] shrink-0" : "flex-1"}`}
                 style={{ fontSize: pt(14), ...DECK_PAD }}
@@ -79,7 +101,7 @@ export function AnswerReveal({ answer }: { answer?: string | null }) {
     )
 }
 
-export function QuestionFrame({ round, mode, size, onRoundClick, mid, right, question, media, answer, face }: {
+export function QuestionFrame({ round, mode, size, onRoundClick, mid, right, question, media, answer, face, onReveal }: {
     round: string
     mode?: string
     size?: number
@@ -90,6 +112,8 @@ export function QuestionFrame({ round, mode, size, onRoundClick, mid, right, que
     media?: { url: string; type: string } | null
     answer?: string | null
     face?: ReactNode
+    /** click the card to show the question to everyone */
+    onReveal?: () => void
 }) {
     return (
         <MainCard>
@@ -98,7 +122,7 @@ export function QuestionFrame({ round, mode, size, onRoundClick, mid, right, que
                 mid={mid}
                 right={right}
             />
-            <QuestionBlock question={question} media={media} />
+            <QuestionBlock question={question} media={media} onReveal={onReveal} />
             {face}
             <AnswerReveal answer={answer} />
         </MainCard>

@@ -1,4 +1,3 @@
-import { formatRemaining } from "@shared/lib/clock"
 import { AnswerBand, PlayerStage, QuestionFrame, Rail, Timer, VeDichStripCells, type PlayerCore } from "../player-deck"
 import type { AnswerValue } from "../types"
 import { stripCellsOf } from "../ve-dich-board"
@@ -18,26 +17,24 @@ export function VeDichChungAOCPlayer({ ctx }: { ctx: VeDichChungPlayerCtx }) {
             rail={<Rail variant="answers" view={v} myId={myId} currentQid={qid || null} />}
             band={
                 <>
-                    
-                    
-                    <AnswerBand
-                        question={openQ.question}
-                        answerState={v.me.answerState}
-                        verdict={v.me.verdicts?.[qid]}
-                        busy={answerBusy}
-                        error={flash}
-                        onSubmit={(value) => submitAnswer(qid, value)}
-                    />
+                    {openQ.question && (
+                        <AnswerBand
+                            question={openQ.question}
+                            answerState={v.me.answerState}
+                            verdict={v.me.verdicts?.[qid]}
+                            busy={answerBusy}
+                            error={flash}
+                            onSubmit={(value) => submitAnswer(qid, value)}
+                        />
+                    )}
                 </>
             }
-            hint={v.me.canAnswer && remaining !== null ? `còn ${formatRemaining(remaining)}` : undefined}
-            flash={flash}
         >
             <QuestionFrame
                 round="Về đích"
                 mode="Lượt chung"
                 mid={<VeDichStripCells cells={stripCellsOf(v.board)} phase2={false} />}
-                right={<Timer remaining={openQ ? remaining : null} fallback="—" />}
+                right={<Timer remaining={openQ.deadlineAt ? remaining : null} />}
                 question={openQ.question?.questionText ?? null}
                 media={openQ.question?.media ?? null}
                 answer={v.revealed?.answer}

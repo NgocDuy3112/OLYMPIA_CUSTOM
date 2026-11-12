@@ -17,6 +17,8 @@ export type LiveAction =
     | { kind: "but-pha.start" }
     | { kind: "but-pha.openQuestion" }
     | { kind: "but-pha.closeQuestion" }
+    /** Tính giờ — starts the revealed question's clock. */
+    | { kind: "but-pha.startClock" }
     | { kind: "but-pha.endRound" }
     | { kind: "but-pha.finalize"; questionId: string; verdicts: Verdict[] }
     // ── khoi-dong ──────────────────────────────────────────────────────────────
@@ -32,6 +34,10 @@ export type LiveAction =
     | { kind: "ve-dich.start"; phase?: 1 | 2 }
     | { kind: "ve-dich.beginPhase2" }
     | { kind: "ve-dich.openQuestion"; questionId: string }
+    /** The controller clicks the question card — players see it from here. */
+    | { kind: "ve-dich.reveal" }
+    /** Tính giờ — starts (or restarts) the revealed question's clock. */
+    | { kind: "ve-dich.startClock" }
     | { kind: "ve-dich.closeCurrentAnswer" }
     | { kind: "ve-dich.lockBuzz" }
     | { kind: "ve-dich.resolve"; answerer: boolean; buzzer?: boolean }
