@@ -52,6 +52,7 @@ type ConsoleModel = {
         lobby: LobbyData
         onStart: (roundId: string, phase?: 1 | 2) => void
         busy: boolean
+        startError: string | null
         host: HostBroadcast
     }
     /** a round is running — the round module draws the controller's screen */
@@ -102,6 +103,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         veDich: consoleVeDich,
         lobby: lobby.data ?? null,
         nav,
+        onStartError: setStartError,
     })
 
     const adjust = useConsoleAdjust(send)
@@ -166,6 +168,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
             lobby: prepareLobby(lobby.data),
             onStart: plans.onStart,
             busy: writer.isPending,
+            startError,
             host: transport.host,
         }
     }

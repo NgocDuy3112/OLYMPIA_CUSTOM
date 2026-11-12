@@ -1,6 +1,7 @@
 import type { LobbyData, VeDichConsole } from "@/lib/live"
 import type { LiveAction } from "@/lib/live-actions"
 import { startAction } from "@/lib/live-actions"
+import { ApiError } from "@shared/lib/api"
 import { endRoundPlanOf, nextQuestionPlanOf, roundModuleOf } from "@/rounds"
 import { navigatorStartPlan } from "../navigator-plan"
 import type { ConsoleJudging } from "./use-console-judging"
@@ -20,6 +21,14 @@ interface ConsolePlansInput {
     veDich: VeDichConsole | null
     lobby: LobbyData | null
     nav: Pick<ConsoleNav, "enterRound" | "backToWaiting">
+    /** why the last start was refused — null once one lands */
+    onStartError: (message: string | null) => void
+}
+
+function refusalOf(error: unknown): string {
+    const message = error instanceof Error ? error.message : "Không bắt đầu được vòng"
+    const details = error instanceof ApiError ? error.details ?? [] : []
+    return [message, ...details].join(" — ")
 }
 
 export function useConsolePlans(input: ConsolePlansInput): ConsolePlans {
@@ -61,12 +70,28 @@ export function useConsolePlans(input: ConsolePlansInput): ConsolePlans {
 
     const pickQuestion = () => run(nextQuestionPlanOf(roundId, planInput()))
 
-    const onStart = (nextRoundId: string, phase?: 1 | 2) => {
+    const onStart = async (nextRoundId: string, phase?: 1 | 2) => {
         const lobby = input.lobby
         if (!lobby) return
-        input.nav.enterRound()
-        const start = startAction(nextRoundId, { phase, playerIds: userSeats, questions })
-        run(navigatorStartPlan(lobby, nextRoundId, start))
+        const plan = navigatorStartPlan(
+            lobby,
+            nextRoundId,
+            startAction(nextRoundId, { phase, playerIds: userSeats, questions })
+        )
+        try {
+            // The console enters the round only once the engine took it: a refused
+            // start (bad bucket, stale version) keeps it in the waiting room with
+            // the reason, instead of drawing a round no player was routed to.
+            let expectedVersion = transport.v!.version
+            for (const action of plan) {
+                const res = await transport.writer.mutateAsync({ expectedVersion, action })
+                expectedVersion = typeof res?.version === "number" ? res.version : expectedVersion + 1
+            }
+            input.nav.enterRound()
+            input.onStartError(null)
+        } catch (error) {
+            input.onStartError(refusalOf(error))
+        }
     }
 
     return { hetLuot, backToLobby, pickQuestion, onStart }

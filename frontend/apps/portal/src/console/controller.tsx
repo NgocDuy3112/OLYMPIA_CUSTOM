@@ -3,7 +3,7 @@ import { Lobby } from "@shared/deck/lobby"
 import { Badges, StageLayout } from "@/components/stage/deck"
 import { ROUND_LABEL, pt } from "@shared/deck/geometry"
 import { AdjustScoreDialog } from "./AdjustScoreDialog"
-import { ConsoleToolbar } from "./ConsoleToolbar"
+import { ConsoleHostContext, ConsoleToolbar } from "./ConsoleToolbar"
 import { useConsoleModel } from "./use-console-model"
 
 
@@ -65,6 +65,13 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
                         busy: model.busy,
                         onStart: model.onStart,
                     }}
+                    hint={
+                        model.startError ? (
+                            <span role="alert" className="text-destructive">
+                                {model.startError}
+                            </span>
+                        ) : undefined
+                    }
                 />
                 <ConsoleToolbar
                     tournamentId={tournamentId}
@@ -87,20 +94,17 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
             </StageLayout>
         )
     return (
-        <StageShell>
-            {screen}
-            <ConsoleToolbar
-                tournamentId={tournamentId}
-                matchId={matchId}
-                host={model.host}
-            />
-            {model.adjustFor && (
-                <AdjustScoreDialog
-                    playerName={facts.baseCards.find((c) => c.id === model.adjustFor)?.name ?? model.adjustFor}
-                    onCancel={model.closeAdjust}
-                    onSubmit={model.submitAdjust}
-                />
-            )}
-        </StageShell>
+        <ConsoleHostContext.Provider value={{ tournamentId, matchId, host: model.host }}>
+            <StageShell>
+                {screen}
+                {model.adjustFor && (
+                    <AdjustScoreDialog
+                        playerName={facts.baseCards.find((c) => c.id === model.adjustFor)?.name ?? model.adjustFor}
+                        onCancel={model.closeAdjust}
+                        onSubmit={model.submitAdjust}
+                    />
+                )}
+            </StageShell>
+        </ConsoleHostContext.Provider>
     )
 }

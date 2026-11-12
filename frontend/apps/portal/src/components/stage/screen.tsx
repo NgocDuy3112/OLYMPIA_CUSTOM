@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 import { StageLayout, Status, Strip, type StripItem } from "@shared/deck/stage"
+import { StripControls } from "@/console/ConsoleToolbar"
 
 export function ConsoleStage({ rail, actions, flash, children }: {
     rail?: ReactNode
@@ -10,7 +11,10 @@ export function ConsoleStage({ rail, actions, flash, children }: {
     return (
         <StageLayout rail={rail}>
             {children}
-            <Strip items={actions} />
+            <div className="flex flex-wrap items-center gap-[1cqw]">
+                <Strip items={actions} />
+                <StripControls />
+            </div>
             <Status error={flash} />
         </StageLayout>
     )

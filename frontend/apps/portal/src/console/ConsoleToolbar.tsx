@@ -1,22 +1,23 @@
+import { createContext, useContext } from "react"
 import { Camera, CameraOff, Circle, Mic, MicOff, Square } from "lucide-react"
 import { Button } from "@shared/ui/button"
 import type { HostBroadcast } from "@shared/lib/rtc"
 import { useRecording, useStartRecording, useStopRecording } from "@/lib/recording"
 
 
-// Overlay toolbar rendered by the Controller on top of the deck, in every
-// live phase (lobby + stage): the Ghi hình toggle (manual override of the
-// auto-LIVE recording) and the host's camera/mic. Camera/mic styling mirrors
-// the player deck's CameraPanel so both surfaces read as one system.
-export function ConsoleToolbar({
-    tournamentId,
-    matchId,
-    host,
-}: {
+export interface ConsoleHost {
     tournamentId: string
     matchId: string
     host: HostBroadcast
-}) {
+}
+
+/** The controller's screen owns these; the action strip picks them up from here. */
+export const ConsoleHostContext = createContext<ConsoleHost | null>(null)
+
+// The Ghi hình toggle (manual override of the auto-LIVE recording) and the host's
+// camera/mic. Camera/mic styling mirrors the player deck's own controls on the
+// camera view so both surfaces read as one system.
+export function ConsoleControls({ tournamentId, matchId, host }: ConsoleHost) {
     const recording = useRecording(tournamentId, matchId)
     const start = useStartRecording(tournamentId, matchId)
     const stop = useStopRecording(tournamentId, matchId)
@@ -41,11 +42,7 @@ export function ConsoleToolbar({
         }`
 
     return (
-        <div
-            role="region"
-            aria-label="Điều khiển ghi hình"
-            className="absolute right-2 top-2 z-30 flex flex-col items-end gap-1.5 font-sans"
-        >
+        <>
             <div className="flex items-center gap-1.5 rounded-xl border border-border bg-card/95 px-2 py-1.5 shadow-sm backdrop-blur">
                 <Button
                     type="button"
@@ -107,6 +104,33 @@ export function ConsoleToolbar({
                     {errorText}
                 </p>
             )}
+        </>
+    )
+}
+
+/**
+ * The controls sitting at the END of the controller's action strip, beside the
+ * round buttons — the host comes from ConsoleHostContext.
+ */
+export function StripControls() {
+    const host = useContext(ConsoleHostContext)
+    if (!host) return null
+    return (
+        <div className="flex shrink-0 flex-col gap-1 font-sans">
+            <ConsoleControls {...host} />
+        </div>
+    )
+}
+
+// Floating copy for the waiting room, which has no action strip.
+export function ConsoleToolbar({ tournamentId, matchId, host }: ConsoleHost) {
+    return (
+        <div
+            role="region"
+            aria-label="Điều khiển ghi hình"
+            className="absolute right-2 top-2 z-30 flex flex-col items-end gap-1.5 font-sans"
+        >
+            <ConsoleControls tournamentId={tournamentId} matchId={matchId} host={host} />
         </div>
     )
 }

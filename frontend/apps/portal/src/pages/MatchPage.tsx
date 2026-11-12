@@ -74,7 +74,12 @@ export function MatchPage() {
             />
 
             {match.status === "LIVE" && (
-                <Controller tournamentId={tournamentId!} matchId={match.id} />
+                // the stage sizes itself from its container's height (container-type:
+                // size), and flex-1 inside this auto-height page gave it 0 — the
+                // aspect box is the definite height it was missing
+                <div className="flex w-full flex-col aspect-video min-h-[380px]">
+                    <Controller tournamentId={tournamentId!} matchId={match.id} />
+                </div>
             )}
 
             <Tabs defaultValue={defaultTab}>
