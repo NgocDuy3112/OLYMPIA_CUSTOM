@@ -1,4 +1,4 @@
-import { AnswerBand, AnswerReveal, Badges, CardHeader, KeywordBox, KeywordLengthBanner, MainCard, PlayerStage, Rail, Timer, VerdictIcon, type PlayerCore } from "../player-deck"
+import { AnswerBand, AnswerBandIdle, AnswerReveal, Badges, CardHeader, KeywordBox, KeywordLengthBanner, MainCard, PlayerStage, Rail, Timer, VerdictIcon, type PlayerCore } from "../player-deck"
 import { DECK_PAD, STRIP_R, pt } from "../geometry"
 import { HINT_TILES, playerHintTileClass } from "../cells"
 import type { AnswerValue } from "../types"
@@ -19,39 +19,44 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
     const eliminated = v.me.eliminated === true
     const codeLength = keyword?.question?.payload.codeLength ?? null
 
+    const keywordSlot = eliminated ? (
+        <span className="flex h-[3.3cqw] items-center rounded-lg bg-red-50 px-[1.2cqw] font-sans font-semibold text-red-600 ring-1 ring-red-200" style={{ fontSize: pt(12), borderRadius: STRIP_R }}>
+            Bạn không giải được từ khóa — bị loại vòng này
+        </span>
+    ) : locked ? (
+        <span className="inline-flex items-center gap-[0.5cqw] font-sans font-semibold text-emerald-600" style={{ fontSize: pt(12) }}>
+            Đã khóa từ khóa <VerdictIcon verdict={v.me.verdicts?.[keyword?.questionId ?? ""]} />
+        </span>
+    ) : keyword ? (
+        <KeywordBox
+            busy={keywordBusy}
+            onSubmit={(text) => submitKeyword(keyword.questionId, text)}
+        />
+    ) : (
+        <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>Chờ điều hành mở gợi ý.</span>
+    )
+
     return (
         <PlayerStage
             rail={<Rail variant="answers" view={v} myId={myId} currentQid={hintWindow?.questionId ?? keyword?.questionId ?? null} />}
             band={
-                hintWindow ? (
-                    <AnswerBand
-                        question={hintWindow.question}
-                        answerState={v.me.answerState}
-                        verdict={v.me.verdicts?.[hintWindow.questionId]}
-                        disabled={remaining <= 0}
-                        busy={answerBusy}
-                        error={flash}
-                        onSubmit={(value) => submitAnswer(hintWindow.questionId, value)}
-                    />
-                ) : eliminated ? (
-                    <span className="flex h-[3.3cqw] items-center rounded-lg bg-red-50 px-[1.2cqw] font-sans font-semibold text-red-600 ring-1 ring-red-200" style={{ fontSize: pt(12), borderRadius: STRIP_R }}>
-                        Bạn không giải được từ khóa — bị loại vòng này
-                    </span>
-                ) : locked ? (
-                    <span className="inline-flex items-center gap-[0.5cqw] font-sans font-semibold text-emerald-600" style={{ fontSize: pt(12) }}>
-                        Đã khóa từ khóa <VerdictIcon verdict={v.me.verdicts?.[keyword?.questionId ?? ""]} />
-                    </span>
-                ) : keyword ? (
-                    <KeywordBox
-                        busy={keywordBusy}
-                        onSubmit={(text) => submitKeyword(keyword.questionId, text)}
-                    />
-                ) : (
-                    <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>Chờ điều hành mở gợi ý.</span>
-                )
+                <div className="flex w-full flex-col gap-[0.7cqw]">
+                    {hintWindow ? (
+                        <AnswerBand
+                            question={hintWindow.question}
+                            answerState={v.me.answerState}
+                            verdict={v.me.verdicts?.[hintWindow.questionId]}
+                            disabled={remaining <= 0}
+                            busy={answerBusy}
+                            error={flash}
+                            onSubmit={(value) => submitAnswer(hintWindow.questionId, value)}
+                        />
+                    ) : (
+                        <AnswerBandIdle />
+                    )}
+                    {keywordSlot}
+                </div>
             }
-            hint={hintWindow ? "cửa sổ hint đang mở" : `đã mở ${v.me.hintsRevealed ?? 0} gợi ý`}
-            flash={flash}
         >
             <KeywordLengthBanner length={codeLength} />
 

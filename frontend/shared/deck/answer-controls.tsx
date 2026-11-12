@@ -109,6 +109,35 @@ export function AnswerBand({ question, answerState, verdict, disabled, busy, err
     )
 }
 
+/**
+ * The answer slot while there is nothing to answer: the box keeps its place in
+ * the band so the row never jumps, but there is nothing to type into it —
+ * no placeholder, no submit.
+ */
+export function AnswerBandIdle() {
+    return (
+        <div className="flex w-full items-center gap-[1cqw]">
+            <input
+                type="text"
+                value=""
+                readOnly
+                disabled
+                className={INPUT}
+                style={{ fontSize: pt(13) }}
+                aria-label="Câu trả lời của bạn"
+            />
+            <button
+                type="button"
+                disabled
+                className={submitClass(false)}
+                style={{ fontSize: pt(11), borderRadius: STRIP_R }}
+            >
+                {COPY.send}
+            </button>
+        </div>
+    )
+}
+
 export function KeywordBox({ busy, onSubmit }: { busy: boolean; onSubmit: (text: string) => void }) {
     const [draft, setDraft] = useState({ locked: false, text: "" })
     if (draft.locked) {

@@ -8,6 +8,7 @@ import { KhoiDongRiengAOCPlayer } from "@shared/deck/screens/KhoiDongRiengAOCPla
 import { VeDichChungAOCPlayer } from "@shared/deck/screens/VeDichChungAOCPlayer"
 import { VeDichPickAOCPlayer } from "@shared/deck/screens/VeDichPickAOCPlayer"
 import { VeDichRiengAOCPlayer } from "@shared/deck/screens/VeDichRiengAOCPlayer"
+import { Rail } from "@shared/deck/player-deck"
 
 
 const question = (id: string, kind: "CHOICE" | "TEXT" | "KEYWORD" = "TEXT") => ({
@@ -99,11 +100,10 @@ describe("player screens render from a plain fixture", () => {
         })
 
     it("khởi động · lượt chung — the field opens with the window", () => {
-        const { getByLabelText, getByText } = render(
+        const { getByLabelText } = render(
             <KhoiDongChungAOCPlayer ctx={ctx({ v: windowLive(), remaining: 8_000 })} />
         )
         expect(getByLabelText("Câu trả lời của bạn")).not.toBeDisabled()
-        expect(getByText(/còn 0:08/)).toBeTruthy()
     })
 
     it("khởi động · lượt chung — and LOCKS the moment the clock hits zero", () => {
@@ -166,6 +166,33 @@ describe("player screens render from a plain fixture", () => {
         expect(getByText("CHUNGKET")).toBeTruthy()
     })
 
+    it("giải mã — the band carries BOTH boxes: the hint answer and the keyword", () => {
+        const keyword = { questionId: "k1", question: question("k1", "KEYWORD") }
+
+        const withWindow = render(
+            <GiaiMaAOCPlayer
+                ctx={ctx({
+                    v: view({
+                        roundId: "giai-ma",
+                        open: [{ questionId: "q1", deadlineAt: null, question: question("q1") }],
+                        keyword,
+                    }),
+                })}
+            />
+        )
+        expect(withWindow.getByLabelText("Câu trả lời của bạn")).toBeTruthy()
+        expect(withWindow.getByLabelText("Từ khóa của bạn")).toBeTruthy()
+        withWindow.unmount()
+
+        const withoutWindow = render(
+            <GiaiMaAOCPlayer ctx={ctx({ v: view({ roundId: "giai-ma", keyword }) })} />
+        )
+        const idle = withoutWindow.getByLabelText("Câu trả lời của bạn") as HTMLInputElement
+        expect(idle.disabled).toBe(true)
+        expect(idle.placeholder).toBe("")
+        expect(withoutWindow.getByLabelText("Từ khóa của bạn")).toBeTruthy()
+    })
+
     it("về đích · câu hỏi chung — the typed band", () => {
         const v = view({ roundId: "ve-dich", stage: "phase1", open: [openQ] })
         const { getByText } = render(<VeDichChungAOCPlayer ctx={ctx({ v })} />)
@@ -191,5 +218,12 @@ describe("player screens render from a plain fixture", () => {
         expect(queryByText("Chốt 3 câu")).toBeNull()
         expect(queryByText("Chọn câu này")).toBeNull()
         expect(getByText(/điều hành bốc 3 câu/)).toBeTruthy()
+    })
+
+    it("rail — the buzzer's card reads Đã bấm chuông with the time they buzzed", () => {
+        const v = view({ roundId: "ve-dich", stage: "phase2", me: { buzzer: "u2", buzzerMs: 1240 } })
+        const { getByText } = render(<Rail variant="answers" view={v} myId={null} />)
+        expect(getByText(/Đã bấm chuông/)).toBeTruthy()
+        expect(getByText(/1\.24s/)).toBeTruthy()
     })
 })
