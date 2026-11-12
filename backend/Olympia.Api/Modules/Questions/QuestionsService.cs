@@ -83,8 +83,6 @@ public static class PayloadGuards
                     throw Fail("TEXT questions require payload.acceptedAnswers");
                 if (accepted.GetArrayLength() == 0)
                     throw Fail("TEXT questions require at least one accepted answer");
-                if (!p.TryGetProperty("normalize", out var normalize) || normalize.ValueKind != JsonValueKind.Object)
-                    throw Fail("TEXT questions require payload.normalize");
                 return;
             }
             default:
@@ -92,8 +90,6 @@ public static class PayloadGuards
                 if (!p.TryGetProperty("code", out var code) || code.ValueKind != JsonValueKind.String
                     || code.GetString()!.Length == 0)
                     throw Fail("KEYWORD questions require a non-empty payload.code");
-                if (!p.TryGetProperty("normalize", out var normalize) || normalize.ValueKind != JsonValueKind.Object)
-                    throw Fail("KEYWORD questions require payload.normalize");
                 return;
             }
         }
@@ -441,13 +437,17 @@ public sealed class QuestionsService(OlympiaDbContext db)
     private static QuestionBankEntity Materialize(System.Data.Common.DbDataReader reader) => new()
     {
         Id = reader.GetGuid(0),
-        Kind = reader.GetFieldValue<QuestionKind>(1),
+        // kind/status come back as ::text (see SelectColumns): RawSql's pooled
+        // connection is a plain NpgsqlConnection with no MapEnum registrations,
+        // so GetFieldValue<QuestionKind> on a native PG enum fails with
+        // "DataTypeName '-.-' not supported". Parse from the label instead.
+        Kind = Enum.Parse<QuestionKind>(reader.GetString(1)),
         QuestionText = reader.GetString(2),
         KeywordId = reader.IsDBNull(3) ? null : reader.GetGuid(3),
         Media = reader.IsDBNull(4) ? null : reader.GetFieldValue<JsonElement>(4),
         Payload = reader.GetFieldValue<JsonElement>(5),
         TimeLimit = reader.IsDBNull(6) ? null : reader.GetInt32(6),
-        Status = reader.GetFieldValue<QuestionStatus>(7),
+        Status = Enum.Parse<QuestionStatus>(reader.GetString(7)),
         Tags = reader.GetFieldValue<string[]>(8),
         Type = reader.IsDBNull(9) ? "" : reader.GetString(9),
         CreatedBy = reader.GetGuid(10),
@@ -457,7 +457,7 @@ public sealed class QuestionsService(OlympiaDbContext db)
     };
 
     private const string SelectColumns = """
-        SELECT id, kind, question_text, keyword_id, media, payload, time_limit, status,
+        SELECT id, kind::text, question_text, keyword_id, media, payload, time_limit, status::text,
                tags, type, created_by, import_batch_id, created_at, updated_at
           FROM question_bank
         """;
@@ -511,11 +511,17 @@ public sealed class QuestionsService(OlympiaDbContext db)
         string? searchTs;
         string order;
         var filter = new SqlFilter([], []);
-        if (filters.Status is { } status) filter.Add("status = @status", ("status", status.ToString()));
-        if (filters.Kind is { } kind) filter.Add("kind = @kind", ("kind", kind.ToString()));
+        // Enum columns are compared via typed casts: RawSql's plain connection
+        // sends .ToString() params as text, and PG has no enum=text operator
+        // (42883 "operator does not exist"). Literals like 'PUBLISHED' are fine
+        // (PG coerces unknown literals to the enum) — only parameters need this.
+        if (filters.Status is { } status)
+            filter.Add("status = @status::question_status", ("status", status.ToString()));
+        if (filters.Kind is { } kind)
+            filter.Add("kind = @kind::question_kind", ("kind", kind.ToString()));
         if (filters.KeywordId is { } kw) filter.Add("keyword_id = @keywordId", ("keywordId", kw));
         if (filters.Ids is { Count: > 0 } ids)
-            filter.Add($"id = ANY(@ids)", ("ids", ids.Select(g => g.ToString()).ToArray()));
+            filter.Add("id::text = ANY(@ids)", ("ids", ids.Select(g => g.ToString()).ToArray()));
 
         searchTs = filters.Search is { } term ? QuestionSearchQuery(term) : null;
         if (searchTs is not null)
@@ -565,7 +571,7 @@ public sealed class QuestionsService(OlympiaDbContext db)
         var filter = new SqlFilter([], []);
         filter.Add("status = 'PUBLISHED'");
         if (kinds is { Count: > 0 })
-            filter.Add($"kind = ANY(@kinds)", ("kinds", kinds.Select(k => k.ToString()).ToArray()));
+            filter.Add("kind::text = ANY(@kinds)", ("kinds", kinds.Select(k => k.ToString()).ToArray()));
         if (bucket is not null)
             filter.Add($"({BucketConditionSql(bucket)})", ("bucketValues", Buckets.ExpandBucketParam(bucket).ToArray()));
 
@@ -584,7 +590,7 @@ public sealed class QuestionsService(OlympiaDbContext db)
     {
         var filter = new SqlFilter([], []);
         filter.Add("status IN ('PUBLISHED', 'ARCHIVED')");
-        if (kind is { } k) filter.Add("kind = @kind", ("kind", k.ToString()));
+        if (kind is { } k) filter.Add("kind = @kind::question_kind", ("kind", k.ToString()));
 
         var searchTs = search is { } s ? QuestionSearchQuery(s) : null;
         if (searchTs is not null)

@@ -39,11 +39,6 @@ public static class ExcelImport
 
     private static readonly HashSet<string> OralBuckets = ["khoi-dong:rieng", "ve-dich:40", "ve-dich:50"];
 
-    private static readonly Dictionary<string, object> DefaultNormalize = new()
-    {
-        ["caseSensitive"] = false, ["trim"] = true, ["stripAccents"] = true
-    };
-
     // ---- cell helpers -------------------------------------------------------------
 
     private static string CellText(object? cell)
@@ -158,8 +153,7 @@ public static class ExcelImport
             var dict = new Dictionary<string, JsonElement>
             {
                 ["type"] = JsonSerializer.SerializeToElement("KEYWORD"),
-                ["code"] = JsonSerializer.SerializeToElement(acceptedAnswers[0]),
-                ["normalize"] = JsonSerializer.SerializeToElement(DefaultNormalize, JsonApi.Options)
+                ["code"] = JsonSerializer.SerializeToElement(acceptedAnswers[0])
             };
             foreach (var (k, v) in extra) dict[k] = v;
             payload = JsonSerializer.SerializeToElement(dict, JsonApi.Options);
@@ -170,8 +164,7 @@ public static class ExcelImport
             {
                 // The bucket decides the declared type: ORAL groups must store ORAL.
                 ["type"] = JsonSerializer.SerializeToElement(OralBuckets.Contains(bucket) ? "ORAL" : "TEXT"),
-                ["acceptedAnswers"] = JsonSerializer.SerializeToElement(acceptedAnswers),
-                ["normalize"] = JsonSerializer.SerializeToElement(DefaultNormalize, JsonApi.Options)
+                ["acceptedAnswers"] = JsonSerializer.SerializeToElement(acceptedAnswers)
             };
             foreach (var (k, v) in extra) dict[k] = v;
             payload = JsonSerializer.SerializeToElement(dict, JsonApi.Options);
@@ -461,7 +454,17 @@ public static class ExcelImport
         };
     }
 
-    private static async Task<List<QuestionsService.BatchError>> UploadMediaAsync(ParsedWorkbook parsed)
+    /// <summary>A readable reason for a failed upload — SDK errors can carry an empty Message.</summary>
+    private static string Reason(Exception error)
+    {
+        if (!string.IsNullOrWhiteSpace(error.Message)) return error.Message;
+        if (error is Amazon.S3.AmazonS3Exception s3 && !string.IsNullOrEmpty(s3.ErrorCode))
+            return $"{s3.ErrorCode} (HTTP {(int)s3.StatusCode})";
+        return error.GetType().Name;
+    }
+
+    private static async Task<List<QuestionsService.BatchError>> UploadMediaAsync(
+        ParsedWorkbook parsed, ILogger logger)
     {
         var uploads = new Dictionary<string, StoredMedia>();
         var errors = new List<QuestionsService.BatchError>();
@@ -482,8 +485,10 @@ public static class ExcelImport
                 }
                 catch (Exception error)
                 {
+                    logger.LogError(error, "media upload failed for {MediaRef} ({Filename})",
+                        entry.Mapped.MediaRef, file.Filename);
                     errors.Add(new QuestionsService.BatchError(index, "MEDIA",
-                        $"media \"{entry.Mapped.MediaRef}\": {error.Message}", []));
+                        $"media \"{entry.Mapped.MediaRef}\": {Reason(error)}", []));
                     continue;
                 }
             }
@@ -508,7 +513,7 @@ public static class ExcelImport
 
     private static async Task<Guid> StageWorkbookAsync(
         OlympiaDbContext db, QuestionsService.WriteContext ctx, ParsedWorkbook parsed,
-        string? sourceName, List<QuestionsService.BatchError> errors)
+        string? sourceName, List<QuestionsService.BatchError> errors, ILogger logger)
     {
         foreach (var error in errors)
         {
@@ -517,7 +522,7 @@ public static class ExcelImport
                 entry.Mapped = entry.Mapped with { Error = error };
         }
 
-        foreach (var failure in await UploadMediaAsync(parsed))
+        foreach (var failure in await UploadMediaAsync(parsed, logger))
         {
             var entry = parsed.Entries[failure.Index];
             if (entry.Mapped.Error is null)
@@ -564,7 +569,8 @@ public static class ExcelImport
         IReadOnlyList<MediaAttachment> attachments,
         string? sourceName,
         QuestionsService questions,
-        OlympiaDbContext db)
+        OlympiaDbContext db,
+        ILogger logger)
     {
         var parsed = ParseWorkbook(buffer);
 
@@ -589,7 +595,7 @@ public static class ExcelImport
         async Task<ExcelImportReport?> RefuseAsync(List<QuestionsService.BatchError> rowErrors)
         {
             if (dryRun) return null;
-            var stagedBatchId = await StageWorkbookAsync(db, ctx, parsed, sourceName, rowErrors);
+            var stagedBatchId = await StageWorkbookAsync(db, ctx, parsed, sourceName, rowErrors, logger);
             var stagedErrors = parsed.Entries
                 .Select(e => e.Mapped.Error)
                 .Where(error => error is not null)
@@ -639,7 +645,7 @@ public static class ExcelImport
         }
         if (dryRun) return Report(true, parsed);
 
-        var uploadErrors = await UploadMediaAsync(parsed);
+        var uploadErrors = await UploadMediaAsync(parsed, logger);
         if (uploadErrors.Count > 0)
             return await RefuseAsync(uploadErrors) ?? Report(false, parsed, uploadErrors);
 

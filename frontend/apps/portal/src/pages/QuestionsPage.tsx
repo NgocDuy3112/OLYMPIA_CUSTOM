@@ -8,7 +8,6 @@ import { Button } from "@shared/ui/button"
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -231,12 +230,6 @@ function listParams(state: UrlState): URLSearchParams {
 }
 
 
-interface Normalize {
-    caseSensitive: boolean
-    trim: boolean
-    stripAccents: boolean
-}
-
 function messageOf(error: unknown): string {
     if (error instanceof ApiError) return error.message
     return "Something went wrong. Please try again."
@@ -328,7 +321,6 @@ function AddToMatchDialog({ rows, onClose }: { rows: BankQuestion[] | null; onCl
     const [matchId, setMatchId] = useState("")
     const matches = useMatches(tournamentId)
     const upcoming = (matches.data?.items ?? []).filter((match) => match.status === "UPCOMING")
-    const unbucketed = (rows ?? []).filter((row) => !bucketOf(row)).length
 
     if (!rows || rows.length === 0) return null
 
@@ -342,21 +334,11 @@ function AddToMatchDialog({ rows, onClose }: { rows: BankQuestion[] | null; onCl
         )
     }
 
-    const description =
-        rows.length === 1
-            ? bucketOf(rows[0])
-                ? `Câu nằm ở nhóm ${bucketOf(rows[0])} — chọn một trận UPCOMING để mở composer với câu đã sẵn sàng thêm.`
-                : "Câu chưa gán nhóm — gán nhóm trước khi thêm vào trận."
-            : `${rows.length} câu được chọn${
-                  unbucketed > 0 ? ` — ${unbucketed} chưa gán nhóm sẽ bị bỏ qua` : ""
-              }.`
-
     return (
         <Dialog open onOpenChange={(next) => { if (!next) onClose() }}>
             <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>Thêm vào trận</DialogTitle>
-                    <DialogDescription>{description}</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-3">
                     <label className="grid gap-1 text-sm">
@@ -895,7 +877,6 @@ function InspectorDrawer({ row, onClose }: { row: BankQuestion | null; onClose: 
         correctSet?: string[]
         acceptedAnswers?: string[]
         code?: string
-        normalize?: Partial<Normalize>
     }
     const correct = new Set(payload.correctSet ?? [])
     const items = usage.data?.items ?? []
@@ -1045,9 +1026,6 @@ function ArchiveConfirmDialog({
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle>Archive this question?</DialogTitle>
-                    <DialogDescription>
-                        Archiving is permanent — this cannot be undone.
-                    </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-3">
                     <p className="rounded-lg border px-3 py-2 text-sm text-foreground">
@@ -1141,11 +1119,6 @@ function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void })
             <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>Import questions</DialogTitle>
-                    <DialogDescription>
-                        Upload one bundle — a .zip holding the workbook and the media its File column names,
-                        or a bare .xlsx (max 5 MB + 100 files). Validate runs a dry run: every row is checked —
-                        group IDs, payload shape, duplicates, missing media — without writing anything.
-                    </DialogDescription>
                 </DialogHeader>
 
                 <div className="grid gap-3">

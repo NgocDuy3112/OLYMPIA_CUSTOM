@@ -113,9 +113,11 @@ public static class QuestionRoutes
 
             var db = http.RequestServices.GetRequiredService<OlympiaDbContext>();
             var service = http.RequestServices.GetRequiredService<QuestionsService>();
+            var logger = http.RequestServices.GetRequiredService<ILoggerFactory>()
+                .CreateLogger("Olympia.Api.Questions.ExcelImport");
             var report = await ExcelImport.ImportExcelAsync(
                 new QuestionsService.WriteContext(user.Id),
-                workbook, dryRun, attachments, sourceName, service, db);
+                workbook, dryRun, attachments, sourceName, service, db, logger);
 
             if (!report.DryRun && report.Errors.Count > 0 && report.StagedBatchId is null)
                 http.Response.StatusCode = 400;

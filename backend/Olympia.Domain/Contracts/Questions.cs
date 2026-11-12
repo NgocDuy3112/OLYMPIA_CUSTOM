@@ -16,13 +16,6 @@ public enum MediaKind
     video
 }
 
-public sealed record Normalize(
-    [property: JsonPropertyName("caseSensitive")] bool CaseSensitive,
-    [property: JsonPropertyName("trim")] bool Trim,
-    [property: JsonPropertyName("stripAccents")] bool StripAccents
-);
-
-
 [JsonConverter(typeof(QuestionPayloadConverter))]
 public abstract record QuestionPayload
 {
@@ -36,13 +29,11 @@ public abstract record QuestionPayload
     ) : QuestionPayload;
 
     public sealed record Text(
-        [property: JsonPropertyName("acceptedAnswers")] List<string> AcceptedAnswers,
-        [property: JsonPropertyName("normalize")] Normalize Normalize
+        [property: JsonPropertyName("acceptedAnswers")] List<string> AcceptedAnswers
     ) : QuestionPayload;
 
     public sealed record Keyword(
-        [property: JsonPropertyName("code")] string Code,
-        [property: JsonPropertyName("normalize")] Normalize Normalize
+        [property: JsonPropertyName("code")] string Code
     ) : QuestionPayload;
 }
 
@@ -70,17 +61,11 @@ public sealed class QuestionPayloadConverter : JsonConverter<QuestionPayload>
         }
         else if (root.TryGetProperty("code", out var code))
         {
-            var normalize = root.TryGetProperty("normalize", out var norm)
-                ? norm.Deserialize<Normalize>(options)!
-                : new Normalize(false, false, false);
-            payload = new QuestionPayload.Keyword(code.GetString() ?? "", normalize);
+            payload = new QuestionPayload.Keyword(code.GetString() ?? "");
         }
         else if (root.TryGetProperty("acceptedAnswers", out var answers))
         {
-            var normalize = root.TryGetProperty("normalize", out var norm)
-                ? norm.Deserialize<Normalize>(options)!
-                : new Normalize(false, false, false);
-            payload = new QuestionPayload.Text(answers.Deserialize<List<string>>(options) ?? [], normalize);
+            payload = new QuestionPayload.Text(answers.Deserialize<List<string>>(options) ?? []);
         }
 
         if (payload is null) throw new JsonException("unknown question payload shape");
@@ -111,13 +96,9 @@ public sealed class QuestionPayloadConverter : JsonConverter<QuestionPayload>
             case QuestionPayload.Text text:
                 writer.WritePropertyName("acceptedAnswers");
                 JsonSerializer.Serialize(writer, text.AcceptedAnswers, options);
-                writer.WritePropertyName("normalize");
-                JsonSerializer.Serialize(writer, text.Normalize, options);
                 break;
             case QuestionPayload.Keyword keyword:
                 writer.WriteString("code", keyword.Code);
-                writer.WritePropertyName("normalize");
-                JsonSerializer.Serialize(writer, keyword.Normalize, options);
                 break;
         }
         writer.WriteEndObject();

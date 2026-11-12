@@ -17,7 +17,6 @@ const draftRow = {
     timeLimit: null,
     payload: {
         acceptedAnswers: ["Giải phóng miền Nam"],
-        normalize: { caseSensitive: false, trim: true, stripAccents: true },
     },
     updatedAt: "2026-10-01T00:00:00.000Z",
 }
@@ -80,7 +79,6 @@ describe("QuestionsPage", () => {
             payload: {
                 type: "TEXT",
                 acceptedAnswers: ["Hà Nội", "Ha Noi"],
-                normalize: { caseSensitive: false, trim: true, stripAccents: true },
             },
             tags: ["khoi-dong:chung"],
         })

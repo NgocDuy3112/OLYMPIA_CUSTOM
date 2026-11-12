@@ -201,8 +201,11 @@ public sealed class StagingService(OlympiaDbContext db, QuestionsService questio
     {
         var bid = Guid.Parse(batchId);
         await RequireBatchAsync(db, bid);
-        var batch = await db.QuestionImportRows.Where(r => r.BatchId == bid).ToListAsync();
-        db.QuestionImportRows.RemoveRange(batch);
+        // question_import_rows.batch_id is ON DELETE CASCADE in the schema, but EF
+        // does not model that FK and orders the header DELETE first: the rows then
+        // vanish via cascade, so EF's own row DELETEs affect 0 rows →
+        // DbUpdateConcurrencyException → everything rolls back. Delete only the
+        // header and let the database cascade the rows.
         var header = await db.QuestionImportBatches.FirstAsync(b => b.Id == bid);
         db.QuestionImportBatches.Remove(header);
         await db.SaveChangesAsync();

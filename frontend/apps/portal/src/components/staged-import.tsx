@@ -548,6 +548,7 @@ export function StagedImportBanner() {
     const queryClient = useQueryClient()
     const [open, setOpen] = useState(false)
     const [confirmDiscard, setConfirmDiscard] = useState(false)
+    const [discardError, setDiscardError] = useState<string | null>(null)
 
     const imports = useQuery({
         queryKey: ["question-imports"],
@@ -559,11 +560,14 @@ export function StagedImportBanner() {
     const discard = useMutation({
         mutationFn: (batchId: string) =>
             api<void>(`/portal/question-imports/${batchId}`, { method: "DELETE" }),
+        onMutate: () => setDiscardError(null),
         onSuccess: () => {
             setConfirmDiscard(false)
             setOpen(false)
+            setDiscardError(null)
             void queryClient.invalidateQueries({ queryKey: ["question-imports"] })
         },
+        onError: (cause) => setDiscardError(messageOf(cause)),
     })
 
     const active = imports.data?.active
@@ -613,6 +617,12 @@ export function StagedImportBanner() {
                     </Button>
                 </div>
             </div>
+
+            {discardError && (
+                <p role="alert" className="mt-2 text-sm text-destructive">
+                    Không bỏ được batch — {discardError}
+                </p>
+            )}
 
             {open && <StagedGrid batch={active} onChanged={changed} />}
 

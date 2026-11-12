@@ -7,7 +7,6 @@ import { Button } from "@shared/ui/button"
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -15,12 +14,6 @@ import {
 import { Input } from "@shared/ui/input"
 
 export type QuestionType = "TEXT" | "ORAL" | "CHOICE" | "KEYWORD"
-
-export interface Normalize {
-    caseSensitive: boolean
-    trim: boolean
-    stripAccents: boolean
-}
 
 export interface QuestionMedia {
     url: string
@@ -71,7 +64,6 @@ export interface AuthorDialogProps {
     onSave: (input: AuthorSave) => void | Promise<void>
 }
 
-const DEFAULT_NORM: Normalize = { caseSensitive: false, trim: true, stripAccents: true }
 const HINT_MAX = 8
 
 
@@ -168,16 +160,14 @@ function draftFrom(row: AuthorRow | null | undefined, bucket?: string, presetKey
 }
 
 function buildPayload(type: QuestionType, draft: AuthorDraft): Record<string, unknown> | null {
-    // Answer matching is no longer editable: matching is always UPPERCASE-blind
-    // (ignore case + trim + strip accents), the same default the Excel import uses.
-    const normalize = { ...DEFAULT_NORM }
+    // Answer matching lives server-side (trim + ignore case) — no normalize block.
     if (type === "TEXT" || type === "ORAL") {
         const acceptedAnswers = draft.accepted
             .split("\n")
             .map((line) => line.trim())
             .filter(Boolean)
         if (acceptedAnswers.length === 0) return null
-        if (type === "TEXT") return { type, acceptedAnswers, normalize }
+        if (type === "TEXT") return { type, acceptedAnswers }
         const options = draft.options
             .filter((o) => o.text.trim())
             .map((o) => ({ id: o.id, text: o.text.trim() }))
@@ -185,7 +175,7 @@ function buildPayload(type: QuestionType, draft: AuthorDraft): Record<string, un
         const ids = new Set(options.map((o) => o.id))
         const correct = draft.correct.filter((id) => ids.has(id))
         if (correct.length !== 1) return null
-        return { type, acceptedAnswers, normalize, options, correctSet: correct }
+        return { type, acceptedAnswers, options, correctSet: correct }
     }
     if (type === "CHOICE") {
         const options = draft.options
@@ -198,7 +188,7 @@ function buildPayload(type: QuestionType, draft: AuthorDraft): Record<string, un
         return { type, options, correctSet }
     }
     if (!draft.code.trim()) return null
-    return { type, code: draft.code.trim(), normalize }
+    return { type, code: draft.code.trim() }
 }
 
 function stripBridge(value: Record<string, unknown>): Record<string, unknown> {
@@ -396,13 +386,6 @@ export function QuestionAuthorDialog({
             <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>{row ? "Edit question" : hintBorn ? "New hint" : "New question"}</DialogTitle>
-                    <DialogDescription>
-                        {row
-                            ? "Changes apply to the bank; assembled matches keep their frozen copy."
-                            : hintBorn
-                                ? "A hint for a keyword's set — the link below decides where it lives."
-                                : "One question, one bucket — the round group decides where it can play."}
-                    </DialogDescription>
                 </DialogHeader>
 
                 <div className="grid gap-4">

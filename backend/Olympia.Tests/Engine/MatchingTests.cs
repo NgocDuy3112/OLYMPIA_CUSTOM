@@ -6,38 +6,23 @@ namespace Olympia.Tests.Engine;
 
 public class MatchingTests
 {
-    private static Normalize N(bool caseSensitive = false, bool trim = true, bool stripAccents = true)
-        => new(caseSensitive, trim, stripAccents);
-
     [Fact]
-    public void Normalize_TrimsWhenAsked()
+    public void NormalizeText_Trims()
     {
-        Assert.Equal("abc", Matching.NormalizeText("  abc  ", N()));
+        Assert.Equal("abc", Matching.NormalizeText("  abc  "));
     }
 
     [Fact]
-    public void Normalize_IsCaseInsensitiveByDefault()
+    public void NormalizeText_IgnoresCase()
     {
-        Assert.Equal("abc", Matching.NormalizeText("ABC", N()));
+        Assert.Equal("abc", Matching.NormalizeText("ABC"));
     }
 
     [Fact]
-    public void Normalize_KeepsCaseWhenCaseSensitive()
+    public void NormalizeText_KeepsDiacritics()
     {
-        Assert.Equal("ABC", Matching.NormalizeText("ABC", N(caseSensitive: true)));
-    }
-
-    [Fact]
-    public void Normalize_StripsVietnameseDiacritics()
-    {
-        Assert.Equal("dien bien phu", Matching.NormalizeText("Điện Biên Phủ", N()));
-        Assert.Equal("ha noi", Matching.NormalizeText("Hà Nội", N()));
-    }
-
-    [Fact]
-    public void Normalize_CanLeaveDiacriticsIntact()
-    {
-        Assert.Equal("hà nội", Matching.NormalizeText("Hà Nội", N(stripAccents: false)));
+        Assert.Equal("hà nội", Matching.NormalizeText("Hà Nội"));
+        Assert.Equal("điện biên phủ", Matching.NormalizeText("  Điện Biên Phủ "));
     }
 
     private static readonly QuestionPayload.Choice ChoicePayload = new(
@@ -69,11 +54,13 @@ public class MatchingTests
     }
 
     private static readonly QuestionPayload.Text TextPayload =
-        new(["Hà Nội"], N());
+        new(["Hà Nội"]);
 
     [Theory]
     [InlineData("Hà Nội", true)]
-    [InlineData("  ha noi  ", true)]
+    [InlineData("  Hà Nội  ", true)]
+    [InlineData("hà nội", true)]
+    [InlineData("ha noi", false)]
     [InlineData("Hải Phòng", false)]
     [InlineData("", false)]
     public void AutoMatch_Text(string text, bool expected)
@@ -89,20 +76,13 @@ public class MatchingTests
             new SubmittedAnswerValue.Picked(["Hà Nội"])));
     }
 
-    [Fact]
-    public void AutoMatch_Text_RespectsCaseSensitive()
-    {
-        var strict = new QuestionPayload.Text(["Ha Noi"], N(caseSensitive: true, stripAccents: false));
-        Assert.False(Matching.AutoMatch(QuestionKind.TEXT, strict, new SubmittedAnswerValue.Text("ha noi")));
-        Assert.True(Matching.AutoMatch(QuestionKind.TEXT, strict, new SubmittedAnswerValue.Text("Ha Noi")));
-    }
-
     private static readonly QuestionPayload.Keyword KeywordPayload =
-        new("Điện Biên Phủ", N());
+        new("Điện Biên Phủ");
 
     [Theory]
-    [InlineData("dien bien phu", true)]
+    [InlineData("  điện biên phủ ", true)]
     [InlineData("ĐIỆN BIÊN PHỦ", true)]
+    [InlineData("dien bien phu", false)]
     [InlineData("dien bien", false)]
     [InlineData("", false)]
     public void AutoMatch_Keyword(string text, bool expected)

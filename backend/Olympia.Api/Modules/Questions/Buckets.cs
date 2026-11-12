@@ -113,8 +113,6 @@ public static class Buckets
         if (accepted.EnumerateArray().Any(a =>
                 a.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(a.GetString())))
             throw Fail($"{type} questions require non-empty strings in payload.acceptedAnswers");
-        if (!p.TryGetProperty("normalize", out var normalize) || normalize.ValueKind != JsonValueKind.Object)
-            throw Fail($"{type} questions require payload.normalize");
     }
 
     private static void RequireChoices(JsonElement p, int minOptions, bool exactlyOneCorrect)
@@ -174,8 +172,6 @@ public static class Buckets
                 if (!p.TryGetProperty("code", out var code) || code.ValueKind != JsonValueKind.String
                     || string.IsNullOrWhiteSpace(code.GetString()))
                     throw Fail("KEYWORD questions require a non-empty payload.code");
-                if (!p.TryGetProperty("normalize", out var norm) || norm.ValueKind != JsonValueKind.Object)
-                    throw Fail("KEYWORD questions require payload.normalize");
                 return;
         }
     }

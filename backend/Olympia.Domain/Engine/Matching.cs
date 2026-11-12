@@ -1,7 +1,4 @@
-using System.Globalization;
-using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Olympia.Domain.Contracts;
 
 namespace Olympia.Domain.Engine;
@@ -9,31 +6,9 @@ namespace Olympia.Domain.Engine;
 /// <summary>Port of engine/matching.ts — text normalization and answer auto-matching.</summary>
 public static partial class Matching
 {
-    public static string NormalizeText(string input, Normalize rules)
-    {
-        var s = input;
-        if (rules.Trim) s = s.Trim();
-        if (!rules.CaseSensitive) s = s.ToLowerInvariant();
-        if (rules.StripAccents)
-        {
-            s = s.Replace('đ', 'd').Replace('Đ', 'D');
-            s = RemoveDiacritics(s);
-        }
-        return s;
-    }
-
-    private static string RemoveDiacritics(string s)
-    {
-        var decomposed = s.Normalize(NormalizationForm.FormD);
-        var sb = new StringBuilder(decomposed.Length);
-        foreach (var c in decomposed)
-        {
-            var category = CharUnicodeInfo.GetUnicodeCategory(c);
-            if (category != UnicodeCategory.NonSpacingMark)
-                sb.Append(c);
-        }
-        return sb.ToString().Normalize(NormalizationForm.FormC);
-    }
+    /// <summary>Answer comparison: trim + ignore case. Accents are kept.</summary>
+    public static string NormalizeText(string input)
+        => input.Trim().ToLowerInvariant();
 
     private static List<string> UniqueSorted(IEnumerable<string> values)
         => values.Distinct().OrderBy(v => v, StringComparer.Ordinal).ToList();
@@ -61,13 +36,12 @@ public static partial class Matching
         if (kind == QuestionKind.TEXT || kind == QuestionKind.HINT)
         {
             if (payload is not QuestionPayload.Text textPayload) return false;
-            var needle = NormalizeText(submitted, textPayload.Normalize);
-            return textPayload.AcceptedAnswers.Any(answer =>
-                NormalizeText(answer, textPayload.Normalize) == needle);
+            var needle = NormalizeText(submitted);
+            return textPayload.AcceptedAnswers.Any(answer => NormalizeText(answer) == needle);
         }
 
         if (payload is not QuestionPayload.Keyword keyword) return false;
-        return NormalizeText(submitted, keyword.Normalize) == NormalizeText(keyword.Code, keyword.Normalize);
+        return NormalizeText(submitted) == NormalizeText(keyword.Code);
     }
 
     /// <summary>AutoMatch against a raw jsonb payload (for stored match questions).</summary>
