@@ -1,5 +1,5 @@
-# OLYMPIA CUSTOM
-This is a repository of the Olympia Custom's web app, use for Olympia Custom quiz gameshow based on "Đường lên đỉnh Olympia" contest, with adjustments in the gameplay mechanism.
+# AOC CUSTOM
+This is a repository of the AOC's web app, use for AOC quiz gameshow based on "Đường lên đỉnh Olympia" contest, with adjustments in the gameplay mechanism.
 
 Currently, this app is currently in progress for v2.0; a completely new UI, backend stacks for easier integrations with AI agents. Also, this is the version that have minimal AI-assisted coding.
 
@@ -45,7 +45,7 @@ host through Vite (compose has no frontend service).
 ```bash
 # first run only: config
 cp configs.example/.env.example configs/.env
-#   fill in POSTGRES_PASSWORD / POSTGRES_DB / SEED_ADMIN_PASSWORD,
+#   fill in POSTGRES_PASSWORD / POSTGRES_DB / SEED_ADMIN_USERNAME / SEED_ADMIN_PASSWORD,
 #   generate the two secrets:  openssl rand -hex 32
 #   (do NOT set PORT — the container owns :3000 and compose maps it)
 
