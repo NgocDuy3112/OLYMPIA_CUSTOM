@@ -56,7 +56,6 @@ public class VeDichTurnTests
                 VeDichTurn.DeclarePower(picked, playerId, power, targetId), questionId, Now),
             Now);
 
-    // ---- turn order ------------------------------------------------------------
 
     private static readonly List<VeDichPlayerState> OrderedPlayers =
         [Player("a", 40), Player("b", 90), Player("c", 10)];
@@ -83,12 +82,11 @@ public class VeDichTurnTests
         Assert.Equal("b", state.Players[0].Id);
     }
 
-    // ---- board composition ------------------------------------------------------
 
     [Fact]
     public void Board_AcceptsTheShowsBoard()
     {
-        var _ = VeDichTurn.CreateVeDich(Board(), [Player("a", 0)]); // must not throw
+        var _ = VeDichTurn.CreateVeDich(Board(), [Player("a", 0)]);
     }
 
     [Fact]
@@ -114,7 +112,6 @@ public class VeDichTurnTests
         Assert.Contains("50×3 (want 4)", error.Message);
     }
 
-    // ---- phase 1 picks ----------------------------------------------------------
 
     [Fact]
     public void Pick1_CurrentPlayerTakesTheQuestion()
@@ -189,7 +186,6 @@ public class VeDichTurnTests
         Assert.Equal(-15, after2.Players[0].Score);
     }
 
-    // ---- STAR -------------------------------------------------------------------
 
     private static (VeDichState State, string A) RiengOpen()
     {
@@ -248,7 +244,6 @@ public class VeDichTurnTests
         Assert.Equal([Power.ASSIGN], after.Players.First(p => p.Id == a).PowersLeft);
     }
 
-    // ---- ASSIGN -----------------------------------------------------------------
 
     private static VeDichState TwoUp()
     {
@@ -311,11 +306,11 @@ public class VeDichTurnTests
             VeDichTurn.DeclarePower(s, a, Power.ASSIGN, b), "40-1", Now);
 
         Assert.False(opened.Open!.Revealed);
-        Assert.Null(opened.BuzzOpenedAt); // nobody races before the controller shows the question
+        Assert.Null(opened.BuzzOpenedAt);
 
         var revealed = VeDichTurn.RevealQuestion(opened, Now);
         Assert.True(revealed.Open!.Revealed);
-        Assert.Equal(Now, revealed.BuzzOpenedAt); // …and the race starts on the reveal
+        Assert.Equal(Now, revealed.BuzzOpenedAt);
     }
 
     [Fact]
@@ -497,7 +492,6 @@ public class VeDichTurnTests
         Assert.Equal("WINDOW_CLOSED", CodeOf(() => VeDichTurn.Buzz(after, b, At(31))));
     }
 
-    // ---- phase 2 flow ------------------------------------------------------------
 
     private static VeDichState Picked3()
         => VeDichTurn.PickPhase2(
@@ -509,7 +503,6 @@ public class VeDichTurnTests
     {
         var state = VeDichTurn.BeginPhase2(VeDichTurn.CreateVeDich(Pool, OrderedPlayers));
 
-        // the console sends the whole set on every click, so a partial one is fine
         Assert.Equal("NO_ERROR", CodeOf(() =>
             VeDichTurn.PickPhase2(state, "c", ["50-1", "40-1"])));
         Assert.Equal("INVALID_QUESTION", CodeOf(() =>
@@ -519,7 +512,6 @@ public class VeDichTurnTests
         Assert.Equal("NO_ERROR", CodeOf(() =>
             VeDichTurn.PickPhase2(state, "c", ["50-1", "40-1", "30-1"])));
 
-        // the next click replaces the set and hands the dropped question back
         var swapped = VeDichTurn.PickPhase2(
             VeDichTurn.PickPhase2(state, "c", ["50-1", "40-1"]), "c", ["50-1", "30-1"]);
         Assert.Equal(new[] { "50-1", "30-1" }, swapped.PendingPicks.Select(q => q.Id).ToList());
@@ -649,12 +641,10 @@ public class VeDichTurnTests
         var next = VeDichTurn.SetTurn(s, "a");
         Assert.Equal("a", VeDichTurn.CurrentPlayer(next).Id);
         Assert.Empty(next.PendingPicks);
-        // the three picks were never opened — they belong back on the board
         Assert.Contains(next.Remaining, q => q.Id == "50-1");
         Assert.Contains(next.Remaining, q => q.Id == "40-1");
         Assert.Contains(next.Remaining, q => q.Id == "30-1");
 
-        // naming the player already holding the turn changes nothing
         Assert.Same(next, VeDichTurn.SetTurn(next, "a"));
     }
 
@@ -675,13 +665,10 @@ public class VeDichTurnTests
         var s = Picked3();
         Assert.Equal(3, s.TurnPicked);
 
-        // opening one shrinks PendingPicks but not the turn's batch — that is what
-        // tells the console a turn is in progress rather than half-picked
         var opened = VeDichTurn.OpenPhase2Question(s, "50-1");
         Assert.Equal(2, opened.PendingPicks.Count);
         Assert.Equal(3, opened.TurnPicked);
 
-        // leaving the turn starts the next one from zero
         Assert.Equal(0, VeDichTurn.SetTurn(s, "a").TurnPicked);
         var settled = VeDichTurn.ResolveQuestion(
             VeDichTurn.CloseCurrentAnswer(opened, Now), new Verdicts(true, null));
@@ -701,7 +688,6 @@ public class VeDichTurnTests
         Assert.Equal("WRONG_PHASE", CodeOf(() => VeDichTurn.SetTurn(chung, "b")));
     }
 
-    // ---- phase transitions ---------------------------------------------------------
 
     [Fact]
     public void Transitions_Phase1NotCompleteUntilEveryPlayerPlayed()
@@ -786,7 +772,6 @@ public class VeDichTurnTests
         return s;
     }
 
-    // ---- the 5 s buzz window ---------------------------------------------------------
 
     private static VeDichState Buzzing()
     {
@@ -829,7 +814,6 @@ public class VeDichTurnTests
         Assert.False(VeDichTurn.IsBuzzOpen(s, Now));
     }
 
-    // ---- powers staged on the pick board ------------------------------------------------
 
     [Fact]
     public void Staged_StarStagedWithoutSpendingOpenSpendsIt()
@@ -972,7 +956,6 @@ public class VeDichTurnTests
             VeDichTurn.DeclarePower(s, next, Power.ASSIGN, partner)));
     }
 
-    // ---- phase 1: the controller picks one question per player, up front ------
 
     private static VeDichState Phase1(params string[] ids)
         => VeDichTurn.CreateVeDich(Pool, ids.Select(id => Player(id, 0)).ToList());
@@ -996,19 +979,16 @@ public class VeDichTurnTests
     {
         var s = Phase1("a", "b");
         var twenty = s.Remaining.First(q => q.Value == 20).Id;
-        var forty = Cell(40, 99); // phase 1 defers the 40s — put one back to prove the value rule
+        var forty = Cell(40, 99);
         var withForty = s with { Remaining = [.. s.Remaining, forty] };
 
-        // a partial set is what the console sends on the first click…
         Assert.Equal("NO_ERROR", CodeOf(() => VeDichTurn.PickRound(s, [twenty])));
-        // …but one per player is still the ceiling
         var three = s.Remaining.Where(q => q.Value == 20 || q.Value == 30)
             .Take(3).Select(q => q.Id).ToList();
         Assert.Equal("WRONG_COUNT", CodeOf(() => VeDichTurn.PickRound(s, three)));
         Assert.Equal("INVALID_QUESTION", CodeOf(() => VeDichTurn.PickRound(s, [twenty, twenty])));
         Assert.Equal("INVALID_QUESTION", CodeOf(() => VeDichTurn.PickRound(withForty, [twenty, forty.Id])));
 
-        // the next click replaces the set and puts the dropped question back
         var other = s.Remaining.First(q => q.Value == 20 && q.Id != twenty).Id;
         var second = VeDichTurn.PickRound(VeDichTurn.PickRound(s, [twenty]), [other]);
         Assert.Equal(new[] { other }, second.PendingPicks.Select(q => q.Id).ToList());
@@ -1024,9 +1004,9 @@ public class VeDichTurnTests
 
         var first = VeDichTurn.NextQuestion(s);
         Assert.Equal(ids[0], first.Open!.Question.Id);
-        Assert.Equal("", first.Open!.Answerer);   // every seated player answers
-        Assert.False(first.Open!.Revealed);        // hidden until the controller clicks the card
-        Assert.Null(first.Open!.OpenedAt);         // …and the clock waits for Tính giờ
+        Assert.Equal("", first.Open!.Answerer);
+        Assert.False(first.Open!.Revealed);
+        Assert.Null(first.Open!.OpenedAt);
         Assert.Single(first.PendingPicks);
 
         var second = VeDichTurn.NextQuestion(first);

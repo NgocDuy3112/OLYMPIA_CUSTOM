@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# One dump, one upload: s3://<bucket>/backups/pg_dump_<VN stamp>.sql.gz
-# The container clock is Asia/Ho_Chi_Minh and the stamp is day-first — the
-# Vietnamese order the desk reads: pg_dump_14-11-2026_02-00-00.sql.gz
 set -euo pipefail
 
 : "${POSTGRES_HOST:?set POSTGRES_HOST}"

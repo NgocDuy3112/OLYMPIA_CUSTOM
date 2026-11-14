@@ -8,12 +8,10 @@ using AOC.Infrastructure.Data;
 
 namespace AOC.Api.Modules.Matches;
 
-/// <summary>Port of matches/routes.ts + matches/assemble-patch.ts.</summary>
 public static class MatchRoutes
 {
     public static IEndpointRouteBuilder MapMatchRoutes(this IEndpointRouteBuilder app)
     {
-        // POST /portal/tournaments/:tournamentId/matches
         app.MapPost("/portal/tournaments/{tournamentId}/matches", async (HttpContext http) =>
         {
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -31,7 +29,6 @@ public static class MatchRoutes
             return Results.Json(row, JsonApi.Options);
         });
 
-        // GET /portal/tournaments/:tournamentId/matches
         app.MapGet("/portal/tournaments/{tournamentId}/matches", async (HttpContext http) =>
         {
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -50,7 +47,6 @@ public static class MatchRoutes
             return Results.Json(rows, JsonApi.Options);
         });
 
-        // GET /portal/tournaments/:tournamentId/matches/:matchId
         app.MapGet("/portal/tournaments/{tournamentId}/matches/{matchId}", async (HttpContext http) =>
         {
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -70,7 +66,6 @@ public static class MatchRoutes
             return Results.Json(payload, JsonApi.Options);
         });
 
-        // POST /portal/tournaments/:tournamentId/matches/:matchId/results
         app.MapPost("/portal/tournaments/{tournamentId}/matches/{matchId}/results", async (HttpContext http) =>
         {
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -96,7 +91,6 @@ public static class MatchRoutes
             return Results.Json(match, JsonApi.Options);
         });
 
-        // PATCH /portal/tournaments/:tournamentId/matches/:matchId
         app.MapPatch("/portal/tournaments/{tournamentId}/matches/{matchId}", async (HttpContext http) =>
         {
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -115,7 +109,6 @@ public static class MatchRoutes
             return Results.Json(row, JsonApi.Options);
         });
 
-        // POST /portal/tournaments/:tournamentId/matches/:matchId/assemble  (replace)
         app.MapPost("/portal/tournaments/{tournamentId}/matches/{matchId}/assemble", async (HttpContext http) =>
         {
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -134,7 +127,6 @@ public static class MatchRoutes
             return Results.Json(row, JsonApi.Options);
         });
 
-        // PATCH .../assemble  (patch with baseRevision)
         app.MapPatch("/portal/tournaments/{tournamentId}/matches/{matchId}/assemble", async (HttpContext http) =>
         {
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -156,7 +148,6 @@ public static class MatchRoutes
             return Results.Json(new { assemblyRevision = result.AssemblyRevision }, JsonApi.Options);
         });
 
-        // PATCH /portal/tournaments/:tournamentId/matches/:matchId/status
         app.MapPatch("/portal/tournaments/{tournamentId}/matches/{matchId}/status", async (HttpContext http) =>
         {
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -188,7 +179,6 @@ public static class MatchRoutes
             return Results.Json(match, JsonApi.Options);
         });
 
-        // DELETE .../players/:userId  (eject seat)
         app.MapDelete("/portal/tournaments/{tournamentId}/matches/{matchId}/players/{userId}", async (HttpContext http) =>
         {
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -212,7 +202,6 @@ public static class MatchRoutes
             return Results.Empty;
         });
 
-        // DELETE /portal/tournaments/:tournamentId/matches/:matchId
         app.MapDelete("/portal/tournaments/{tournamentId}/matches/{matchId}", async (HttpContext http) =>
         {
             await http.RequireRoleAsync(Surface.PORTAL, "ADMIN");
@@ -226,7 +215,6 @@ public static class MatchRoutes
             return Results.Empty;
         });
 
-        // GET /portal/.../recording  (moved from recording module? no — kept in recording routes)
 
         return app;
     }

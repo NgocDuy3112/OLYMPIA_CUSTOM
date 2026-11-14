@@ -3,7 +3,6 @@ using AOC.Domain.Engine.Scoring;
 
 namespace AOC.Domain.Engine.Turns;
 
-/// <summary>Port of turns/giai-ma.ts — hint windows and keyword locking.</summary>
 public sealed record GiaiMaPlayer
 {
     [JsonPropertyName("id")] public required string Id { get; init; }
@@ -17,7 +16,7 @@ public sealed record GiaiMaPlayer
 public sealed record GiaiMaState
 {
     [JsonPropertyName("rules")] public RoundRules.GiaiMaRules Rules { get; init; } = RoundRules.DefaultGiaiMa();
-    [JsonPropertyName("stage")] public string Stage { get; init; } = "hints"; // hints | ended
+    [JsonPropertyName("stage")] public string Stage { get; init; } = "hints";
     [JsonPropertyName("players")] public List<GiaiMaPlayer> Players { get; init; } = [];
     [JsonPropertyName("hintIds")] public List<string> HintIds { get; init; } = [];
     [JsonPropertyName("picked")] public List<string> Picked { get; init; } = [];
@@ -63,8 +62,6 @@ public static class GiaiMaTurn
         return GiaiMaScoring.KeywordValue(player.HintsRevealed, KeywordRulesOf(state));
     }
 
-    /// <summary>Pick a hint: it appears on every screen, but NO clock runs yet —
-    ///  the 15 s window is its own press (StartWindow), per the rulebook.</summary>
     public static GiaiMaState PickHint(GiaiMaState state, string hintId)
     {
         if (state.Stage != "hints") throw Err("WRONG_STAGE", "hints are over");
@@ -74,9 +71,6 @@ public static class GiaiMaTurn
         return state with { OpenHint = hintId, OpenHintAt = null };
     }
 
-    /// <summary>Đếm giờ — open the 15 s answer window on the hint already picked.
-    ///  Pressing it again after the window has run out re-opens it (the desk's call);
-    ///  pressing it while the window is running is refused.</summary>
     public static GiaiMaState StartWindow(GiaiMaState state, string nowIso)
     {
         if (state.Stage != "hints") throw Err("WRONG_STAGE", "hints are over");

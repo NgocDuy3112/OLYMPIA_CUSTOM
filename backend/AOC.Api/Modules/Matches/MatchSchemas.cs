@@ -12,15 +12,12 @@ public sealed record AssemblyEntry(
     int? Position,
     int? Points);
 
-/// <summary>Port of matches/schemas.ts — payload validation with MatchError VALIDATION.</summary>
 public static class MatchSchemas
 {
     private static readonly Regex IsoDateTime =
         new(@"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$",
             RegexOptions.Compiled);
 
-    // Route-level schema failures surface as Fastify's ajv shape:
-    // { statusCode: 400, error: "Bad Request", message }.
     public static ApiException Invalid(IEnumerable<string> details)
         => ApiException.BadRequest(details.FirstOrDefault() ?? "validation failed");
 
@@ -246,7 +243,6 @@ public static class MatchSchemas
         return new SetResultsInput(result);
     }
 
-    /// <summary>Patch-assemble body (matches/assemble-patch.ts).</summary>
     public sealed record PatchAssembleInput(int BaseRevision, List<AssemblyEntry> Questions);
 
     public static PatchAssembleInput ParsePatchAssemble(JsonElement input)

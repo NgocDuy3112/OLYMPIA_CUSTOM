@@ -7,12 +7,10 @@ using AOC.Infrastructure.Rtc;
 
 namespace AOC.Api.Modules.Rtc;
 
-/// <summary>Port of rtc/routes.ts — LiveKit token minting.</summary>
 public static class RtcRoutes
 {
     public static IEndpointRouteBuilder MapRtcRoutes(this IEndpointRouteBuilder app)
     {
-        // POST /gameplay/matches/:matchId/rtc/token  (player)
         app.MapPost("/gameplay/matches/{matchId}/rtc/token", async (HttpContext http) =>
         {
             var user = await http.RequireAuthAsync(Surface.GAMEPLAY);
@@ -26,7 +24,6 @@ public static class RtcRoutes
             return Results.Json(MintFor(matchId, RtcRole.Player, user.Id, user.DisplayName), JsonApi.Options);
         });
 
-        // POST /portal/tournaments/:tournamentId/matches/:matchId/rtc/token  (operator)
         app.MapPost("/portal/tournaments/{tournamentId}/matches/{matchId}/rtc/token", async (HttpContext http) =>
         {
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -36,15 +33,6 @@ public static class RtcRoutes
             var match = await matches.GetMatchByIdAsync(matchId);
             return Results.Json(MintFor(matchId, RtcRole.Operator, user.Id, user.DisplayName), JsonApi.Options);
         });
-
-        // POST /gameplay/matches/:matchId/rtc/viewer-token  (spectator, rate-limited)
-        app.MapPost("/gameplay/matches/{matchId}/rtc/viewer-token", async (HttpContext http) =>
-        {
-            var matchId = Validate.RouteUuid(http, "matchId");
-            var matches = http.RequestServices.GetRequiredService<Matches.MatchesService>();
-            await matches.GetMatchByIdAsync(matchId);
-            return Results.Json(MintFor(matchId, RtcRole.Spectator), JsonApi.Options);
-        }).RequireRateLimiting("viewer20");
 
         return app;
     }

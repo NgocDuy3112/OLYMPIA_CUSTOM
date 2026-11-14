@@ -11,12 +11,10 @@ using AOC.Infrastructure.Data;
 
 namespace AOC.Api.Modules.Live;
 
-/// <summary>Port of live/routes.ts HTTP endpoints (the WS parts live in the hubs).</summary>
 public static class LiveRoutes
 {
     public static IEndpointRouteBuilder MapLiveRoutes(this IEndpointRouteBuilder app)
     {
-        // POST /portal/tournaments/:tournamentId/matches/:matchId/live/actions
         app.MapPost("/portal/tournaments/{tournamentId}/matches/{matchId}/live/actions", async (HttpContext http) =>
         {
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -111,7 +109,6 @@ public static class LiveRoutes
             }, JsonApi.Options);
         });
 
-        // GET /portal/.../live/answers?questionId=
         app.MapGet("/portal/tournaments/{tournamentId}/matches/{matchId}/live/answers", async (HttpContext http) =>
         {
             await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -126,7 +123,6 @@ public static class LiveRoutes
             return Results.Json(new { items }, JsonApi.Options);
         }).RequireRateLimiting("public60");
 
-        // GET /portal/.../live  (console view)
         app.MapGet("/portal/tournaments/{tournamentId}/matches/{matchId}/live", async (HttpContext http) =>
         {
             await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -137,7 +133,6 @@ public static class LiveRoutes
             return Results.Json(payload, JsonApi.Options);
         });
 
-        // GET /spectate/.../live  (audience view)
         app.MapGet("/spectate/tournaments/{tournamentId}/matches/{matchId}/live", async (HttpContext http) =>
         {
             var matchId = Validate.RouteUuid(http, "matchId");
@@ -147,7 +142,6 @@ public static class LiveRoutes
             return Results.Json(payload, JsonApi.Options);
         }).RequireRateLimiting("public60");
 
-        // GET /portal/.../lobby  +  /spectate/.../lobby
         app.MapGet("/portal/tournaments/{tournamentId}/matches/{matchId}/lobby", async (HttpContext http) =>
         {
             await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -163,7 +157,6 @@ public static class LiveRoutes
             return Results.Json(await service.LobbyOfAsync(Guid.Parse(matchId)), JsonApi.Options);
         }).RequireRateLimiting("public60");
 
-        // GET /gameplay/matches/:matchId/live
         app.MapGet("/gameplay/matches/{matchId}/live", async (HttpContext http) =>
         {
             var user = await http.RequireAuthAsync(Surface.GAMEPLAY);
@@ -185,7 +178,6 @@ public static class LiveRoutes
                 await service.PlayerViewOfAsync(Guid.Parse(matchId), user.Id), JsonApi.Options);
         });
 
-        // GET /gameplay/matches/:matchId/lobby
         app.MapGet("/gameplay/matches/{matchId}/lobby", async (HttpContext http) =>
         {
             var user = await http.RequireAuthAsync(Surface.GAMEPLAY);
@@ -200,7 +192,6 @@ public static class LiveRoutes
             return Results.Json(await service.LobbyOfAsync(Guid.Parse(matchId)), JsonApi.Options);
         });
 
-        // POST /gameplay/matches/:matchId/live/answers
         app.MapPost("/gameplay/matches/{matchId}/live/answers", async (HttpContext http) =>
         {
             var user = await http.RequireAuthAsync(Surface.GAMEPLAY);
@@ -218,7 +209,6 @@ public static class LiveRoutes
             return Results.Json(result, JsonApi.Options);
         });
 
-        // POST /gameplay/matches/:matchId/live/commands  (buzz)
         app.MapPost("/gameplay/matches/{matchId}/live/commands", async (HttpContext http) =>
         {
             var user = await http.RequireAuthAsync(Surface.GAMEPLAY);
@@ -238,7 +228,6 @@ public static class LiveRoutes
             throw ApiException.BadRequest("unknown command");
         });
 
-        // POST /gameplay/matches/:matchId/live/keyword
         app.MapPost("/gameplay/matches/{matchId}/live/keyword", async (HttpContext http) =>
         {
             var user = await http.RequireAuthAsync(Surface.GAMEPLAY);

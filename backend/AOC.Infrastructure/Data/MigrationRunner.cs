@@ -5,11 +5,6 @@ using Npgsql;
 
 namespace AOC.Infrastructure.Data;
 
-/// <summary>
-/// Port of drizzle-kit migrate — applies backend/migrations/*.sql in journal
-/// order, tracked in drizzle.__drizzle_migrations exactly like drizzle-orm's
-/// migrator (same table, same created_at=folderMillis decision).
-/// </summary>
 public static class MigrationRunner
 {
     private sealed record JournalEntry(int Idx, string Tag, long When, bool Breakpoints);

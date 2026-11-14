@@ -133,7 +133,6 @@ public sealed class ScoringRuleConverter : JsonConverter<ScoringRule>
     }
 }
 
-/// <summary>TurnConfig — stored inside round configs (jsonb).</summary>
 public sealed record TurnConfig
 {
     [JsonPropertyName("id")] public required string Id { get; init; }

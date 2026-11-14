@@ -24,7 +24,7 @@ internal static class AuthTestDb
 
     public static string ConnectionString()
     {
-        var cfg = AppConfig.Instance; // safe: EnvironmentReady() ran first
+        var cfg = AppConfig.Instance;
         return cfg.DatabaseUrl;
     }
 

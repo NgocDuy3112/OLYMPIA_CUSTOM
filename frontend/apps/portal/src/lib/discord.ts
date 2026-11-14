@@ -1,5 +1,3 @@
-/** Discord hands out several shapes — a raw id, a mention or a profile link.
- *  Admins paste whichever they have, so normalise to the bare snowflake. */
 export function discordValue(raw: string): string {
     const trimmed = raw.trim()
     if (trimmed === "" || DISCORD_SHAPE.test(trimmed)) return trimmed

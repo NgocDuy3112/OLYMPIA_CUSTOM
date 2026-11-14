@@ -62,8 +62,6 @@ export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answe
                 const badgeNode = c.badge ? (
                     <span className={badgePill(c.badge.tone)} style={{ fontSize: pt(9) }}>{c.badge.text}</span>
                 ) : null
-                // the same slot the player card uses for its verdict line — and the
-                // same rule: nothing to say means nothing shown (no "—" placeholder)
                 const hasAnswer = typeof c.answer === "string" && c.answer !== "" && c.answer !== "—"
                 const statusLine = hasAnswer || c.badge ? (
                     <span
@@ -89,7 +87,6 @@ export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answe
                     className={`flex ${isAnswers ? "h-[11.9cqw]" : "h-[9.3cqw]"} w-full shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl p-[0.9cqw] text-left shadow-sm ${railCardClass(state)} ${
                         onSelect
                             ? c.ring === "selected"
-                                // a picked card keeps its own ring instead of flashing sky on hover
                                 ? "cursor-pointer"
                                 : "cursor-pointer hover:ring-sky-400 active:ring-sky-600"
                             : ""

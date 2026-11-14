@@ -3,7 +3,6 @@ using AOC.Domain.Engine.Scoring;
 
 namespace AOC.Domain.Engine.Turns;
 
-/// <summary>Port of turns/but-pha.ts — sprint questions with speed bands.</summary>
 public sealed record ButPhaAnswer
 {
     [JsonPropertyName("playerId")] public required string PlayerId { get; init; }
@@ -17,7 +16,6 @@ public sealed record ButPhaState
     [JsonPropertyName("questionIds")] public List<string> QuestionIds { get; init; } = [];
     [JsonPropertyName("cursor")] public int Cursor { get; init; }
     [JsonPropertyName("questionOpenedAt")] public string? QuestionOpenedAt { get; init; }
-    /// <summary>When the controller revealed the question — the clock waits for Tính giờ.</summary>
     [JsonPropertyName("questionRevealedAt")] public string? QuestionRevealedAt { get; init; }
     [JsonPropertyName("answers")] public Dictionary<string, List<ButPhaAnswer>> Answers { get; init; } = new();
     [JsonPropertyName("points")] public Dictionary<string, Dictionary<string, int>> Points { get; init; } = new();
@@ -50,7 +48,6 @@ public static class ButPhaTurn
         return state with { QuestionRevealedAt = openedAt, QuestionOpenedAt = null };
     }
 
-    /// <summary>Tính giờ — the revealed question's clock starts here.</summary>
     public static ButPhaState StartClock(ButPhaState state, string nowIso)
     {
         if (state.Ended) throw Err("ENDED", "but-pha is over");

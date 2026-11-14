@@ -7,12 +7,10 @@ using AOC.Domain.Engine.Turns;
 
 namespace AOC.Api.Modules.Live;
 
-/// <summary>Port of live/giai-ma.ts GiaiMaContext.</summary>
 public sealed record GiaiMaContext(
     string ActorId, string RoundId, string Now, RoundRules.GiaiMaRules Rules,
     string HintTurnId, List<AnswerDraft> AnswerDrafts);
 
-/// <summary>Port of live/giai-ma.ts applyGiaiMaAction.</summary>
 public static class GiaiMaApplier
 {
     public static (GiaiMaState State, List<LiveFact> Facts) Apply(
@@ -84,7 +82,6 @@ public static class GiaiMaApplier
     }
 }
 
-/// <summary>Port of live/but-pha.ts applyButPhaAction.</summary>
 public static class ButPhaApplier
 {
     public sealed record ButPhaContext(
@@ -148,7 +145,6 @@ public static class ButPhaApplier
     }
 }
 
-/// <summary>Port of live/khoi-dong.ts applyKhoiDongAction.</summary>
 public static class KhoiDongApplier
 {
     public sealed record KhoiDongContext(
@@ -176,8 +172,6 @@ public static class KhoiDongApplier
 
                 var next = KhoiDongRound.RecordOral(state, recordOral.Correct, recordOral.SpentS, recordOral.PlayerId);
 
-                // the fact carries the question the graded player was on — read it
-                // off the state the action started from, before the cursor moved
                 var questionId = KhoiDongRound.QuestionIdOf(state, playerId)
                     ?? throw new RuleError("NO_ACTIVE_PLAYER", "no player is answering");
 
@@ -246,7 +240,6 @@ public static class KhoiDongApplier
     }
 }
 
-/// <summary>Port of live/ve-dich.ts applyVeDichAction.</summary>
 public static class VeDichApplier
 {
     public sealed record VeDichContext(
@@ -264,7 +257,7 @@ public static class VeDichApplier
                 var players = ctx.Players.Select(p => new VeDichPlayerState
                 {
                     Id = p.Id,
-                    Score = p.Score, // cumulative, so phase 1 ordering is real
+                    Score = p.Score,
                     PowersLeft = [Power.STAR, Power.ASSIGN]
                 }).ToList();
                 var created = VeDichTurn.CreateVeDich(ctx.Questions, players, ctx.Rules);
@@ -321,8 +314,6 @@ public static class VeDichApplier
 
             case LiveAction.VeDichJudge judge:
             {
-                // phase 1 is graded player by player — each verdict pays for
-                // whoever actually typed an answer (JudgeFact needs that row)
                 if (state.Phase != 1) throw new RuleError("WRONG_PHASE", "judge only applies in phase 1");
                 var open = state.Open ?? throw new RuleError("NOTHING_OPEN", "no question is open");
                 var points = VeDichScoring.Points(open.Question.Value, judge.Correct, ctx.Rules);

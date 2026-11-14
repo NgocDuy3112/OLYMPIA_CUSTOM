@@ -4,11 +4,6 @@ using Konscious.Security.Cryptography;
 
 namespace AOC.Infrastructure.Auth;
 
-/// <summary>
-/// Verifies (and creates) node-argon2 compatible PHC hashes:
-/// $argon2id$v=19$m=65536,t=3,p=4$&lt;salt-b64&gt;$&lt;hash-b64&gt;
-/// Existing rows were written by node-argon2 with its defaults.
-/// </summary>
 public static class PasswordHasher
 {
     private const int DefaultMemoryKb = 65536;
@@ -22,7 +17,6 @@ public static class PasswordHasher
         try
         {
             var parts = hash.Split('$');
-            // ["", "argon2id", "v=19", "m=65536,t=3,p=4", salt, hash]
             if (parts.Length != 6 || parts[1] != "argon2id") return false;
 
             var parameters = parts[3].Split(',');
@@ -59,7 +53,7 @@ public static class PasswordHasher
             {
                 Salt = salt,
                 DegreeOfParallelism = parallelism,
-                MemorySize = memoryKb,   // Konscious takes kilobytes, like the PHC param
+                MemorySize = memoryKb,
                 Iterations = iterations
             };
             return argon2.GetBytes(length);

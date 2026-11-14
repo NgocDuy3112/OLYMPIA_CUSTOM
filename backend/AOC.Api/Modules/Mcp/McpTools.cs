@@ -15,7 +15,6 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.Mcp;
 
-/// <summary>Port of mcp/result.ts + mcp/actor.ts + the three MCP tools.</summary>
 public sealed class ToolError(string code, string message) : Exception(message)
 {
     public string Code { get; } = code;
@@ -39,7 +38,6 @@ public static class McpActorAccessor
     }
 }
 
-/// <summary>Tool implementations — one instance per MCP call (built from the request DI scope).</summary>
 public sealed class McpTools(
     QuestionsService questions,
     TournamentsService tournaments,
@@ -95,7 +93,6 @@ public sealed class McpTools(
         Content = [new TextContentBlock { Text = JsonSerializer.Serialize(new { error = code, message }, Options) }]
     };
 
-    /// <summary>Shared runner: mirrors runTool() — errors become isError results with a JSON body.</summary>
     private CallToolResult Run(Func<object> fn, string toolName, Guid? tournamentId,
         Dictionary<string, object?>? filters = null)
     {
@@ -142,7 +139,6 @@ public sealed class McpTools(
         });
     }
 
-    // ---- list_questions -------------------------------------------------------------
 
     public CallToolResult ListQuestions(string tournamentId, string? kind = null,
         string? search = null, int limit = 20, int offset = 0)
@@ -177,7 +173,6 @@ public sealed class McpTools(
             new Dictionary<string, object?> { ["kind"] = kind, ["search"] = search });
     }
 
-    // ---- get_question -----------------------------------------------------------------
 
     public CallToolResult GetQuestion(string questionId, string tournamentId)
     {
@@ -199,7 +194,6 @@ public sealed class McpTools(
         }, "get_question", Guid.Parse(tournamentId), null);
     }
 
-    // ---- eligible_questions ------------------------------------------------------------
 
     public CallToolResult EligibleQuestions(string tournamentId, string? kind = null,
         string? search = null, int limit = 20, int offset = 0)

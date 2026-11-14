@@ -10,8 +10,6 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.Auth;
 
-/// <summary>Port of auth/player-account.ts — password change and my matches.
-/// Google is the only way a player signs in.</summary>
 public static class PlayerAccountRoutes
 {
     private const int PasswordMin = 8;
@@ -32,7 +30,6 @@ public static class PlayerAccountRoutes
             var db = http.RequestServices.GetRequiredService<AOCDbContext>();
             var tokens = http.RequestServices.GetRequiredService<SessionTokens>();
 
-            // Re-load for tracking (the guard's user is untracked).
             var tracked = await db.Users.FirstAsync(u => u.Id == user.Id);
 
             if (tracked.PasswordHash is not null)

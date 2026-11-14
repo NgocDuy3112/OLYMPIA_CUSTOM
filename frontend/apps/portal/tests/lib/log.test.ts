@@ -20,7 +20,6 @@ describe("logError — the browser's one log line", () => {
     })
 
     it("stays out of test runs — the assertion IS the message", () => {
-        // vitest runs with MODE=test by default
         const spy = vi.spyOn(console, "error").mockImplementation(() => undefined)
 
         logError("live", new Error("an expected failure"))

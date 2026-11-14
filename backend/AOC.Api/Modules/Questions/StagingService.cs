@@ -10,7 +10,6 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.Questions;
 
-/// <summary>Port of questions/staging.ts — staged Excel batches.</summary>
 public sealed class StagingService(AOCDbContext db, QuestionsService questions, AssemblePatchService assemblePatch)
 {
     private static readonly string[] CellKeys = ["question", "answer", "explanation", "note", "media"];
@@ -201,11 +200,6 @@ public sealed class StagingService(AOCDbContext db, QuestionsService questions, 
     {
         var bid = Guid.Parse(batchId);
         await RequireBatchAsync(db, bid);
-        // question_import_rows.batch_id is ON DELETE CASCADE in the schema, but EF
-        // does not model that FK and orders the header DELETE first: the rows then
-        // vanish via cascade, so EF's own row DELETEs affect 0 rows →
-        // DbUpdateConcurrencyException → everything rolls back. Delete only the
-        // header and let the database cascade the rows.
         var header = await db.QuestionImportBatches.FirstAsync(b => b.Id == bid);
         db.QuestionImportBatches.Remove(header);
         await db.SaveChangesAsync();
@@ -372,7 +366,6 @@ public sealed class StagingService(AOCDbContext db, QuestionsService questions, 
 
         try
         {
-            // Publish everything this batch created.
             var idStrings = inserted.Ids.Select(id => id.ToString()).ToList();
             var created = await db.QuestionBank.Where(q => inserted.Ids.Contains(q.Id)).ToListAsync();
             foreach (var row in created)
@@ -418,7 +411,6 @@ public sealed class StagingService(AOCDbContext db, QuestionsService questions, 
         catch (Exception error)
         {
             db.ChangeTracker.Clear();
-            // Roll back the questions this batch created (only ones tagged with this batch).
             var rollback = await db.QuestionBank
                 .Where(q => inserted.Ids.Contains(q.Id) && q.ImportBatchId == bid)
                 .ToListAsync();

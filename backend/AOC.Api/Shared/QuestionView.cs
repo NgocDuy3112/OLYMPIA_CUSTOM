@@ -18,7 +18,6 @@ public sealed record SanitizedPayload(
     int? CodeLength = null
 );
 
-/// <summary>Port of lib/question-view.ts — what players/audience may see.</summary>
 public static class QuestionView
 {
     public static SanitizedQuestion Sanitize(MatchQuestion question)

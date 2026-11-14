@@ -120,6 +120,13 @@
       "when": 1794277438320,
       "tag": "0016_recordings",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794665946075,
+      "tag": "0017_drop_recordings",
+      "breakpoints": true
     }
   ]
 }

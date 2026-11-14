@@ -3,11 +3,6 @@ import { enableSfx, useSfxBlocked } from "@shared/lib/sfx"
 import { buttonVariants } from "@shared/ui/button"
 import { cn } from "cn"
 
-/**
- * The one-tap toll booth: shows up only after the browser has actually refused
- * a cue, and one tap pays the autoplay toll for every sound after it. Nothing
- * renders otherwise — the show is silent and automatic.
- */
 export function SfxUnlockBar() {
     const blocked = useSfxBlocked()
     if (!blocked) return null

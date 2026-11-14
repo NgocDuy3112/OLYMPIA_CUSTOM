@@ -3,7 +3,6 @@ using System.Text.Json.Serialization;
 
 namespace AOC.Domain.Contracts;
 
-/// <summary>Shared primitive kinds and enums used across contracts.</summary>
 public static class Primitives
 {
     public const string UuidPattern = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$";
@@ -32,7 +31,6 @@ public enum Power
     ASSIGN
 }
 
-/// <summary>Round delivery mode: "oral" | "text".</summary>
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum QuestionMode
 {
@@ -42,7 +40,6 @@ public enum QuestionMode
     text
 }
 
-/// <summary>Turn delivery: sequential | batch | pick.</summary>
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum DeliveryMode
 {
@@ -54,7 +51,6 @@ public enum DeliveryMode
     pick
 }
 
-/// <summary>Question payload type discriminator (optional in stored payloads).</summary>
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum QuestionTypeValue
 {

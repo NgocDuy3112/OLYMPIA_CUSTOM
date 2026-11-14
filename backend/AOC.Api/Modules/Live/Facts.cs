@@ -3,7 +3,6 @@ using AOC.Domain.Contracts;
 
 namespace AOC.Api.Modules.Live;
 
-/// <summary>Port of live/facts.ts — what a transition writes besides new state.</summary>
 public abstract record LiveFact;
 
 public sealed record AnswerFact(
@@ -61,7 +60,6 @@ public enum MatchEventKind
     POWER
 }
 
-/// <summary>Fact constructors matching the TS literal shapes.</summary>
 public static class Facts
 {
     public static AnswerFact Oral(string questionId, string userId, Verdict verdict, int points) =>
@@ -105,7 +103,6 @@ public static class Facts
     }
 }
 
-/// <summary>Small holder so Facts can serialize with the shared options.</summary>
 internal static class JsonApiOptions
 {
     public static readonly JsonSerializerOptions Options = Http.JsonApi.Options;

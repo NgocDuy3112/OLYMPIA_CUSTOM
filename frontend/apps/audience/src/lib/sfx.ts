@@ -6,11 +6,6 @@ interface SfxFrame {
     data?: { name?: string; url?: string }
 }
 
-/**
- * The audience keeps polling `/spectate/.../live` for state (2 s) — a sound cue
- * must not wait for the next poll, so it rides the hub instead. Only the `sfx`
- * frames are handled; the view pushes the hub also sends are ignored here.
- */
 export function useAudienceSfx(tournamentId: string, matchId: string) {
     useSocketStream(
         `/spectate/tournaments/${tournamentId}/matches/${matchId}/live/stream`,

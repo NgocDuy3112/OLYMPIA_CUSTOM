@@ -32,12 +32,9 @@ interface ExcelReport extends BatchReport {
     skipped: number
     warnings: Array<{ index: number; message: string }>
     rows: ExcelRowSummary[]
-    /** set when the server staged the rows instead of writing them (dirty file,
-   *  or `stage=true` — the match-tab path, where commit-to-match finishes it) */
     stagedBatchId?: string | null
 }
 
-/** Where a finished import should land instead of sitting in the bank. */
 export interface MatchImportTarget {
     tournamentId: string
     matchId: string
@@ -49,13 +46,6 @@ function messageOf(error: unknown): string {
     return "Có gì đó không ổn — thử lại."
 }
 
-/**
- * The workbook upload, one component for both doors:
- *  - no `commitTo` → the question bank's flow (validate → import, staged for
- *    review when rows fail);
- *  - `commitTo` → the match's flow: `stage=true` then commit-to-match, which
- *    publishes the rows into the bank AND assembles them into that match.
- */
 export function ExcelImportDialog({
     open,
     onClose,
@@ -76,7 +66,6 @@ export function ExcelImportDialog({
         const form = new FormData()
         form.append("file", chosen, chosen.name)
         const params = new URLSearchParams({ dryRun: String(dryRun) })
-        // staging is what the commit path needs; a dry run writes nothing at all
         if (commitTo && !dryRun) params.set("stage", "true")
         return api<ExcelReport>(`/portal/questions/import-excel?${params.toString()}`, {
             method: "POST",

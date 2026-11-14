@@ -4,7 +4,6 @@ using AOC.Domain.Engine;
 
 namespace AOC.Api.Modules.Live;
 
-/// <summary>Port of live/conflict.ts.</summary>
 public sealed class LiveConflictError(int expectedVersion, int currentVersion)
     : Exception(
         $"state is out of date: you acted on version {expectedVersion}, " +
@@ -23,24 +22,20 @@ public sealed class LiveConflictError(int expectedVersion, int currentVersion)
     }
 }
 
-/// <summary>Port of live/submit.ts SubmitError — carries its own status + code.</summary>
 public sealed class SubmitError(int status, string code, string message) : Exception(message)
 {
     public int Status { get; } = status;
     public string Code { get; } = code;
 }
 
-/// <summary>Port of live/state.ts LiveStateError.</summary>
 public sealed class LiveStateError(string message, IReadOnlyList<string>? details = null) : Exception(message)
 {
     public IReadOnlyList<string> Details { get; } = details ?? [];
 }
 
-/// <summary>Port of live/store.ts LiveNotFoundError.</summary>
 public sealed class LiveNotFoundError(string matchId)
     : Exception($"no live round for match {matchId}");
 
-/// <summary>Helpers to validate stored live state the way the TypeBox schemas did.</summary>
 public static class StateGuard
 {
     public static void RequireObject(JsonElement? el, string path, List<string> details)
@@ -132,7 +127,6 @@ public static class StateGuard
             details.Add($"{Join(path, name)}: expected one of {string.Join(", ", allowed)}");
     }
 
-    /// <summary>Validate + deserialize, wrapping failures as LiveStateError like TypeBox did.</summary>
     public static T Parse<T>(JsonElement raw, string label, Action<JsonElement, List<string>> validate,
         JsonElement? archiveDefault = null)
     {

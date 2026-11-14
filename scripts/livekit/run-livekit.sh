@@ -1,7 +1,4 @@
 #!/bin/sh
-# livekit-server's startup — compose mounts this instead of an inline heredoc.
-# POSIX sh on purpose: the stock server image ships no bash, and this is the
-# same config the inline block always wrote (verbatim move).
 set -eu
 
 cat > /tmp/livekit.yaml <<EOF

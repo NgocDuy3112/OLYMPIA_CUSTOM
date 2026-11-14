@@ -4,26 +4,19 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Infrastructure.Data;
 
-/// <summary>
-/// Maps EF Core onto the EXISTING Postgres schema (owned by backend/migrations).
-/// No schema is created from here — EF migrations are only for future changes.
-/// </summary>
 public class AOCDbContext(DbContextOptions<AOCDbContext> options) : DbContext(options)
 {
     public static List<string>? Debug_EnumAnnotationsDuringBuild;
-    // Auth
     public DbSet<UserEntity> Users => Set<UserEntity>();
     public DbSet<OauthAccountEntity> OauthAccounts => Set<OauthAccountEntity>();
     public DbSet<McpKeyEntity> McpKeys => Set<McpKeyEntity>();
 
-    // Reference
     public DbSet<TournamentEntity> Tournaments => Set<TournamentEntity>();
     public DbSet<TournamentPlayerEntity> TournamentPlayers => Set<TournamentPlayerEntity>();
     public DbSet<QuestionImportBatchEntity> QuestionImportBatches => Set<QuestionImportBatchEntity>();
     public DbSet<QuestionImportRowEntity> QuestionImportRows => Set<QuestionImportRowEntity>();
     public DbSet<QuestionBankEntity> QuestionBank => Set<QuestionBankEntity>();
 
-    // Game
     public DbSet<MatchEntity> Matches => Set<MatchEntity>();
     public DbSet<MatchCodeEntity> MatchCodes => Set<MatchCodeEntity>();
     public DbSet<AnswerEntity> Answers => Set<AnswerEntity>();
@@ -34,21 +27,16 @@ public class AOCDbContext(DbContextOptions<AOCDbContext> options) : DbContext(op
     public DbSet<MatchEventEntity> MatchEvents => Set<MatchEventEntity>();
     public DbSet<MatchLiveEntity> MatchLive => Set<MatchLiveEntity>();
     public DbSet<MatchAssemblyEventEntity> MatchAssemblyEvents => Set<MatchAssemblyEventEntity>();
-    public DbSet<RecordingEntity> Recordings => Set<RecordingEntity>();
 
-    // Audit
     public DbSet<AuditEventEntity> AuditEvents => Set<AuditEventEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // Naming convention is applied at options level: options.UseSnakeCaseNamingConvention().
 
-        // Native pg enum mappings (labels == member names; schema is public).
         modelBuilder.HasPostgresEnum<UserRole>(name: "user_role");
         modelBuilder.HasPostgresEnum<MatchStatus>(name: "match_status");
         modelBuilder.HasPostgresEnum<MatchKind>(name: "match_kind");
         modelBuilder.HasPostgresEnum<MatchEventKind>(name: "match_event_kind");
-        modelBuilder.HasPostgresEnum<RecordingStatus>(name: "recording_status");
         modelBuilder.HasPostgresEnum<Visibility>(name: "visibility");
         modelBuilder.HasPostgresEnum<QuestionStatus>(name: "question_status");
         modelBuilder.HasPostgresEnum<PlayerGroup>(name: "player_group");
@@ -60,7 +48,6 @@ public class AOCDbContext(DbContextOptions<AOCDbContext> options) : DbContext(op
             .Select(a => a.Name)
             .ToList();
 
-        // ---- users ----
         modelBuilder.Entity<UserEntity>(e =>
         {
             e.ToTable("users");
@@ -105,7 +92,6 @@ public class AOCDbContext(DbContextOptions<AOCDbContext> options) : DbContext(op
             e.Property(x => x.LastUsedAt).HasDefaultValueSql("now()");
         });
 
-        // ---- reference ----
         modelBuilder.Entity<TournamentEntity>(e =>
         {
             e.ToTable("tournaments");
@@ -164,7 +150,6 @@ public class AOCDbContext(DbContextOptions<AOCDbContext> options) : DbContext(op
             e.Property(x => x.Payload).HasColumnType("jsonb").IsRequired();
             e.Property(x => x.Media).HasColumnType("jsonb");
             e.Property(x => x.Tags).HasColumnType("text[]").HasDefaultValue(new string[0]);
-            // GENERATED ALWAYS AS (payload ->> 'type') STORED — never written by EF.
             e.Property(x => x.Type)
                 .HasComputedColumnSql("(payload ->> 'type')")
                 .IsRequired();
@@ -176,7 +161,6 @@ public class AOCDbContext(DbContextOptions<AOCDbContext> options) : DbContext(op
                 "kind <> 'HINT' OR keyword_id IS NOT NULL"));
         });
 
-        // ---- game ----
         modelBuilder.Entity<MatchEntity>(e =>
         {
             e.ToTable("matches");
@@ -276,9 +260,6 @@ public class AOCDbContext(DbContextOptions<AOCDbContext> options) : DbContext(op
             e.HasIndex(x => new { x.MatchId, x.QuestionId, x.UserId })
                 .IsUnique()
                 .HasFilter("kind = 'BUZZ'");
-            // NOTE: the partial POWER unique index uses the expression
-            // (payload->>'power') and is owned by migrations/ — configure it
-            // by hand if a future EF migration ever recreates this table.
             e.Property(x => x.Payload).HasColumnType("jsonb").IsRequired();
             e.Property(x => x.At).HasDefaultValueSql("now()");
             e.ToTable(t => t.HasCheckConstraint(
@@ -316,16 +297,6 @@ public class AOCDbContext(DbContextOptions<AOCDbContext> options) : DbContext(op
             e.Property(x => x.At).HasDefaultValueSql("now()");
         });
 
-        modelBuilder.Entity<RecordingEntity>(e =>
-        {
-            e.ToTable("recordings");
-            e.HasKey(x => x.Id);
-            e.HasIndex(x => x.EgressId).IsUnique();
-            e.HasIndex(x => x.MatchId).IsUnique().HasFilter("status = 'RECORDING'");
-            e.Property(x => x.StartedAt).HasDefaultValueSql("now()");
-        });
-
-        // ---- audit ----
         modelBuilder.Entity<AuditEventEntity>(e =>
         {
             e.ToTable("audit_events");

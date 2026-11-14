@@ -235,13 +235,11 @@ interface SelfBroadcast {
     video: LocalVideoTrack | null;
     camOn: boolean;
     micOn: boolean;
-    /** every incoming stream is cut while this is on */
     deafen: boolean;
     toggleCam: () => void;
     toggleMic: () => void;
     toggleDeafen: () => void;
     setSpeakGate: (allowed: boolean | null) => void;
-    /** who may be heard — the view's audio gate; null hears nobody */
     setAudioGate: (gate: { allowed: string[] } | null) => void;
 }
 
@@ -352,9 +350,6 @@ export function useSelfBroadcast(matchId: string): SelfBroadcast {
         if (status !== "connected" && status !== "reconnecting") setVideo(null);
     }, [status]);
 
-    // The room connects with autoSubscribe: false, so the incoming audio is ours
-    // to ask for: subscribe while not deafened, and only let the gate's speakers
-    // through — nobody hears a thing without a gate.
     useEffect(() => {
         if (!room) return;
         const allowed = audioGate ? new Set(audioGate.allowed) : null;
@@ -443,18 +438,12 @@ export interface HostBroadcast {
     toggleMic: () => void
 }
 
-// The console's host camera/mic, published on the room use-console-transport
-// ALREADY owns — a second connection with the same identity would evict it.
-// Unlike the player deck nothing auto-enables and nothing probes on mount:
-// the operator flips the host on deliberately from the toolbar.
 export function useHostBroadcast(room: Room | null): HostBroadcast {
     const [video, setVideo] = useState<LocalVideoTrack | null>(null)
     const [camOn, setCamOn] = useState(false)
     const [micOn, setMicOn] = useState(false)
     const [mediaError, setMediaError] = useState<string | null>(null)
 
-    // A reconnect hands back a fresh localParticipant — the old track object
-    // is dead, so the toolbar must fall back to its off state.
     useEffect(() => {
         if (!room) {
             setVideo(null)

@@ -11,20 +11,11 @@ public sealed record PendingMfaToken(string Sub, string Purpose);
 public sealed record OauthPendingToken(string State, string Nonce, string CodeVerifier, string Purpose, string? Next);
 public sealed record InviteToken(string Sub, int TokenVersion, string Purpose);
 
-/// <summary>
-/// Port of lib/jwt.ts — HS256 session/pending/invite tokens, one secret per surface,
-/// aud = surface, matching fastify-jwt's claims and expiries.
-/// </summary>
 public sealed class SessionTokens
 {
     private static readonly JwtSecurityTokenHandler Handler = new() { MapInboundClaims = false };
 
-    /// <summary>
-    /// HS256 needs &gt; 256 bits. Secrets from `openssl rand -hex 32` (documented)
-    /// are used raw — byte-compatible with tokens the old fastify backend signed.
-    /// Short legacy secrets are SHA-256 derived so sign-in keeps working (old
-    /// short-secret sessions simply expire and users log in again).
-    /// </summary>
+
     private static byte[] KeyBytes(string secret)
     {
         var bytes = Encoding.UTF8.GetBytes(secret);
@@ -66,12 +57,10 @@ public sealed class SessionTokens
             ClockSkew = TimeSpan.FromMinutes(1)
         };
         Handler.ValidateToken(token, parameters, out _);
-        // ValidateToken returns the principal; re-parse for our own claim access.
         var principal = Handler.ValidateToken(token, parameters, out _);
         return principal;
     }
 
-    // Session ------------------------------------------------------------------
 
     public string SignSession(Surface surface, SessionTokenPayload payload)
         => Sign(surface, new[]
@@ -91,7 +80,6 @@ public sealed class SessionTokens
         return new SessionTokenPayload(sub, role, tokenVersion);
     }
 
-    // Pending MFA ---------------------------------------------------------------
 
     public string SignPending(Surface surface, PendingMfaToken payload)
         => Sign(surface, new[]
@@ -109,7 +97,6 @@ public sealed class SessionTokens
         return new PendingMfaToken(sub, purpose);
     }
 
-    // OAuth pending ---------------------------------------------------------------
 
     public string SignOauthPending(OauthPendingToken payload)
         => Sign(Surface.GAMEPLAY, new[]
@@ -132,7 +119,6 @@ public sealed class SessionTokens
             principal.FindFirst("next")?.Value is { Length: > 0 } next ? next : null);
     }
 
-    // Invite ----------------------------------------------------------------------
 
     public string SignInvite(InviteToken payload)
         => Sign(Surface.PORTAL, new[]

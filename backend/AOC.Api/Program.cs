@@ -2,7 +2,6 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using AOC.Api;
-using AOC.Api.Modules.Recording;
 using AOC.Api.Http;
 using AOC.Api.Modules.Admin;
 using AOC.Api.Modules.Auth;
@@ -27,7 +26,6 @@ using AOC.Infrastructure.Oidc;
 var builder = WebApplication.CreateBuilder(args);
 var config = AppConfig.Instance;
 
-// Dev/ops CLI helpers (ports of backend/scripts/*.ts and db/seed.ts).
 if (args.Contains("--seed-admin"))
 {
     await AOC.Infrastructure.Seeding.AdminSeeder.RunAsync(config.DatabaseUrl);
@@ -53,7 +51,6 @@ if (args.Contains("--mint-mcp-key"))
     return;
 }
 
-// ---- logging: pino-pretty in dev, plain in production (mirrors TS logger) ----
 builder.Logging.ClearProviders();
 if (config.IsProduction)
 {
@@ -73,22 +70,17 @@ else
     });
 }
 
-// ---- warnings+ also land in Discord, where the crew already is ----
-// (DISCORD_WEBHOOK_URL empty/absent = inert; console stays the record)
 if (config.DiscordLog.Configured)
     builder.Logging.AddProvider(new AOC.Api.Logging.DiscordLoggerProvider(config.DiscordLog));
 
-// ---- EF Core onto the existing Postgres schema ----
 builder.Services.AddDbContextPool<AOCDbContext>(options =>
     options.Configure(config.DatabaseUrl));
 
-// ---- cross-cutting services ----
 builder.Services.AddSingleton<SessionTokens>();
 builder.Services.AddSingleton<GoogleOidcService>();
 builder.Services.AddScoped<AOC.Infrastructure.Audit.AuditService>();
 builder.Services.AddSingleton<MatchHubRegistry>();
 
-// ---- module services ----
 builder.Services.AddScoped<AOC.Api.Modules.Auth.AuthService>();
 builder.Services.AddScoped<TournamentsService>();
 builder.Services.AddScoped<StandingsService>();
@@ -96,7 +88,6 @@ builder.Services.AddScoped<GroupTablesService>();
 builder.Services.AddScoped<BracketService>();
 builder.Services.AddScoped<MatchesService>();
 builder.Services.AddScoped<AssemblePatchService>();
-builder.Services.AddScoped<RecordingService>();
 builder.Services.AddScoped<RosterService>();
 builder.Services.AddScoped<MatchCodesService>();
 builder.Services.AddScoped<SubmitService>();
@@ -108,10 +99,8 @@ builder.Services.AddScoped<StagingService>();
 builder.Services.AddScoped<GameplayReadService>();
 builder.Services.AddScoped<McpKeysService>();
 
-// ---- SignalR ----
 builder.Services.AddSignalR();
 
-// ---- MCP server (official SDK) ----
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddMcpServer()
     .WithHttpTransport()
@@ -158,7 +147,6 @@ builder.Services.AddMcpServer()
             })
     });
 
-// ---- rate limiting: per-IP fixed windows matching @fastify/rate-limit ----
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = 429;
@@ -172,9 +160,6 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("strict10", http => RateLimitPartition.GetFixedWindowLimiter(
         http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) }));
-    options.AddPolicy("viewer20", http => RateLimitPartition.GetFixedWindowLimiter(
-        http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-        _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(1) }));
     options.AddPolicy("public60", http => RateLimitPartition.GetFixedWindowLimiter(
         http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromMinutes(1) }));
@@ -187,7 +172,6 @@ builder.Services.AddCors();
 
 var app = builder.Build();
 
-// ---- CORS: same origins, credentials on ----
 var defaultAllowedOrigins = new[]
 {
     "http://localhost:5173",
@@ -207,13 +191,10 @@ app.UseCors(policy => policy
     .AllowAnyMethod()
     .AllowCredentials());
 
-// Outermost on purpose: it times and logs everything, even the 429s the
-// limiter below produces without reaching the rest of the pipeline.
 app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseRateLimiter();
 app.UseMiddleware<ErrorHandlingMiddleware>();
 
-// ---- routes ----
 app.MapGet("/health", () => Results.Json(new { status = "ok" }, JsonApi.Options));
 
 app.MapAuthRoutes();
@@ -232,15 +213,11 @@ app.MapGameplayReadRoutes();
 app.MapMcpKeyRoutes();
 app.MapMcpRoutes();
 app.MapRtcRoutes();
-app.MapRecordingRoutes();
 
-// ---- SignalR hubs (same URLs as the old raw-WebSocket endpoints) ----
 app.MapHub<PlayerLiveHub>("/gameplay/matches/{matchId}/live/stream");
 app.MapHub<ConsoleLiveHub>("/portal/tournaments/{tournamentId}/matches/{matchId}/live/stream");
 app.MapHub<SpectateLiveHub>("/spectate/tournaments/{tournamentId}/matches/{matchId}/live/stream");
 
-// Migrations run on start (same behaviour as `drizzle-kit migrate` before
-// `node src/server.ts`); set SKIP_MIGRATIONS=1 to opt out.
 if (Environment.GetEnvironmentVariable("SKIP_MIGRATIONS") is not ("1" or "true"))
 {
     await AOC.Infrastructure.Data.MigrationRunner.RunAsync(config.DatabaseUrl);

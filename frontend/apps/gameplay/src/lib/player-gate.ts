@@ -1,10 +1,7 @@
 export type PlayerGate =
     | "unauthorized"
-    /** 403 — the seat belongs to someone else */
     | "not-seated"
-    /** 409 — the match has not started; wait in the lobby */
     | "not-live"
-    /** no view yet and no answer — the first read has not landed */
     | "loading"
 
 interface GateInput {

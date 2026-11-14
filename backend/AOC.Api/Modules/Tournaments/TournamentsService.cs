@@ -11,7 +11,6 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.Tournaments;
 
-/// <summary>Port of tournaments/slug.ts.</summary>
 public static class TournamentsSlug
 {
     public static string Slugify(string name)
@@ -33,7 +32,6 @@ public static class TournamentsSlug
     }
 }
 
-/// <summary>Port of tournaments/service.ts.</summary>
 public sealed class TournamentsService(AOCDbContext db)
 {
     private static async Task<string> UniqueSlugAsync(AOCDbContext db, string name, Guid? exceptId = null)
@@ -216,7 +214,6 @@ public sealed class TournamentsService(AOCDbContext db)
             throw new TournamentError(TournamentErrorCode.VALIDATION,
                 "Tournament payload failed validation", new[] { "<root>: Expected object" });
 
-        // Update is a partial of Create — validate only the fields present.
         var obj = patch.Value;
 
         var frozen = existing.ClosedAt is not null || await HasAssembledMatchAsync(id);
@@ -254,7 +251,6 @@ public sealed class TournamentsService(AOCDbContext db)
             AssertRoundRules(rounds, rules);
         }
 
-        // Apply the patch.
         if (obj.TryGetProperty("name", out var nameEl) && nameEl.ValueKind == JsonValueKind.String)
         {
             existing.Name = nameEl.GetString()!;

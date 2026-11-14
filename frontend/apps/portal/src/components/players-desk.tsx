@@ -17,9 +17,6 @@ import {
 import { useTournaments } from "@/lib/tournaments"
 import { DISCORD_SHAPE, discordValue } from "@/lib/discord"
 
-/** The global roster desk: every player account in the system, and the
- *  tournaments each one belongs to. Players arrive here by signing in with
- *  Google; ghi danh / bỏ happens per row, per tournament. */
 export function PlayersDesk() {
     const players = usePlayers()
     const tournaments = useTournaments({ limit: 100 })
@@ -39,7 +36,6 @@ export function PlayersDesk() {
 
     const allTournaments = tournaments.data?.items ?? []
 
-    /** Tournaments this player is NOT in yet — the Ghi danh options. */
     const openFor = (row: PlayerRow) =>
         allTournaments.filter(
             (tournament) => !row.enrollments.some((entry) => entry.tournamentId === tournament.id)

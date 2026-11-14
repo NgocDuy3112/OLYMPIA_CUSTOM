@@ -15,7 +15,6 @@ export interface RoundPlanInput {
 }
 
 export interface HetLuotFacts {
-    /** phase 1 grades player by player and advances the picked set */
     phase?: 1 | 2
     answererVerdict: "CORRECT" | "INCORRECT" | null
     buzzerId: string | null

@@ -1,6 +1,5 @@
 namespace AOC.Domain.Engine.Scoring;
 
-/// <summary>Port of engine/scoring/group-stage.ts — group standings and averages.</summary>
 public static class GroupStage
 {
     public enum GroupPhase
@@ -130,8 +129,6 @@ public static class GroupStage
         foreach (var g in new[] { GroupLabel.A, GroupLabel.B })
         {
             var block = byGroup[g];
-            // Comparator ported from the TS source: played contestants first,
-            // then bankedPoints desc, then averages.all desc (null → -∞).
             var sorted = block.Contestants
                 .OrderByDescending(c => c.MatchesPlayed == 0 ? 0 : 1)
                 .ThenByDescending(c => c.BankedPoints)

@@ -1,6 +1,5 @@
 namespace AOC.Api.Shared;
 
-/// <summary>Port of lib/redirect.ts — open-redirect guard.</summary>
 public static class Redirects
 {
     public static string SafeNextPath(string? raw)

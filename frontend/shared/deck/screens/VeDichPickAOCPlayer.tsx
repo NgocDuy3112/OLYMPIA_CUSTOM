@@ -19,7 +19,6 @@ function boardLabel(v: { pendingPicks?: string[]; isMyTurn?: boolean }, phase2: 
         if (v.isMyTurn !== true) return "Đến lượt thí sinh khác"
         return `Đến lượt bạn — điều hành bốc ${need} câu`
     }
-    // phase 1 has no turns: the controller picks one question per player
     return `Điều hành đang chọn ${need} câu`
 }
 

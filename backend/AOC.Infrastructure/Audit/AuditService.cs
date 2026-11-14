@@ -17,7 +17,6 @@ public sealed class AuditEvent
     public string? UserAgent { get; set; }
 }
 
-/// <summary>Port of audit/service.ts — fire-and-forget audit writes that never break requests.</summary>
 public sealed class AuditService(AOCDbContext db, ILogger<AuditService> logger)
 {
     public async Task AuditAsync(AuditEvent e)

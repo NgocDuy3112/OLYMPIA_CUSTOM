@@ -26,8 +26,6 @@ public class GiaiMaTurnTests
         return "NO_ERROR";
     }
 
-    /// <summary>The console flow these tests were written against: one press picks
-    ///  the hint AND opens its 15 s window — today that is PickHint + StartWindow.</summary>
     private static GiaiMaState OpenHint(GiaiMaState s, string hint, string now)
         => GiaiMaTurn.StartWindow(GiaiMaTurn.PickHint(s, hint), now);
 
@@ -313,7 +311,6 @@ public class GiaiMaTurnTests
         Assert.False(GiaiMaTurn.CanPlayerAnswer(s, "stranger", Now));
     }
 
-    // ── the two-step flow: pick reveals, Đếm giờ runs the clock ────────────────
 
     [Fact]
     public void Pick_RevealsTheHintButStartsNoClock()
@@ -349,7 +346,6 @@ public class GiaiMaTurnTests
         var s = OpenHint(GiaiMaTurn.StartGiaiMa(["a"], H), "h1", Now);
         Assert.Equal("WINDOW_OPEN", CodeOf(() => GiaiMaTurn.StartWindow(s, At(3))));
 
-        // the desk may hand the room another window once the 15 s are gone
         var restarted = GiaiMaTurn.StartWindow(s, At(16));
         Assert.Equal("h1", restarted.OpenHint);
         Assert.True(GiaiMaTurn.IsWindowOpen(restarted, At(16)));
@@ -368,7 +364,6 @@ public class GiaiMaTurnTests
         var s = GiaiMaTurn.CloseHintWindow(OpenHint(GiaiMaTurn.StartGiaiMa(["a"], H), "h1", Now));
         Assert.Null(s.OpenHint);
         Assert.Null(s.OpenHintAt);
-        // and the hint itself is back in the pool — nothing was consumed yet
         Assert.Contains("h1", GiaiMaTurn.RemainingHints(s));
     }
 }

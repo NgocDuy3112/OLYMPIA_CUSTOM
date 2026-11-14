@@ -9,12 +9,8 @@ using Xunit;
 
 namespace AOC.Tests.Rtc;
 
-/// <summary>Port of tests/unit/rtc/tokens.test.ts — LiveKit token minting.</summary>
 public class RtcTokenTests
 {
-    // Read from the environment (TestEnvDefaults seeds defaults at assembly
-    // load) — Mint() signs with whatever AppConfig resolved, so verification
-    // must use the same key even when a runner supplies its own secrets.
     private static readonly string ApiKey =
         Environment.GetEnvironmentVariable("LIVEKIT_API_KEY") ?? "oc_test_key";
     private static readonly string ApiSecret =

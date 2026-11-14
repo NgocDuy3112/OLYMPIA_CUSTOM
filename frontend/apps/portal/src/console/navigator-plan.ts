@@ -31,8 +31,6 @@ export function navigatorStartPlan(
     if (target?.status === "new" && isActive) return start ? [start] : []
 
     const chain: LiveAction[] = [{ kind: "round.goTo", roundId }]
-    // a waiting-room entry names its own phase, so its start goes out even when
-    // the round is already live — on the OTHER phase
     if (start && (opts.force || (target?.status !== "ended" && target?.status !== "playing"))) {
         chain.push(start)
     }

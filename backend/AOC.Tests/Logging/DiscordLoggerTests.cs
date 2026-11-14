@@ -5,8 +5,6 @@ using Xunit;
 
 namespace AOC.Tests.Logging;
 
-/// <summary>The Discord mirror: what reaches the webhook, what stays in the console,
-/// and every way a logger could ruin a live show (it must not).</summary>
 public class DiscordLoggerTests
 {
     private const string Webhook = "https://discord.example/api/webhooks/1/token";
@@ -49,7 +47,7 @@ public class DiscordLoggerTests
         var provider = Provider(capture);
         var logger = provider.CreateLogger("AOC.Tests.Demo");
 
-        logger.LogInformation("quiet {N}", 1);   // below the floor: console only
+        logger.LogInformation("quiet {N}", 1);
         logger.LogWarning("loud {N}", 2);
 
         await provider.FlushAsync();
@@ -71,7 +69,7 @@ public class DiscordLoggerTests
         var payload = capture.Only();
 
         Assert.Contains("[Warning]", payload);
-        Assert.Contains("Live.LiveService", payload);   // short category, no namespace noise
+        Assert.Contains("Live.LiveService", payload);
         Assert.Contains("sfx cue for match m1 failed", payload);
         Assert.Contains("🟧", payload);
         Assert.Contains("UTC`", payload);
@@ -148,7 +146,7 @@ public class DiscordLoggerTests
         var logger = provider.CreateLogger("AOC.Tests.Demo");
 
         logger.LogError("something broke");
-        await provider.FlushAsync();   // must not throw — ever
+        await provider.FlushAsync();
 
         provider.Dispose();
     }

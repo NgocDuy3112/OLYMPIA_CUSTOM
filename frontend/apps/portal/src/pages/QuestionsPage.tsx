@@ -80,8 +80,6 @@ const TRANSITIONS: Record<Status, Array<{ to: Status; label: string; adminOnly?:
     ARCHIVED: [],
 }
 
-// Icon-only actions: the label lives in title/aria-label, so the Actions cell
-// stops wrapping — and the tests' role queries keep resolving.
 const TRANSITION_ICON: Record<string, typeof Pencil> = {
     Submit: Send,
     Publish: Globe,
@@ -420,9 +418,6 @@ function SelectBox({
 }
 
 
-// Header checkbox for one section's table: it covers exactly the rows listed
-// under it, reusing the per-row toggle so there is one source of truth for
-// `selected`.
 function SelectAllBox({
     rows,
     selected,
@@ -668,9 +663,6 @@ function KeywordSetCard({
         staleTime: 15_000,
     })
 
-    // The bank orders by (created_at, id): one import batch gives every hint
-    // the same timestamp, so the tiebreak is a random UUID — and this list is
-    // numbered 1.–8. Sort naturally by text for a stable, readable order.
     const hintRows = [...(hints.data?.items ?? [])].sort((a, b) =>
         a.questionText.localeCompare(b.questionText, "vi", {
             numeric: true,
@@ -683,9 +675,8 @@ function KeywordSetCard({
 
     return (
         <div className="overflow-hidden rounded-xl border bg-card">
-            {/* One compact header line: at text-3xl the code duplicated the
-                bucket header's look. This is the authoring surface — the big
-                keyword display belongs to the deck, not the bank. */}
+            {
+}
             <div className="flex items-center gap-3 px-5 py-4">
                 <SelectBox row={row} selected={selected} onToggle={onToggleSelect} />
                 <button
@@ -813,8 +804,6 @@ function bucketLabel(bucket: string | null): string | null {
     return bucket
 }
 
-// Group labels are unique across TABS, so the bare label is unambiguous — and it
-// matches the section header the selected rows are sitting under.
 function groupLabelOf(bucket: string | null): string | null {
     if (!bucket) return null
     for (const tabDef of TABS) {
@@ -1053,8 +1042,6 @@ function QuestionDialog({
                 questionText: input.questionText,
                 payload: input.payload,
                 tags: input.tags,
-                // Always sent: `null` clears a removed media attachment, and an
-                // unchanged url is a no-op on PATCH.
                 media: input.media,
             }
             if (input.timeLimit != null) body.timeLimit = input.timeLimit
@@ -1127,10 +1114,6 @@ function GroupSection({
 }) {
     const keywords = rows.filter((row) => row.kind === "KEYWORD")
     const choices = rows.filter((row) => row.kind === "CHOICE")
-    // HINT rows already render inside their keyword card's HINTS list — showing
-    // them again as TEXT-looking table rows duplicated every hint on screen.
-    // Orphans (parent not in this view, e.g. search matched the hint only)
-    // stay in the table so they remain reachable.
     const keywordIds = new Set(keywords.map((row) => row.id))
     const plain = rows.filter(
         (row) =>
@@ -1500,10 +1483,8 @@ export function QuestionsPage() {
             
             <StagedImportBanner />
 
-            {/* Sticky at the top: as a Page child it sits in the content box, so
-                it aligns with the table and clears the sidebar, and it pins to the
-                viewport top while scrolling instead of floating over the bottom
-                row. */}
+            {
+}
             {selected.size > 0 && (
                 <div className="sticky top-0 z-40 border-b bg-card/95 py-3 shadow-[0_4px_16px_rgba(0,0,0,0.08)] backdrop-blur">
                     <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 text-sm">

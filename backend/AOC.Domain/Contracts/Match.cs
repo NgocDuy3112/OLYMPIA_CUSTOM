@@ -5,12 +5,11 @@ namespace AOC.Domain.Contracts;
 
 public sealed record Seat
 {
-    [JsonPropertyName("kind")] public required string Kind { get; init; } // "user"
+    [JsonPropertyName("kind")] public required string Kind { get; init; }
     [JsonPropertyName("userId")] public required string UserId { get; init; }
     [JsonPropertyName("seed")] public required int Seed { get; init; }
 }
 
-/// <summary>SubmittedAnswerValue: {picked[]} | {text}.</summary>
 [JsonConverter(typeof(SubmittedAnswerValueConverter))]
 public abstract record SubmittedAnswerValue
 {
@@ -18,7 +17,6 @@ public abstract record SubmittedAnswerValue
     public sealed record Text([property: JsonPropertyName("text")] string Value) : SubmittedAnswerValue;
 }
 
-/// <summary>AnswerValue: {picked[]} | {text} | {oral:true}.</summary>
 [JsonConverter(typeof(AnswerValueConverter))]
 public abstract record AnswerValue
 {
@@ -97,10 +95,8 @@ public sealed class AnswerValueConverter : JsonConverter<AnswerValue>
     }
 }
 
-/// <summary>answers.drafts (jsonb): { [draftedBy]: "CORRECT" | "INCORRECT" }.</summary>
 public sealed class Drafts : Dictionary<string, Verdict>;
 
-/// <summary>matches.live (jsonb) — the open-question marker outside live state.</summary>
 public sealed record MatchLive
 {
     [JsonPropertyName("phase")] public required MatchLivePhase Phase { get; init; }
@@ -119,7 +115,7 @@ public enum MatchLivePhase
 
 public sealed record ResultEntry
 {
-    [JsonPropertyName("kind")] public required string Kind { get; init; } // "user"
+    [JsonPropertyName("kind")] public required string Kind { get; init; }
     [JsonPropertyName("userId")] public required string UserId { get; init; }
     [JsonPropertyName("totalScore")] public required int TotalScore { get; init; }
     [JsonPropertyName("rank")] public required int Rank { get; init; }
@@ -149,7 +145,6 @@ public sealed record MatchDiscord
     public string? BoothChannelId { get; init; }
 }
 
-/// <summary>match_events.payload (jsonb) — discriminated by "kind".</summary>
 [JsonConverter(typeof(MatchEventPayloadConverter))]
 public abstract record MatchEventPayload
 {

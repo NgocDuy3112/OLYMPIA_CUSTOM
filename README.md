@@ -105,9 +105,24 @@ aws --endpoint-url "$S3_ENDPOINT" s3 cp s3://aoc/backups/pg_dump_….sql.gz - \
 
 No retention runs — every day is kept forever. Say the word to have the job prune copies older than N days.
 
+## Recordings (OBS)
+
+The egress worker is **out of docker-compose**: it rendered the audience page in headless Chromium and pushed MP4s itself, but it is by far the heaviest thing in the stack — and OBS produces the same composite (deck + every camera + room audio + SFX) by capturing the audience tab.
+
+- Capture the **audience** tab, not the console — it is literally the same picture the venue sees.
+- Use OBS *Application Audio Capture* on that tab for the room mix and the SFX; keep the tab visible — a hidden/minimized Chrome tab freezes its video.
+- Push finished files into the bucket the show already uses:
+
+```bash
+scripts/recordings/upload.sh ~/Videos/aoc        # DRY_RUN=1 to preview first
+```
+
+  → `s3://aoc/recordings/`, which is public-read, so every link plays anywhere.
+- The built-in recorder was **removed from the code** (backend routes, portal tab, stage toggle, audience record page) — restoring it means bringing `Modules/Recording` and the `egress` service back from git history.
+
 ## Sound effects (SFX)
 
-Cues live in `s3://aoc/sfx/` (public read, like `media/`) and the backend pushes each one to the **console** and **audience** hubs as an `sfx` frame — player devices never receive one. The whole action→file table is one file: `backend/AOC.Api/Modules/Live/Sfx.cs`.
+Cues live in `s3://aoc/sfx/` and the backend pushes each one to the **console** and **audience** hubs as an `sfx` frame carrying a **presigned URL** (ten-minute signature — the bucket needs no public policy at all, and a leaked link dies on its own). Player devices never receive a frame. The whole action→file table is one file: `backend/AOC.Api/Modules/Live/Sfx.cs`.
 
 Browsers refuse audio that starts without a user gesture, so both apps attempt every cue anyway and, when one is refused, show a one-tap bar (**Trình duyệt đang chặn âm thanh — Chạm để bật**). The host's first click unlocks it too. For an unattended projector, launch it with the flag instead:
 
@@ -115,7 +130,7 @@ Browsers refuse audio that starts without a user gesture, so both apps attempt e
 chromium --autoplay-policy=no-user-gesture-required http://…/live/<tournament>/<match>
 ```
 
-Recordings (`/record/…`, rendered headless by the egress worker) can only carry the SFX if that same flag reaches egress's Chromium — check one test MP4; if it's silent, that's the knob to turn.
+Recordings are **OBS's job now** (the previous section) — the audience tab's audio (room mix + SFX) is exactly what OBS captures.
 
 ## Logging
 

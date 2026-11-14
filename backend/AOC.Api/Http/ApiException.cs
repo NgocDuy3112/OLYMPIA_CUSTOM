@@ -1,9 +1,5 @@
 namespace AOC.Api.Http;
 
-/// <summary>
-/// Envelope error thrown by handlers; the global middleware turns it into the
-/// Fastify-shaped body: { error, message, details? }.
-/// </summary>
 public sealed class ApiException : Exception
 {
     public ApiException(int status, string error, string message, object? details = null)

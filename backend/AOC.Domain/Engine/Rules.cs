@@ -2,7 +2,6 @@ using AOC.Domain.Contracts;
 
 namespace AOC.Domain.Engine;
 
-/// <summary>Port of engine/rules.ts — resolved per-round rule accessors with defaults.</summary>
 public static class RoundRules
 {
     public sealed record KhoiDongRules(int Phase1Questions, int Phase1BudgetS, int Phase2Questions, int Phase2WindowS, int PointsPerCorrect);
@@ -140,7 +139,6 @@ public static class RoundRules
             lateMultiplier);
     }
 
-    /// <summary>Answer window for a cell face value, or null when no clock is configured.</summary>
     public static int? VeDichClockSeconds(VeDichRules rules, int value)
     {
         var key = value.ToString();

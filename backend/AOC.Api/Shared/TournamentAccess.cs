@@ -3,7 +3,6 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Shared;
 
-/// <summary>Port of lib/tournament-access.ts.</summary>
 public static class TournamentAccess
 {
     public static bool CanView(TournamentEntity row, UserEntity user)

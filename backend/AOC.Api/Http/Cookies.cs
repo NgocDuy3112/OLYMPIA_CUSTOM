@@ -2,7 +2,6 @@ using AOC.Infrastructure.Configuration;
 
 namespace AOC.Api.Http;
 
-/// <summary>Port of lib/cookies.ts — host-only session cookies.</summary>
 public static class Cookies
 {
     public static void SetSession(HttpContext http, Surface surface, string token)

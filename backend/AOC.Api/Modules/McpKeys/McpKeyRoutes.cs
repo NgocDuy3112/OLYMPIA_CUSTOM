@@ -13,7 +13,6 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.McpKeys;
 
-/// <summary>Port of mcp-keys/keys.ts.</summary>
 public static class McpKeyTokens
 {
     private const string TokenMarker = "ocmcp";
@@ -43,7 +42,6 @@ public static class McpKeyTokens
     }
 }
 
-/// <summary>Port of mcp-keys/service.ts.</summary>
 public sealed class McpKeysService(AOCDbContext db)
 {
     public sealed record PublicMcpKey(
@@ -157,7 +155,6 @@ public sealed class McpKeysService(AOCDbContext db)
     }
 }
 
-/// <summary>Port of mcp-keys/routes.ts.</summary>
 public static class McpKeyRoutes
 {
     private static readonly Regex ScopePattern = new("^(READ|WRITE|ANNOUNCE)$", RegexOptions.Compiled);

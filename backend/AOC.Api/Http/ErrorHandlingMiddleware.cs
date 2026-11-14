@@ -6,7 +6,6 @@ using AOC.Api.Modules.Tournaments;
 using AOC.Api.Modules.Live;
 using AOC.Api.Modules.MatchCodes;
 using AOC.Api.Modules.McpKeys;
-using AOC.Api.Modules.Recording;
 using AOC.Domain.Engine;
 using AOC.Infrastructure.Data;
 
@@ -46,7 +45,6 @@ public sealed class ErrorHandlingMiddleware(RequestDelegate next, ILogger<ErrorH
 
         McpKeyError mcpKey => (mcpKey.Status, Body(mcpKey.Code.ToString(), mcpKey.Message, mcpKey.Details)),
 
-        RecordingError recording => (recording.StatusCode, Body("RECORDING", recording.Message, null)),
 
         StaleRevisionError stale => (409, Body("CONFLICT", stale.Message,
             new Dictionary<string, object?> { ["currentRevision"] = stale.CurrentRevision })),

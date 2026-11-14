@@ -7,10 +7,6 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Http;
 
-/// <summary>
-/// Port of lib/guards.ts — cookie → session user, with the password-change gate.
-/// The authenticated user is stored in HttpContext.Items["sessionUser"].
-/// </summary>
 public static class Guards
 {
     public const string SessionUserKey = "sessionUser";
@@ -82,7 +78,6 @@ public static class Guards
         return user;
     }
 
-    /// <summary>The session user of the current request (after a guard ran).</summary>
     public static UserEntity SessionUser(this HttpContext http)
         => (UserEntity)http.Items[SessionUserKey]!;
 }

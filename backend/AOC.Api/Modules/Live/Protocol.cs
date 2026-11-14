@@ -3,12 +3,11 @@ using AOC.Domain.Engine.Turns;
 
 namespace AOC.Api.Modules.Live;
 
-/// <summary>Port of live/protocol.ts — the envelope shapes pushed over SignalR.</summary>
 public static class Protocol
 {
     public const int Version = 1;
 
-    public const int SessionEndedCloseCode = 4401; // session revoked / account disabled
+    public const int SessionEndedCloseCode = 4401;
     public const int NotSeatedCloseCode = 4403;
 
     private static string NowIso() => DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
@@ -42,8 +41,6 @@ public static class Protocol
             ["message"] = message
         });
 
-    /// <summary>Not a state change — a sound cue: the console and the audience
-    ///  play it, player devices never do (the hub decides who gets the frame).</summary>
     public static Dictionary<string, object?> Sfx(string name, string url)
         => Envelope("sfx", null, new Dictionary<string, object?>
         {
@@ -51,7 +48,6 @@ public static class Protocol
             ["url"] = url
         });
 
-    /// <summary>Client message: { v, type, requestId?, data }.</summary>
     public static (string Type, string? RequestId, JsonElement Data)? ParseClientMessage(JsonElement raw)
     {
         if (raw.ValueKind != JsonValueKind.Object) return null;

@@ -3,7 +3,6 @@ using AOC.Domain.Engine;
 
 namespace AOC.Api.Modules.Live;
 
-/// <summary>Port of live/apply.ts — versioned state mutation with facts.</summary>
 public sealed record LiveRecord<S>(int Version, string RoundId, S State, Dictionary<string, S> Archive);
 
 public sealed record Transition<S>(

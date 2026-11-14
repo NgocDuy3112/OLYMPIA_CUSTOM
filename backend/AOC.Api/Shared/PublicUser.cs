@@ -12,7 +12,6 @@ public sealed record PublicUser(
     string? AvatarUrl
 );
 
-/// <summary>Port of lib/public-user.ts.</summary>
 public static class PublicUsers
 {
     public static PublicUser Of(UserEntity user) => new(

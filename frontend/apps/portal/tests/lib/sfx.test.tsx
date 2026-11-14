@@ -98,7 +98,7 @@ describe("playSfx — the room's speaker", () => {
         await vi.waitFor(() => expect(gesture).not.toBeNull())
 
         FakeAudio.mode = "ok"
-        gesture!() // the host's first click anywhere
+        gesture!()
 
         expect(remove).toHaveBeenCalledWith("pointerdown", expect.any(Function), true)
         expect(remove).toHaveBeenCalledWith("keydown", expect.any(Function), true)

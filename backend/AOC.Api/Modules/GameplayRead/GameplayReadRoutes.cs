@@ -13,7 +13,6 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.GameplayRead;
 
-/// <summary>Port of gameplay-read/present.ts.</summary>
 public static class Present
 {
     public static (string? Start, string? End) StageRange(IReadOnlyList<Stage> stages)
@@ -130,7 +129,6 @@ public static class Present
     };
 }
 
-/// <summary>Port of gameplay-read/service.ts.</summary>
 public sealed class GameplayReadService(AOCDbContext db, MatchesService matches, StandingsService standings)
 {
     public async Task<TournamentEntity> RequirePublicTournamentBySlugAsync(string slug)
@@ -212,7 +210,6 @@ public sealed class GameplayReadService(AOCDbContext db, MatchesService matches,
     }
 }
 
-/// <summary>Port of gameplay-read/routes.ts.</summary>
 public static class GameplayReadRoutes
 {
     public static IEndpointRouteBuilder MapGameplayReadRoutes(this IEndpointRouteBuilder app)

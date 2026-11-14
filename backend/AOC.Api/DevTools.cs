@@ -8,10 +8,6 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api;
 
-/// <summary>
-/// Ports of backend/scripts/*.ts — dev/ops CLI helpers invoked as
-/// `dotnet run -- --mint-...`.
-/// </summary>
 public static class DevTools
 {
     public static async Task MintGameplaySessionAsync(string? wanted)

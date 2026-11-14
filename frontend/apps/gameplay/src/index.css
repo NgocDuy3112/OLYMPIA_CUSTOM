@@ -6,8 +6,6 @@
 
 @source "../../../shared";
 
-/* The show's display face — deck font from OC3.pptm (user-provided, in
-   frontend/public/fonts/, served to both apps). Vietnamese coverage verified. */
 @font-face {
   font-family: "SVN-Gratelos Display";
   src: url("/fonts/SVN-Gratelos-Display.woff2") format("woff2");
@@ -69,7 +67,6 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  /* The deck’s one accent: purple (components, the live answerer, focus). */
   --primary: oklch(0.55 0.22 300);
   --primary-foreground: oklch(0.99 0 0);
   --secondary: oklch(0.97 0 0);
@@ -97,13 +94,9 @@
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
   --chart-1: oklch(0.546 0.245 262.881);
-  /* blue */
   --chart-2: oklch(0.577 0.245 27.325);
-  /* red */
   --chart-3: oklch(0.627 0.194 149.214);
-  /* green */
   --chart-4: oklch(0.666 0.157 58.318);
-  /* amber */
 }
 
 .dark {

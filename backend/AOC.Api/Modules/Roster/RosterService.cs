@@ -14,7 +14,6 @@ public enum GroupLabel
     B
 }
 
-/// <summary>Port of roster/service.ts.</summary>
 public sealed class RosterService(AOCDbContext db)
 {
     private const string PlaceholderDomain = "@players.invalid";
@@ -44,7 +43,6 @@ public sealed class RosterService(AOCDbContext db)
         }
         catch (DbUpdateException)
         {
-            // ON CONFLICT DO NOTHING — a concurrent enroll can race; recount below.
             db.ChangeTracker.Clear();
         }
 
@@ -65,9 +63,6 @@ public sealed class RosterService(AOCDbContext db)
         string? DiscordId,
         List<PlayerEnrollment> Enrollments);
 
-    /// <summary>Every player account in the system with the tournaments it sits
-    ///  in — the desk's global list. Accounts get here by signing in with Google;
-    ///  enrollment is assigned afterwards.</summary>
     public async Task<List<PlayerAccount>> ListPlayersAsync()
     {
         var users = await db.Users.AsNoTracking()
@@ -151,8 +146,6 @@ public sealed class RosterService(AOCDbContext db)
             row.EnrolledAt)).ToList();
     }
 
-    /// <summary>Edits the ACCOUNT itself (name / email / Discord) — no
-    ///  tournament involved, so it works for a player the desk hasn't enrolled yet.</summary>
     public async Task<(string DisplayName, string? Email)> UpdatePlayerAsync(
         string userId, JsonElement edit)
     {
@@ -221,7 +214,6 @@ public sealed class RosterService(AOCDbContext db)
             throw new TournamentError(TournamentErrorCode.NOT_ENROLLED,
                 "this player is not enrolled in the tournament");
 
-        // Same three-way count as the TS raw SQL.
         await using var connection = await RawSql.OpenAsync(db);
         await using var command = connection.CreateCommand();
         command.CommandText = """

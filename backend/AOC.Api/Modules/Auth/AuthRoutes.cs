@@ -10,7 +10,6 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.Auth;
 
-/// <summary>Port of auth/service.ts — login + MFA completion.</summary>
 public sealed class AuthService(AOCDbContext db, SessionTokens tokens)
 {
     public sealed record LoginResult(string State, string? PendingToken, string? OtpauthUri);
@@ -81,7 +80,6 @@ public sealed class AuthService(AOCDbContext db, SessionTokens tokens)
     }
 }
 
-/// <summary>Route maps for /portal/auth/* and /gameplay/auth/me|logout.</summary>
 public static class AuthRoutes
 {
     private static readonly Regex CodePattern = new("^[0-9]{6}$", RegexOptions.Compiled);

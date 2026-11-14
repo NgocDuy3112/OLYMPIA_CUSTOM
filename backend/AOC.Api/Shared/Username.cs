@@ -5,7 +5,6 @@ using AOC.Infrastructure.Data;
 
 namespace AOC.Api.Shared;
 
-/// <summary>Port of lib/username.ts — handle slugging and collision-free picking.</summary>
 public static class Usernames
 {
     private const int MaxHandle = 45;

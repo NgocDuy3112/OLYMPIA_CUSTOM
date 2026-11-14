@@ -35,7 +35,7 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
                 <Lobby
                     data={model.lobby}
                     mc={{
-                        canStart: true, // a start brings the match LIVE first
+                        canStart: true,
                         opensMatch: true,
                         busy: model.busy,
                         onStart: model.onStart,
@@ -61,7 +61,7 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
                 <Lobby
                     data={model.lobby}
                     mc={{
-                        canStart: true, // match is LIVE (the live read exists) — version in hand
+                        canStart: true,
                         busy: model.busy,
                         onStart: model.onStart,
                     }}

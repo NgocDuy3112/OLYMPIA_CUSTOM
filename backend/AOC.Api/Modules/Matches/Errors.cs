@@ -31,7 +31,6 @@ public sealed class MatchError : Exception
     };
 }
 
-/// <summary>Port of matches/assemble-patch.ts StaleRevisionError.</summary>
 public sealed class StaleRevisionError(int currentRevision, int sentRevision)
     : Exception($"stale baseRevision {sentRevision} — the match is at revision {currentRevision}; reload and merge")
 {

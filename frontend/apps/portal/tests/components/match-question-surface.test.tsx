@@ -55,7 +55,6 @@ describe("the match's Câu hỏi tab", () => {
 
         expect(await screen.findByRole("button", { name: /Nhập Excel/ })).toBeInTheDocument()
         expect(screen.getByRole("button", { name: /Sửa câu hỏi/ })).toBeInTheDocument()
-        // autosave: the desk never presses Lưu
         expect(screen.queryByRole("button", { name: /Lưu ·/ })).toBeNull()
     })
 
@@ -79,11 +78,9 @@ describe("the match's Câu hỏi tab", () => {
             [ASSEMBLE_URL]: { body: { assemblyRevision: 4 } },
         })
 
-        // ?add= opens compose by itself and says it will save on its own
         expect(await screen.findByRole("button", { name: /Xong/ })).toBeInTheDocument()
         expect(await screen.findByText(/Đã thêm 1 câu — tự lưu sau thao tác/)).toBeInTheDocument()
 
-        // …and750 ms after the hand stops, the PATCH goes up unprompted
         const saved = await waitFor(
             () => {
                 const call = callOf(fetchMock, ASSEMBLE_URL)
@@ -98,7 +95,6 @@ describe("the match's Câu hỏi tab", () => {
         expect(body.questions.map((entry: { sourceId: string }) => entry.sourceId)).toContain("q9")
 
         expect(await screen.findByText(/Đã lưu — revision 4/)).toBeInTheDocument()
-        // still inside compose: autosave writes, it never kicks you out
         expect(screen.getByRole("button", { name: /Xong/ })).toBeInTheDocument()
         expect(screen.queryByRole("button", { name: /Lưu ·/ })).toBeNull()
     })

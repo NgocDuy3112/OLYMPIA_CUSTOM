@@ -38,7 +38,6 @@ export function Lobby({
         opensMatch?: boolean
     }
     hint?: ReactNode
-    /** Rendered directly under the hint — the player's camera controls live here. */
     belowHint?: ReactNode
 }) {
     const selfCam = useSelfCam()

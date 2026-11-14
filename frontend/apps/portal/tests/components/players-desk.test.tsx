@@ -188,7 +188,6 @@ describe("editing an account — no tournament in the URL", () => {
         const dialog = screen.getByRole("dialog")
         expect(within(dialog).getByLabelText("Edit player name")).toHaveValue("Dị Ngọc")
         expect(within(dialog).getByRole("button", { name: "Lưu" })).toBeInTheDocument()
-        // the table row is still the only copy of the name — no inline echo below it
         expect(screen.getAllByText("Dị Ngọc")).toHaveLength(1)
     })
 

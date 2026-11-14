@@ -11,20 +11,10 @@ using AOC.Infrastructure.Configuration;
 
 namespace AOC.Api.Realtime;
 
-/// <summary>
-/// Port of live/routes.ts WebSocket handlers → SignalR hubs.
-/// Same URLs, same envelopes: server → client method "message" with
-/// { v, type: view|console|ack|error, at, requestId?, data }.
-/// </summary>
 public abstract class LiveHubBase(MatchHubRegistry registry) : Hub
 {
     protected string MatchId = "";
 
-    /// <summary>
-    /// This connection's own proxy, captured while SignalR still fills Context and
-    /// Clients: both are cleared the moment OnConnectedAsync returns, and every
-    /// registry push fires later — from whatever action changed the match state.
-    /// </summary>
     protected IClientProxy? Self { get; private set; }
 
     protected void ArmSelf(IClientProxy self) => Self = self;
@@ -51,7 +41,6 @@ public abstract class LiveHubBase(MatchHubRegistry registry) : Hub
         => registry.Subscribe(MatchId, new HubSubscriber(userId, push, PushAsync, kind));
 }
 
-/// <summary>/gameplay/matches/:matchId/live/stream — seated players.</summary>
 public sealed class PlayerLiveHub(
     MatchHubRegistry registry,
     SubmitService submit,
@@ -63,7 +52,6 @@ public sealed class PlayerLiveHub(
     public override async Task OnConnectedAsync()
     {
         var http = Context.GetHttpContext()!;
-        // Context is nulled on release, but the session guard below outlives it.
         var hubContext = Context;
         ArmSelf(self.Clients.Client(Context.ConnectionId));
         try
@@ -77,7 +65,6 @@ public sealed class PlayerLiveHub(
             return;
         }
 
-        // Guards.RequireAuth (gameplay cookie + password-change gate).
         UserEntity user;
         try
         {
@@ -94,7 +81,6 @@ public sealed class PlayerLiveHub(
         var match = await matches.GetMatchByIdAsync(MatchId);
         if (!MatchSeats.IsSeatedInMatch(match.PlayersList, user.Id))
         {
-            // TS closed the socket with 4403 NOT_SEATED.
             await Clients.Caller.SendAsync("message",
                 Protocol.Error("NOT_SEATED", "not a player in this match"));
             Context.Abort();
@@ -106,8 +92,6 @@ public sealed class PlayerLiveHub(
 
         async Task SendAsync()
         {
-            // Registry pushes fire long after this connection's scope was disposed,
-            // so read the state through a scope of our own.
             using var scope = scopes.CreateScope();
             var provider = scope.ServiceProvider;
             var matchRow = await provider.GetRequiredService<MatchesService>().GetMatchByIdAsync(MatchId);
@@ -124,7 +108,6 @@ public sealed class PlayerLiveHub(
 
         var stop = Subscribe(userId.ToString(), SendAsync, "player");
 
-        // Session guard: drop the connection when the session is revoked.
         _ = Task.Run(async () =>
         {
             while (!hubContext.ConnectionAborted.IsCancellationRequested)
@@ -145,7 +128,7 @@ public sealed class PlayerLiveHub(
                     {
                         await PushAsync(Protocol.Error("SESSION_ENDED", "session ended"));
                     }
-                    catch { /* connection gone */ }
+                    catch {  }
                     stop();
                     hubContext.Abort();
                     break;
@@ -168,12 +151,9 @@ public sealed class PlayerLiveHub(
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        // The unsubscribe closure is registered against the registry; SignalR
-        // disconnects fire after the connection is unusable, so push is a no-op.
         await base.OnDisconnectedAsync(exception);
     }
 
-    // ---- client → server --------------------------------------------------------
 
     public async Task Answer(JsonElement message)
         => await HandleClientMessageAsync(message);
@@ -253,7 +233,6 @@ public sealed class PlayerLiveHub(
     }
 }
 
-/// <summary>/portal/tournaments/:tournamentId/matches/:matchId/live/stream — console.</summary>
 public sealed class ConsoleLiveHub(
     MatchHubRegistry registry,
     IHubContext<ConsoleLiveHub> self,
@@ -263,7 +242,6 @@ public sealed class ConsoleLiveHub(
     public override async Task OnConnectedAsync()
     {
         var http = Context.GetHttpContext()!;
-        // Context is nulled on release, but the session guard below outlives it.
         var hubContext = Context;
         ArmSelf(self.Clients.Client(Context.ConnectionId));
         try
@@ -291,8 +269,6 @@ public sealed class ConsoleLiveHub(
 
         async Task SendAsync()
         {
-            // Registry pushes fire long after this connection's scope was disposed,
-            // so read the state through a scope of our own.
             using var scope = scopes.CreateScope();
             var payload = await scope.ServiceProvider.GetRequiredService<LiveService>()
                 .ConsoleViewOfAsync(Guid.Parse(MatchId));
@@ -328,7 +304,7 @@ public sealed class ConsoleLiveHub(
                     {
                         await PushAsync(Protocol.Error("SESSION_ENDED", "session ended"));
                     }
-                    catch { /* connection gone */ }
+                    catch {  }
                     stop();
                     hubContext.Abort();
                     break;
@@ -350,7 +326,6 @@ public sealed class ConsoleLiveHub(
     }
 }
 
-/// <summary>/spectate/tournaments/:tournamentId/matches/:matchId/live/stream — audience.</summary>
 public sealed class SpectateLiveHub(
     MatchHubRegistry registry,
     IHubContext<SpectateLiveHub> self,
@@ -374,8 +349,6 @@ public sealed class SpectateLiveHub(
 
         async Task SendAsync()
         {
-            // Registry pushes fire long after this connection's scope was disposed,
-            // so read the state through a scope of our own.
             using var scope = scopes.CreateScope();
             var payload = await scope.ServiceProvider.GetRequiredService<LiveService>()
                 .AudienceViewOfAsync(Guid.Parse(MatchId));

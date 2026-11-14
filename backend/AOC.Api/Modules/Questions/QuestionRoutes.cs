@@ -14,7 +14,6 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.Questions;
 
-/// <summary>Port of questions/routes.ts.</summary>
 public static class QuestionRoutes
 {
     private static readonly string[] XlsxContentTypes =
@@ -31,7 +30,6 @@ public static class QuestionRoutes
 
     public static IEndpointRouteBuilder MapQuestionRoutes(this IEndpointRouteBuilder app)
     {
-        // POST /portal/questions
         app.MapPost("/portal/questions", async (HttpContext http) =>
         {
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -43,7 +41,6 @@ public static class QuestionRoutes
             return Results.Json(row, JsonApi.Options);
         });
 
-        // POST /portal/questions/batch
         app.MapPost("/portal/questions/batch", async (HttpContext http) =>
         {
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -61,7 +58,6 @@ public static class QuestionRoutes
             return Results.Json(report, JsonApi.Options);
         });
 
-        // POST /portal/questions/media — one-off upload to S3
         app.MapPost("/portal/questions/media", async (HttpContext http) =>
         {
             await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -94,7 +90,6 @@ public static class QuestionRoutes
             return Results.Json(new { url = stored.Url, type = stored.Type.ToString() }, JsonApi.Options);
         });
 
-        // POST /portal/questions/import-excel
         app.MapPost("/portal/questions/import-excel", async (HttpContext http) =>
         {
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -102,7 +97,6 @@ public static class QuestionRoutes
 
             var dryRunRaw = Validate.Query(http).GetValueOrDefault("dryRun");
             var dryRun = dryRunRaw is "true" or "1";
-            // stage=true parks the rows for commit-to-match instead of writing the bank
             var stageRaw = Validate.Query(http).GetValueOrDefault("stage");
             var stage = stageRaw is "true" or "1";
 
@@ -127,7 +121,6 @@ public static class QuestionRoutes
             return Results.Json(report, JsonApi.Options);
         });
 
-        // GET /portal/question-imports
         app.MapGet("/portal/question-imports", async (HttpContext http) =>
         {
             await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -254,7 +247,6 @@ public static class QuestionRoutes
             return Results.Json(result, JsonApi.Options);
         });
 
-        // GET /portal/questions
         app.MapGet("/portal/questions", async (HttpContext http) =>
         {
             await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -279,7 +271,6 @@ public static class QuestionRoutes
             return Results.Json(await service.ListQuestionsAsync(filters, page), JsonApi.Options);
         });
 
-        // GET /portal/questions/bucket-counts
         app.MapGet("/portal/questions/bucket-counts", async (HttpContext http) =>
         {
             await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -290,7 +281,6 @@ public static class QuestionRoutes
             return Results.Json(counts, JsonApi.Options);
         });
 
-        // GET /portal/tournaments/:tournamentId/eligible-questions
         app.MapGet("/portal/tournaments/{tournamentId}/eligible-questions", async (HttpContext http) =>
         {
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -321,7 +311,6 @@ public static class QuestionRoutes
             return Results.Json(items, JsonApi.Options);
         });
 
-        // GET /portal/questions/:questionId
         app.MapGet("/portal/questions/{questionId}", async (HttpContext http) =>
         {
             await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -330,7 +319,6 @@ public static class QuestionRoutes
             return Results.Json(await service.RequireQuestionAsync(questionId), JsonApi.Options);
         });
 
-        // PATCH /portal/questions/:questionId
         app.MapPatch("/portal/questions/{questionId}", async (HttpContext http) =>
         {
             await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -341,7 +329,6 @@ public static class QuestionRoutes
             return Results.Json(await service.UpdateQuestionAsync(questionId, body), JsonApi.Options);
         });
 
-        // PATCH /portal/questions/:questionId/status
         app.MapPatch("/portal/questions/{questionId}/status", async (HttpContext http) =>
         {
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -358,7 +345,6 @@ public static class QuestionRoutes
             return Results.Json(question, JsonApi.Options);
         });
 
-        // POST /portal/questions/:questionId/duplicate
         app.MapPost("/portal/questions/{questionId}/duplicate", async (HttpContext http) =>
         {
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -369,7 +355,6 @@ public static class QuestionRoutes
             return Results.Json(row, JsonApi.Options);
         });
 
-        // GET /portal/questions/:questionId/usage
         app.MapGet("/portal/questions/{questionId}/usage", async (HttpContext http) =>
         {
             await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -380,7 +365,6 @@ public static class QuestionRoutes
             return Results.Json(new { items }, JsonApi.Options);
         });
 
-        // DELETE /portal/questions/:questionId → archive
         app.MapDelete("/portal/questions/{questionId}", async (HttpContext http) =>
         {
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -445,7 +429,6 @@ public static class QuestionRoutes
         });
     }
 
-    // ---- upload bundles ---------------------------------------------------------------
 
     private sealed record ExcelUpload(byte[] Workbook, string? SourceName, List<MediaAttachment> Attachments);
 
@@ -527,7 +510,6 @@ public static class QuestionRoutes
     {
         if (!http.Request.HasFormContentType)
         {
-            // Raw body is always the workbook.
             using var ms = new MemoryStream();
             await http.Request.Body.CopyToAsync(ms);
             return new ExcelUpload(ms.ToArray(), null, []);
@@ -565,7 +547,6 @@ public static class QuestionRoutes
             }
             else
             {
-                // Kept for scripts and older clients that still send "media" parts.
                 attachments.Add(new MediaAttachment(
                     MediaStorage.Basename(file.FileName), file.ContentType, content));
             }

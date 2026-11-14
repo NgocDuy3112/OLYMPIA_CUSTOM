@@ -7,7 +7,6 @@ const MAX_BACKOFF_MS = 30_000
 
 const STOP_CODES = new Set([4401, 4403])
 
-/** SignalR's JSON protocol frames records with 0x1e (record separator). */
 const RS = "\u001e"
 const HANDSHAKE = `{"protocol":"json","version":1}${RS}`
 const PING = `{"type":6}${RS}`
@@ -23,17 +22,11 @@ interface Frame {
     arguments?: unknown[]
 }
 
-/**
- * The hub wraps every envelope as { type: 1, target: "message", arguments: [envelope] } —
- * the caller gets the envelope itself, exactly what this stream always delivered.
- * Anything else (handshake reply, ping, close notice) is not an envelope.
- */
 function envelopeOf(frame: Frame): unknown {
     if (frame.target !== "message" || !Array.isArray(frame.arguments)) return undefined
     return frame.arguments[0]
 }
 
-/** A view/console frame proves the hub accepted this connection; an error frame does not. */
 function isPayload(envelope: unknown): boolean {
     return (
         typeof envelope === "object" &&
@@ -74,11 +67,9 @@ export function useSocketStream(
                     try {
                         frame = JSON.parse(text) as Frame
                     } catch {
-                        // Malformed record: ignore — HTTP stays the truth either way.
                         continue
                     }
 
-                    // Answer the hub's keep-alive ping, or it times the socket out.
                     if (frame.type === 6) {
                         if (ws.readyState === WebSocket.OPEN) ws.send(PING)
                         continue
@@ -86,24 +77,17 @@ export function useSocketStream(
 
                     const envelope = envelopeOf(frame)
                     if (envelope === undefined) continue
-                    // Only a real payload proves the hub accepted this connection:
-                    // a rejected one (session gone, seat gone) gets an error frame
-                    // and then an abort, and must back off instead of hammering.
                     if (isPayload(envelope)) attempt = 0
                     handler.current(envelope)
                 }
             }
 
             ws.onopen = () => {
-                // The hub speaks SignalR: it holds the socket until the handshake
-                // lands, then pushes the first view through the same connection.
                 ws.send(HANDSHAKE)
             }
 
             ws.onclose = (event) => {
                 if (stopped || STOP_CODES.has(event.code)) {
-                    // 4401/4403 end the stream on purpose (session revoked, seat
-                    // gone) — the UI shows its gate; this line is for devtools
                     if (STOP_CODES.has(event.code))
                         logError("ws", `live stream closed ${event.code} · ${path}`)
                     return

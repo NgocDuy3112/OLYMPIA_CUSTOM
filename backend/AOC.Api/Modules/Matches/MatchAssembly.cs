@@ -9,7 +9,6 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.Matches;
 
-/// <summary>Port of matches/assembly.ts — copies bank questions into a match.</summary>
 public sealed class MatchAssembly(AOCDbContext db)
 {
     public static int BasePoints(ScoringRule scoring) => scoring switch
@@ -34,7 +33,6 @@ public sealed class MatchAssembly(AOCDbContext db)
             throw new MatchError(MatchErrorCode.VALIDATION,
                 $"{where}: round \"{roundId}\" is not one of this tournament's rounds");
 
-        // A match created before its rulebook was saved falls back to the AOC rulebook.
         var config = roundConfigs.GetValueOrDefault(roundId) ?? AocRulebook.AocRoundConfig(roundId)
             ?? throw new MatchError(MatchErrorCode.VALIDATION,
                 $"{where}: no roundConfig provided for round \"{roundId}\"");

@@ -8,7 +8,6 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.Standings;
 
-/// <summary>Port of standings/service.ts.</summary>
 public sealed class StandingsService(AOCDbContext db)
 {
     public async Task<List<StandingsBuilder.MatchResultInput>> TournamentMatchesAsync(Guid tournamentId)
@@ -115,7 +114,6 @@ public sealed class StandingsService(AOCDbContext db)
     }
 }
 
-/// <summary>Port of standings/groups.ts — group tables for the console.</summary>
 public sealed class GroupTablesService(AOCDbContext db)
 {
     private async Task<List<(string UserId, string DisplayName, PlayerGroup? Group)>> RosterWithGroupsAsync(Guid tournamentId)

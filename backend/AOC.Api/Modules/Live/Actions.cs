@@ -4,13 +4,11 @@ using System.Text.Json.Serialization;
 
 namespace AOC.Api.Modules.Live;
 
-/// <summary>Port of live/actions.ts — console/player live actions (discriminated by kind).</summary>
 [JsonConverter(typeof(LiveActionConverter))]
 public abstract record LiveAction
 {
     public abstract string Kind { get; }
 
-    // ---- giai-ma ----
     public sealed record GiaiMaStart(List<string> PlayerIds, List<string> HintIds) : LiveAction
     {
         public override string Kind => "giai-ma.start";
@@ -21,8 +19,6 @@ public abstract record LiveAction
         public override string Kind => "giai-ma.openHint";
     }
 
-    /// <summary>Đếm giờ — open the picked hint's 15 s answer window (the pick itself
-    ///  only reveals the hint; the clock is this separate press).</summary>
     public sealed record GiaiMaStartWindow : LiveAction
     {
         public override string Kind => "giai-ma.startWindow";
@@ -53,7 +49,6 @@ public abstract record LiveAction
         public override string Kind => "giai-ma.endRound";
     }
 
-    // ---- but-pha ----
     public sealed record ButPhaStart : LiveAction
     {
         public override string Kind => "but-pha.start";
@@ -84,7 +79,6 @@ public abstract record LiveAction
         public override string Kind => "but-pha.finalize";
     }
 
-    // ---- khoi-dong ----
     public sealed record KhoiDongStart(int? Phase) : LiveAction
     {
         public override string Kind => "khoi-dong.start";
@@ -95,7 +89,6 @@ public abstract record LiveAction
         public override string Kind => "khoi-dong.recordOral";
     }
 
-    /// <summary>The console picks who answers next — the rail card on the oral run.</summary>
     public sealed record KhoiDongSetTurn(string PlayerId) : LiveAction
     {
         public override string Kind => "khoi-dong.setTurn";
@@ -131,7 +124,6 @@ public abstract record LiveAction
         public override string Kind => "khoi-dong.endRound";
     }
 
-    // ---- ve-dich ----
     public sealed record VeDichStart(int? Phase) : LiveAction
     {
         public override string Kind => "ve-dich.start";
@@ -177,7 +169,6 @@ public abstract record LiveAction
         public override string Kind => "ve-dich.advanceTurn";
     }
 
-    /// <summary>The console picks who plays next — the rail card on the pick board.</summary>
     public sealed record VeDichSetTurn(string PlayerId) : LiveAction
     {
         public override string Kind => "ve-dich.setTurn";
@@ -198,25 +189,21 @@ public abstract record LiveAction
         public override string Kind => "ve-dich.pickBatch";
     }
 
-    /// <summary>Phase 1: the controller picks one question per player, up front.</summary>
     public sealed record VeDichPickRound(List<string> QuestionIds) : LiveAction
     {
         public override string Kind => "ve-dich.pickRound";
     }
 
-    /// <summary>Phase 1: open the next picked question (or close the set).</summary>
     public sealed record VeDichNextQuestion : LiveAction
     {
         public override string Kind => "ve-dich.nextQuestion";
     }
 
-    /// <summary>Phase 1: put the picked questions back for a re-pick.</summary>
     public sealed record VeDichClearPicks : LiveAction
     {
         public override string Kind => "ve-dich.clearPicks";
     }
 
-    /// <summary>Phase 1: one player's verdict on the open question.</summary>
     public sealed record VeDichJudge(string PlayerId, bool Correct) : LiveAction
     {
         public override string Kind => "ve-dich.judge";
@@ -232,7 +219,6 @@ public abstract record LiveAction
         public override string Kind => "ve-dich.buzz";
     }
 
-    // ---- shared ----
     public sealed record RoundGoTo(string RoundId) : LiveAction
     {
         public override string Kind => "round.goTo";

@@ -55,8 +55,6 @@ export function useConsoleJudging(input: JudgingScopeInput): ConsoleJudging {
     const setVerdict = (correct: boolean) => {
         const qid = ids.judgingId ?? ids.resolvingId
         if (!qid) return
-        // one press grades the whole ticked set; with nothing ticked it still
-        // falls back to the single player the console is pointed at
         const targets = selectedIds.size > 0
             ? [...selectedIds]
             : target !== null ? [target] : []

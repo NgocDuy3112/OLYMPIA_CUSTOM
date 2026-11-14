@@ -87,7 +87,6 @@ export function Progress({ total, done, active, onPick }: { total: number; done:
 
 export function Timer({ remaining, fallback, size = 40 }: {
     remaining: number | null
-    /** shown only while no countdown is running — omit it and the slot stays empty */
     fallback?: string
     size?: number
 }) {

@@ -14,7 +14,6 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.MatchCodes;
 
-/// <summary>Port of match-codes/service.ts.</summary>
 public sealed class MatchCodesService(AOCDbContext db)
 {
     private const int RoomCodeTtlMs = 24 * 60 * 60 * 1000;
@@ -127,7 +126,6 @@ public sealed class MatchCodesService(AOCDbContext db)
 
         var capacity = tournament.FormatValue.AllowedSeatCounts().Max();
 
-        // Lock the seat row for the capacity check (SELECT ... FOR UPDATE).
         var locked = await db.Matches.FirstAsync(m => m.Id == matchId);
         if (locked.DeletedAt is not null)
             throw new CodeError(CodeErrorCode.NOT_FOUND,
@@ -155,12 +153,10 @@ public sealed class MatchCodesService(AOCDbContext db)
     }
 }
 
-/// <summary>Port of match-codes/routes.ts.</summary>
 public static class MatchCodeRoutes
 {
     public static IEndpointRouteBuilder MapMatchCodeRoutes(this IEndpointRouteBuilder app)
     {
-        // POST /gameplay/join/claim
         app.MapPost("/gameplay/join/claim", async (HttpContext http) =>
         {
             var user = await http.RequireAuthAsync(Surface.GAMEPLAY);
@@ -184,7 +180,6 @@ public static class MatchCodeRoutes
             return Results.Json(result, JsonApi.Options);
         }).RequireRateLimiting("strict10").DisableAntiforgery();
 
-        // GET /portal/tournaments/:tournamentId/match-codes
         app.MapGet("/portal/tournaments/{tournamentId}/match-codes", async (HttpContext http) =>
         {
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
@@ -196,7 +191,6 @@ public static class MatchCodeRoutes
             return Results.Json(new { items }, JsonApi.Options);
         });
 
-        // POST /portal/tournaments/:tournamentId/matches/:matchId/code
         app.MapPost("/portal/tournaments/{tournamentId}/matches/{matchId}/code", async (HttpContext http) =>
         {
             var tournamentId = Validate.RouteUuid(http, "tournamentId");

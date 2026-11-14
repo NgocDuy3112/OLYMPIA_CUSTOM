@@ -26,7 +26,6 @@ public class KhoiDongTurnTests
         return "NO_ERROR";
     }
 
-    // ---- phase 1 -----------------------------------------------------------------
 
     [Fact]
     public void Phase1_RequiresExactlySixQuestions()
@@ -94,7 +93,6 @@ public class KhoiDongTurnTests
             KhoiDongTurn.AnswerPhase1(s, correct: true, spentS: 1)));
     }
 
-    // ---- phase 2 -----------------------------------------------------------------
 
     [Fact]
     public void Phase2_IsSixQuestionsAndRefusesAnythingElse()

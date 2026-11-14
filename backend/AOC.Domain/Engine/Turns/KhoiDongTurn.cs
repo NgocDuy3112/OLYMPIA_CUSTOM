@@ -3,7 +3,6 @@ using AOC.Domain.Engine.Scoring;
 
 namespace AOC.Domain.Engine.Turns;
 
-/// <summary>Port of turns/khoi-dong.ts — phase 1 (per-player oral set) and phase 2 (chung).</summary>
 public sealed record Phase1State
 {
     [JsonPropertyName("kind")] public string Kind { get; init; } = "phase1";

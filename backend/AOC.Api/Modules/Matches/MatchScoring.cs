@@ -2,7 +2,6 @@ using AOC.Domain.Contracts;
 
 namespace AOC.Api.Modules.Matches;
 
-/// <summary>Port of matches/scoring.ts.</summary>
 public static class MatchScoring
 {
     public sealed record AnswerForScoring(string UserId, string RoundId, int PointsAwarded);

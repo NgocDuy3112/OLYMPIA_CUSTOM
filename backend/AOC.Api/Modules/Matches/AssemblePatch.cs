@@ -10,7 +10,6 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.Matches;
 
-/// <summary>Port of matches/assemble-patch.ts — revision-checked assembly replacement.</summary>
 public sealed class AssemblePatchService(AOCDbContext db)
 {
     private sealed record RawSourceRow(Guid Id, string Kind, Guid? KeywordId, JsonElement Full);
@@ -101,7 +100,6 @@ public sealed class AssemblePatchService(AOCDbContext db)
             .ToList();
         var counts = DiffCounts(oldIds, entries.Select(e => e.SourceId).ToList());
 
-        // Optimistic assembly revision: UPDATE ... WHERE assembly_revision = @base RETURNING.
         await using var connection = await RawSql.OpenAsync(db);
         await using var update = connection.CreateCommand();
         update.CommandText = """
@@ -125,7 +123,6 @@ public sealed class AssemblePatchService(AOCDbContext db)
         var revisionObj = await update.ExecuteScalarAsync();
         if (revisionObj is null || revisionObj is DBNull)
         {
-            // Probe for the reason (not found / immutable / stale revision).
             await using var probe = connection.CreateCommand();
             probe.CommandText = """
                 SELECT status::text, assembly_revision
@@ -182,9 +179,8 @@ public sealed class AssemblePatchService(AOCDbContext db)
     }
 }
 
-/// <summary>Port of assemble-patch routes.</summary>
 public static class AssemblePatchRoutes
 {
     public static IEndpointRouteBuilder MapAssemblePatchRoutes(this IEndpointRouteBuilder app)
-        => app; // PATCH .../assemble lives in MatchRoutes (same path, same handler)
+        => app;
 }

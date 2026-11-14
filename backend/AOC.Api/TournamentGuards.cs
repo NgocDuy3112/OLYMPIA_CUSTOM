@@ -6,10 +6,8 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api;
 
-/// <summary>Port of tournament-shared.ts tournamentGuards() + error handler.</summary>
 public static class TournamentGuards
 {
-    /// <summary>Staff auth + viewability: 404 when the viewer may not see it.</summary>
     public static async Task<TournamentEntity> AssertViewAsync(HttpContext http, string tournamentId)
     {
         var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -20,7 +18,6 @@ public static class TournamentGuards
         return tournament;
     }
 
-    /// <summary>Staff auth + writability: 404 when unviewable, 403 when read-only.</summary>
     public static async Task<TournamentEntity> AssertWriteAsync(HttpContext http, string tournamentId)
     {
         var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");

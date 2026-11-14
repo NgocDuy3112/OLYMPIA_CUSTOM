@@ -4,10 +4,6 @@ using AOC.Domain.Engine.Turns;
 
 namespace AOC.Api.Modules.Live;
 
-/// <summary>
-/// Port of live/state.ts — validate stored live state the way the TypeBox
-/// schemas did, then deserialize into the engine state records.
-/// </summary>
 public static class LiveState
 {
     private static T Parse<T>(JsonElement raw, Action<JsonElement, List<string>> validate)
@@ -38,7 +34,6 @@ public static class LiveState
                 details.Add("revealedAnswer: expected string or null");
     }
 
-    // ---- giai-ma -----------------------------------------------------------------
 
     public static GiaiMaState ParseGiaiMa(JsonElement raw) => Parse<GiaiMaState>(raw, (obj, details) =>
     {
@@ -66,7 +61,6 @@ public static class LiveState
         OptionalRevealedAnswer(obj, details);
     });
 
-    // ---- but-pha -------------------------------------------------------------------
 
     public static ButPhaState ParseButPha(JsonElement raw) => Parse<ButPhaState>(raw, (obj, details) =>
     {
@@ -107,7 +101,6 @@ public static class LiveState
         OptionalRevealedAnswer(obj, details);
     });
 
-    // ---- khoi-dong -------------------------------------------------------------------
 
     public static KhoiDongState ParseKhoiDong(JsonElement raw) => Parse<KhoiDongState>(raw, (obj, details) =>
     {
@@ -176,7 +169,6 @@ public static class LiveState
         OptionalRevealedAnswer(obj, details);
     });
 
-    // ---- ve-dich -----------------------------------------------------------------------
 
     public static VeDichState ParseVeDich(JsonElement raw) => Parse<VeDichState>(raw, (obj, details) =>
     {

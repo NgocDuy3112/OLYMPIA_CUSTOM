@@ -14,7 +14,6 @@ public static class CookieNames
     public static string For(Surface surface) => surface == Surface.GAMEPLAY ? Gameplay : Portal;
 }
 
-/// <summary>Port of config/env.ts + config/database-url.ts — read once from the environment.</summary>
 public sealed class AppConfig
 {
     public static AppConfig Instance { get; } = new();
@@ -53,7 +52,6 @@ public sealed class AppConfig
             Optional("LIVEKIT_API_SECRET"),
             Optional("LIVEKIT_INTERNAL_URL"));
 
-        RecordPageBaseUrl = Optional("RECORD_PAGE_BASE_URL");
         DiscordLog = new DiscordLogOptions(
             Optional("DISCORD_WEBHOOK_URL"),
             Optional("DISCORD_LOG_LEVEL") ?? "Warning");
@@ -72,7 +70,6 @@ public sealed class AppConfig
     public GoogleOidcOptions GoogleOidc { get; }
     public S3Options S3 { get; }
     public LivekitOptions Livekit { get; }
-    public string? RecordPageBaseUrl { get; }
     public DiscordLogOptions DiscordLog { get; }
     public string? SeedAdminPassword { get; }
     public string? SeedAdminUsername { get; }
@@ -138,8 +135,6 @@ public sealed record LivekitOptions(
         !string.IsNullOrEmpty(Url) && !string.IsNullOrEmpty(ApiKey) && !string.IsNullOrEmpty(ApiSecret);
 }
 
-/// <summary>Where warnings and errors are shouted: a Discord webhook the crew
-///  already watches. Empty URL = the mirror is off, console stays the record.</summary>
 public sealed record DiscordLogOptions(string? WebhookUrl, string Level)
 {
     public bool Configured => !string.IsNullOrEmpty(WebhookUrl);

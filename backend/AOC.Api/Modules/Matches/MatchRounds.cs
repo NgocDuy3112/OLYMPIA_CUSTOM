@@ -5,7 +5,6 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.Matches;
 
-/// <summary>Port of matches/rounds.ts.</summary>
 public static class MatchRounds
 {
     public static List<string> OrderedMatchRounds(
@@ -28,7 +27,6 @@ public static class MatchRounds
     }
 }
 
-/// <summary>Port of matches/seats.ts.</summary>
 public static class MatchSeats
 {
     public static bool IsSeatedInMatch(IEnumerable<Seat> seats, Guid userId)
@@ -38,7 +36,6 @@ public static class MatchSeats
         => seats.Any(seat => seat.Kind == "user" && seat.UserId == userId);
 }
 
-/// <summary>Port of matches/stage-inputs.ts.</summary>
 public static class StageInputs
 {
     public static Dictionary<string, RoundConfig> TournamentRoundConfigs(TournamentEntity tournament)

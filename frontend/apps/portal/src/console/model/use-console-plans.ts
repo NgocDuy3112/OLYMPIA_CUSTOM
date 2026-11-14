@@ -19,11 +19,9 @@ interface ConsolePlansInput {
     transport: ConsoleTransport
     judging: ConsoleJudging
     veDich: VeDichConsole | null
-    /** the phase the live round is on, so a button for the other one can start it */
     currentPhase: 1 | 2 | null
     lobby: LobbyData | null
     nav: Pick<ConsoleNav, "enterRound" | "backToWaiting">
-    /** why the last start was refused — null once one lands */
     onStartError: (message: string | null) => void
 }
 
@@ -76,10 +74,6 @@ export function useConsolePlans(input: ConsolePlansInput): ConsolePlans {
     const onStart = async (nextRoundId: string, phase?: 1 | 2) => {
         const lobby = input.lobby
         if (!lobby) return
-        // every waiting-room entry starts the phase it names — so the start goes
-        // out even when the round is live on the other one (or has no state yet,
-        // where currentPhase is null). Re-picking the phase that is already
-        // running leaves it alone instead of restarting it.
         const otherPhase = phase !== undefined
             && lobby.roundId === nextRoundId
             && input.currentPhase !== phase
@@ -90,9 +84,6 @@ export function useConsolePlans(input: ConsolePlansInput): ConsolePlans {
             { force: otherPhase },
         )
         try {
-            // The console enters the round only once the engine took it: a refused
-            // start (bad bucket, stale version) keeps it in the waiting room with
-            // the reason, instead of drawing a round no player was routed to.
             let expectedVersion = transport.v!.version
             for (const action of plan) {
                 const res = await transport.writer.mutateAsync({ expectedVersion, action })

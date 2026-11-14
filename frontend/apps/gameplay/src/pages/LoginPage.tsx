@@ -32,9 +32,6 @@ function GoogleMark() {
     )
 }
 
-/** Google is the only way into the player surface: the desk enrols the address,
- *  the player signs in with it. A real anchor, not a router link — the endpoint
- *  answers with a 302 to Google, which only a document request follows. */
 export function LoginPage() {
     const [params] = useSearchParams()
     const methods = useAuthMethods()

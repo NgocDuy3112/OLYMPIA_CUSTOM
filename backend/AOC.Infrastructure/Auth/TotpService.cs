@@ -3,13 +3,9 @@ using OtpNet;
 
 namespace AOC.Infrastructure.Auth;
 
-/// <summary>
-/// Port of auth/totp.ts — otplib-compatible TOTP (SHA1, 6 digits, 30 s step,
-/// ±30 s window = ±1 step) over the same base32 secrets.
-/// </summary>
 public static class TotpService
 {
-    private const int EpochToleranceSteps = 1; // 30 s tolerance == one step
+    private const int EpochToleranceSteps = 1;
 
     public static string NewTotpSecret()
         => Base32Encoding.ToString(RandomNumberGenerator.GetBytes(20));
@@ -53,7 +49,7 @@ public static class TotpService
 public sealed class TotpVerification
 {
     public bool Ok { get; private init; }
-    public string Reason { get; private init; } = "invalid"; // invalid | reused
+    public string Reason { get; private init; } = "invalid";
     public int Step { get; private init; }
 
     public static TotpVerification Success(int step) => new() { Ok = true, Step = step };

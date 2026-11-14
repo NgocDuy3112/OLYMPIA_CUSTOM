@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api } from "@shared/lib/api"
 
-/** One tournament a player sits in — shown as badges on the global list. */
 export interface PlayerEnrollment {
     tournamentId: string
     name: string
@@ -9,8 +8,6 @@ export interface PlayerEnrollment {
     closed: boolean
 }
 
-/** Every PLAYER account in the system. Players land here by signing in with
- *  Google; the desk assigns tournaments afterwards. */
 export interface PlayerRow {
     userId: string
     displayName: string
@@ -27,7 +24,6 @@ export function usePlayers() {
     })
 }
 
-/** Edits the account (name / email / Discord) — no tournament involved. */
 export function useUpdatePlayer() {
     const queryClient = useQueryClient()
 
@@ -56,7 +52,6 @@ export function useUpdatePlayer() {
     })
 }
 
-/** Membership is per tournament: this is the row's "Ghi danh vào giải…". */
 export function useEnrollIntoTournament() {
     const queryClient = useQueryClient()
 
@@ -74,7 +69,6 @@ export function useEnrollIntoTournament() {
     })
 }
 
-/** …and this is the row's "Bỏ khỏi giải…". */
 export function useRemoveFromTournament() {
     const queryClient = useQueryClient()
 

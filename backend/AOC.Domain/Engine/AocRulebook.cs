@@ -2,7 +2,6 @@ using AOC.Domain.Contracts;
 
 namespace AOC.Domain.Engine;
 
-/// <summary>Port of engine/aoc-rulebook.ts — the built-in AOC rulebook.</summary>
 public static class AocRulebook
 {
     public static readonly List<TournamentRound> AocRounds =

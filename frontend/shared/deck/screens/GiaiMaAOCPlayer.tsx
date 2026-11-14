@@ -44,8 +44,6 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
                 className="grid min-h-0 flex-1 gap-x-[2.2cqw] gap-y-[1.1cqw]"
                 style={{
                     gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-                    // rows share the leftover height, so the tiles fill the gap
-                    // instead of leaving a dead band above the card
                     gridTemplateRows: `repeat(${Math.ceil(HINT_TILES / 4)}, minmax(0, 1fr))`,
                 }}
             >

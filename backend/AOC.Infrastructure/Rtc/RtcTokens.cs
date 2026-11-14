@@ -12,7 +12,6 @@ public enum RtcRole
 
 public sealed record RtcToken(string Url, string Token, string Identity, int ExpiresIn);
 
-/// <summary>Port of rtc/tokens.ts — LiveKit access tokens with per-role grants.</summary>
 public static class RtcTokens
 {
     public const int RtcTokenTtlSeconds = 6 * 60 * 60;

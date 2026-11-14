@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using AOC.Api.Http;
 using AOC.Api.Modules.Bracket;
 using AOC.Api.Modules.Questions;
-using AOC.Api.Modules.Recording;
 using AOC.Api.Modules.Standings;
 using AOC.Domain.Contracts;
 using AOC.Domain.Engine;
@@ -12,12 +11,10 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.Matches;
 
-/// <summary>Port of matches/service.ts.</summary>
 public sealed class MatchesService(
     AOCDbContext db,
     BracketService bracket,
     StandingsService standings,
-    RecordingService recording,
     ILogger<MatchesService> logger)
 {
     private static readonly Dictionary<MatchStatus, MatchStatus[]> Edges = new()
@@ -29,7 +26,6 @@ public sealed class MatchesService(
 
     public sealed record MatchScope(TournamentEntity Tournament);
 
-    // ---- lookups ----------------------------------------------------------------
 
     public async Task<TournamentEntity> RequireTournamentAsync(Guid tournamentId)
         => await db.Tournaments.AsNoTracking()
@@ -75,7 +71,6 @@ public sealed class MatchesService(
         }).ToList();
     }
 
-    // ---- validation ---------------------------------------------------------------
 
     private static void AssertRoundConfigKeys(TournamentEntity tournament, Dictionary<string, RoundConfig> roundConfigs)
     {
@@ -113,7 +108,6 @@ public sealed class MatchesService(
                 check.Problems);
     }
 
-    // ---- scoring on FINISHED -------------------------------------------------------
 
     private async Task ScoreMatchAsync(Guid matchId, MatchEntity match)
     {
@@ -146,7 +140,6 @@ public sealed class MatchesService(
                 r.PointsAwarded ?? 0)).ToList(),
             adjustments.ToDictionary(kv => kv.Key.ToString(), kv => kv.Value)));
 
-        // ON CONFLICT DO NOTHING — the PK is the conflict target.
         var already = await db.MatchResults.AnyAsync(m => m.MatchId == matchId);
         if (!already)
         {
@@ -194,7 +187,6 @@ public sealed class MatchesService(
         await db.SaveChangesAsync();
     }
 
-    // ---- create -------------------------------------------------------------------
 
     private sealed class MatchAssemblyAccessor
     {
@@ -284,7 +276,6 @@ public sealed class MatchesService(
         return Pagination.Result(items, total, page);
     }
 
-    // ---- update --------------------------------------------------------------------
 
     public async Task<MatchEntity> UpdateMatchAsync(string tournamentId, string matchId, MatchSchemas.UpdateMatchInput patch)
     {
@@ -362,7 +353,6 @@ public sealed class MatchesService(
         return tracked;
     }
 
-    // ---- results & transitions -------------------------------------------------------
 
     public async Task<MatchEntity> SetMatchResultsAsync(string tournamentId, string matchId,
         List<(string UserId, int Score)> totals)
@@ -423,9 +413,6 @@ public sealed class MatchesService(
 
         await standings.RecomputeStandingsAsync(tournamentId);
 
-        // Results frozen = the show is over; close the recording (fire-and-forget).
-        _ = recording.AutoStopRecordingAsync(matchId);
-
         return tracked;
     }
 
@@ -454,7 +441,6 @@ public sealed class MatchesService(
             if (existing.QuestionsList.Count == 0)
                 shortfalls.Add("no questions assembled");
 
-            // Riêng is one set of six per seat — catch a short bundle HERE.
             if (tournament.RoundsList.Any(r => r.Id == "khoi-dong"))
             {
                 var perPlayer = existing.RoundConfigsMap.GetValueOrDefault("khoi-dong") is { } cfg
@@ -505,10 +491,6 @@ public sealed class MatchesService(
         if (next == MatchStatus.FINISHED)
             await standings.RecomputeStandingsAsync(tournamentId);
 
-        if (next == MatchStatus.LIVE)
-            _ = recording.AutoStartRecordingAsync(tournamentId, matchId);
-        if (next == MatchStatus.FINISHED)
-            _ = recording.AutoStopRecordingAsync(matchId);
 
         return tracked;
     }

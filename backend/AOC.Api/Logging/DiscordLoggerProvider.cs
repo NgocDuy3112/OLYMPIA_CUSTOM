@@ -6,20 +6,8 @@ using AOC.Infrastructure.Configuration;
 
 namespace AOC.Api.Logging;
 
-/// <summary>
-/// Mirrors WARNING+ console lines to a Discord webhook so the crew sees failures
-/// in the channel they are already watching. Console remains the system of record;
-/// this is a loud copy, not a second source of truth.
-///
-/// Three hard rules, because a logger must never make the show worse:
-///  1. never throws — a failed delivery is dropped silently;
-///  2. never blocks the request path — lines go into a bounded in-memory queue,
-///     drained by one timer, at most ONE webhook post per window;
-///  3. never logs its own failures — no recursion.
-/// </summary>
 public sealed class DiscordLoggerProvider : ILoggerProvider
 {
-    /// <summary>Discord's per-message content cap.</summary>
     public const int ContentLimit = 2000;
 
     private static readonly TimeSpan FlushEvery = TimeSpan.FromSeconds(5);
@@ -39,7 +27,6 @@ public sealed class DiscordLoggerProvider : ILoggerProvider
     {
     }
 
-    /// <summary>Test seam: capture the rendered payload instead of posting it.</summary>
     public DiscordLoggerProvider(DiscordLogOptions options, Func<string, CancellationToken, Task> send)
     {
         _webhook = options.WebhookUrl;
@@ -51,10 +38,8 @@ public sealed class DiscordLoggerProvider : ILoggerProvider
 
     public ILogger CreateLogger(string categoryName) => new DiscordLogger(this, categoryName);
 
-    /// <summary>Level gate: unconfigured webhook = completely inert.</summary>
     public bool IsLevelEnabled(LogLevel level) => _webhook is not null && level >= _min;
 
-    /// <summary>Append one rendered line to the queue (drops the oldest when full).</summary>
     public void Enqueue(string line)
     {
         if (_queue.Count >= QueueCap && _queue.TryDequeue(out _))
@@ -62,8 +47,6 @@ public sealed class DiscordLoggerProvider : ILoggerProvider
         _queue.Enqueue(line);
     }
 
-    /// <summary>Drain the queue into ONE webhook message. Called by the timer every
-    ///  five seconds — and by tests, directly. Failures are swallowed by design.</summary>
     public async Task FlushAsync(CancellationToken cancellationToken = default)
     {
         if (_webhook is null) return;
@@ -74,8 +57,6 @@ public sealed class DiscordLoggerProvider : ILoggerProvider
         if (lines.Count == 0) return;
 
         var dropped = Interlocked.Exchange(ref _dropped, 0);
-        // prepend: truncation eats the tail, and the fact that lines were lost
-        // must never be the part that disappears
         if (dropped > 0) lines.Insert(0, $"⚠ {dropped} older line(s) dropped");
 
         try
@@ -84,11 +65,9 @@ public sealed class DiscordLoggerProvider : ILoggerProvider
         }
         catch
         {
-            // a logger that complains about logging is worse than silence
         }
     }
 
-    /// <summary>Join lines into one message, hard-truncated to Discord's cap.</summary>
     public static string Render(IReadOnlyList<string> lines)
     {
         var text = string.Join('\n', lines);
@@ -102,7 +81,6 @@ public sealed class DiscordLoggerProvider : ILoggerProvider
 
     private static async Task PostAsync(string webhook, string content, CancellationToken cancellationToken)
     {
-        // The URL is the secret — never log it, only post to it.
         var response = await Http.PostAsJsonAsync(webhook, new { content }, cancellationToken);
         response.EnsureSuccessStatusCode();
     }
@@ -138,7 +116,6 @@ public sealed class DiscordLoggerProvider : ILoggerProvider
             owner.Enqueue(line.ToString());
         }
 
-        /// <summary>AOC.Api.Questions.ExcelImport → ExcelImport: enough to place it.</summary>
         private static string ShortName(string category)
         {
             var parts = category.Split('.', StringSplitOptions.RemoveEmptyEntries);

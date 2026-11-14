@@ -12,7 +12,6 @@ public enum QuestionType
     KEYWORD
 }
 
-/// <summary>Port of questions/buckets.ts — bucket tags, slots and payload guards.</summary>
 public static class Buckets
 {
     public static readonly Dictionary<string, QuestionType> BucketType = new()
@@ -100,7 +99,6 @@ public static class Buckets
             ? keywordLinked ? [QuestionType.TEXT] : [QuestionType.KEYWORD]
             : [BucketType[bucket]];
 
-    // ---- payload guards --------------------------------------------------------
 
     private static QuestionError Fail(string message, List<string>? details = null)
         => new(QuestionErrorCode.VALIDATION, message, details ?? []);
@@ -185,7 +183,6 @@ public static class Buckets
         return JsonSerializer.SerializeToElement(dict, JsonApi.Options);
     }
 
-    // ---- slot conflict ----------------------------------------------------------
 
     public sealed record SlotConflictSource(
         IReadOnlyList<string>? Tags = null,

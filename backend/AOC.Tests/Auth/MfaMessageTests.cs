@@ -9,13 +9,6 @@ using Xunit;
 
 namespace AOC.Tests.Auth;
 
-/// <summary>
-/// Reconstructed port of the (uncommitted) tests/integration/auth.mfa-messages.test.ts.
-/// The portal shows a different sentence per failure — these assert the exact
-/// strings from auth/service.ts (they must never collapse into one message).
-///
-/// Requires POSTGRES_* + JWT secrets in the environment; skips otherwise.
-/// </summary>
 public class MfaMessageTests
 {
     private static readonly SessionTokens Tokens = new();
@@ -87,7 +80,6 @@ public class MfaMessageTests
         throw new InvalidOperationException("expected an ApiException");
     }
 
-    // ---- startLogin ---------------------------------------------------------------
 
     [Fact]
     public async Task UnknownUsername_UsesTheGenericCredentialsSentence()
@@ -118,7 +110,6 @@ public class MfaMessageTests
                 auth.StartLoginAsync(Surface.PORTAL, user.Username, "definitely-wrong"));
             _ = password;
 
-            // The two failure paths must never be distinguishable.
             Assert.Equal(401, ex.Status);
             Assert.Equal("Invalid username or password", ex.Message);
         }
@@ -188,7 +179,6 @@ public class MfaMessageTests
             Assert.False(string.IsNullOrEmpty(result.PendingToken));
             Assert.StartsWith("otpauth://totp/", result.OtpauthUri);
 
-            // The fresh secret was persisted for the confirm step.
             var reloaded = await db.Users.AsNoTracking().FirstAsync(u => u.Id == user.Id);
             Assert.False(string.IsNullOrEmpty(reloaded.TotpSecret));
         }
@@ -220,7 +210,6 @@ public class MfaMessageTests
         }
     }
 
-    // ---- finishMfa ----------------------------------------------------------------
 
     [Fact]
     public async Task GarbagePendingToken_SaysTheLoginSessionExpired()
@@ -267,7 +256,6 @@ public class MfaMessageTests
             var pending = (await auth.StartLoginAsync(
                 Surface.PORTAL, user.Username, password!)).PendingToken;
 
-            // A code for a DIFFERENT secret is deterministically wrong.
             var wrongCode = new OtpNet.Totp(
                 System.Security.Cryptography.RandomNumberGenerator.GetBytes(20)).ComputeTotp();
 
@@ -299,11 +287,9 @@ public class MfaMessageTests
             var reloaded = await db.Users.AsNoTracking().FirstAsync(u => u.Id == user.Id);
             var code = CurrentCode(reloaded.TotpSecret!);
 
-            // First use succeeds and records the time step…
             var token = await auth.FinishMfaAsync(Surface.PORTAL, pending, code);
             Assert.False(string.IsNullOrEmpty(token));
 
-            // …so the same code now reports "reused", not "didn't match".
             var ex = await CaptureAsync(() =>
                 auth.FinishMfaAsync(Surface.PORTAL, pending, code));
 
@@ -333,7 +319,6 @@ public class MfaMessageTests
             var token = await auth.FinishMfaAsync(
                 Surface.PORTAL, pending, CurrentCode(reloaded.TotpSecret!));
 
-            // JWT shape: three dot-separated segments.
             Assert.Equal(3, token.Split('.').Length);
         }
         finally

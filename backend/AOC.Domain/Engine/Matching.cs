@@ -3,10 +3,8 @@ using AOC.Domain.Contracts;
 
 namespace AOC.Domain.Engine;
 
-/// <summary>Port of engine/matching.ts — text normalization and answer auto-matching.</summary>
 public static partial class Matching
 {
-    /// <summary>Answer comparison: trim + ignore case. Accents are kept.</summary>
     public static string NormalizeText(string input)
         => input.Trim().ToLowerInvariant();
 
@@ -44,7 +42,6 @@ public static partial class Matching
         return NormalizeText(submitted) == NormalizeText(keyword.Code);
     }
 
-    /// <summary>AutoMatch against a raw jsonb payload (for stored match questions).</summary>
     public static bool AutoMatch(QuestionKind kind, JsonElement payload, SubmittedAnswerValue value)
     {
         var typed = JsonSerializer.Deserialize<QuestionPayload>(payload.GetRawText())

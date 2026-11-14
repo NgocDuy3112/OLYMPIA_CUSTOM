@@ -117,9 +117,6 @@ function requiredFor(
         typeof fromRules === "number"
             ? fromRules
             : DEFAULT_QUESTION_COUNTS[group.roundId]?.[group.turnId] ?? 0
-    // Khởi động Riêng is ONE SET PER PLAYER (the engine hands seat 1 the first
-    // six, seat 2 the next six), so the target scales with the seated count.
-    // Chung stays a single shared set.
     if (group.bucket === "khoi-dong:rieng") return base * Math.max(1, playerCount)
     return base
 }
@@ -452,7 +449,6 @@ export function MatchQuestionSurface({
                 clearParam()
             }
         })()
-        // One-shot by design: addStartedRef makes every later run a no-op.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pendingAdd])
 
@@ -514,7 +510,6 @@ export function MatchQuestionSurface({
         const entries = shown[group.bucket] ?? []
         return new Set(entries.map((entry) => entry.sourceId)).size !== entries.length
     })
-    // set only by "Xong" — an autosave writes without closing the editor
     const closeAfterSaveRef = useRef(false)
 
     const save =
@@ -561,9 +556,6 @@ export function MatchQuestionSurface({
           : null
 
 
-    // Autosave: a hand that stops for 750 ms has finished its thought, so the
-    // change goes up by itself. Conflicts pause it — an overwrite is a human
-    // decision (the banner below asks for it), never a timer's.
     const saveRef = useRef(save)
     useEffect(() => {
         saveRef.current = save
@@ -578,14 +570,12 @@ export function MatchQuestionSurface({
     }, [pendingWork, save.isPending, changes])
 
     const leaveCompose = () => {
-        // autosave means "Xong" flushes the last stopped-hand change; the
-        // editor only closes when there is nothing left to write
         if (draft !== null && changes > 0 && saveReason === null && !conflict) {
             closeAfterSaveRef.current = true
             save.mutate()
             return
         }
-        if (conflict) return // the banner decides whether to overwrite
+        if (conflict) return
         setDraft(null)
         setFlash(null)
         setSaveError(null)

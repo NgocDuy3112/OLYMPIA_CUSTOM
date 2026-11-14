@@ -17,8 +17,6 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
     const total = consoleKhoiDong?.questionCount || 6
     const windowOpen = consoleKhoiDong?.windowOpen ?? false
 
-    // one press grades every ticked card; with nothing ticked it still falls
-    // back to the single player the console is pointed at
     const gradeable = () => {
         if (selectedIds.size > 0) return [...selectedIds]
         return target !== null ? [target] : []

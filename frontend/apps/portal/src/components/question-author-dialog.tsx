@@ -160,7 +160,6 @@ function draftFrom(row: AuthorRow | null | undefined, bucket?: string, presetKey
 }
 
 function buildPayload(type: QuestionType, draft: AuthorDraft): Record<string, unknown> | null {
-    // Answer matching lives server-side (trim + ignore case) — no normalize block.
     if (type === "TEXT" || type === "ORAL") {
         const acceptedAnswers = draft.accepted
             .split("\n")
@@ -262,9 +261,6 @@ export function QuestionAuthorDialog({
 
     const [uploadError, setUploadError] = useState<string | null>(null)
 
-    // Uploaded the moment a file is picked, so the preview shows the real stored
-    // object and the save only has to remember its { url, type }. Cancelling the
-    // dialog after picking therefore leaves an orphan in the bucket — accepted.
     const upload = useMutation({
         mutationFn: (file: File) => {
             const form = new FormData()
@@ -389,8 +385,8 @@ export function QuestionAuthorDialog({
                 </DialogHeader>
 
                 <div className="grid gap-4">
-                    {/* Round group and time limit share a row: both are short, and
-                        stacked they push the dialog to three screens. */}
+                    {
+}
                     <div className="grid gap-4 sm:grid-cols-[1fr_11rem]">
                         <div className="grid gap-2">
                             <label className="text-sm font-medium" htmlFor="q-bucket">Round group</label>

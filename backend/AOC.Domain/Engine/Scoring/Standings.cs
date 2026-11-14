@@ -1,6 +1,5 @@
 namespace AOC.Domain.Engine.Scoring;
 
-/// <summary>Port of engine/scoring/standings.ts — tournament standings builder.</summary>
 public static class Standings
 {
     public sealed record StageRef(string Id, string Title);

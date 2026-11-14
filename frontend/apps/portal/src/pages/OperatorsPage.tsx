@@ -176,7 +176,7 @@ export function OperatorsPage() {
     const list = useQuery({
         queryKey: ["operators"],
         queryFn: () => api<{ items: Operator[] }>("/portal/operators"),
-        retry: false, // a non-admin gets 403 — that is an answer, not a failure
+        retry: false,
     })
     const [inviting, setInviting] = useState(false)
 

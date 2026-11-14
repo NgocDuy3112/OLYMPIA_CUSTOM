@@ -13,7 +13,6 @@ public sealed record FormatCheck(bool Checked, List<string> Problems)
     public static readonly FormatCheck Unchecked = new(false, []);
 }
 
-/// <summary>Port of bracket/service.ts — format checks for match assembly.</summary>
 public sealed class BracketService(AOCDbContext db)
 {
     private sealed record PlayedMatch(Guid Id, int? Slot, string StageId, List<string> Order, Dictionary<string, int> Scores);
@@ -62,7 +61,6 @@ public sealed class BracketService(AOCDbContext db)
         var order = previous.Select((userId, index) => (userId, index))
             .ToDictionary(x => x.userId, x => x.index);
 
-        // JS: sort by score desc, tie-break by previous-order index asc (stable).
         var playedIds = scores.Keys
             .OrderByDescending(a => scores[a])
             .ThenBy(a => order.GetValueOrDefault(a, int.MaxValue))

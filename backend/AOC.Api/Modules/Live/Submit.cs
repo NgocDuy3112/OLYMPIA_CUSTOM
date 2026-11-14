@@ -11,7 +11,6 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.Live;
 
-/// <summary>Port of live/submit.ts — player answer/keyword submissions with window checks.</summary>
 public sealed class SubmitService(
     AOCDbContext db,
     LiveReader reader,
@@ -58,7 +57,7 @@ public sealed class SubmitService(
         await audit.AuditAsync(new AOC.Infrastructure.Audit.AuditEvent
         {
             Action = "answer_drafted",
-            ActorId = null, // the auto-matcher drafted it, not a person
+            ActorId = null,
             MatchId = ctx.MatchId,
             Ip = ctx.Ip,
             UserAgent = ctx.UserAgent,
@@ -89,8 +88,6 @@ public sealed class SubmitService(
                 if (!GiaiMaTurn.CanPlayerAnswer(state, ctx.UserId.ToString(), loaded.Now))
                     throw new SubmitError(409, "LOCKED", "you can no longer answer this round");
 
-                // the match holds its own copies of the questions (assembly mints new
-                // ids), so resolve against the match — the bank never sees them
                 var question = loaded.Match.QuestionsList.FirstOrDefault(q => q.Id == ctx.QuestionId.ToString())
                     ?? throw new SubmitError(400, "NOT_IN_MATCH", "question is not part of this match");
                 var suggestion = Suggestion(question, value);
@@ -124,8 +121,6 @@ public sealed class SubmitService(
                 if (atS > state.Rules.QuestionLimitS)
                     throw new SubmitError(409, "WINDOW_CLOSED", "the answer window has closed");
 
-                // the match holds its own copies of the questions (assembly mints new
-                // ids), so resolve against the match — the bank never sees them
                 var question = loaded.Match.QuestionsList.FirstOrDefault(q => q.Id == ctx.QuestionId.ToString())
                     ?? throw new SubmitError(400, "NOT_IN_MATCH", "question is not part of this match");
                 var suggestion = Suggestion(question, value);
@@ -158,8 +153,6 @@ public sealed class SubmitService(
                     throw new SubmitError(409, "WINDOW_CLOSED",
                         "the clock has run out — the answer window is closed");
 
-                // the match holds its own copies of the questions (assembly mints new
-                // ids), so resolve against the match — the bank never sees them
                 var question = loaded.Match.QuestionsList.FirstOrDefault(q => q.Id == ctx.QuestionId.ToString())
                     ?? throw new SubmitError(400, "NOT_IN_MATCH", "question is not part of this match");
                 var suggestion = Suggestion(question, value);
@@ -185,13 +178,11 @@ public sealed class SubmitService(
                 var open = state.Open;
                 if (open is null || open.Question.Id != ctx.QuestionId.ToString())
                     throw new SubmitError(409, "NOT_OPEN", "that question is not open");
-                // phase 1 is open to every seated player — the clock bounds the window
                 if (open.OpenedAt is null)
                     throw new SubmitError(409, "NO_CLOCK", "the clock has not started yet");
                 if (open.Stage != "current")
                     throw new SubmitError(409, "WINDOW_CLOSED", "the answer window has closed");
 
-                // The value-keyed clock bounds the typing window.
                 var clock = RoundRules.VeDichClockSeconds(state.Rules, open.Question.Value);
                 if (clock is not null && open.OpenedAt is not null)
                 {
@@ -202,8 +193,6 @@ public sealed class SubmitService(
                             $"the {clock}s answer window for this {open.Question.Value}-point question has closed");
                 }
 
-                // the match holds its own copies of the questions (assembly mints new
-                // ids), so resolve against the match — the bank never sees them
                 var question = loaded.Match.QuestionsList.FirstOrDefault(q => q.Id == ctx.QuestionId.ToString())
                     ?? throw new SubmitError(400, "NOT_IN_MATCH", "question is not part of this match");
                 var suggestion = Suggestion(question, value);
@@ -240,7 +229,6 @@ public sealed class SubmitService(
         var suggestion = Matching.AutoMatch(QuestionKind.KEYWORD,
             keywordQuestion.Payload, value) ? Verdict.CORRECT : Verdict.INCORRECT;
 
-        // lock + draft inside one live mutation
         var store = new PgLiveStore(db, ctx.MatchId);
         await Apply.MutateLive(store, async tx =>
         {
@@ -262,13 +250,11 @@ public sealed class SubmitService(
                 JsonSerializer.SerializeToElement(nextState, JsonDefaults.Options), facts);
         });
 
-        // the keyword lands with a ping for the room
         await Sfx.BroadcastAsync(hub, ctx.MatchId.ToString(), "ping.mp3");
         await hub.PublishAsync(ctx.MatchId.ToString());
         return new AnswerResult();
     }
 
-    /// <summary>Port of live/ve-dich-player.ts — the buzz command.</summary>
     public async Task<object> SubmitVeDichCommandAsync(Guid matchId, Guid userId, string command)
     {
         var loaded = await LoadContextAsync(new SubmitContext(matchId, userId, Guid.Empty, default));

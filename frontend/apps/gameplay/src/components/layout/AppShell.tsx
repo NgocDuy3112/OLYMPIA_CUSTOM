@@ -4,8 +4,6 @@ import { NavBar } from "@/components/layout/NavBar";
 
 export function AppShell() {
     const { pathname } = useLocation()
-    // Inside a match the player's deck owns the whole page — the site header
-    // would only sit on top of the stage, so it is not rendered there.
     const inMatch = /\/matches\/[^/]+\/?$/.test(pathname)
 
     return (

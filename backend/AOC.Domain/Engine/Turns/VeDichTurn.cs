@@ -33,13 +33,11 @@ public sealed record OpenQuestion
     [JsonPropertyName("question")] public required VeDichQuestion Question { get; init; }
     [JsonPropertyName("answerer")] public required string Answerer { get; init; }
     [JsonPropertyName("power")] public Power? Power { get; init; }
-    [JsonPropertyName("stage")] public required string Stage { get; init; } // current | buzz
+    [JsonPropertyName("stage")] public required string Stage { get; init; }
 
-    /// <summary>When the answering stage opened — the value-keyed clock counts from here.</summary>
     [JsonPropertyName("openedAt")]
     public string? OpenedAt { get; init; }
 
-    /// <summary>The controller revealed it — players and the audience see the question only from here.</summary>
     [JsonPropertyName("revealed")]
     public bool Revealed { get; init; }
 
@@ -83,9 +81,6 @@ public sealed record VeDichState
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? TurnPowerUsed { get; init; }
 
-    /// <summary>Phase 2: how many questions the current turn picked. It stays at
-    /// the batch size while questions open, so the console can tell a turn in
-    /// progress (2 left of 3) from a batch still being assembled (1 of 3).</summary>
     [JsonPropertyName("turnPicked")]
     public int TurnPicked { get; init; }
 
@@ -227,9 +222,6 @@ public static class VeDichTurn
         };
     }
 
-    /// <summary>Phase 2's pick. The console sends the turn's whole set on every
-    /// click, so this replaces whatever was picked before — an empty set puts the
-    /// questions back on the board. At most three.</summary>
     public static VeDichState PickPhase2(VeDichState state, string playerId, IReadOnlyList<string> questionIds)
     {
         if (state.Phase != 2) throw Err("WRONG_PHASE", "pickPhase2 only applies in Phase 2");
@@ -251,9 +243,6 @@ public static class VeDichTurn
         };
     }
 
-    /// <summary>Phase 1's batch pick — one question per player, played one at a
-    /// time. Like PickPhase2 this replaces the set on every click, so the console
-    /// can take a question back without a separate undo action.</summary>
     public static VeDichState PickRound(VeDichState state, IReadOnlyList<string> questionIds)
     {
         if (state.Phase != 1) throw Err("WRONG_PHASE", "pickRound only applies in Phase 1");
@@ -281,8 +270,6 @@ public static class VeDichTurn
         };
     }
 
-    /// <summary>Opens the next picked question — the first one while nothing is open —
-    /// and closes the set once the last question has been played.</summary>
     public static VeDichState NextQuestion(VeDichState state)
     {
         if (state.Phase != 1) throw Err("WRONG_PHASE", "nextQuestion only applies in Phase 1");
@@ -312,7 +299,6 @@ public static class VeDichTurn
         };
     }
 
-    /// <summary>Puts the picked questions back so the controller can re-pick.</summary>
     public static VeDichState ClearPicks(VeDichState state)
     {
         if (state.Phase != 1) throw Err("WRONG_PHASE", "clearPicks only applies in Phase 1");
@@ -408,8 +394,6 @@ public static class VeDichTurn
         };
     }
 
-    /// <summary>The controller shows the question — players, the audience and (for an
-    /// assigned power) the buzz window all start here.</summary>
     public static VeDichState RevealQuestion(VeDichState state, string nowIso)
     {
         if (state.Open is null) throw Err("NOTHING_OPEN", "no question is open");
@@ -421,7 +405,6 @@ public static class VeDichTurn
         return state with { Open = open };
     }
 
-    /// <summary>Tính giờ — starts (or restarts) the clock, once the question is revealed.</summary>
     public static VeDichState StartClock(VeDichState state, string nowIso)
     {
         if (state.Open is null) throw Err("NOTHING_OPEN", "no question is open");
@@ -574,9 +557,6 @@ public static class VeDichTurn
         };
     }
 
-    /// <summary>The console picks who plays next — the rail card on the phase-2 pick
-    /// board. Any staged picks or power belonged to the player being left, so they
-    /// go back to the board instead of being dropped.</summary>
     public static VeDichState SetTurn(VeDichState state, string playerId)
     {
         if (state.Phase != 2) throw Err("WRONG_PHASE", "setTurn only applies in phase 2");

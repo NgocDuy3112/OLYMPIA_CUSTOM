@@ -5,7 +5,6 @@ import { Page, PageHeader, EmptyState, ErrorPanel } from "@/components/page"
 import { useMatches, useTournament } from "@/lib/tournament"
 import { StandardMatchControl, StatusBadge } from "@/components/standard-match-control"
 import { MatchQuestionSurface } from "@/components/match-question-surface"
-import { RecordingsTab } from "@/components/recordings-tab"
 
 
 export function MatchPage() {
@@ -52,7 +51,6 @@ export function MatchPage() {
         )
     }
 
-    // UPCOMING opens on the assembly surface; once running or done, scoring is the job.
     const defaultTab = match.status === "UPCOMING" ? "cau-hoi" : "ket-qua"
 
     return (
@@ -76,9 +74,6 @@ export function MatchPage() {
                 <TabsList variant="line" className="justify-start gap-6 border-b">
                     <TabsTrigger value="cau-hoi">Câu hỏi</TabsTrigger>
                     <TabsTrigger value="ket-qua">Kết quả</TabsTrigger>
-                    {match.status !== "UPCOMING" && (
-                        <TabsTrigger value="ban-ghi">Bản ghi</TabsTrigger>
-                    )}
                 </TabsList>
 
                 <TabsContent value="cau-hoi">
@@ -89,11 +84,6 @@ export function MatchPage() {
                     <StandardMatchControl tournamentId={tournamentId!} match={match} />
                 </TabsContent>
 
-                {match.status !== "UPCOMING" && (
-                    <TabsContent value="ban-ghi">
-                        <RecordingsTab tournamentId={tournamentId!} matchId={match.id} />
-                    </TabsContent>
-                )}
             </Tabs>
         </Page>
     )

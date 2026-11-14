@@ -6,9 +6,6 @@ import { useContestants } from "@/lib/tournament"
 import { RosterTable } from "./roster-table"
 import { rosterSummary } from "@/lib/roster"
 
-/** Read-only view of one tournament's roster: the Thí sinh tab inside a
- *  tournament page. Every tool (gdi danh, sửa, đặt mật khẩu, bỏ) lives on the
- *  top-level Thí sinh page — see /players. */
 export function PlayersTab({ tournamentId }: { tournamentId: string }) {
     const roster = useContestants(tournamentId)
 

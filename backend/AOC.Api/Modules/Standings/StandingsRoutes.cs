@@ -5,7 +5,6 @@ using AOC.Infrastructure.Configuration;
 
 namespace AOC.Api.Modules.Standings;
 
-/// <summary>Port of standings/routes.ts.</summary>
 public static class StandingsRoutes
 {
     public static IEndpointRouteBuilder MapStandingsRoutes(this IEndpointRouteBuilder app)

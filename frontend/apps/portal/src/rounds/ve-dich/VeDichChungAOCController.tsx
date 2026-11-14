@@ -13,7 +13,6 @@ export type VeDichChungCtx = ScreenCore & {
     setSelectedPlayer: (userId: string) => void
     verdictOf: (questionId: string, userId: string) => "CORRECT" | "INCORRECT" | null
     hetLuot: () => void
-    /** answers of the open question — everyone in phase 1 answers it */
     rows: QuestionAnswerRow[]
 }
 
@@ -24,11 +23,7 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
     const stripCells = (projection.board ?? []).filter((c) => c.where === "open" || c.where === "pending")
     const openNow = projection.open[0]
     const revealed = consoleVeDich?.revealed ?? false
-    // phase 1: every seated player answers, so the set moves on once every
-    // submitted answer carries a verdict — nobody answered means nothing to grade
     const needsVerdict = rows.some((r) => r.verdict === null)
-    // JudgeFact needs a real answer row, so only players who actually answered
-    // are gradeable — a ticked card without an answer would score for nothing
     const gradeableIds = () => {
         const answered = (id: string) => rows.some((r) => r.userId === id)
         if (ctx.selectedIds.size > 0) return [...ctx.selectedIds].filter(answered)
@@ -42,8 +37,6 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
         ctx.sendChain(ids.map((playerId) => ({ kind: "ve-dich.judge" as const, playerId, correct })))
     }
 
-    // the question card is the reveal control — clicking it shows the question
-    // to every player
     const reveal = openNow && !revealed
         ? () => ctx.send({ kind: "ve-dich.reveal" })
         : undefined

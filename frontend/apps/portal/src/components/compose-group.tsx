@@ -36,8 +36,6 @@ interface ActiveData {
     groupId?: string
     index?: number
     sourceId?: string
-    // Rendered by the DragOverlay ghost — without these the overlay has
-    // nothing to show while the source item sits dimmed in its slot.
     label?: string
     badge?: string
 }
@@ -107,8 +105,8 @@ export function ComposeDndProvider({
             }}
         >
             {children}
-            {/* The ghost that follows the pointer. Portalled to <body>, so no
-                ancestor transform can throw its coordinates off. */}
+            {
+}
             <DragOverlay>
                 {dragging?.label && (
                     <div className="pointer-events-none flex max-w-64 items-center gap-2 rounded-md border border-primary bg-background px-2 py-1.5 text-sm shadow-lg">

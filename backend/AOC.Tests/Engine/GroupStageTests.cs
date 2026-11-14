@@ -50,7 +50,7 @@ public class GroupStageTests
         var avg = GroupStage.ComputeAverages(
         [
             new GroupStage.PlayedMatch(GroupStage.GroupPhase.Phase1, 10),
-            new GroupStage.PlayedMatch(GroupStage.GroupPhase.Phase1, -6), // counted as 0 in Phase 1
+            new GroupStage.PlayedMatch(GroupStage.GroupPhase.Phase1, -6),
             new GroupStage.PlayedMatch(GroupStage.GroupPhase.Phase2, 20)
         ]);
         Assert.Equal(5, avg.Phase1);

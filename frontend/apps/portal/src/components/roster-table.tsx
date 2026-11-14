@@ -1,8 +1,6 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
 import type { ContestantRow } from "@/lib/tournament"
 
-/** The roster table — read-only, for the tournament's Thí sinh tab. Every tool
- *  lives on the global desk at /players. */
 export function RosterTable({ rows }: { rows: ContestantRow[] }) {
     return (
         <Table>

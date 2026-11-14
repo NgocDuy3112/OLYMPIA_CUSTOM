@@ -12,7 +12,6 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.Questions;
 
-/// <summary>Port of questions/excel.ts — workbook parsing, mapping and import.</summary>
 public static class ExcelImport
 {
     public const int ExcelMaxBytes = 5 * 1024 * 1024;
@@ -39,7 +38,6 @@ public static class ExcelImport
 
     private static readonly HashSet<string> OralBuckets = ["khoi-dong:rieng", "ve-dich:40", "ve-dich:50"];
 
-    // ---- cell helpers -------------------------------------------------------------
 
     private static string CellText(object? cell)
     {
@@ -88,7 +86,6 @@ public static class ExcelImport
         return new SheetRows(data.Skip(headerIndex + 1).ToList(), headerIndex + 1, columns);
     }
 
-    // ---- placement ----------------------------------------------------------------
 
     private sealed record Placement(bool Ok, string Bucket, string Kind, bool IsHint, string Problem);
 
@@ -125,7 +122,6 @@ public static class ExcelImport
         }
     }
 
-    // ---- row building ---------------------------------------------------------------
 
     private sealed record BuiltRow(QuestionsService.CreateQuestionDto Input, string? Warning);
 
@@ -162,7 +158,6 @@ public static class ExcelImport
         {
             var dict = new Dictionary<string, JsonElement>
             {
-                // The bucket decides the declared type: ORAL groups must store ORAL.
                 ["type"] = JsonSerializer.SerializeToElement(OralBuckets.Contains(bucket) ? "ORAL" : "TEXT"),
                 ["acceptedAnswers"] = JsonSerializer.SerializeToElement(acceptedAnswers)
             };
@@ -180,7 +175,6 @@ public static class ExcelImport
         return new BuiltRow(input, null);
     }
 
-    // ---- mapping -------------------------------------------------------------------
 
     public sealed record MappedRow(
         QuestionsService.CreateQuestionDto? Input,
@@ -237,7 +231,6 @@ public static class ExcelImport
         return new MappedRow(builtRow.Input, placed.IsHint, null, builtRow.Warning, cells.Media);
     }
 
-    // ---- parsing ---------------------------------------------------------------------
 
 
     public sealed record ParsedWorkbook(
@@ -343,7 +336,6 @@ public static class ExcelImport
             workbook.Worksheets.Select(s => s.Name).ToList());
     }
 
-    // ---- structural problems ----------------------------------------------------------
 
     public static List<QuestionsService.BatchError> StructuralProblems(
         IReadOnlyList<(int Index, string Kind)> rows)
@@ -375,7 +367,6 @@ public static class ExcelImport
         return problems;
     }
 
-    // ---- report ------------------------------------------------------------------------
 
     public sealed record ExcelWarning(int Index, string Message);
 
@@ -410,7 +401,6 @@ public static class ExcelImport
             errors ?? [], parsed.Skipped, warnings, rows, stagedBatchId);
     }
 
-    // ---- media ------------------------------------------------------------------------
 
     private static List<QuestionsService.BatchError> AttachMedia(
         ParsedWorkbook parsed, IReadOnlyList<MediaAttachment> attachments)
@@ -454,7 +444,6 @@ public static class ExcelImport
         };
     }
 
-    /// <summary>A readable reason for a failed upload — SDK errors can carry an empty Message.</summary>
     private static string Reason(Exception error)
     {
         if (!string.IsNullOrWhiteSpace(error.Message)) return error.Message;
@@ -507,7 +496,6 @@ public static class ExcelImport
         return errors;
     }
 
-    // ---- staging ----------------------------------------------------------------------
 
     private const int StageChunk = 100;
 
@@ -560,7 +548,6 @@ public static class ExcelImport
     }
 
 
-    // ---- main entry ---------------------------------------------------------------------
 
     public static async Task<ExcelImportReport> ImportExcelAsync(
         QuestionsService.WriteContext ctx,
@@ -646,9 +633,6 @@ public static class ExcelImport
         }
         if (dryRun) return Report(true, parsed);
 
-        // stage=true: park the rows instead of writing them, so the caller can
-        // commit the batch straight into a match — which publishes the questions
-        // into the bank AND assembles them into that match in one gesture.
         if (forceStage)
         {
             var stagedId = await StageWorkbookAsync(db, ctx, parsed, sourceName, [], logger);
@@ -749,7 +733,6 @@ public static class ExcelImport
     }
 }
 
-/// <summary>Mutable staging entry (replaceable mapping + attached file).</summary>
 public sealed class ParsedEntry(
     ExcelImport.MappedRow mapped,
     ExcelImport.RowSummary summary,

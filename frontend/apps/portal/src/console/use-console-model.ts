@@ -31,14 +31,7 @@ type ConsoleModel = {
     submitAdjust: (delta: number, reason: string) => void
 } & (
     | { phase: "loading" }
-    /** transport failed and no lobby answered — say why, offer a retry */
     | { phase: "error"; message: string; retry: () => void }
-    /**
-     * The match is not LIVE yet — the SAME waiting room as between rounds, because
-     * the operator's unit of work is the ROUND, not the match. Picking one brings
-     * the match LIVE and starts it in one gesture; making them press "start the
-     * match" first was a step the show never has.
-     */
     | {
         phase: "not-live"
         lobby: LobbyData
@@ -46,7 +39,6 @@ type ConsoleModel = {
         busy: boolean
         startError: string | null
     }
-    /** a round is (re)selectable: the waiting room with the rounds navigator */
     | {
         phase: "lobby"
         lobby: LobbyData
@@ -55,7 +47,6 @@ type ConsoleModel = {
         startError: string | null
         host: HostBroadcast
     }
-    /** a round is running — the round module draws the controller's screen */
     | { phase: "deck"; facts: ConsoleFacts; roundModule: RoundModule | null; host: HostBroadcast }
 )
 

@@ -7,12 +7,6 @@ using Xunit;
 
 namespace AOC.Tests.Questions;
 
-/// <summary>
-/// Regression: raw-SQL helpers used to Open the DbContext's shared connection
-/// and never close it, so the SECOND raw query of a request threw
-/// "Connection already open" (GET /portal/questions, GET /portal/question-imports).
-/// RawSql gives every ad-hoc query its own pooled connection instead.
-/// </summary>
 public class RawSqlRegressionTests
 {
     private static bool Ready => AuthTestDb.DatabaseReady();
@@ -24,10 +18,8 @@ public class RawSqlRegressionTests
         await AuthTestDb.EnsureSchemaAsync();
         using var db = AuthTestDb.OpenDb();
 
-        // Mirror the request shape: the auth guard runs an EF query first…
         _ = await db.Users.AsNoTracking().FirstOrDefaultAsync();
 
-        // …then CountRows + QueryRows are two raw opens back to back.
         var service = new QuestionsService(db);
         var first = await service.ListQuestionsAsync(new QuestionsService.ListFilters(),
             new Page(20, 0));
@@ -49,9 +41,6 @@ public class RawSqlRegressionTests
         var questions = new QuestionsService(db);
         var staging = new StagingService(db, questions, new AssemblePatchService(db));
 
-        // The route calls ActiveBatch (raw) and then ListBatches (raw again).
-        // (Whether a batch exists depends on the database — the point is that
-        // BOTH raw queries run on one context without "Connection already open".)
         var active = await staging.ActiveBatchAsync();
         var batches = await staging.ListBatchesAsync();
 

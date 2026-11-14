@@ -168,7 +168,6 @@ public sealed class GoogleOidcService
     public static string Base64Url(byte[] bytes)
         => Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 
-    /// <summary>Extract ?code= from the callback URL.</summary>
     public static string? CodeFromCallback(string currentUrl)
     {
         var uri = new Uri(currentUrl);

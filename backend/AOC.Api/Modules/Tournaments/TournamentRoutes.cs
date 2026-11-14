@@ -9,7 +9,6 @@ using AOC.Infrastructure.Data;
 
 namespace AOC.Api.Modules.Tournaments;
 
-/// <summary>Port of tournaments/routes.ts.</summary>
 public static class TournamentRoutes
 {
     public static IEndpointRouteBuilder MapTournamentRoutes(this IEndpointRouteBuilder app)

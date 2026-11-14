@@ -11,7 +11,6 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.Questions;
 
-/// <summary>Port of questions/transitions.ts.</summary>
 public static class Transitions
 {
     private static readonly Dictionary<QuestionStatus, QuestionStatus[]> Edges = new()
@@ -37,7 +36,6 @@ public static class Transitions
     }
 }
 
-/// <summary>Port of questions/payload.ts.</summary>
 public static class PayloadGuards
 {
     public static void AssertPayloadForKind(QuestionKind kind, JsonElement payload)
@@ -99,7 +97,6 @@ public static class PayloadGuards
         => new(QuestionErrorCode.VALIDATION, message, details ?? []);
 }
 
-/// <summary>Port of questions/service.ts.</summary>
 public sealed class QuestionsService(AOCDbContext db)
 {
     public const int MaxBatchSize = 500;
@@ -114,13 +111,11 @@ public sealed class QuestionsService(AOCDbContext db)
     public sealed record BatchReport(
         bool DryRun, int Total, int Created, List<Guid> Ids, List<BatchError> Errors);
 
-    // ---- lookups -----------------------------------------------------------------
 
     public async Task<QuestionBankEntity> RequireQuestionAsync(string id)
         => await db.QuestionBank.AsNoTracking().FirstOrDefaultAsync(q => q.Id == Guid.Parse(id))
            ?? throw new QuestionError(QuestionErrorCode.NOT_FOUND, $"question {id} not found");
 
-    // ---- create -------------------------------------------------------------------
 
     private static QuestionType DeriveType(QuestionKind kind, JsonElement payload)
     {
@@ -380,7 +375,6 @@ public sealed class QuestionsService(AOCDbContext db)
         return tracked;
     }
 
-    // ---- search & listing -----------------------------------------------------------
 
     private static string? QuestionSearchQuery(string term)
     {
@@ -437,10 +431,6 @@ public sealed class QuestionsService(AOCDbContext db)
     private static QuestionBankEntity Materialize(System.Data.Common.DbDataReader reader) => new()
     {
         Id = reader.GetGuid(0),
-        // kind/status come back as ::text (see SelectColumns): RawSql's pooled
-        // connection is a plain NpgsqlConnection with no MapEnum registrations,
-        // so GetFieldValue<QuestionKind> on a native PG enum fails with
-        // "DataTypeName '-.-' not supported". Parse from the label instead.
         Kind = Enum.Parse<QuestionKind>(reader.GetString(1)),
         QuestionText = reader.GetString(2),
         KeywordId = reader.IsDBNull(3) ? null : reader.GetGuid(3),
@@ -511,10 +501,6 @@ public sealed class QuestionsService(AOCDbContext db)
         string? searchTs;
         string order;
         var filter = new SqlFilter([], []);
-        // Enum columns are compared via typed casts: RawSql's plain connection
-        // sends .ToString() params as text, and PG has no enum=text operator
-        // (42883 "operator does not exist"). Literals like 'PUBLISHED' are fine
-        // (PG coerces unknown literals to the enum) — only parameters need this.
         if (filters.Status is { } status)
             filter.Add("status = @status::question_status", ("status", status.ToString()));
         if (filters.Kind is { } kind)
@@ -557,7 +543,6 @@ public sealed class QuestionsService(AOCDbContext db)
         var (filter, searchTs, order) = await BuildFilterAsync(filters);
         var extra = searchTs is not null ? new Dictionary<string, object> { ["tsq"] = searchTs } : null;
 
-        // Count ignores the cursor, like the TS source.
         var countFilter = new SqlFilter(filter.Where.Where(w => !w.Contains("cursorAt")).ToList(),
             filter.Params.Where(p => p.Name is not ("cursorAt" or "cursorId")).ToList());
         var total = await CountRowsAsync(countFilter, extra);
@@ -617,7 +602,6 @@ public sealed class QuestionsService(AOCDbContext db)
     {
         var searchTs = search is { } term ? QuestionSearchQuery(term) : null;
 
-        // The bucket expression is SQL-side; run one raw query like the TS source.
         await using var connection = await RawSql.OpenAsync(db);
         await using var command = connection.CreateCommand();
         var where = new List<string>();
@@ -675,7 +659,6 @@ public sealed class QuestionsService(AOCDbContext db)
         return items;
     }
 
-    // ---- batch import ----------------------------------------------------------------
 
     public sealed record CreateQuestionDto(
         QuestionKind Kind,
@@ -735,7 +718,6 @@ public sealed class QuestionsService(AOCDbContext db)
         return new CreateQuestionDto(kind, questionText, keywordId, payloadClone, media, timeLimit, tags);
     }
 
-    /// <summary>Canonical fingerprint used for duplicate detection (fingerprint()).</summary>
     public static string Fingerprint(string kind, string questionText, JsonElement payload, IReadOnlyList<string>? tags)
     {
         JsonElement? raw = payload.ValueKind == JsonValueKind.Object ? payload : null;
@@ -812,7 +794,6 @@ public sealed class QuestionsService(AOCDbContext db)
             }
         }
 
-        // In-batch duplicates.
         var seenInBatch = new Dictionary<string, int>();
         var duplicatedInBatch = new HashSet<int>();
         foreach (var (index, input) in shaped)

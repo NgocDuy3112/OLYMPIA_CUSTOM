@@ -1,12 +1,10 @@
 namespace AOC.Domain.Engine.Scoring;
 
-/// <summary>JavaScript-compatible math helpers (JS Math.round = floor(x + 0.5)).</summary>
 public static class JsMath
 {
     public static int Round(double x) => (int)Math.Floor(x + 0.5);
 }
 
-/// <summary>Port of engine/scoring/*.ts — pure scoring functions.</summary>
 public static class KhoiDongScoring
 {
     public static int Points(bool correct, int points) => correct ? points : 0;

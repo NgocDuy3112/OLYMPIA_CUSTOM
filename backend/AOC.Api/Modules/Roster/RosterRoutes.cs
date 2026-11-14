@@ -6,16 +6,12 @@ using AOC.Infrastructure.Configuration;
 
 namespace AOC.Api.Modules.Roster;
 
-/// <summary>Port of roster/routes.ts.</summary>
 public static class RosterRoutes
 {
     private static readonly Regex DiscordPattern = new("^[0-9]{15,30}$", RegexOptions.Compiled);
 
     public static IEndpointRouteBuilder MapRosterRoutes(this IEndpointRouteBuilder app)
     {
-        // GET /portal/players — every player account, and which tournaments each
-        // one is in. Players arrive here by signing in with Google; the desk
-        // assigns tournaments afterwards.
         app.MapGet("/portal/players", async (HttpContext http) =>
         {
             await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -24,8 +20,6 @@ public static class RosterRoutes
             return Results.Json(new { items }, JsonApi.Options);
         });
 
-        // PATCH /portal/players/:userId — the account itself (name / email /
-        // Discord), independent of any tournament.
         app.MapPatch("/portal/players/{userId}", async (HttpContext http) =>
         {
             var userId = Validate.RouteUuid(http, "userId");
@@ -60,7 +54,6 @@ public static class RosterRoutes
             return Results.Json(new { userId, displayName, email }, JsonApi.Options);
         });
 
-        // POST /portal/tournaments/:tournamentId/players
         app.MapPost("/portal/tournaments/{tournamentId}/players", async (HttpContext http) =>
         {
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
@@ -91,7 +84,6 @@ public static class RosterRoutes
             return Results.Json(new { enrolled }, JsonApi.Options);
         });
 
-        // DELETE /portal/tournaments/:tournamentId/players/:userId
         app.MapDelete("/portal/tournaments/{tournamentId}/players/{userId}", async (HttpContext http) =>
         {
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
@@ -111,7 +103,6 @@ public static class RosterRoutes
             return Results.Json(new { removed = userId }, JsonApi.Options);
         });
 
-        // PATCH /portal/tournaments/:tournamentId/players/:userId/group
         app.MapPatch("/portal/tournaments/{tournamentId}/players/{userId}/group", async (HttpContext http) =>
         {
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
@@ -153,7 +144,6 @@ public static class RosterRoutes
             return Results.Json(new { userId, group }, JsonApi.Options);
         });
 
-        // GET /portal/tournaments/:tournamentId/players
         app.MapGet("/portal/tournaments/{tournamentId}/players", async (HttpContext http) =>
         {
             var tournamentId = Validate.RouteUuid(http, "tournamentId");

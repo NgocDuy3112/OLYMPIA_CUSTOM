@@ -13,7 +13,6 @@ public static class McpRoutes
 {
     public static IEndpointRouteBuilder MapMcpRoutes(this IEndpointRouteBuilder app)
     {
-        // Endpoint filter: Bearer token → verify → role check → actor into Items.
         app.MapMcp("/mcp").AddEndpointFilter(async (context, next) =>
         {
             var http = context.HttpContext;

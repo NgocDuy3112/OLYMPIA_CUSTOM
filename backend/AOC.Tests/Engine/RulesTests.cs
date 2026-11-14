@@ -96,7 +96,7 @@ public class RulesTests
 
         Assert.Equal(8, rules.Phase1Questions);
         Assert.Equal(30, rules.Phase1BudgetS);
-        Assert.Equal(6, rules.Phase2Questions); // phase2 count is fixed by the format
+        Assert.Equal(6, rules.Phase2Questions);
         Assert.Equal(7, rules.Phase2WindowS);
     }
 

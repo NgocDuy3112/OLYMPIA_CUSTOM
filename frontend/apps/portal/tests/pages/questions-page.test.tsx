@@ -104,7 +104,6 @@ describe("QuestionsPage", () => {
             })
         )
 
-        // uploaded on pick — before any save — so the preview is the stored object
         await waitFor(() =>
             expect(
                 fetchMock.mock.calls.some(([url]) => url === "/portal/questions/media")

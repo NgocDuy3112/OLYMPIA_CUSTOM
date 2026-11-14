@@ -11,11 +11,6 @@ const btnCls = (tone: keyof typeof TONE): string =>
 
 const ICON = "size-[1.05cqw]"
 
-/**
- * The player's own controls, sitting ON their camera view: mic, camera, and
- * deafen (which unsubscribes every incoming stream). Must be placed inside a
- * `relative` tile — it paints over the bottom of the video.
- */
 export function SelfCamControls() {
     const self = useSelfCam()
     if (!self) return null

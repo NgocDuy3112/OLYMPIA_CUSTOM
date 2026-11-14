@@ -43,17 +43,12 @@ function VeDichPickBoard({ ctx }: { ctx: VeDichPickCtx }) {
     const boardMap = new Map((projection.board ?? []).map((c) => [c.questionId, c.where]))
     const rows = boardRows(boardQs, (q) => q.points)
 
-    // the board's remount key carries pendingCount, so this draft re-seeds from
-    // the projection the moment the engine's set catches up (or is cleared)
     const [chosen, setChosen] = useState<string[]>(
         () => (projection.board ?? []).filter((c) => c.where === "pending").map((c) => c.questionId),
     )
     const openCount = projection.open.length
-    // phase 1: one question per player — the controller picks for the table, no
-    // turn involved; phase 2 keeps its per-turn batch of three
     const need = phase2 ? NEED_PER_PHASE[2] : Math.max(1, projection.table.length)
     const complete = chosen.length === need
-    // a question already picked stays clickable — it takes itself back
     const picking = openCount === 0 && (phase2 ? turnPlayer !== null : true)
 
     const sendPicks = (ids: string[]) => {
@@ -65,7 +60,6 @@ function VeDichPickBoard({ ctx }: { ctx: VeDichPickCtx }) {
         ctx.send({ kind: "ve-dich.pickRound", questionIds: ids })
     }
 
-    // every click writes the whole set — there is no confirm button left to press
     const toggle = (id: string) => {
         if (!picking) return
         const staged = chosen.includes(id)
@@ -75,10 +69,6 @@ function VeDichPickBoard({ ctx }: { ctx: VeDichPickCtx }) {
         sendPicks(next)
     }
 
-    // Xác nhận needs a whole turn: three questions in phase 2, one per seat in
-    // phase 1. Hết lượt returns to this board with two questions left, then one —
-    // turnPicked is what says those three were picked together, so a shrinking
-    // set still opens the next one while a batch being assembled does not.
     const pickedThisTurn = (consoleVeDich?.turnPicked ?? 0) === need
     const ready = phase2
         ? pickedThisTurn && consoleVeDich?.pendingQuestionId != null
@@ -93,8 +83,6 @@ function VeDichPickBoard({ ctx }: { ctx: VeDichPickCtx }) {
     const usedThisTurn = consoleVeDich?.turnPowerUsed === true
     const canStage = phase2 && turnPlayer !== null && chosen.length > 0 && !usedThisTurn
     const [arming, setArming] = useState(false)
-    // the arm only lasts while staging is still possible — the power landing
-    // (or the picks running out) closes it without a second click
     const assignArmed = arming && canStage
     const stage = (power: "STAR" | "ASSIGN" | null, targetId?: string) => {
         if (!turnPlayer) return
@@ -106,8 +94,6 @@ function VeDichPickBoard({ ctx }: { ctx: VeDichPickCtx }) {
         })
     }
 
-    // phase 2 rail: the card names who plays next — unless ASSIGN is armed,
-    // where the second click names the player the question is handed to
     const railSelect = (id: string) => {
         if (assignArmed) {
             setArming(false)

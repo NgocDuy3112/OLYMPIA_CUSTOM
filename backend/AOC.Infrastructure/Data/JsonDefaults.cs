@@ -4,7 +4,6 @@ using AOC.Domain.Contracts;
 
 namespace AOC.Infrastructure.Data;
 
-// DB-backed enums (pg enum labels == member names). Jsonb-only enums live in Domain.
 
 public enum UserRole { ADMIN, OPERATOR, PLAYER }
 
@@ -14,15 +13,12 @@ public enum MatchKind { STANDARD }
 
 public enum MatchEventKind { PICK, BUZZ, POWER }
 
-public enum RecordingStatus { RECORDING, STOPPED, FAILED }
-
 public enum Visibility { PUBLIC, PRIVATE }
 
 public enum QuestionStatus { DRAFT, PENDING, PUBLISHED, ARCHIVED }
 
 public enum PlayerGroup { A, B }
 
-/// <summary>Shared JSON options — must produce byte-identical shapes to the TS JSON.stringify output.</summary>
 public static class JsonDefaults
 {
     public static readonly JsonSerializerOptions Options = Create();

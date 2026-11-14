@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace AOC.Api.Http;
 
-/// <summary>Shared request validation — TypeBox-style required/type checks.</summary>
 public static class Validate
 {
     private static readonly Regex UuidPattern =

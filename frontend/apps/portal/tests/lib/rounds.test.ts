@@ -76,7 +76,7 @@ describe("endRoundPlanOf — what Kết thúc sends (one press ends the round)",
                 questionId: "b1",
                 verdicts: [
                     { playerId: "u1", correct: true },
-                    { playerId: "u2", correct: false }, // exactly what the console staged — no defaults
+                    { playerId: "u2", correct: false },
                 ],
             },
             { kind: "but-pha.endRound" },

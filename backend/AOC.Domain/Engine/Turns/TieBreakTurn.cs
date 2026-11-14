@@ -2,12 +2,11 @@ using System.Text.Json.Serialization;
 
 namespace AOC.Domain.Engine.Turns;
 
-/// <summary>Port of turns/tie-break.ts — sudden-death tie-breaks and composite ranking.</summary>
 public sealed record TieBreakAnswer
 {
     [JsonPropertyName("text")] public required string Text { get; init; }
 
-    [JsonPropertyName("correct")] public bool? Correct { get; init; } // null = unjudged
+    [JsonPropertyName("correct")] public bool? Correct { get; init; }
 }
 
 public sealed record TieBreakState
@@ -19,7 +18,6 @@ public sealed record TieBreakState
     [JsonPropertyName("cursor")] public int Cursor { get; init; }
     [JsonPropertyName("open")] public bool Open { get; init; }
 
-    /// <summary>playerId → questionId → answer.</summary>
     [JsonPropertyName("answers")]
     public Dictionary<string, Dictionary<string, TieBreakAnswer>> Answers { get; init; } = new();
 }

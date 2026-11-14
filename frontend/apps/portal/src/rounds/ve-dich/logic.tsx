@@ -34,14 +34,11 @@ function riengCtx(f: ConsoleFacts): VeDichRiengCtx {
 }
 
 export function hetLuotAction(facts: HetLuotFacts): RoundAction | null {
-    // phase 1 is graded player by player — Hết lượt opens the next picked question
     if (facts.phase === 1) return { kind: "ve-dich.nextQuestion" }
 
     if (facts.answererVerdict === null) return null
     if (facts.buzzerId !== null && facts.buzzerVerdict === null) return null
 
-    // phase 2 settles the question and lands back on the pick board, where the
-    // turn's remaining questions wait behind Xác nhận
     return {
         kind: "ve-dich.resolve",
         answerer: facts.answererVerdict === "CORRECT",
@@ -57,8 +54,6 @@ export const veDichAOC: RoundModule = {
             : <VeDichChungAOCController ctx={chungCtx(f)} />
     },
     railVariant: ({ veDichPhase }) => (veDichPhase === 2 ? "compact" : "answers"),
-    // Về sảnh only navigates: ending the round here made it unresumable from
-    // the waiting room, so the round stays "playing" until the match moves on
     endRoundPlan: (): RoundAction[] => [],
     hetLuotAction,
 }

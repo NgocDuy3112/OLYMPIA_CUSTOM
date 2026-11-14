@@ -6,7 +6,6 @@ using Xunit;
 
 namespace AOC.Tests.Http;
 
-/// <summary>The request line: what the console (and, at Error, Discord) sees per request.</summary>
 public class RequestLoggingTests
 {
     private sealed class Recorder : ILogger<RequestLoggingMiddleware>

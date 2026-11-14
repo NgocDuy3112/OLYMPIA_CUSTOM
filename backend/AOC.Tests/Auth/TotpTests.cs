@@ -4,11 +4,6 @@ using Xunit;
 
 namespace AOC.Tests.Auth;
 
-/// <summary>
-/// Reconstructed port of the (uncommitted) tests/unit/auth/totp.test.ts,
-/// covering auth/totp.ts semantics: base32 secrets, otpauth URIs, the ±30 s
-/// (±1 step) window, and the distinct invalid/reused outcomes.
-/// </summary>
 public class TotpTests
 {
     private static string CodeFor(string secret, DateTime at)
@@ -33,7 +28,6 @@ public class TotpTests
         var secret = TotpService.NewTotpSecret();
         var key = Base32Encoding.ToBytes(secret);
         Assert.NotEmpty(key);
-        // …and the secret is stable enough to reproduce the same code.
         Assert.Equal(CodeFor(secret), CodeFor(secret));
     }
 
@@ -93,12 +87,10 @@ public class TotpTests
         var first = TotpService.VerifyTotpCode(secret, code, null);
         Assert.True(first.Ok);
 
-        // Same step again → "reused" (the portal shows a different sentence).
         var reused = TotpService.VerifyTotpCode(secret, code, first.Step);
         Assert.False(reused.Ok);
         Assert.Equal("reused", reused.Reason);
 
-        // An older lastUsedStep still accepts the current code.
         var older = TotpService.VerifyTotpCode(secret, code, first.Step - 1);
         Assert.True(older.Ok);
     }

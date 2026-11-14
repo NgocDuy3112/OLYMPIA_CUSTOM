@@ -168,8 +168,6 @@ describe("useConsoleModel — the deck and the waiting room", () => {
         deckOf(result.current).backToLobby()
         await waitFor(() => expect(phaseOf(result.current)).toBe("lobby"))
 
-        // the entry names its own phase, so its start goes out even though the
-        // round is already live on phase 1 — no beginPhase2 in between
         lobbyOf(result.current).onStart("ve-dich", 2)
         await waitFor(() => expect(phaseOf(result.current)).toBe("deck"))
 

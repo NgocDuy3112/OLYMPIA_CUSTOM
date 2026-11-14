@@ -6,7 +6,6 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Infrastructure.Seeding;
 
-/// <summary>Port of db/seed.ts — create the first admin account.</summary>
 public static class AdminSeeder
 {
     private const int MinPasswordLength = 12;

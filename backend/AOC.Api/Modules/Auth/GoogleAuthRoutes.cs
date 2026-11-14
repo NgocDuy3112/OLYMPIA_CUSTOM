@@ -142,7 +142,6 @@ public static class GoogleAuthRoutes
     private static bool IsUniqueViolation(DbUpdateException ex)
         => ex.InnerException is PostgresException { SqlState: "23505" };
 
-    /// <summary>Port of provisionPlayer + findOrCreatePlayer.</summary>
     private static async Task<UserEntity> FindOrCreatePlayerAsync(AOCDbContext db, GoogleClaims claims)
     {
         try
@@ -229,7 +228,6 @@ public static class GoogleAuthRoutes
             }
             catch (DbUpdateException error) when (attempt < 2 && IsUniqueViolation(error))
             {
-                // retry once, like the TS loop
             }
         }
     }

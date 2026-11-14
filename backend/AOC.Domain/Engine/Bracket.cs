@@ -1,6 +1,5 @@
 namespace AOC.Domain.Engine;
 
-/// <summary>Port of engine/bracket.ts — tier drawing and ladder progression.</summary>
 public static class Bracket
 {
     public static List<List<string>> TiersOf(IReadOnlyList<string> ranked, int tierSize)

@@ -4,7 +4,6 @@ using AOC.Domain.Contracts;
 
 namespace AOC.Infrastructure.Data.Entities;
 
-// Auth -------------------------------------------------------------------
 
 public class UserEntity
 {
@@ -52,7 +51,6 @@ public class McpKeyEntity
     public DateTime? RevokedAt { get; set; }
 }
 
-// Reference ---------------------------------------------------------------
 
 public class TournamentEntity
 {
@@ -63,16 +61,12 @@ public class TournamentEntity
     public Guid OwnerId { get; set; }
     public bool Current { get; set; }
 
-    /// <summary>TournamentRound[] (jsonb).</summary>
     public JsonElement Rounds { get; set; }
 
-    /// <summary>TournamentFormat (jsonb).</summary>
     public JsonElement Format { get; set; }
 
-    /// <summary>Stage[] (jsonb).</summary>
     public JsonElement Stages { get; set; }
 
-    /// <summary>Record&lt;roundId, RoundConfig&gt; (jsonb, nullable).</summary>
     public JsonElement? RoundRules { get; set; }
 
     public DateTime? ClosedAt { get; set; }
@@ -80,7 +74,6 @@ public class TournamentEntity
     public DateTime UpdatedAt { get; set; }
     public DateTime? DeletedAt { get; set; }
 
-    // Typed conveniences (jsonb round-trips through the shared options).
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     [System.Text.Json.Serialization.JsonIgnore]
     public List<TournamentRound> RoundsList
@@ -181,14 +174,12 @@ public class QuestionBankEntity
     public Guid? KeywordId { get; set; }
     public JsonElement? Media { get; set; }
 
-    /// <summary>QuestionPayload (jsonb, polymorphic).</summary>
     public JsonElement Payload { get; set; }
 
     public int? TimeLimit { get; set; }
     public QuestionStatus Status { get; set; } = QuestionStatus.DRAFT;
     public string[] Tags { get; set; } = [];
 
-    /// <summary>Generated column: (payload ->&gt; 'type').</summary>
     public string Type { get; set; } = "";
 
     public Guid CreatedBy { get; set; }
@@ -213,7 +204,6 @@ public class QuestionBankEntity
     }
 }
 
-// Game --------------------------------------------------------------------
 
 public class MatchEntity
 {
@@ -226,13 +216,10 @@ public class MatchEntity
     public MatchKind Kind { get; set; } = MatchKind.STANDARD;
     public int? Slot { get; set; }
 
-    /// <summary>Seat[] (jsonb).</summary>
     public JsonElement Players { get; set; }
 
-    /// <summary>Record&lt;roundId, RoundConfig&gt; (jsonb).</summary>
     public JsonElement RoundConfigs { get; set; }
 
-    /// <summary>MatchQuestion[] (jsonb).</summary>
     public JsonElement Questions { get; set; }
 
     public int AssemblyRevision { get; set; }
@@ -293,10 +280,8 @@ public class AnswerEntity
     public Guid QuestionId { get; set; }
     public Guid UserId { get; set; }
 
-    /// <summary>AnswerValue (jsonb).</summary>
     public JsonElement Value { get; set; }
 
-    /// <summary>Drafts (jsonb): { [draftedBy]: verdict }.</summary>
     public JsonElement? Drafts { get; set; }
 
     public int? FirstAnsweredMs { get; set; }
@@ -321,7 +306,6 @@ public class MatchResultEntity
     public Guid MatchId { get; set; }
     public Guid TournamentId { get; set; }
 
-    /// <summary>ResultEntry[] (jsonb).</summary>
     public JsonElement Results { get; set; }
 
     public DateTime ComputedAt { get; set; }
@@ -375,7 +359,6 @@ public class MatchEventEntity
     public string? RoundId { get; set; }
     public MatchEventKind Kind { get; set; }
 
-    /// <summary>MatchEventPayload (jsonb).</summary>
     public JsonElement Payload { get; set; }
 
     public DateTime At { get; set; }
@@ -387,10 +370,8 @@ public class MatchLiveEntity
     public int Version { get; set; }
     public string RoundId { get; set; } = "";
 
-    /// <summary>Round engine state (jsonb, validated on read).</summary>
     public JsonElement State { get; set; }
 
-    /// <summary>roundId → archived state (jsonb).</summary>
     public JsonElement Archive { get; set; }
 
     public DateTime UpdatedAt { get; set; }
@@ -409,20 +390,6 @@ public class MatchAssemblyEventEntity
     public DateTime At { get; set; }
 }
 
-public class RecordingEntity
-{
-    public Guid Id { get; set; }
-    public Guid MatchId { get; set; }
-    public string? EgressId { get; set; }
-    public RecordingStatus Status { get; set; }
-    public string? S3Key { get; set; }
-    public Guid? StartedBy { get; set; }
-    public DateTime StartedAt { get; set; }
-    public DateTime? StoppedAt { get; set; }
-    public string? Error { get; set; }
-}
-
-// Audit -------------------------------------------------------------------
 
 public class AuditEventEntity
 {
@@ -432,7 +399,6 @@ public class AuditEventEntity
     public string Action { get; set; } = "";
     public Guid? MatchId { get; set; }
 
-    /// <summary>Free-form details (jsonb).</summary>
     public JsonElement? Details { get; set; }
 
     public string? Ip { get; set; }

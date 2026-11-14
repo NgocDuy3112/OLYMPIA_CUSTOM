@@ -11,7 +11,6 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.Admin;
 
-/// <summary>Port of admin/service.ts + admin/routes.ts.</summary>
 public static class AdminRoutes
 {
     private const int MinPasswordLength = 12;
