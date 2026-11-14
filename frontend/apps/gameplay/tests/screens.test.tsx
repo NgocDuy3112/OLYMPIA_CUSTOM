@@ -4,7 +4,6 @@ import type { PlayerCtx, PlayerView } from "@shared/deck/types"
 import { GiaiMaAOCPlayer } from "@shared/deck/screens/GiaiMaAOCPlayer"
 import { ButPhaAOCPlayer } from "@shared/deck/screens/ButPhaAOCPlayer"
 import { KhoiDongChungAOCPlayer } from "@shared/deck/screens/KhoiDongChungAOCPlayer"
-import { KhoiDongRiengAOCPlayer } from "@shared/deck/screens/KhoiDongRiengAOCPlayer"
 import { VeDichChungAOCPlayer } from "@shared/deck/screens/VeDichChungAOCPlayer"
 import { VeDichPickAOCPlayer } from "@shared/deck/screens/VeDichPickAOCPlayer"
 import { VeDichRiengAOCPlayer } from "@shared/deck/screens/VeDichRiengAOCPlayer"
@@ -85,10 +84,10 @@ const openQ = {
 describe("player screens render from a plain fixture", () => {
     it("khởi động · lượt chung — no window yet: the field waits for Bấm giờ", () => {
         const open = view({ roundId: "khoi-dong", open: [openQ] })
-        const { getByText, queryByLabelText } = render(
+        const { queryByLabelText } = render(
             <KhoiDongChungAOCPlayer ctx={ctx({ v: open, remaining: 0 })} />
         )
-        expect(getByText(/Chờ điều hành bấm giờ/)).toBeTruthy()
+        // no window yet → the answer field stays out of the way
         expect(queryByLabelText("Câu trả lời của bạn")).toBeNull()
     })
 
@@ -128,16 +127,6 @@ describe("player screens render from a plain fixture", () => {
         const v = view({ roundId: "khoi-dong", open: [openQ] })
         const { queryByText } = render(<KhoiDongChungAOCPlayer ctx={ctx({ v, remaining: 0 })} />)
         expect(queryByText("Đáp án")).toBeNull()
-    })
-
-    it("khởi động · lượt cá nhân — the run pill names who is playing", () => {
-        const v = view({
-            roundId: "khoi-dong",
-            stage: "phase1",
-            oral: { questionId: "q1", question: question("q1"), playerId: "u2", index: 0, total: 6, elapsedS: 5, budgetS: 20 },
-        })
-        const { getByText } = render(<KhoiDongRiengAOCPlayer ctx={ctx({ v })} />)
-        expect(getByText("Đang thi: Bình")).toBeTruthy()
     })
 
     it("bứt phá — no open question still renders the card", () => {

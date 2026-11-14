@@ -35,7 +35,7 @@ export function StandingsPanel({
             <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-xl">
                     <Trophy className="size-4" aria-hidden />
-                    Olympia Custom Ranking
+                    AOC Ranking
                 </CardTitle>
                 <CardDescription>
                     Xếp hạng theo tiến độ — thí sinh càng đi sâu, thứ hạng càng cao

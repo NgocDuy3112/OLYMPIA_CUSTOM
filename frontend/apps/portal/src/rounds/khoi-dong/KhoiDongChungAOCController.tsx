@@ -11,20 +11,27 @@ export type KhoiDongChungCtx = ScreenCore & {
 }
 
 export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
-    const { v, remaining, baseCards, flash, openRounds, consoleKhoiDong, target, setSelectedPlayer } = ctx
+    const { v, remaining, baseCards, flash, openRounds, consoleKhoiDong, target, toggleSelect, selectedIds, sendChain } = ctx
     const openNow = v.projection.open[0]
     const index = consoleKhoiDong?.questionIndex ?? 0
     const total = consoleKhoiDong?.questionCount || 6
     const windowOpen = consoleKhoiDong?.windowOpen ?? false
 
+    // one press grades every ticked card; with nothing ticked it still falls
+    // back to the single player the console is pointed at
+    const gradeable = () => {
+        if (selectedIds.size > 0) return [...selectedIds]
+        return target !== null ? [target] : []
+    }
     const judge = (correct: boolean) => {
-        if (!target) return
-        ctx.send({ kind: "khoi-dong.judge", playerId: target, correct })
+        const ids = gradeable()
+        if (ids.length === 0) return
+        sendChain(ids.map((playerId) => ({ kind: "khoi-dong.judge" as const, playerId, correct })))
     }
 
     return (
         <ConsoleStage
-            rail={<Rail variant="answers" cards={baseCards} onSelect={setSelectedPlayer} />}
+            rail={<Rail variant="answers" cards={baseCards} onSelect={toggleSelect} />}
             actions={[
                 {
                     label: "Bấm giờ",
@@ -32,7 +39,7 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
                         ? () => ctx.send({ kind: "khoi-dong.startWindow" })
                         : undefined,
                 },
-                ...verdictActions({ canVerdict: target !== null && openNow !== null, onVerdict: judge }),
+                ...verdictActions({ canVerdict: gradeable().length > 0 && openNow !== null, onVerdict: judge }),
                 {
                     label: "Hiện đáp án",
                     onClick: openNow
@@ -57,7 +64,7 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
                                 if (i === index + 1) ctx.send({ kind: "khoi-dong.nextQuestion" })
                             }}
                         />
-                        <Timer remaining={remaining} fallback="10s" />
+                        <Timer remaining={remaining} fallback="10" />
                     </>
                 }
                 question={

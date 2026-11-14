@@ -58,23 +58,6 @@ export function useLogout() {
     })
 }
 
-export function useLogin() {
-    const queryClient = useQueryClient()
-    return useMutation({
-        mutationFn: (input: { username: string; password: string }) =>
-            api<{ id: string; username: string; displayName: string; mustChangePassword: boolean }>(
-                "/gameplay/auth/login",
-                {
-                    method: "POST",
-                    body: JSON.stringify(input),
-                }
-            ),
-        onSuccess: () => {
-            void queryClient.invalidateQueries()
-        },
-    })
-}
-
 export function useChangePassword() {
     const queryClient = useQueryClient()
     return useMutation({

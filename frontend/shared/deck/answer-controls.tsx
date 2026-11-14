@@ -1,7 +1,6 @@
 import { useState } from "react"
 import { STRIP_R, pt } from "./geometry"
 import { COPY } from "./copy"
-import { VerdictIcon } from "./primitives"
 import type { AnswerValue, PlayerQuestion } from "./types"
 
 const INPUT =
@@ -19,10 +18,9 @@ const optionClass = (selected: boolean): string =>
 const submitClass = (ready: boolean): string =>
     `${SUBMIT} ${ready ? "cursor-pointer" : "cursor-default opacity-50"}`
 
-export function AnswerBand({ question, answerState, verdict, disabled, busy, error, onSubmit }: {
+export function AnswerBand({ question, disabled, busy, error, onSubmit }: {
     question: PlayerQuestion | null
     answerState?: "none" | "draft" | "final"
-    verdict?: "CORRECT" | "INCORRECT"
     disabled?: boolean
     busy?: boolean
     error?: string | null
@@ -33,18 +31,8 @@ export function AnswerBand({ question, answerState, verdict, disabled, busy, err
     const state = draft.qid === qid ? draft : { qid, picked: "", text: "" }
 
     if (!question) {
-        return <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>{COPY.noQuestion}</span>
+        return <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}></span>
     }
-
-    if (answerState === "draft" || answerState === "final") {
-        return (
-            <span className="inline-flex items-center gap-[0.5cqw] font-sans font-semibold" style={{ fontSize: pt(12) }}>
-                {state.picked || state.text ? `Đã trả lời: ${state.picked || state.text}` : "Đã trả lời"}
-                <VerdictIcon verdict={verdict ?? null} />
-            </span>
-        )
-    }
-
     const options = question.payload.options ?? []
     const isMc = question.kind === "CHOICE" && options.length > 0
 
@@ -91,7 +79,7 @@ export function AnswerBand({ question, answerState, verdict, disabled, busy, err
                         onSubmit({ text: state.text.trim() })
                     }
                 }}
-                placeholder={error ? "không gửi được —Enter để thử lại" : "Câu trả lời của bạn"}
+                placeholder={error ? "Bấm nút Gửi để thử lại" : "Câu trả lời của bạn"}
                 className={INPUT}
                 style={{ fontSize: pt(13) }}
                 aria-label="Câu trả lời của bạn"
@@ -109,11 +97,6 @@ export function AnswerBand({ question, answerState, verdict, disabled, busy, err
     )
 }
 
-/**
- * The answer slot while there is nothing to answer: the box keeps its place in
- * the band so the row never jumps, but there is nothing to type into it —
- * no placeholder, no submit.
- */
 export function AnswerBandIdle() {
     return (
         <div className="flex w-full items-center gap-[1cqw]">

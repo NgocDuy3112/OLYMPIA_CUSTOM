@@ -27,41 +27,23 @@ export function KhoiDongChungAOCPlayer({ ctx }: { ctx: KhoiDongChungPlayerCtx })
                             done={v.me.questionIndex ?? 0}
                             active={v.me.questionIndex ?? 0}
                         />
-                        <Timer remaining={windowOpen ? remaining : null} fallback="10s" />
+                        <Timer remaining={windowOpen ? remaining : null} fallback="10" />
                     </>
                 }
-                question={openQ?.question?.questionText ?? "Chờ mở câu tiếp theo…"}
+                question={openQ?.question?.questionText ?? ""}
                 media={openQ?.question?.media ?? null}
                 answer={v.revealed?.answer}
-                footer={
-                !openQ ? (
-                    <span
-                        className="flex h-[3.3cqw] items-center rounded-lg bg-muted px-[1.2cqw] font-sans font-semibold text-foreground ring-1 ring-border"
-                        style={{ fontSize: 12, borderRadius: 6 }}
-                    >
-                        Chờ điều hành mở câu tiếp theo…
-                    </span>
-                ) : !windowOpen ? (
-                    <span
-                        className="flex h-[3.3cqw] items-center rounded-lg bg-muted px-[1.2cqw] font-sans font-semibold text-foreground ring-1 ring-border"
-                        style={{ fontSize: 12, borderRadius: 6 }}
-                    >
-                        Chờ điều hành bấm giờ…
-                    </span>
-                ) : (
-                    <AnswerBand
-                        question={openQ.question}
-                        answerState={v.me.answerState}
-                        verdict={v.me.verdicts?.[openQ.questionId]}
-                        disabled={locked}
-                        busy={answerBusy}
-                        error={flash}
-                        onSubmit={(value) => submitAnswer(openQ.questionId, value)}
-                    />
-                )
-            
-                }
             />
+            {!openQ ? null : (
+                <AnswerBand
+                    question={openQ.question}
+                    answerState={v.me.answerState}
+                    disabled={locked}
+                    busy={answerBusy}
+                    error={flash}
+                    onSubmit={(value) => submitAnswer(openQ.questionId, value)}
+                />
+            )}
         </PlayerStage>
     )
 }

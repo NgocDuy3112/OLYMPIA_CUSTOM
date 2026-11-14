@@ -26,7 +26,7 @@ export function ButPhaAOCController({ ctx }: { ctx: ButPhaCtx }) {
 
     return (
         <ConsoleStage
-            rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} />}
+            rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.toggleSelect} />}
             actions={[
                 {
                     label: COPY.startClock,
@@ -34,7 +34,10 @@ export function ButPhaAOCController({ ctx }: { ctx: ButPhaCtx }) {
                         ? () => ctx.send({ kind: "but-pha.startClock" })
                         : undefined,
                 },
-                ...verdictActions({ canVerdict: ctx.target !== null && openQ !== null, onVerdict: ctx.setVerdict }),
+                ...verdictActions({
+                    canVerdict: (ctx.target !== null || ctx.selectedIds.size > 0) && openQ !== null,
+                    onVerdict: ctx.setVerdict,
+                }),
                 {
                     label: "Hiện đáp án",
                     onClick: revealId

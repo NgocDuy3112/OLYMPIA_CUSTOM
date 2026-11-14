@@ -24,22 +24,19 @@ export function VeDichChungAOCPlayer({ ctx }: { ctx: VeDichChungPlayerCtx }) {
                 question={openQ.question?.questionText ?? null}
                 media={openQ.question?.media ?? null}
                 answer={v.revealed?.answer}
-                footer={
-                <>
-                    {openQ.question && (
-                        <AnswerBand
-                            question={openQ.question}
-                            answerState={v.me.answerState}
-                            verdict={v.me.verdicts?.[qid]}
-                            busy={answerBusy}
-                            error={flash}
-                            onSubmit={(value) => submitAnswer(qid, value)}
-                        />
-                    )}
-                </>
-            
-                }
             />
+            <>
+                {openQ.question && (
+                    <AnswerBand
+                        question={openQ.question}
+                        answerState={v.me.answerState}
+                        disabled={remaining <= 0}
+                        busy={answerBusy}
+                        error={flash}
+                        onSubmit={(value) => submitAnswer(qid, value)}
+                    />
+                )}
+            </>
         </PlayerStage>
     )
 }

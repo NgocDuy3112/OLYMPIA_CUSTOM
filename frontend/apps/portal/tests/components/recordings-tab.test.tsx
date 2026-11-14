@@ -7,7 +7,7 @@ import { renderWithProviders } from "../helpers/render"
 const TOURNAMENT = "t1"
 const MATCH = "m1"
 const LIST_URL = `GET /portal/tournaments/${TOURNAMENT}/matches/${MATCH}/recording`
-const VIDEO_URL = "https://s3.example.test/olympia-custom/recordings/m1/clip.mp4"
+const VIDEO_URL = "https://s3.example.test/aoc-custom/recordings/m1/clip.mp4"
 
 const row = (over: Partial<Record<string, unknown>> = {}) => ({
     id: "r1",

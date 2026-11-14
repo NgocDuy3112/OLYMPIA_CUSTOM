@@ -45,87 +45,49 @@ function draw(routes: Record<string, StubRoute>, entry = "/login") {
 }
 
 const ME = "GET /gameplay/auth/me"
-const LOGIN = "POST /gameplay/auth/login"
+const METHODS = "GET /gameplay/auth/methods"
 const CHANGE = "POST /gameplay/auth/change-password"
 
 const signedIn = { [ME]: { body: { id: "u1", displayName: "Ngọc Duy", username: "ngoc-duy", role: "PLAYER" } } }
 const signedOut = { [ME]: { status: 401, body: { message: "no session" } } }
 
 describe("LoginPage", () => {
-    it("asks for the HANDLE the desk issued — no email field, no signup link", () => {
-        draw({})
+    const GOOGLE = { [METHODS]: { body: { google: true } } }
+    const googleDoor = () => screen.findByRole("link", { name: "Đăng nhập bằng Google" })
 
-        expect(screen.getByLabelText("Tên đăng nhập")).toBeTruthy()
-        expect(screen.getByLabelText("Mật khẩu")).toBeTruthy()
-        expect(screen.queryByRole("link", { name: "Đăng ký" })).toBeNull()
-        expect(screen.getByText(/thí sinh không tự đăng ký/)).toBeTruthy()
+    it("offers Google as the only way in — no handle, no password field", async () => {
+        draw(GOOGLE)
+
+        await googleDoor()
+        expect(screen.queryByLabelText("Tên đăng nhập")).toBeNull()
+        expect(screen.queryByLabelText("Mật khẩu")).toBeNull()
+        expect(screen.queryByRole("button", { name: "Đăng nhập" })).toBeNull()
     })
 
-    it("sends { username, password } — the key the backend looks up", async () => {
-        const { fetchMock } = draw({ [LOGIN]: { body: { id: "u1", username: "ngoc-duy", displayName: "Ngọc Duy", mustChangePassword: false } } })
-
-        await userEvent.type(screen.getByLabelText("Tên đăng nhập"), "  Ngoc-Duy ")
-        await userEvent.type(screen.getByLabelText("Mật khẩu"), "mat-khau-cua-toi")
-        await userEvent.click(screen.getByRole("button", { name: "Đăng nhập" }))
-
-        await waitFor(() => expect(screen.getByText("landed at /")).toBeTruthy())
-        const call = fetchMock.mock.calls.find(([input]) => String(input).includes("/auth/login"))
-        expect(JSON.parse(String(call![1]?.body))).toEqual({ username: "Ngoc-Duy", password: "mat-khau-cua-toi" })
-    })
-
-    it("goes to ?next= after a sign-in that is already the player's own", async () => {
-        draw({ [LOGIN]: { body: { id: "u1", username: "an", displayName: "An", mustChangePassword: false } } },
-            "/login?next=%2Fs%2Fcup%2Fmatches%2Fm1")
-
-        await userEvent.type(screen.getByLabelText("Tên đăng nhập"), "an")
-        await userEvent.type(screen.getByLabelText("Mật khẩu"), "mat-khau-42")
-        await userEvent.click(screen.getByRole("button", { name: "Đăng nhập" }))
-
-        await waitFor(() => expect(screen.getByText("landed at /s/cup/matches/m1")).toBeTruthy())
+    it("carries ?next= into the Google redirect", async () => {
+        draw(GOOGLE, "/login?next=%2Fcode")
+        const href = (await googleDoor()).getAttribute("href") ?? ""
+        expect(href).toContain("/gameplay/auth/google")
+        expect(decodeURIComponent(href.split("next=")[1])).toBe("/code")
     })
 
     it("refuses a //host next= — it can only send a player inside this app", async () => {
-        draw({ [LOGIN]: { body: { id: "u1", username: "an", displayName: "An", mustChangePassword: false } } },
-            "/login?next=%2F%2Fevil.example")
-
-        await userEvent.type(screen.getByLabelText("Tên đăng nhập"), "an")
-        await userEvent.type(screen.getByLabelText("Mật khẩu"), "mat-khau-42")
-        await userEvent.click(screen.getByRole("button", { name: "Đăng nhập" }))
-
-        await waitFor(() => expect(screen.getByText("landed at /")).toBeTruthy())
+        draw(GOOGLE, "/login?next=%2F%2Fevil.example")
+        const href = (await googleDoor()).getAttribute("href") ?? ""
+        expect(decodeURIComponent(href.split("next=")[1])).toBe("/")
     })
 
-    it("sends the DESK's first password straight to /password, carrying ?next=", async () => {
-        draw({
-            ...signedIn,
-            [LOGIN]: { body: { id: "u1", username: "moi", displayName: "Mới", mustChangePassword: true } },
-        }, "/login?next=%2Fcode")
-
-        await userEvent.type(screen.getByLabelText("Tên đăng nhập"), "moi")
-        await userEvent.type(screen.getByLabelText("Mật khẩu"), "mat-khau-ban-2026")
-        await userEvent.click(screen.getByRole("button", { name: "Đăng nhập" }))
-
-        await waitFor(() => expect(screen.getByLabelText("Mật khẩu ban điều hành cấp")).toBeTruthy())
-    })
-
-    it("shows the server's single message for a wrong password or unknown handle", async () => {
-        draw({
-            [LOGIN]: { body: { message: "Tên đăng nhập hoặc mật khẩu không đúng." }, status: 401 },
-        }, "/login")
-
-        await userEvent.type(screen.getByLabelText("Tên đăng nhập"), "sai-cai-nay")
-        await userEvent.type(screen.getByLabelText("Mật khẩu"), "sai-het")
-        await userEvent.click(screen.getByRole("button", { name: "Đăng nhập" }))
-
-        expect(await screen.findByRole("alert")).toHaveTextContent(/Tên đăng nhập hoặc mật khẩu không đúng/)
-    })
-
-    it("explains a Google link that could not start", () => {
+    it("explains a Google link that could not start", async () => {
         draw({}, "/login?notice=google-off")
-        expect(screen.getByText(/chưa được cấu hình/)).toBeTruthy()
+        expect(await screen.findByText(/chưa được cấu hình/)).toBeTruthy()
+    })
+
+    it("says so plainly when the server has Google switched off", async () => {
+        draw({ [METHODS]: { body: { google: false } } })
+        expect(await screen.findByText(/chưa được cấu hình/)).toBeTruthy()
+        expect(screen.queryByRole("link", { name: "Đăng nhập bằng Google" })).toBeNull()
     })
 })
-
 describe("ChangePasswordPage — where the desk's password ends", () => {
     it("asks for the current password, the new one, and a repeat", () => {
         draw({ ...signedIn }, "/password")

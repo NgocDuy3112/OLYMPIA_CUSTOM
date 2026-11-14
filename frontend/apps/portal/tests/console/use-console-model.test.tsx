@@ -135,4 +135,81 @@ describe("useConsoleModel — the deck and the waiting room", () => {
         lobbyOf(result.current).onStart("khoi-dong", 2)
         await waitFor(() => expect(phaseOf(result.current)).toBe("deck"))
     })
+
+    it("Về đích · Riêng starts phase 2 even though the round is already live", async () => {
+        const { result, fetchMock } = renderModel({
+            [LIVE]: {
+                body: liveView({
+                    roundId: "ve-dich",
+                    projection: {
+                        matchId: M,
+                        roundId: "ve-dich",
+                        version: 7,
+                        stage: "phase1",
+                        open: [],
+                        table: [{ id: "u1", displayName: "An", points: 10, rank: 1 }],
+                    } as LiveResponse["projection"],
+                    console: { phase: 1, turnPlayerId: "u1" },
+                }),
+            },
+            [LOBBY]: {
+                body: lobbyData({
+                    roundId: "ve-dich",
+                    rounds: [
+                        { id: "ve-dich", name: "Về đích · Chung", status: "playing" },
+                        { id: "ve-dich", name: "Về đích · Riêng", status: "playing" },
+                    ],
+                }),
+            },
+        })
+
+        await waitFor(() => expect(phaseOf(result.current)).toBe("deck"))
+
+        deckOf(result.current).backToLobby()
+        await waitFor(() => expect(phaseOf(result.current)).toBe("lobby"))
+
+        // the entry names its own phase, so its start goes out even though the
+        // round is already live on phase 1 — no beginPhase2 in between
+        lobbyOf(result.current).onStart("ve-dich", 2)
+        await waitFor(() => expect(phaseOf(result.current)).toBe("deck"))
+
+        const actions = fetchMock.mock.calls
+            .filter(([, init]) => init?.method === "POST")
+            .filter(([url]) => String(url) === `/portal/tournaments/${T}/matches/${M}/live/actions`)
+            .map(([, init]) => (JSON.parse(String(init?.body)) as { action: { kind: string; phase?: number } }).action)
+        expect(actions).toContainEqual(expect.objectContaining({ kind: "ve-dich.start", phase: 2 }))
+        expect(actions.some((a) => a.kind === "ve-dich.beginPhase2")).toBe(false)
+    })
+
+    it("Khởi động · Chung starts phase 2 even though phase 1 is live", async () => {
+        const { result, fetchMock } = renderModel({
+            [LIVE]: {
+                body: liveView({
+                    projection: {
+                        matchId: M,
+                        roundId: "khoi-dong",
+                        version: 7,
+                        stage: "phase1",
+                        open: [],
+                        table: [{ id: "u1", displayName: "An", points: 10, rank: 1 }],
+                    } as LiveResponse["projection"],
+                    console: { stage: "phase1", questionIndex: 0, questionCount: 6 },
+                }),
+            },
+        })
+
+        await waitFor(() => expect(phaseOf(result.current)).toBe("deck"))
+
+        deckOf(result.current).backToLobby()
+        await waitFor(() => expect(phaseOf(result.current)).toBe("lobby"))
+
+        lobbyOf(result.current).onStart("khoi-dong", 2)
+        await waitFor(() => expect(phaseOf(result.current)).toBe("deck"))
+
+        const actions = fetchMock.mock.calls
+            .filter(([, init]) => init?.method === "POST")
+            .filter(([url]) => String(url) === `/portal/tournaments/${T}/matches/${M}/live/actions`)
+            .map(([, init]) => (JSON.parse(String(init?.body)) as { action: { kind: string; phase?: number } }).action)
+        expect(actions).toContainEqual(expect.objectContaining({ kind: "khoi-dong.start", phase: 2 }))
+    })
 })

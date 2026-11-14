@@ -23,6 +23,7 @@ export function navigatorStartPlan(
     lobby: LobbyData,
     roundId: string,
     start: LiveAction | null,
+    opts: { force?: boolean } = {},
 ): LiveAction[] {
     const target = lobby.rounds.find((r) => r.id === roundId)
     const isActive = lobby.roundId === roundId
@@ -30,7 +31,9 @@ export function navigatorStartPlan(
     if (target?.status === "new" && isActive) return start ? [start] : []
 
     const chain: LiveAction[] = [{ kind: "round.goTo", roundId }]
-    if (start && target?.status !== "ended" && target?.status !== "playing") {
+    // a waiting-room entry names its own phase, so its start goes out even when
+    // the round is already live — on the OTHER phase
+    if (start && (opts.force || (target?.status !== "ended" && target?.status !== "playing"))) {
         chain.push(start)
     }
     return chain

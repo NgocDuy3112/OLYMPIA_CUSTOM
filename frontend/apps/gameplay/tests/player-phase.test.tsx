@@ -98,13 +98,13 @@ describe("the player deck's phase machine", () => {
 
     it("draws the round screen from a live view", async () => {
         draw({ [ME]: me, [LIVE]: view() })
-        expect(await screen.findByText(/Chờ điều hành bấm giờ/)).toBeTruthy()
+        expect(await screen.findByText(/Khởi động/)).toBeTruthy()
     })
 
     it("sends an ENDED view back to the lobby", async () => {
         draw({ [ME]: me, [LIVE]: view({ stage: "ended" }), [LOBBY]: lobby() })
         expect(await screen.findByText(/Trận đấu đã kết thúc/)).toBeTruthy()
-        expect(screen.queryByText(/Chờ điều hành bấm giờ/)).toBeNull()
+        expect(screen.queryByLabelText("Câu trả lời của bạn")).toBeNull()
     })
 
     it("sends an unknown round to the lobby, not to a dead screen", async () => {

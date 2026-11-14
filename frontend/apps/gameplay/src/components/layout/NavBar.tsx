@@ -61,7 +61,7 @@ export function NavBar() {
                     to="/"
                     className="font-heading text-2xl font-bold"
                 >
-                    Olympia Custom
+                    AOC
                 </NavLink>
                 <nav className="flex items-center gap-1">
                     {links.map(({ to, label, end }) => (

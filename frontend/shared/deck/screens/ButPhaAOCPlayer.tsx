@@ -1,5 +1,4 @@
 import { AnswerBand, PlayerStage, Progress, QuestionCard, Rail, Timer, type PlayerCore } from "../player-deck"
-import { pt } from "../geometry"
 import type { AnswerValue } from "../types"
 
 type ButPhaPlayerCtx = PlayerCore & {
@@ -28,23 +27,17 @@ export function ButPhaAOCPlayer({ ctx }: { ctx: ButPhaPlayerCtx }) {
                 question={openQ?.question?.questionText ?? null}
                 media={openQ?.question?.media ?? null}
                 answer={v.revealed?.answer}
-                footer={
-                openQ ? (
-                    <AnswerBand
-                        question={openQ.question}
-                        answerState={v.me.answerState}
-                        verdict={v.me.verdicts?.[openQ.questionId]}
-                        disabled={remaining <= 0}
-                        busy={answerBusy}
-                        error={flash}
-                        onSubmit={(value) => submitAnswer(openQ.questionId, value)}
-                    />
-                ) : (
-                    <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>Chờ điều hành mở câu tiếp theo…</span>
-                )
-            
-                }
             />
+            {openQ ? (
+                <AnswerBand
+                    question={openQ.question}
+                    answerState={v.me.answerState}
+                    disabled={remaining <= 0}
+                    busy={answerBusy}
+                    error={flash}
+                    onSubmit={(value) => submitAnswer(openQ.questionId, value)}
+                />
+            ) : null}
         </PlayerStage>
     )
 }

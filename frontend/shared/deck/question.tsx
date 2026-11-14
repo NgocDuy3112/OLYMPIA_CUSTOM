@@ -1,7 +1,6 @@
 import { useState, type KeyboardEvent, type ReactNode } from "react"
 import { DECK_PAD, pt } from "./geometry"
 import { Badges, CardHeader, MainCard } from "./primitives"
-import { COPY } from "./copy"
 
 export function QuestionBlock({ question, media, mediaHint = "hình ảnh câu hỏi", onReveal }: {
     question: string | null
@@ -36,7 +35,7 @@ export function QuestionBlock({ question, media, mediaHint = "hình ảnh câu h
                 className={`min-w-0 font-sans font-medium leading-snug text-foreground ${media ? "w-[26.7cqw] shrink-0" : "flex-1"}`}
                 style={{ fontSize: pt(14), ...DECK_PAD }}
             >
-                {question ?? COPY.waitingForMc}
+                {question ?? ""}
             </p>
             {media && <MediaWell media={media} mediaHint={mediaHint} />}
         </div>
@@ -106,7 +105,7 @@ export function AnswerReveal({ answer }: { answer?: string | null }) {
  * click on the controller reveals it), the answer reveal and the answer/status
  * strip. Pages pass slots — they never hand-roll the card.
  */
-export function QuestionCard({ round, mode, size, onRoundClick, mid, right, question, media, answer, face, onReveal, footer, className, children }: {
+export function QuestionCard({ round, mode, size, onRoundClick, mid, right, question, media, answer, face, onReveal, className, children }: {
     round: string
     mode?: string
     size?: number
@@ -119,8 +118,6 @@ export function QuestionCard({ round, mode, size, onRoundClick, mid, right, ques
     face?: ReactNode
     /** controller only — click the card to show the question to everyone */
     onReveal?: () => void
-    /** the answer/status strip the stage used to hold */
-    footer?: ReactNode
     className?: string
     /** replaces the question body — for boards that are not a question */
     children?: ReactNode
@@ -135,7 +132,6 @@ export function QuestionCard({ round, mode, size, onRoundClick, mid, right, ques
             {children ?? <QuestionBlock question={question ?? null} media={media} onReveal={onReveal} />}
             {face}
             <AnswerReveal answer={answer} />
-            {footer}
         </MainCard>
     )
 }

@@ -97,10 +97,12 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     })
     const lobby = useLobby(tournamentId, matchId, readiness.waiting)
 
+    const stagePhase: 1 | 2 | null = stage === "phase1" ? 1 : stage === "phase2" ? 2 : null
     const plans = useConsolePlans({
         transport,
         judging,
         veDich: consoleVeDich,
+        currentPhase: stagePhase,
         lobby: lobby.data ?? null,
         nav,
         onStartError: setStartError,
@@ -108,7 +110,6 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
 
     const adjust = useConsoleAdjust(send)
 
-    const stagePhase: 1 | 2 | null = stage === "phase1" ? 1 : stage === "phase2" ? 2 : null
     const prepareLobby = (l: LobbyData): LobbyData =>
         lobbyViewOf({ lobby: l, stagePhase, videoOf: (id) => peers.get(id)?.video ?? null })
 

@@ -22,6 +22,7 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
 
     const stripCells = (projection.board ?? []).filter((c) => c.where === "open" || c.where === "pending")
     const openNow = projection.open[0]
+    const revealed = consoleVeDich?.revealed ?? false
     const qid = openNow.questionId
     const needsVerdict =
         consoleVeDich?.answererId ? ctx.verdictOf(qid, consoleVeDich.answererId) === null : true
@@ -34,7 +35,7 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
 
     return (
         <ConsoleStage
-            rail={<Rail variant="compact" cards={baseCards} onSelect={ctx.setSelectedPlayer} />}
+            rail={<Rail variant="compact" cards={baseCards} onSelect={ctx.toggleSelect} />}
             actions={[
                 {
                     label: "Mở chuông",
@@ -51,7 +52,10 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
                     content: formatBuzzMs(consoleVeDich?.buzzerMs ?? null),
                     muted: true
                 },
-                ...verdictActions({ canVerdict: ctx.target !== null, onVerdict: ctx.setVerdict }),
+                ...verdictActions({
+                    canVerdict: ctx.target !== null || ctx.selectedIds.size > 0,
+                    onVerdict: ctx.setVerdict,
+                }),
                 { label: COPY.endTurn, onClick: turnOpen ? undefined : () => ctx.hetLuot() },
                 backToLobbyAction(ctx.backToLobby),
             ]}
@@ -65,6 +69,9 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
                 right={<Timer remaining={remaining} />}
                 question={openNow.question?.questionText ?? ""}
                 media={openNow.question?.media ?? null}
+                onReveal={openNow && !revealed
+                    ? () => ctx.send({ kind: "ve-dich.reveal" })
+                    : undefined}
             />
         </ConsoleStage>
     )

@@ -26,8 +26,9 @@ export const khoiDongAOC: RoundModule = {
             : <KhoiDongRiengAOCController ctx={riengCtx(f)} />,
     railVariant: ({ stage }) => (stage === "phase2" ? "answers" : "compact"),
     endRoundPlan: (input): RoundAction[] => {
+        // the waiting room owns the phase change now — Về sảnh only wraps up
         if (input.stage === "phase1") {
-            return [{ kind: input.hasOralRun ? "khoi-dong.timeOutRun" : "khoi-dong.beginPhase2" }]
+            return input.hasOralRun ? [{ kind: "khoi-dong.timeOutRun" }] : []
         }
         return [{ kind: "khoi-dong.endRound" }]
     },

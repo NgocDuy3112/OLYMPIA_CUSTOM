@@ -19,6 +19,8 @@ interface ConsolePlansInput {
     transport: ConsoleTransport
     judging: ConsoleJudging
     veDich: VeDichConsole | null
+    /** the phase the live round is on, so a button for the other one can start it */
+    currentPhase: 1 | 2 | null
     lobby: LobbyData | null
     nav: Pick<ConsoleNav, "enterRound" | "backToWaiting">
     /** why the last start was refused — null once one lands */
@@ -55,6 +57,7 @@ export function useConsolePlans(input: ConsolePlansInput): ConsolePlans {
         if (!veDich || openIds.length === 0) return
         const qid = openIds[0]
         const action = roundModuleOf(roundId)?.hetLuotAction?.({
+            phase: veDich.phase,
             answererVerdict: veDich.answererId ? judging.verdictOf(qid, veDich.answererId) : null,
             buzzerId: veDich.buzzerId,
             buzzerVerdict: veDich.buzzerId ? judging.verdictOf(qid, veDich.buzzerId) : null,
@@ -73,10 +76,18 @@ export function useConsolePlans(input: ConsolePlansInput): ConsolePlans {
     const onStart = async (nextRoundId: string, phase?: 1 | 2) => {
         const lobby = input.lobby
         if (!lobby) return
+        // every waiting-room entry starts the phase it names — so the start goes
+        // out even when the round is live on the other one (or has no state yet,
+        // where currentPhase is null). Re-picking the phase that is already
+        // running leaves it alone instead of restarting it.
+        const otherPhase = phase !== undefined
+            && lobby.roundId === nextRoundId
+            && input.currentPhase !== phase
         const plan = navigatorStartPlan(
             lobby,
             nextRoundId,
-            startAction(nextRoundId, { phase, playerIds: userSeats, questions })
+            startAction(nextRoundId, { phase, playerIds: userSeats, questions }),
+            { force: otherPhase },
         )
         try {
             // The console enters the round only once the engine took it: a refused

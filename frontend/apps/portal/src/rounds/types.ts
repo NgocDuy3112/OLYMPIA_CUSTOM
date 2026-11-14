@@ -15,6 +15,8 @@ export interface RoundPlanInput {
 }
 
 export interface HetLuotFacts {
+    /** phase 1 grades player by player and advances the picked set */
+    phase?: 1 | 2
     answererVerdict: "CORRECT" | "INCORRECT" | null
     buzzerId: string | null
     buzzerVerdict: "CORRECT" | "INCORRECT" | null
@@ -22,12 +24,24 @@ export interface HetLuotFacts {
 
 export type ScreenCore = Pick<
     ConsoleFacts,
-    "v" | "flash" | "baseCards" | "send" | "backToLobby" | "openRounds" | "openAdjust"
+    | "v"
+    | "flash"
+    | "baseCards"
+    | "send"
+    | "sendChain"
+    | "backToLobby"
+    | "openRounds"
+    | "openAdjust"
+    | "toggleSelect"
+    | "selectedIds"
 >
 
 export function screenCore(facts: ConsoleFacts): ScreenCore {
-    const { v, flash, baseCards, send, backToLobby, openRounds, openAdjust } = facts
-    return { v, flash, baseCards, send, backToLobby, openRounds, openAdjust }
+    const {
+        v, flash, baseCards, send, sendChain, backToLobby, openRounds, openAdjust,
+        toggleSelect, selectedIds,
+    } = facts
+    return { v, flash, baseCards, send, sendChain, backToLobby, openRounds, openAdjust, toggleSelect, selectedIds }
 }
 
 export interface RoundModule {

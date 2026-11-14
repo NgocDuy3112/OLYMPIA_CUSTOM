@@ -12,7 +12,6 @@ import type { ScreenCore } from "../types"
 export type VeDichPickCtx = ScreenCore & {
     questions: ConsoleQuestion[]
     consoleVeDich: VeDichConsole | null
-    target: string | null
     setSelectedPlayer: (userId: string) => void
 }
 
@@ -44,47 +43,88 @@ function VeDichPickBoard({ ctx }: { ctx: VeDichPickCtx }) {
     const boardMap = new Map((projection.board ?? []).map((c) => [c.questionId, c.where]))
     const rows = boardRows(boardQs, (q) => q.points)
 
-    const [chosen, setChosen] = useState<string[]>([])
-    const pendingCount = (projection.board ?? []).filter((c) => c.where === "pending").length
+    // the board's remount key carries pendingCount, so this draft re-seeds from
+    // the projection the moment the engine's set catches up (or is cleared)
+    const [chosen, setChosen] = useState<string[]>(
+        () => (projection.board ?? []).filter((c) => c.where === "pending").map((c) => c.questionId),
+    )
     const openCount = projection.open.length
-    const need = phase2 ? NEED_PER_PHASE[2] : NEED_PER_PHASE[1]
-    const picking = turnPlayer !== null && openCount === 0 && (phase2 ? pendingCount === 0 : true)
+    // phase 1: one question per player — the controller picks for the table, no
+    // turn involved; phase 2 keeps its per-turn batch of three
+    const need = phase2 ? NEED_PER_PHASE[2] : Math.max(1, projection.table.length)
+    const complete = chosen.length === need
+    // a question already picked stays clickable — it takes itself back
+    const picking = openCount === 0 && (phase2 ? turnPlayer !== null : true)
 
+    const sendPicks = (ids: string[]) => {
+        if (phase2) {
+            if (!turnPlayer) return
+            ctx.send({ kind: "ve-dich.pickBatch", playerId: turnPlayer, questionIds: ids })
+            return
+        }
+        ctx.send({ kind: "ve-dich.pickRound", questionIds: ids })
+    }
+
+    // every click writes the whole set — there is no confirm button left to press
     const toggle = (id: string) => {
         if (!picking) return
-        setChosen((current) => {
-            if (current.includes(id)) return current.filter((x) => x !== id)
-            if (!phase2) return [id]
-            return current.length >= need ? current : [...current, id]
-        })
+        const staged = chosen.includes(id)
+        if (!staged && chosen.length >= need) return
+        const next = staged ? chosen.filter((x) => x !== id) : [...chosen, id]
+        setChosen(next)
+        sendPicks(next)
     }
-    const confirm = () => {
-        if (!turnPlayer || chosen.length !== need) return
-        if (phase2) ctx.send({ kind: "ve-dich.pickBatch", playerId: turnPlayer, questionIds: chosen })
-        else ctx.send({ kind: "ve-dich.pick", playerId: turnPlayer, questionId: chosen[0] })
-    }
+
+    // Xác nhận needs a whole turn: three questions in phase 2, one per seat in
+    // phase 1. Hết lượt returns to this board with two questions left, then one —
+    // turnPicked is what says those three were picked together, so a shrinking
+    // set still opens the next one while a batch being assembled does not.
+    const pickedThisTurn = (consoleVeDich?.turnPicked ?? 0) === need
+    const ready = phase2
+        ? pickedThisTurn && consoleVeDich?.pendingQuestionId != null
+        : complete
+    const openPicks = ready
+        ? phase2
+            ? () => ctx.send({ kind: "ve-dich.openQuestion", questionId: consoleVeDich?.pendingQuestionId ?? "" })
+            : () => ctx.send({ kind: "ve-dich.nextQuestion" })
+        : undefined
 
     const staged = consoleVeDich?.stagedPower ?? null
     const usedThisTurn = consoleVeDich?.turnPowerUsed === true
-    const canStage = phase2 && turnPlayer !== null && pendingCount > 0 && !usedThisTurn
-    const stage = (power: "STAR" | "ASSIGN" | null) => {
+    const canStage = phase2 && turnPlayer !== null && chosen.length > 0 && !usedThisTurn
+    const [arming, setArming] = useState(false)
+    // the arm only lasts while staging is still possible — the power landing
+    // (or the picks running out) closes it without a second click
+    const assignArmed = arming && canStage
+    const stage = (power: "STAR" | "ASSIGN" | null, targetId?: string) => {
         if (!turnPlayer) return
         ctx.send({
             kind: "ve-dich.declarePower",
             playerId: turnPlayer,
             power,
-            ...(power === "ASSIGN" && ctx.target ? { targetId: ctx.target } : {})
+            ...(power === "ASSIGN" && targetId ? { targetId } : {})
         })
+    }
+
+    // phase 2 rail: the card names who plays next — unless ASSIGN is armed,
+    // where the second click names the player the question is handed to
+    const railSelect = (id: string) => {
+        if (assignArmed) {
+            setArming(false)
+            stage("ASSIGN", id)
+            return
+        }
+        if (phase2) {
+            ctx.send({ kind: "ve-dich.setTurn", playerId: id })
+            return
+        }
+        ctx.setSelectedPlayer(id)
     }
 
     return (
         <ConsoleStage
-            rail={<Rail variant={phase2 ? "compact" : "answers"} cards={baseCards} onSelect={ctx.setSelectedPlayer} />}
+            rail={<Rail variant={phase2 ? "compact" : "answers"} cards={baseCards} onSelect={railSelect} />}
             actions={[
-                {
-                    label: phase2 ? `Chốt ${need} câu` : "Chọn câu này",
-                    onClick: picking && chosen.length === need ? confirm : undefined,
-                },
                 {
                     label: "Quyền năng",
                     content: staged
@@ -102,7 +142,8 @@ function VeDichPickBoard({ ctx }: { ctx: VeDichPickCtx }) {
                 },
                 {
                     label: COPY.powerAssign,
-                    onClick: canStage && ctx.target ? () => stage("ASSIGN") : undefined,
+                    onClick: canStage ? () => setArming(true) : undefined,
+                    content: assignArmed ? "chọn thẻ để chỉ định" : undefined,
                     empty: !phase2,
                 },
                 {
@@ -111,17 +152,14 @@ function VeDichPickBoard({ ctx }: { ctx: VeDichPickCtx }) {
                     empty: !phase2,
                 },
                 {
-                    label: "Bắt đầu",
-                    onClick: phase2
-                        ? () => ctx.send({ kind: "ve-dich.openQuestion", questionId: consoleVeDich?.pendingQuestionId ?? "" })
-                        : () => ctx.send({ kind: "ve-dich.beginPhase2" }),
+                    label: "Xác nhận",
+                    onClick: openPicks,
                 },
                 {
                     label: "Chọn lại",
-                    onClick: () =>
-                        consoleVeDich && consoleVeDich.turnPlayerId === null && consoleVeDich.phase === 1
-                            ? ctx.send({ kind: "ve-dich.beginPhase2" })
-                            : ctx.send({ kind: "ve-dich.advanceTurn" }),
+                    onClick: phase2
+                        ? () => ctx.send({ kind: "ve-dich.advanceTurn" })
+                        : () => ctx.send({ kind: "ve-dich.clearPicks" }),
                 },
                 backToLobbyAction(ctx.backToLobby),
             ]}
@@ -142,8 +180,7 @@ function VeDichPickBoard({ ctx }: { ctx: VeDichPickCtx }) {
                             {row.cells.map((q) => {
                                 const where: CellWhere = boardMap.get(q._id) ?? (phase2 || q.points <= 30 ? "taken" : "deferred")
                                 const staged = chosen.includes(q._id)
-                                const actionable = picking && where === "free"
-                                    && (staged || chosen.length < need)
+                                const actionable = picking && (staged || (where === "free" && chosen.length < need))
                                 return (
                                     <button
                                         key={q._id}
@@ -151,8 +188,8 @@ function VeDichPickBoard({ ctx }: { ctx: VeDichPickCtx }) {
                                         disabled={!actionable}
                                         aria-pressed={staged}
                                         onClick={() => toggle(q._id)}
-                                        title={where === "free"
-                                            ? actionable ? "Chọn câu này" : CELL_TITLE.free
+                                        title={actionable
+                                            ? staged ? "Nhấn để bỏ chọn" : "Chọn câu này"
                                             : CELL_TITLE[where]}
                                         className={playerCellClass({ where, chosen: staged, actionable })}
                                         style={{ ...DECK_PAD, gridColumn: `span ${row.span}` }}

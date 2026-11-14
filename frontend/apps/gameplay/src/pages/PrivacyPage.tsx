@@ -37,7 +37,7 @@ export function PrivacyPage() {
             <div className="flex flex-col gap-6 pb-10">
                 <Section title="1. Phạm vi">
                     <p>
-                        Chính sách này áp dụng cho hệ thống thi đấu Olympia Custom dùng để tổ chức và
+                        Chính sách này áp dụng cho hệ thống thi đấu AOC dùng để tổ chức và
                         phát sóng các trận đấu: trang dành cho thí sinh (đăng nhập bằng tài khoản
                         riêng) và trang dành cho khán giả. Bên vận hành giải — ban điều hành hoặc đơn
                         vị tổ chức — là bên quyết định dữ liệu nào được tạo ra trong giải của họ.

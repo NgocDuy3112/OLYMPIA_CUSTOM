@@ -43,11 +43,11 @@ describe("endRoundPlanOf — what Kết thúc sends (one press ends the round)",
         expect(endRoundPlanOf("mystery", input())).toEqual([])
     })
 
-    it("khoi-dong phase 1: time out the open run, or move to phase 2 when complete", () => {
+    it("khoi-dong phase 1: only wraps up an open run — the waiting room owns the phase change", () => {
         expect(endRoundPlanOf("khoi-dong", input({ stage: "phase1", hasOralRun: true })))
             .toEqual([{ kind: "khoi-dong.timeOutRun" }])
         expect(endRoundPlanOf("khoi-dong", input({ stage: "phase1", hasOralRun: false })))
-            .toEqual([{ kind: "khoi-dong.beginPhase2" }])
+            .toEqual([])
     })
 
     it("khoi-dong phase 2 is a race — Kết thúc just ends the round", () => {
@@ -112,9 +112,9 @@ describe("endRoundPlanOf — what Kết thúc sends (one press ends the round)",
             .toEqual([{ kind: "but-pha.endRound" }])
     })
 
-    it("ve-dich: the round just ends — Hết lượt owns the open question", () => {
+    it("ve-dich: Về sảnh only navigates — the round stays resumable", () => {
         expect(endRoundPlanOf("ve-dich", input({ stage: "phase2", openIds: ["v1"] })))
-            .toEqual([{ kind: "ve-dich.endRound" }])
+            .toEqual([])
     })
 })
 
@@ -176,5 +176,16 @@ describe("hetLuotAction — what Hết lượt sends", () => {
         expect(hetLuotAction({ answererVerdict: "INCORRECT", buzzerId: "u2", buzzerVerdict: "CORRECT" }))
             .toEqual({ kind: "ve-dich.resolve", answerer: false, buzzer: true })
         expect(hetLuotAction({ answererVerdict: "CORRECT", buzzerId: "u2", buzzerVerdict: null })).toBeNull()
+    })
+
+    it("phase 2 settles the question and lands back on the pick board", () => {
+        expect(hetLuotAction({
+            answererVerdict: "CORRECT", buzzerId: null, buzzerVerdict: null,
+        })).toEqual({ kind: "ve-dich.resolve", answerer: true })
+    })
+
+    it("phase 1 just advances the picked set", () => {
+        expect(hetLuotAction({ phase: 1, answererVerdict: null, buzzerId: null, buzzerVerdict: null }))
+            .toEqual({ kind: "ve-dich.nextQuestion" })
     })
 })

@@ -32,9 +32,7 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
             busy={keywordBusy}
             onSubmit={(text) => submitKeyword(keyword.questionId, text)}
         />
-    ) : (
-        <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>Chờ điều hành mở gợi ý.</span>
-    )
+    ) : null
 
     return (
         <PlayerStage
@@ -69,29 +67,26 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
                 question={
                     hintWindow
                         ? hintWindow.question?.questionText ?? ""
-                        : keyword?.question?.questionText ?? "Chờ điều hành mở gợi ý"
+                        : keyword?.question?.questionText ?? ""
                 }
                 answer={v.revealed?.answer}
                 className="min-h-[16cqw] flex-none"
-                footer={
-                    <div className="flex w-full flex-col gap-[0.7cqw]">
-                        {hintWindow ? (
-                            <AnswerBand
-                                question={hintWindow.question}
-                                answerState={v.me.answerState}
-                                verdict={v.me.verdicts?.[hintWindow.questionId]}
-                                disabled={remaining <= 0}
-                                busy={answerBusy}
-                                error={flash}
-                                onSubmit={(value) => submitAnswer(hintWindow.questionId, value)}
-                            />
-                        ) : (
-                            <AnswerBandIdle />
-                        )}
-                        {keywordSlot}
-                    </div>
-                }
             />
+            <div className="flex w-full flex-col gap-[0.7cqw]">
+                {hintWindow ? (
+                    <AnswerBand
+                        question={hintWindow.question}
+                        answerState={v.me.answerState}
+                        disabled={remaining <= 0}
+                        busy={answerBusy}
+                        error={flash}
+                        onSubmit={(value) => submitAnswer(hintWindow.questionId, value)}
+                    />
+                ) : (
+                    <AnswerBandIdle />
+                )}
+                {keywordSlot}
+            </div>
         </PlayerStage>
     )
 }

@@ -15,8 +15,12 @@ const CELL_TITLE: Record<Exclude<CellWhere, "free">, string> = {
 function boardLabel(v: { pendingPicks?: string[]; isMyTurn?: boolean }, phase2: boolean, need: number): string {
     const pending = (v.pendingPicks ?? []).length
     if (pending > 0) return `Đã chốt ${pending} câu — chờ điều hành mở`
-    if (v.isMyTurn !== true) return "Đến lượt thí sinh khác"
-    return phase2 ? `Đến lượt bạn — điều hành bốc ${need} câu` : "Đến lượt bạn — điều hành chọn câu"
+    if (phase2) {
+        if (v.isMyTurn !== true) return "Đến lượt thí sinh khác"
+        return `Đến lượt bạn — điều hành bốc ${need} câu`
+    }
+    // phase 1 has no turns: the controller picks one question per player
+    return `Điều hành đang chọn ${need} câu`
 }
 
 export function VeDichPickAOCPlayer({ ctx }: { ctx: VeDichPickPlayerCtx }) {
@@ -24,7 +28,7 @@ export function VeDichPickAOCPlayer({ ctx }: { ctx: VeDichPickPlayerCtx }) {
     const phase2 = ctx.stage === "phase2"
     const board = v.board ?? []
     const rows = boardRows(board, (cell) => cell.value)
-    const need = phase2 ? 3 : 1
+    const need = phase2 ? 3 : Math.max(1, v.table.length)
 
     return (
         <PlayerStage
@@ -33,14 +37,6 @@ export function VeDichPickAOCPlayer({ ctx }: { ctx: VeDichPickPlayerCtx }) {
             <QuestionCard
                 round="Về đích"
                 mode={phase2 ? "Lượt cá nhân" : "Lượt chung"}
-                footer={
-                    <span
-                        className="flex h-[3.3cqw] items-center rounded-lg bg-muted px-[1.2cqw] font-sans font-semibold text-foreground ring-1 ring-border"
-                        style={{ fontSize: pt(12), borderRadius: STRIP_R }}
-                    >
-                        {boardLabel(v.me, phase2, need)}
-                    </span>
-                }
             >
                 <div className="flex min-h-0 flex-1 flex-col justify-start gap-[0.9cqw]">
                     {rows.map((row) => (
@@ -68,6 +64,12 @@ export function VeDichPickAOCPlayer({ ctx }: { ctx: VeDichPickPlayerCtx }) {
                     ))}
                 </div>
             </QuestionCard>
+            <span
+                className="flex h-[3.3cqw] items-center rounded-lg bg-muted px-[1.2cqw] font-sans font-semibold text-foreground ring-1 ring-border"
+                style={{ fontSize: pt(12), borderRadius: STRIP_R }}
+            >
+                {boardLabel(v.me, phase2, need)}
+            </span>
         </PlayerStage>
     )
 }
