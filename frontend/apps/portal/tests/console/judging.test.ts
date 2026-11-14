@@ -91,11 +91,11 @@ describe("targetOf — the verdict target", () => {
     })
 
     it("ignores a click on someone who did not answer", () => {
-        expect(targetOf(["u1", "u2"], "u3")).toBe("u1")
+        expect(targetOf(["u1", "u2"], "u3")).toBeNull()
     })
 
-    it("falls back to the first answerer", () => {
-        expect(targetOf(["u2", "u1"], null)).toBe("u2")
+    it("grades nobody until a card is clicked — never the first answerer by default", () => {
+        expect(targetOf(["u2", "u1"], null)).toBeNull()
     })
 
     it("is null with no answers at all", () => {

@@ -65,31 +65,34 @@ export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answe
                 // the same slot the player card uses for its verdict line — and the
                 // same rule: nothing to say means nothing shown (no "—" placeholder)
                 const hasAnswer = typeof c.answer === "string" && c.answer !== "" && c.answer !== "—"
-                const statusLine = isAnswers ? (
-                    hasAnswer || c.badge ? (
-                        <span
-                            className="flex min-w-0 items-center justify-center gap-[0.3cqw] font-sans leading-none text-foreground/85"
-                            style={{ fontSize: pt(12) }}
-                            title={c.answer}
-                        >
-                            {hasAnswer && <span className="truncate">{c.answer}</span>}
-                            {!c.badge && typeof c.value === "string" && c.value !== "" && c.value !== "—" && (
-                                <span className={`shrink-0 font-semibold tabular-nums ${railScoreClass(state)}`}>
-                                    · {c.value}
-                                </span>
-                            )}
-                            {badgeNode}
-                        </span>
-                    ) : null
-                ) : badgeNode ? (
-                    <span className="flex shrink-0 items-center justify-center">{badgeNode}</span>
+                const statusLine = hasAnswer || c.badge ? (
+                    <span
+                        className="flex min-w-0 items-center justify-center gap-[0.3cqw] font-sans leading-none text-foreground/85"
+                        style={{ fontSize: pt(12) }}
+                        title={c.answer}
+                    >
+                        {hasAnswer && <span className="truncate">{c.answer}</span>}
+                        {!c.badge && typeof c.value === "string" && c.value !== "" && c.value !== "—" && (
+                            <span className={`shrink-0 font-semibold tabular-nums ${railScoreClass(state)}`}>
+                                · {c.value}
+                            </span>
+                        )}
+                        {badgeNode}
+                    </span>
                 ) : null
                 return (
                 <Interactive
                     key={c.id}
-                    {...(onSelect ? { type: "button" as const, onClick: () => onSelect(c.id) } : {})}
+                    {...(onSelect
+                        ? { type: "button" as const, onClick: () => onSelect(c.id), "aria-pressed": c.ring === "selected" }
+                        : {})}
                     className={`flex ${isAnswers ? "h-[11.9cqw]" : "h-[9.3cqw]"} w-full shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl p-[0.9cqw] text-left shadow-sm ${railCardClass(state)} ${
-                        onSelect ? "cursor-pointer hover:ring-sky-400" : ""
+                        onSelect
+                            ? c.ring === "selected"
+                                // a picked card keeps its own ring instead of flashing sky on hover
+                                ? "cursor-pointer"
+                                : "cursor-pointer hover:ring-sky-400 active:ring-sky-600"
+                            : ""
                     } ${cardRing(c.ring)}`}
                 >
                     <div className="flex min-h-0 flex-1 gap-[0.7cqw]">

@@ -54,8 +54,18 @@ export function useConsoleJudging(input: JudgingScopeInput): ConsoleJudging {
 
     const setVerdict = (correct: boolean) => {
         const qid = ids.judgingId ?? ids.resolvingId
-        if (!qid || !target) return
-        setOverrides((o) => ({ ...o, [`${qid}:${target}`]: correct }))
+        if (!qid) return
+        // one press grades the whole ticked set; with nothing ticked it still
+        // falls back to the single player the console is pointed at
+        const targets = selectedIds.size > 0
+            ? [...selectedIds]
+            : target !== null ? [target] : []
+        if (targets.length === 0) return
+        setOverrides((o) => {
+            const next = { ...o }
+            for (const userId of targets) next[`${qid}:${userId}`] = correct
+            return next
+        })
     }
 
     const toggleSelect = (userId: string) =>

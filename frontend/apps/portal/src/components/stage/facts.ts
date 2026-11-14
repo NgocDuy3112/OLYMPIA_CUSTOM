@@ -13,12 +13,16 @@ export interface ConsoleFacts {
     setSelectedQ: (questionId: string | null) => void
     setSelectedPlayer: (userId: string) => void
     toggleSelect: (userId: string) => void
+    /** the players the console has ticked — one press of Đúng/Sai grades them all */
+    selectedIds: ReadonlySet<string>
     commitHintReady: boolean
     commitKeywordReady: boolean
     commitHint: () => void
     commitKeyword: () => void
     setVerdict: (correct: boolean) => void
     send: (action: LiveAction) => void
+    /** several actions in order, each carrying the version the last one returned */
+    sendChain: (actions: LiveAction[]) => void
     hetLuot: () => void
     backToLobby: () => void
     pickQuestion: () => void

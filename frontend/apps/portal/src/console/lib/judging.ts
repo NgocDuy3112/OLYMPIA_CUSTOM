@@ -38,7 +38,10 @@ export function judgingIdsOf(input: JudgingInput): JudgingIds {
     }
 }
 
+/** Who the verdict lands on. Nothing is picked → nothing is graded: the
+ *  console has to click a card first, rather than silently taking the first
+ *  answerer. */
 export function targetOf(answererIds: readonly string[], selectedPlayer: string | null): string | null {
     if (selectedPlayer !== null && answererIds.includes(selectedPlayer)) return selectedPlayer
-    return firstOrNull(answererIds)
+    return null
 }

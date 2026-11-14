@@ -4,7 +4,7 @@ const STATE: Record<RailCardState, string> = {
     correct: "bg-emerald-50 ring-2 ring-emerald-500",
     wrong: "bg-muted text-muted-foreground ring-1 ring-border opacity-70",
     buzzing: "bg-primary text-primary-foreground outline-2 outline-dashed outline-white",
-    waiting: "bg-primary/10 ring-1 ring-primary/40",
+    waiting: "bg-primary/10 ring-1 ring-border",
 }
 
 const SCORE: Record<RailCardState, string> = {

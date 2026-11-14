@@ -32,6 +32,8 @@ describe("railCardState", () => {
     it("everything else waits: the card is purple too, only tinted", () => {
         expect(railCardState({})).toBe("waiting")
         expect(railCardClass("waiting")).toContain("bg-primary/10")
+        // a neutral resting border, so a picked card's ring-2 reads as a change
+        expect(railCardClass("waiting")).toContain("ring-border")
         expect(railCardClass("waiting")).not.toContain("outline-dashed")
         expect(railCardClass("buzzing")).toContain("bg-primary ")
     })
