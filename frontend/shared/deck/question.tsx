@@ -6,7 +6,6 @@ export function QuestionBlock({ question, media, mediaHint = "hình ảnh câu h
     question: string | null
     media?: { url: string; type: string } | null
     mediaHint?: string
-    /** click the card to show the question to everyone */
     onReveal?: () => void
 }) {
     const revealProps = onReveal
@@ -59,12 +58,17 @@ function MediaWell({ media, mediaHint }: { media: { url: string; type: string };
     return (
         <div
             className="ml-auto flex shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-muted ring-1 ring-border"
-            style={{ height: "100%", aspectRatio: natural ? `${natural.w} / ${natural.h}` : "16 / 9", maxWidth: "100%" }}
+            style={{
+                height: "100%",
+                maxHeight: "min(100%, 34cqw)",
+                maxWidth: "37.4cqw",
+                aspectRatio: natural ? `${natural.w} / ${natural.h}` : "16 / 9",
+            }}
         >
             <img
                 src={media.url}
                 alt=""
-                className="max-h-full max-w-full object-contain"
+                className="h-full w-full object-contain"
                 onLoad={(event) => {
                     const { naturalWidth: w, naturalHeight: h } = event.currentTarget
                     if (w > 0 && h > 0) setNatural({ w, h })
@@ -100,11 +104,6 @@ export function AnswerReveal({ answer }: { answer?: string | null }) {
     )
 }
 
-/**
- * The one card every round screen draws: the header slots, the question (a
- * click on the controller reveals it), the answer reveal and the answer/status
- * strip. Pages pass slots — they never hand-roll the card.
- */
 export function QuestionCard({ round, mode, size, onRoundClick, mid, right, question, media, answer, face, onReveal, className, children }: {
     round: string
     mode?: string
@@ -116,10 +115,8 @@ export function QuestionCard({ round, mode, size, onRoundClick, mid, right, ques
     media?: { url: string; type: string } | null
     answer?: string | null
     face?: ReactNode
-    /** controller only — click the card to show the question to everyone */
     onReveal?: () => void
     className?: string
-    /** replaces the question body — for boards that are not a question */
     children?: ReactNode
 }) {
     return (

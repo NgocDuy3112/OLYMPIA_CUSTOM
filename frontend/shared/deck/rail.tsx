@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react"
 import type { LocalVideoTrack } from "livekit-client"
-import { formatBuzzMs } from "@shared/lib/clock"
+import { formatDurationMs } from "@shared/lib/clock"
 import { useSelfCam } from "@shared/lib/rtc"
 import { pt } from "./geometry"
 import { railCardClass, railCardState, railScoreClass } from "./rail-card"
@@ -53,16 +53,17 @@ export function Rail({ variant, view, myId, currentQid }: {
                 })
                 const activeRun = view.oral?.playerId === row.id
                 const buzzed = view.me.buzzer === row.id
-                const statusText = buzzed
-                    ? "Đã bấm chuông"
-                    : state === "correct"
-                        ? "đúng"
-                        : state === "wrong"
-                            ? "chưa đúng"
-                            : ""
-                const buzzTime = buzzed && view.me.buzzerMs !== null && view.me.buzzerMs !== undefined
-                    ? formatBuzzMs(view.me.buzzerMs)
-                    : null
+
+                const answerRow = currentQid
+                    ? view.publicVerdicts?.find(
+                          (r) => r.questionId === currentQid && r.userId === row.id
+                      )
+                    : undefined
+                const answeredMs = answerRow?.answeredMs ?? null
+                const buzzMs =
+                    buzzed && view.me.buzzerMs !== null && view.me.buzzerMs !== undefined
+                        ? view.me.buzzerMs
+                        : null
                 return (
                     <div
                         key={row.id}
@@ -85,11 +86,31 @@ export function Rail({ variant, view, myId, currentQid }: {
                                 <span className={`font-display font-bold leading-none tabular-nums ${railScoreClass(state)}`} style={{ fontSize: pt(compact ? 34 : 44) }}>
                                     {row.points}
                                 </span>
-                                {!compact && statusText && (
-                                    <span className="flex min-w-0 items-center justify-center gap-[0.3cqw] font-sans leading-none text-foreground/85" style={{ fontSize: pt(12) }}>
-                                        <span className="truncate">{statusText}</span>
-                                        {buzzTime && (
-                                            <span className="shrink-0 tabular-nums text-muted-foreground">· {buzzTime}</span>
+                                {!compact && (answeredMs !== null || buzzed) && (
+                                    <span
+                                        className="flex min-w-0 flex-wrap items-center justify-center gap-[0.3cqw] font-sans leading-none text-foreground/85"
+                                        style={{ fontSize: pt(11) }}
+                                    >
+                                        {answeredMs !== null && (
+                                            <span className="flex items-center gap-[0.25cqw] whitespace-nowrap">
+                                                <span>Answer</span>
+                                                <span className="tabular-nums text-muted-foreground">
+                                                    {formatDurationMs(answeredMs)}
+                                                </span>
+                                            </span>
+                                        )}
+                                        {buzzed && answeredMs !== null && (
+                                            <span className="text-muted-foreground">·</span>
+                                        )}
+                                        {buzzed && (
+                                            <span className="flex items-center gap-[0.25cqw] whitespace-nowrap">
+                                                <span>Đã bấm chuông</span>
+                                                {buzzMs !== null && (
+                                                    <span className="tabular-nums text-muted-foreground">
+                                                        {formatDurationMs(buzzMs)}
+                                                    </span>
+                                                )}
+                                            </span>
                                         )}
                                     </span>
                                 )}

@@ -19,8 +19,6 @@ export function KhoiDongRiengAOCController({ ctx }: { ctx: KhoiDongRiengCtx }) {
     const overBudget = oral ? ctx.watchMs > budgetMs : false
     const canVerdict = Boolean(oral?.playerId) && !overBudget
     const spentS = Math.max(0, Math.floor(ctx.watchMs / 1000))
-    // the card marked as who is answering — it moves the engine's cursor so
-    // their question appears, and is spent on the verdict
     const [marked, setMarked] = useState<string | null>(null)
     const mark = (id: string) => {
         setMarked(id)
@@ -44,11 +42,14 @@ export function KhoiDongRiengAOCController({ ctx }: { ctx: KhoiDongRiengCtx }) {
             rail={<Rail variant="compact" cards={cards} onSelect={mark} />}
             actions={[
                 {
-                    // one-way: it runs in the corner, so the slot goes inert
                     label: COPY.startClock,
                     onClick: ctx.watchRunning ? undefined : ctx.toggleWatch,
                 },
                 ...verdictActions({ canVerdict, onVerdict: record }),
+                {
+                    label: "Hết lượt",
+                    onClick: () => ctx.send({ kind: "khoi-dong.timeOutRun" }),
+                },
                 backToLobbyAction(ctx.backToLobby),
             ]}
             flash={flash}
@@ -58,15 +59,24 @@ export function KhoiDongRiengAOCController({ ctx }: { ctx: KhoiDongRiengCtx }) {
                 mode="Lượt cá nhân"
                 onRoundClick={openRounds}
                 right={
-                    <>
-                        <Progress total={oral?.total ?? 6} done={oral?.index ?? 0} active={oral?.playerId ? oral.index : -1} />
-                        <Timer
-                            remaining={ctx.watchRunning ? remainingMs : null}
-                            fallback={String(Math.ceil(remainingMs / 1000))}
-                        />
-                    </>
+                    oral?.playerId ? (
+                        <>
+                            <Progress total={oral.total} done={oral.index} active={oral.index} />
+                            <Timer
+                                remaining={ctx.watchRunning ? remainingMs : null}
+                                fallback={String(Math.ceil(remainingMs / 1000))}
+                            />
+                        </>
+                    ) : null
                 }
-                question={oral?.question?.questionText ?? ""}
+                question={
+                    oral?.question?.questionText ??
+                    (!oral
+                        ? "Lượt đã xong — bấm Hết lượt để chuyển người chơi."
+                        : oral.playerId
+                          ? ""
+                          : "Chưa chọn người chơi — bấm thẻ bên phải.")
+                }
                 media={oral?.question?.media ?? null}
             />
         </ConsoleStage>

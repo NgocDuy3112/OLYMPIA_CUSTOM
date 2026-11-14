@@ -2,17 +2,14 @@ using System.Text.Json.Serialization;
 
 namespace AOC.Domain.Engine.Turns;
 
-/// <summary>Port of turns/khoi-dong-round.ts — the round-level state machine over phase 1/2.</summary>
 public sealed record KhoiDongState
 {
     [JsonPropertyName("rules")] public RoundRules.KhoiDongRules Rules { get; init; } = RoundRules.DefaultKhoiDong();
-    [JsonPropertyName("stage")] public string Stage { get; init; } = "phase1"; // phase1 | phase2
+    [JsonPropertyName("stage")] public string Stage { get; init; } = "phase1";
     [JsonPropertyName("ended")] public bool Ended { get; init; }
     [JsonPropertyName("order")] public List<string> Order { get; init; } = [];
     [JsonPropertyName("activeIndex")] public int ActiveIndex { get; init; }
 
-    /// <summary>The console has picked who is answering. Until then no question
-    /// is projected — clicking a round button must not put question 1 on screen.</summary>
     [JsonPropertyName("engaged")] public bool Engaged { get; init; }
     [JsonPropertyName("runs")] public Dictionary<string, Phase1State> Runs { get; init; } = new();
     [JsonPropertyName("phase2")] public Phase2State? Phase2 { get; init; }
@@ -34,7 +31,6 @@ public static class KhoiDongRound
         rules ??= RoundRules.DefaultKhoiDong();
         if (playerIds.Count == 0) Fail("VALIDATION", "khoi-dong needs at least one player");
 
-        // Riêng is one set of questions PER PLAYER: sliced in seat order.
         var perPlayer = rules.Phase1Questions;
         var expected = perPlayer * playerIds.Count;
         if (phase1Ids.Count != expected)
@@ -68,8 +64,6 @@ public static class KhoiDongRound
         return QuestionIdOf(state, id);
     }
 
-    /// <summary>The question a given player is on — the console may grade someone
-    /// other than the cursor, and the fact needs their question, not the cursor's.</summary>
     public static string? QuestionIdOf(KhoiDongState state, string playerId)
     {
         if (state.Stage != "phase1") return null;
@@ -86,9 +80,6 @@ public static class KhoiDongRound
     private static KhoiDongState AdvanceActive(KhoiDongState state)
         => state with { ActiveIndex = Math.Min(state.ActiveIndex + 1, state.Order.Count - 1) };
 
-    /// <summary>Records the oral answer. <paramref name="playerId"/> is the console
-    /// marking who is answering: the mark moves the cursor, so the fact, the
-    /// projection and TimeOutRun all follow the marked player.</summary>
     public static KhoiDongState RecordOral(KhoiDongState state, bool correct, double spentS, string? playerId = null)
     {
         if (state.Stage != "phase1") Fail("WRONG_STAGE", "phase 1 is over");
@@ -109,12 +100,9 @@ public static class KhoiDongRound
         {
             [id] = KhoiDongTurn.AnswerPhase1(run, correct, spentS)
         };
-        var next = state with { Runs = runs, Engaged = true };
-        return runs[id].Ended ? AdvanceActive(next) : next;
+        return state with { Runs = runs, Engaged = true };
     }
 
-    /// <summary>The console picks who answers next — the rail card on the oral
-    /// run. The cursor moves, so the projection shows that player's question.</summary>
     public static KhoiDongState SetTurn(KhoiDongState state, string playerId)
     {
         if (state.Stage != "phase1") Fail("WRONG_STAGE", "phase 1 is over");

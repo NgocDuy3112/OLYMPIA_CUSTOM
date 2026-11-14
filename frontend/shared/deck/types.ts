@@ -75,6 +75,7 @@ export interface PlayerView {
         questionId: string
         userId: string
         verdict: "CORRECT" | "INCORRECT"
+        answeredMs?: number | null
     }>
     audioGate?: { allowed: string[] }
     revealed?: { questionId: string; answer: string }

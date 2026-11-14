@@ -6,8 +6,6 @@ using Xunit;
 
 namespace AOC.Tests.Modules;
 
-/// <summary>The room's soundtrack: which file an action asks for, and which
-///  second-count a ve-dich clock announces. Pure map — the push itself is hub code.</summary>
 public class SfxTests
 {
     private static readonly JsonElement Empty = JsonSerializer.SerializeToElement(new { });
@@ -38,6 +36,7 @@ public class SfxTests
         Assert.Equal("kd_40s.mp3", Sfx.FileFor(new LiveAction.KhoiDongSetTurn("u1"), Empty, "khoi-dong"));
         Assert.Equal("kd_10s.ogg", Sfx.FileFor(new LiveAction.KhoiDongStartWindow(), Empty, "khoi-dong"));
         Assert.Equal("kd_ket_thuc.mp3", Sfx.FileFor(new LiveAction.KhoiDongEndRound(), Empty, "khoi-dong"));
+        Assert.Equal("kd_ket_thuc.mp3", Sfx.FileFor(new LiveAction.KhoiDongTimeOutRun(), Empty, "khoi-dong"));
     }
 
     [Fact]
@@ -106,13 +105,11 @@ public class SfxTests
     [Fact]
     public void VeDich_ClockAnnouncesItsOwnSeconds()
     {
-        // Tính giờ on a 20 s cell
         Assert.Equal("vd_20s.mp3", Sfx.FileFor(
             new LiveAction.VeDichStartClock(), StateFor(Open(20)), "ve-dich"));
         Assert.Equal("vd_45s.mp3", Sfx.FileFor(
             new LiveAction.VeDichPick("u1", "q1"), StateFor(Open(45)), "ve-dich"));
 
-        // …but no clock means no sound: the question merely opened
         Assert.Null(Sfx.FileFor(
             new LiveAction.VeDichOpenQuestion("q1"), StateFor(Open(20, openedAt: null)), "ve-dich"));
     }
@@ -145,6 +142,19 @@ public class SfxTests
         Assert.Equal("gm_hien_tra_loi.ogg", Sfx.FileFor(new LiveAction.RevealAnswer("q1"), Empty, "giai-ma"));
         Assert.Equal("bp_hien_tra_loi.ogg", Sfx.FileFor(new LiveAction.RevealAnswer("q1"), Empty, "but-pha"));
         Assert.Equal("vd_hien_tra_loi.mp3", Sfx.FileFor(new LiveAction.RevealAnswer("q1"), Empty, "ve-dich"));
+    }
+
+    [Fact]
+    public void TheCueUrlIsASignedGet_TheBucketStaysPrivate()
+    {
+        var url = Sfx.UrlFor("ping.mp3");
+        Assert.NotNull(url);
+
+        var bucket = Environment.GetEnvironmentVariable("S3_BUCKET");
+        Assert.Contains($"/{bucket}/sfx/ping.mp3", url);
+        Assert.Contains("X-Amz-Signature=", url);
+        Assert.Contains("X-Amz-Credential=", url);
+        Assert.Contains("X-Amz-Expires=600", url);
     }
 
     [Fact]

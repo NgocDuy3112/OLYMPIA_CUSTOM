@@ -87,7 +87,6 @@ describe("player screens render from a plain fixture", () => {
         const { queryByLabelText } = render(
             <KhoiDongChungAOCPlayer ctx={ctx({ v: open, remaining: 0 })} />
         )
-        // no window yet → the answer field stays out of the way
         expect(queryByLabelText("Câu trả lời của bạn")).toBeNull()
     })
 
@@ -213,6 +212,27 @@ describe("player screens render from a plain fixture", () => {
         const v = view({ roundId: "ve-dich", stage: "phase2", me: { buzzer: "u2", buzzerMs: 1240 } })
         const { getByText } = render(<Rail variant="answers" view={v} myId={null} />)
         expect(getByText(/Đã bấm chuông/)).toBeTruthy()
-        expect(getByText(/1\.24s/)).toBeTruthy()
+        expect(getByText("01.240")).toBeTruthy()
+    })
+
+    it("rail — every card carries Answer with how long they took, next to the buzz", () => {
+        const v = view({
+            roundId: "ve-dich",
+            stage: "phase2",
+            me: { buzzer: "u2", buzzerMs: 3425 },
+            publicVerdicts: [
+                { questionId: "q1", userId: "u1", verdict: "CORRECT", answeredMs: 9002 },
+                { questionId: "q1", userId: "u2", verdict: "INCORRECT", answeredMs: 4100 },
+            ],
+        })
+        const { getByText, getAllByText } = render(
+            <Rail variant="answers" view={v} myId={null} currentQid="q1" />
+        )
+
+        expect(getAllByText("Answer")).toHaveLength(2)
+        expect(getByText("09.002")).toBeTruthy()
+        expect(getByText("04.100")).toBeTruthy()
+        expect(getByText("Đã bấm chuông")).toBeTruthy()
+        expect(getByText("03.425")).toBeTruthy()
     })
 })

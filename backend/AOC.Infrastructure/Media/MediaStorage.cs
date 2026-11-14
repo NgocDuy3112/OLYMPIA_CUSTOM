@@ -15,7 +15,6 @@ public sealed record StoredMedia(string Url, MediaKind Type);
 
 public sealed record MediaAttachment(string Filename, string? ContentType, byte[] Content);
 
-/// <summary>Port of lib/media.ts — S3-backed media storage with kind sniffing.</summary>
 public static class MediaStorage
 {
     private static readonly Dictionary<string, MediaKind> KindByExtension = new(StringComparer.OrdinalIgnoreCase)
@@ -86,6 +85,20 @@ public static class MediaStorage
 
     public static bool MediaStorageConfigured() => AppConfig.Instance.S3.Configured;
 
+    public static string? Presign(string key, TimeSpan? lifetime = null)
+    {
+        var s3 = AppConfig.Instance.S3;
+        if (!s3.Configured) return null;
+
+        return S3().GetPreSignedURL(new GetPreSignedUrlRequest
+        {
+            BucketName = s3.Bucket!,
+            Key = key,
+            Verb = HttpVerb.GET,
+            Expires = DateTime.UtcNow.Add(lifetime ?? TimeSpan.FromMinutes(10))
+        });
+    }
+
     private static AmazonS3Client? _client;
 
     private static AmazonS3Client S3()
@@ -97,10 +110,6 @@ public static class MediaStorage
             {
                 RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(s3.Region),
                 ForcePathStyle = s3.Endpoint is not null,
-                // SDK v4 defaults to WHEN_SUPPORTED: it signs x-amz-checksum-* headers
-                // that Vietnix's S3 rejects with a bodyless 403, leaving
-                // AmazonS3Exception.Message empty. Checksums only when required —
-                // the same behavior as the aws CLI, which uploads fine.
                 RequestChecksumCalculation = Amazon.Runtime.RequestChecksumCalculation.WHEN_REQUIRED
             };
             if (s3.Endpoint is not null)
@@ -143,9 +152,6 @@ public static class MediaStorage
             Key = key,
             InputStream = new MemoryStream(file.Content),
             ContentType = file.ContentType,
-            // Vietnix's S3 rejects the SDK v4 default aws-chunked transfer encoding
-            // with a bodyless 403 AccessDenied. A plain Content-Length PUT (what the
-            // aws CLI sends) succeeds for every size — measured0/4 vs4/4.
             UseChunkEncoding = false
         };
         await S3().PutObjectAsync(request);

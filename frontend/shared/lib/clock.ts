@@ -22,9 +22,10 @@ export function formatRemaining(ms: number): string {
     return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
-export function formatBuzzMs(ms: number | null | undefined): string {
-    if (ms === null || ms === undefined) return "—"
-    return `${(ms / 1000).toFixed(2)}s`
+export function formatDurationMs(ms: number): string {
+    const clamped = Math.max(0, Math.round(ms))
+    const seconds = Math.floor(clamped / 1000)
+    return `${String(seconds).padStart(2, "0")}.${String(clamped % 1000).padStart(3, "0")}`
 }
 
 export function isUrgent(ms: number): boolean {
@@ -46,9 +47,6 @@ export function useServerClock(): ServerClock {
 
     const skew = useCallback(() => skewRef.current, []);
 
-    // a fresh object every render would re-run every effect that depends on the
-    // clock (useCountdown recomputes inside one) — and a ticking countdown then
-    // updates forever, until React gives up with "maximum update depth exceeded"
     return useMemo(() => ({ sync, skew }), [sync, skew]);
 }
 

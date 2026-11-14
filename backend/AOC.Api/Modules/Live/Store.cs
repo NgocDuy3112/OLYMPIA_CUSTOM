@@ -8,14 +8,12 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.Live;
 
-/// <summary>Port of live/store.ts — the Postgres-backed live store and readers.</summary>
 public sealed class PgLiveStore(AOCDbContext db, Guid matchId) : ILiveStore<JsonElement>
 {
     public async Task<T> Transact<T>(Func<ILiveTx<JsonElement>, Task<T>> fn)
     {
         await using var transaction = await db.Database.BeginTransactionAsync();
 
-        // SELECT ... FOR UPDATE — serializes concurrent console/player mutations.
         var row = await db.MatchLive
             .FromSqlInterpolated($"SELECT * FROM match_live WHERE match_id = {matchId} FOR UPDATE")
             .FirstOrDefaultAsync();
@@ -48,15 +46,11 @@ internal sealed class PgLiveTx(AOCDbContext db, Guid matchId, MatchLiveEntity ro
         row.State = next.State;
         row.Archive = JsonSerializer.SerializeToElement(next.Archive, JsonApi.Options);
         row.UpdatedAt = DateTime.UtcNow;
-        // Flush the row INSIDE the transaction — committing without this only
-        // commits whatever facts happened to be staged, so a transition with no
-        // facts (round.goTo, *.start) returned a version that never landed.
         await db.SaveChangesAsync();
     }
 
     public async Task RecordFacts(List<LiveFact> facts)
     {
-        // draft inserts
         var drafts = facts.OfType<DraftFact>().ToList();
         if (drafts.Count > 0)
         {
@@ -78,7 +72,6 @@ internal sealed class PgLiveTx(AOCDbContext db, Guid matchId, MatchLiveEntity ro
             }
         }
 
-        // answer inserts (already final)
         var answers = facts.OfType<AnswerFact>().ToList();
         if (answers.Count > 0)
         {
@@ -101,7 +94,6 @@ internal sealed class PgLiveTx(AOCDbContext db, Guid matchId, MatchLiveEntity ro
             }
         }
 
-        // judge updates
         foreach (var judge in facts.OfType<JudgeFact>())
         {
             var target = await db.Answers.FirstOrDefaultAsync(a =>
@@ -116,7 +108,6 @@ internal sealed class PgLiveTx(AOCDbContext db, Guid matchId, MatchLiveEntity ro
             target.PointsAwarded = judge.PointsAwarded;
         }
 
-        // match events (ON CONFLICT DO NOTHING on the partial uniques)
         foreach (var evt in facts.OfType<EventFact>())
         {
             var questionId = Guid.Parse(evt.QuestionId);
@@ -165,7 +156,6 @@ internal sealed class PgLiveTx(AOCDbContext db, Guid matchId, MatchLiveEntity ro
             });
         }
 
-        // score adjustments
         foreach (var adjust in facts.OfType<AdjustFact>())
         {
             db.ScoreAdjustments.Add(new ScoreAdjustmentEntity
@@ -215,7 +205,6 @@ internal sealed class PgLiveTx(AOCDbContext db, Guid matchId, MatchLiveEntity ro
     }
 }
 
-/// <summary>Readers + session helpers (port of live/store.ts exports).</summary>
 public sealed class LiveReader(AOCDbContext db)
 {
     public sealed record LiveSnapshot(
@@ -315,16 +304,15 @@ public sealed class LiveReader(AOCDbContext db)
     {
         var rows = await db.Answers.AsNoTracking()
             .Where(a => a.MatchId == matchId && a.Judged)
-            .Select(a => new { QuestionId = a.QuestionId, UserId = a.UserId, a.Verdict })
+            .Select(a => new { QuestionId = a.QuestionId, UserId = a.UserId, a.Verdict, a.AnsweredMs })
             .ToListAsync();
         return rows.Select(r => new JudgedAnswer(
-            r.QuestionId.ToString(), r.UserId.ToString(), r.Verdict)).ToList();
+            r.QuestionId.ToString(), r.UserId.ToString(), r.Verdict, r.AnsweredMs)).ToList();
     }
 
-    public sealed record JudgedAnswer(string QuestionId, string UserId, Verdict? Verdict);
+    public sealed record JudgedAnswer(string QuestionId, string UserId, Verdict? Verdict, int? AnsweredMs);
 }
 
-/// <summary>Port of live/store.ts writeDraft — the player answer draft writer.</summary>
 public sealed class DraftWriter(AOCDbContext db)
 {
     public const string AutoDrafter = "auto";

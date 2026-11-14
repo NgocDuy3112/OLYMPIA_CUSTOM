@@ -8,7 +8,6 @@ public class KhoiDongRoundTests
 {
     private const string Opened = "2026-01-01T00:00:00.000Z";
 
-    // Riêng is one set of six PER PLAYER: seat 0 takes the first six, seat 1 the next six.
     private static readonly string[] P1Seat0 = ["a1", "a2", "a3", "a4", "a5", "a6"];
     private static readonly string[] P1Seat1 = ["a7", "a8", "a9", "a10", "a11", "a12"];
     private static readonly string[] P1 = [.. P1Seat0, .. P1Seat1];
@@ -75,7 +74,6 @@ public class KhoiDongRoundTests
         var s = KhoiDongRound.RecordOral(
             KhoiDongRound.StartKhoiDong(Players, P1), correct: true, spentS: 2, playerId: "p1");
 
-        // the mark IS who answers now — cursor, fact and projection all follow
         Assert.Equal("p1", KhoiDongRound.ActivePlayerId(s));
         Assert.Equal("a8", KhoiDongRound.ActiveQuestionId(s));
         Assert.Single(s.Runs["p1"].Results);
@@ -94,14 +92,14 @@ public class KhoiDongRoundTests
     public void NoQuestionIsProjectedUntilTheConsolePicksWhoAnswers()
     {
         var started = KhoiDongRound.StartKhoiDong(Players, P1);
-        Assert.False(started.Engaged); // round started → question 1 stays off screen
+        Assert.False(started.Engaged);
 
         var marked = KhoiDongRound.SetTurn(started, "p1");
-        Assert.True(marked.Engaged);   // the card click puts it up
+        Assert.True(marked.Engaged);
         Assert.Equal("p1", KhoiDongRound.ActivePlayerId(marked));
 
         var graded = KhoiDongRound.RecordOral(marked, correct: true, spentS: 1);
-        Assert.True(graded.Engaged);   // …and the run keeps flowing
+        Assert.True(graded.Engaged);
     }
 
     [Fact]
@@ -112,7 +110,6 @@ public class KhoiDongRoundTests
 
         var next = KhoiDongRound.SetTurn(s, "p1");
 
-        // their question is what the projection now shows — first of six
         Assert.Equal("p1", KhoiDongRound.ActivePlayerId(next));
         Assert.Equal("a7", KhoiDongRound.ActiveQuestionId(next));
         Assert.Equal(0, next.Runs["p0"].Cursor);
@@ -129,11 +126,24 @@ public class KhoiDongRoundTests
     }
 
     [Fact]
-    public void WhenActiveRunEndsNextPlayerBecomesActive()
+    public void FinishingTheSixthStaysOnTheFinishedPlayer_TheStageGoesBlank()
     {
         var s = FinishRun(KhoiDongRound.StartKhoiDong(Players, P1));
-        Assert.Equal("p1", KhoiDongRound.ActivePlayerId(s));
+        Assert.True(s.Runs["p0"].Ended);
+        Assert.Equal("p0", KhoiDongRound.ActivePlayerId(s));
+        Assert.Null(KhoiDongRound.ActiveQuestionId(s));
         Assert.False(KhoiDongRound.Phase1Complete(s));
+    }
+
+    [Fact]
+    public void HetLuotSwitchesToTheNextPlayersOwnRun()
+    {
+        var s = FinishRun(KhoiDongRound.StartKhoiDong(Players, P1));
+        s = KhoiDongRound.TimeOutRun(s);
+
+        Assert.Equal("p1", KhoiDongRound.ActivePlayerId(s));
+        Assert.Equal("a7", KhoiDongRound.ActiveQuestionId(s));
+        Assert.True(s.Runs["p0"].Ended);
     }
 
     [Fact]
@@ -157,7 +167,7 @@ public class KhoiDongRoundTests
     public void Phase1CompletesOnceEveryRunEnded()
     {
         var afterP0 = FinishRun(KhoiDongRound.StartKhoiDong(Players, P1));
-        var afterP1 = FinishRun(afterP0);
+        var afterP1 = FinishRun(KhoiDongRound.TimeOutRun(afterP0));
         Assert.True(KhoiDongRound.Phase1Complete(afterP1));
         Assert.True(afterP1.Runs["p1"].Ended);
     }
@@ -189,7 +199,7 @@ public class KhoiDongRoundTests
     [Fact]
     public void Phase2_BeginsOnceEveryoneFinished()
     {
-        var done = FinishRun(FinishRun(KhoiDongRound.StartKhoiDong(Players, P1)));
+        var done = FinishRun(KhoiDongRound.TimeOutRun(FinishRun(KhoiDongRound.StartKhoiDong(Players, P1))));
         var s = KhoiDongRound.BeginPhase2(done, P2);
         Assert.Equal("phase2", s.Stage);
         Assert.Equal(P2, s.Phase2!.QuestionIds);
@@ -199,14 +209,14 @@ public class KhoiDongRoundTests
     [Fact]
     public void Phase2_CannotBeginTwice()
     {
-        var done = FinishRun(FinishRun(KhoiDongRound.StartKhoiDong(Players, P1)));
+        var done = FinishRun(KhoiDongRound.TimeOutRun(FinishRun(KhoiDongRound.StartKhoiDong(Players, P1))));
         var s = KhoiDongRound.BeginPhase2(done, P2);
         Assert.Equal("WRONG_STAGE", CodeOf(() => KhoiDongRound.BeginPhase2(s, P2)));
     }
 
     private static KhoiDongState InPhase2()
         => KhoiDongRound.BeginPhase2(
-            FinishRun(FinishRun(KhoiDongRound.StartKhoiDong(Players, P1))), P2);
+            FinishRun(KhoiDongRound.TimeOutRun(FinishRun(KhoiDongRound.StartKhoiDong(Players, P1)))), P2);
 
     [Fact]
     public void BangGioOpensWindowAndJudgesPayOnTopOfRuns()

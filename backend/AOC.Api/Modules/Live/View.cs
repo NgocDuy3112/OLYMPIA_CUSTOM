@@ -13,9 +13,8 @@ public sealed record RankedScore(string Id, string DisplayName, int Points, int 
 
 public sealed record SubmittedAnswerRow(string QuestionId, bool Judged, Verdict? Verdict);
 
-public sealed record JudgedRow(string QuestionId, string UserId, Verdict? Verdict);
+public sealed record JudgedRow(string QuestionId, string UserId, Verdict? Verdict, int? AnsweredMs = null);
 
-/// <summary>Port of live/view.ts — the projection each player/console receives.</summary>
 public static class LiveView
 {
     private static readonly string[] PublishesVerdicts = ["khoi-dong", "but-pha", "ve-dich"];
@@ -40,7 +39,6 @@ public static class LiveView
             .UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
     }
 
-    // ---- per-round views -----------------------------------------------------------
 
     private static Dictionary<string, object?> Base(string matchId, string roundId, int version,
         string stage, List<object?> open, List<RankedScore> table, Dictionary<string, object?> me)
@@ -107,8 +105,6 @@ public static class LiveView
             open.Add(new Dictionary<string, object?>
             {
                 ["questionId"] = state.OpenHint,
-                // the pick shows the question at once; the countdown only exists
-                // once the desk presses Đếm giờ
                 ["deadlineAt"] = windowOpen ? PlusSeconds(state.OpenHintAt!, 15) : null,
                 ["question"] = QuestionOf(input, state.OpenHint!)
             });
@@ -162,8 +158,6 @@ public static class LiveView
 
         if (questionId is not null && state.QuestionRevealedAt is not null)
         {
-            // no clock yet = no deadline: the revealed question stays on screen
-            // until Tính giờ starts ticking its30-second window
             double? atS = null;
             if (state.QuestionOpenedAt is not null)
             {
@@ -224,7 +218,6 @@ public static class LiveView
                 view["oral"] = new Dictionary<string, object?>
                 {
                     ["questionId"] = currentId,
-                    // nothing is on screen until the console picks who is answering
                     ["question"] = state.Engaged ? QuestionOf(input, currentId) : null,
                     ["playerId"] = state.Engaged ? activeId : null,
                     ["index"] = run.Cursor,
@@ -378,7 +371,6 @@ public static class LiveView
         return view;
     }
 
-    // ---- entry -----------------------------------------------------------------------
 
     public static Dictionary<string, object?> BuildPlayerView(ViewInput input)
     {
@@ -392,7 +384,8 @@ public static class LiveView
         {
             ["questionId"] = row.QuestionId,
             ["userId"] = row.UserId,
-            ["verdict"] = row.Verdict!.Value.ToString()
+            ["verdict"] = row.Verdict!.Value.ToString(),
+            ["answeredMs"] = row.AnsweredMs
         }).ToList();
         return view;
     }
@@ -461,7 +454,6 @@ public static class LiveView
     }
 }
 
-/// <summary>Port of live/routes.ts helpers shared with hubs.</summary>
 public static class LiveFacts
 {
     public static bool IsRoundEnded(string roundId, JsonElement raw)
@@ -491,7 +483,6 @@ public static class LiveFacts
                     ["hintsRemaining"] = GiaiMaTurn.RemainingHints(state),
                     ["hintsPicked"] = state.Picked,
                     ["openHintId"] = state.OpenHint,
-                    // picked ≠ running: the Đếm giờ button is armed only in between
                     ["windowOpen"] = GiaiMaTurn.IsWindowOpen(state, now),
                     ["players"] = state.Players.Select(p => (object)new Dictionary<string, object?>
                     {
@@ -560,7 +551,6 @@ public static class LiveFacts
         }
     }
 
-    /// <summary>Strip answer payloads the audience must not see.</summary>
     public static List<MatchQuestion> PublicQuestions(List<MatchQuestion> questions)
         => questions.Select(q =>
         {
@@ -581,7 +571,6 @@ public static class LiveFacts
                 safePayload = JsonSerializer.SerializeToElement(empty, Http.JsonApi.Options);
             }
 
-            // Rebuild the question with the sanitized payload.
             var json = JsonSerializer.SerializeToElement(q, JsonDefaults.Options)
                 .Deserialize<Dictionary<string, JsonElement>>()!;
             json["payload"] = safePayload;

@@ -1,7 +1,7 @@
 import { ConsoleStage, QuestionCard, Rail, Timer, VeDichStripCells } from "@/components/stage/deck"
 import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
 import { COPY } from "@shared/deck/copy"
-import { formatBuzzMs } from "@shared/lib/clock"
+import { formatDurationMs } from "@shared/lib/clock"
 
 import type { VeDichConsole } from "@/lib/live"
 import type { ScreenCore } from "../types"
@@ -49,7 +49,10 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
                 },
                 {
                     label: "Chuông",
-                    content: formatBuzzMs(consoleVeDich?.buzzerMs ?? null),
+                    content:
+                        consoleVeDich?.buzzerMs != null
+                            ? formatDurationMs(consoleVeDich.buzzerMs)
+                            : "—",
                     muted: true
                 },
                 ...verdictActions({

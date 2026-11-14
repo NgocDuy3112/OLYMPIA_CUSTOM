@@ -12,10 +12,6 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.Live;
 
-/// <summary>
-/// Port of live/routes.ts helpers: view assembly, lobby, and the console
-/// action transition (shared by the HTTP routes and the SignalR hubs).
-/// </summary>
 public sealed class LiveService(
     AOCDbContext db,
     LiveReader reader,
@@ -111,7 +107,6 @@ public sealed class LiveService(
 
     public async Task<ConsoleView?> AudienceViewOfAsync(Guid matchId)
     {
-        // the audience is with the players: no question before the reveal
         var full = await ConsoleViewOfAsync(matchId, revealAll: false);
         if (full is null) return null;
         return full with
@@ -222,12 +217,11 @@ public sealed class LiveService(
             (await reader.ReadPlayerAnswersAsync(matchId, userId))
                 .Select(a => new SubmittedAnswerRow(a.QuestionId, a.Judged, a.Verdict)).ToList(),
             (await reader.ReadJudgedAnswersAsync(matchId))
-                .Select(a => new JudgedRow(a.QuestionId, a.UserId, a.Verdict)).ToList(),
+                .Select(a => new JudgedRow(a.QuestionId, a.UserId, a.Verdict, a.AnsweredMs)).ToList(),
             match.QuestionsList,
             table));
     }
 
-    // ---- console actions -------------------------------------------------------------
 
     public sealed record ActionContext(
         MatchEntity Match,
@@ -235,10 +229,6 @@ public sealed class LiveService(
         Guid ActorId,
         string Now);
 
-    /// <summary>
-    /// Port of the transition callback inside live routes' POST .../live/actions.
-    /// Returns the new record (version bumped) and applies facts inside the store tx.
-    /// </summary>
     public async Task<LiveRecord<JsonElement>> ApplyLiveActionAsync(
         Guid tournamentId, Guid matchId, int expectedVersion, LiveAction action, Guid actorId)
     {
@@ -304,7 +294,6 @@ public sealed class LiveService(
                 throw new RuleError("WRONG_ROUND",
                     $"action {action.Kind} does not belong to round {current.RoundId}");
 
-            // endRound guards: every submitted answer must be judged first.
             if (action is LiveAction.GiaiMaEndRound or LiveAction.ButPhaEndRound or LiveAction.KhoiDongEndRound)
             {
                 foreach (var question in match.QuestionsList.Where(q => q.RoundId == current.RoundId))
@@ -526,12 +515,10 @@ public sealed class LiveService(
             }
         });
 
-        // the cue rides ahead of the view pushes the route fires next
         await BroadcastSfxAsync(matchId, action, next);
         return next;
     }
 
-    /// <summary>Resolve the action's sound and hand it to the console + audience.</summary>
     private async Task BroadcastSfxAsync(Guid matchId, LiveAction action, LiveRecord<JsonElement> next)
     {
         try

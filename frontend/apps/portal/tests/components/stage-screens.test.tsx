@@ -109,6 +109,33 @@ describe("KhoiDongRieng — S1, the oral run", () => {
         expect(f.backToLobby).toHaveBeenCalledOnce()
     })
 
+    it("Hết lượt is always offered and switches the run explicitly", async () => {
+        const user = userEvent.setup()
+        const f = renderRound("khoi-dong", {}, {
+            oral: { questionId: "q1", question: null, playerId: "u1", index: 0, total: 6, elapsedS: 0, budgetS: 40 },
+        })
+
+        await user.click(screen.getByRole("button", { name: "Hết lượt" }))
+        expect(f.send).toHaveBeenCalledWith({ kind: "khoi-dong.timeOutRun" })
+    })
+
+    it("after the sixth the stage is blank: Hết lượt hint, no strip, no verdict buttons", () => {
+        renderRound("khoi-dong", {}, { oral: null })
+
+        expect(screen.getByText(/Lượt đã xong — bấm Hết lượt/)).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: "Đúng" })).toBeNull()
+        expect(screen.getByRole("button", { name: "Tính giờ" })).toBeInTheDocument()
+    })
+
+    it("before anyone is picked the stage asks for a rail card", () => {
+        renderRound("khoi-dong", {}, {
+            oral: { questionId: "q1", question: null, playerId: null, index: 0, total: 6, elapsedS: 0, budgetS: 40 },
+        })
+
+        expect(screen.getByText(/Chưa chọn người chơi/)).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: "Đúng" })).toBeNull()
+    })
+
     it("a card click moves the engine's cursor so that player's question shows", async () => {
         const user = userEvent.setup()
         const f = renderRound("khoi-dong", {
@@ -249,7 +276,7 @@ describe("GiaiMa — S3", () => {
         const user = userEvent.setup()
         const f = renderRound("giai-ma", {
             commitHintReady: true,
-            commitKeywordReady: true,        // both buttons live for the order check
+            commitKeywordReady: true,
         }, { open: [openQ] })
 
         expectButtonsInOrder(["Đúng", "Đúng từ khoá", "Về sảnh"])
@@ -572,7 +599,6 @@ it("phase 1: each click writes the picked set — there is no confirm button", a
 
         expect(screen.queryByRole("button", { name: "Chọn 2 câu" })).toBeNull()
 
-        // N = the table's players (u1, u2) — the set grows with every click
         await user.click(screen.getByRole("button", { name: "20" }))
         expect(f.send).toHaveBeenCalledWith({ kind: "ve-dich.pickRound", questionIds: ["q20"] })
 
@@ -612,9 +638,7 @@ it("phase 1: one question per player — a single free cell cannot confirm", () 
             [veQuestion("q30", 30)],
         )
 
-        // no turn needed: the controller picks for the table…
         expect(screen.getAllByTitle("Chọn câu này")).toHaveLength(1)
-        // …but two players need two questions, so the confirm stays inert
         expect(screen.queryByRole("button", { name: "Chọn 2 câu" })).toBeNull()
     })
 
@@ -622,8 +646,6 @@ it("phase 1: with nothing picked, Xác nhận is inert and Chọn lại clears",
         const user = userEvent.setup()
         const f = renderRound("ve-dich", { send: vi.fn() }, {}, veDichMc({ phase: 1 }))
 
-        // phase 1 → phase 2 lives on the waiting room now, so there is nothing
-        // to confirm until every seat has a question
         expect(screen.getByText("Xác nhận")).toBeInTheDocument()
         expect(screen.queryByRole("button", { name: "Xác nhận" })).toBeNull()
         expectButtonsInOrder(["Chọn lại", "Về sảnh"])
@@ -670,7 +692,6 @@ it("phase 1: with nothing picked, Xác nhận is inert and Chọn lại clears",
             ],
         }, veDichMc({ phase: 2, pendingQuestionId: "q10", turnPicked: 3 }))
 
-        // Hết lượt brought us back with two of the turn's three still to play
         await user.click(screen.getByRole("button", { name: "Xác nhận" }))
         expect(f.send).toHaveBeenCalledWith({ kind: "ve-dich.openQuestion", questionId: "q10" })
     })

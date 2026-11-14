@@ -39,7 +39,7 @@ export interface Projection {
     oral?: {
         questionId: string
         question: SanitizedQuestion | null
-        playerId: string
+        playerId: string | null
         index: number
         total: number
         elapsedS: number
@@ -54,7 +54,6 @@ export interface GiaiMaConsole {
     hintsRemaining: string[]
     hintsPicked: string[]
     openHintId: string | null
-    /** Đếm giờ has been pressed for the open hint — the 15 s is running */
     windowOpen: boolean
     players: Array<{ id: string; keywordLocked: boolean; eliminated: boolean }>
 }
@@ -62,9 +61,7 @@ export interface VeDichConsole {
     phase: 1 | 2
     turnPlayerId: string | null
     openStage: "current" | "buzz" | null
-    /** the controller clicked the card — players see the question from here */
     revealed?: boolean
-    /** Tính giờ has been pressed for the open question */
     clockStarted?: boolean
     answererId: string | null
     buzzerId: string | null
@@ -72,11 +69,7 @@ export interface VeDichConsole {
     power: "STAR" | "ASSIGN" | null
     assignedToId: string | null
     pendingQuestionId: string | null
-    /** the picked questions still to play, in play order */
     pendingValues?: number[]
-    /** how many questions this turn picked — stays at the batch size while
-     *  questions open, so the board can tell a turn in progress from a batch
-     *  still being assembled */
     turnPicked?: number
     stagedPower: { power: "STAR" | "ASSIGN"; targetId?: string } | null
     turnPowerUsed: boolean
@@ -93,7 +86,6 @@ export interface KhoiDongConsole {
 export interface ButPhaConsole {
     questionId: string | null
     opened: boolean
-    /** Tính giờ has been pressed for the revealed question */
     clockStarted?: boolean
 }
 
@@ -179,7 +171,6 @@ export function useLive(tournamentId: string, matchId: string, onFrame?: (at: st
             const frame = message as ConsoleStreamFrame | null
             if (!frame || typeof frame !== "object") return
 
-            // the room's soundtrack: a cue, not a state change
             if (frame.type === "sfx") {
                 if (frame.data?.url) playSfx(frame.data.url)
                 return
