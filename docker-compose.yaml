@@ -82,7 +82,6 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-    # Same treatment as egress: the startup lives in a file compose mounts.
     volumes:
       - ./scripts/livekit/run-livekit.sh:/usr/local/bin/run-livekit.sh:ro
     entrypoint: ["/bin/sh", "/usr/local/bin/run-livekit.sh"]
