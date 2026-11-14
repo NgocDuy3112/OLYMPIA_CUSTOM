@@ -73,6 +73,11 @@ else
     });
 }
 
+// ---- warnings+ also land in Discord, where the crew already is ----
+// (DISCORD_WEBHOOK_URL empty/absent = inert; console stays the record)
+if (config.DiscordLog.Configured)
+    builder.Logging.AddProvider(new AOC.Api.Logging.DiscordLoggerProvider(config.DiscordLog));
+
 // ---- EF Core onto the existing Postgres schema ----
 builder.Services.AddDbContextPool<AOCDbContext>(options =>
     options.Configure(config.DatabaseUrl));
@@ -202,6 +207,9 @@ app.UseCors(policy => policy
     .AllowAnyMethod()
     .AllowCredentials());
 
+// Outermost on purpose: it times and logs everything, even the 429s the
+// limiter below produces without reaching the rest of the pipeline.
+app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseRateLimiter();
 app.UseMiddleware<ErrorHandlingMiddleware>();
 

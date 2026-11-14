@@ -88,7 +88,7 @@ export function GroupsTab({ tournamentId }: { tournamentId: string }) {
                     <CardTitle className="text-base">Not drawn</CardTitle>
                     <CardDescription>
                         {enrolled === 0
-                            ? "No contestants yet — add them in the Thí sinh tab, then draw them here."
+                            ? "No contestants yet — enroll them on the Thí sinh page, then draw them here."
                             : unassigned.length === 0
                                 ? `Every enrolled contestant has a group (${enrolled}).`
                                 : `${unassigned.length} enrolled contestant${unassigned.length === 1 ? "" : "s"} waiting for the draw.`}

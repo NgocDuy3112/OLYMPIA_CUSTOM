@@ -1,3 +1,5 @@
+import { logError } from "./log"
+
 export interface PageResult<T> {
     items: T[]
     total: number
@@ -20,6 +22,19 @@ export class ApiError extends Error {
 
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const method = init.method ?? "GET"
+    try {
+        return await apiInner<T>(path, init)
+    } catch (error) {
+        logError(
+            "api",
+            `${method} ${path} → ${error instanceof Error ? error.message : String(error)}`
+        )
+        throw error
+    }
+}
+
+async function apiInner<T>(path: string, init: RequestInit): Promise<T> {
     const res = await fetch(path, {
         ...init,
         credentials: "include",

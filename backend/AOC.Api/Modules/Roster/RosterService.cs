@@ -1,14 +1,8 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
-using AOC.Api.Http;
 using AOC.Api.Modules.Tournaments;
-using AOC.Api.Shared;
-using AOC.Domain.Contracts;
-using AOC.Infrastructure.Auth;
-using AOC.Infrastructure.Configuration;
 using AOC.Infrastructure.Data;
 using AOC.Infrastructure.Data.Entities;
 
@@ -24,11 +18,7 @@ public enum GroupLabel
 public sealed class RosterService(AOCDbContext db)
 {
     private const string PlaceholderDomain = "@players.invalid";
-    private const int PasswordMin = 8;
     private static readonly Regex EmailShape = new(@"^[^\s@]+@[^\s@]+\.[^\s@]{2,}$", RegexOptions.Compiled);
-
-    private static string NoAccountYet(string email) =>
-        $"no account exists for {email} yet — have the desk create them (or sign in with Google once), then enroll the address here";
 
     public async Task<int> EnrollPlayersAsync(Guid tournamentId, IReadOnlyList<Guid> userIds)
     {
@@ -61,104 +51,66 @@ public sealed class RosterService(AOCDbContext db)
         return await db.TournamentPlayers.CountAsync(p => p.TournamentId == tournamentId);
     }
 
-    public async Task<EnrolledResult> EnrollByEmailAsync(string tournamentId, string rawEmail)
+    public sealed record PlayerEnrollment(
+        string TournamentId,
+        string Name,
+        bool Current,
+        bool Closed);
+
+    public sealed record PlayerAccount(
+        string UserId,
+        string DisplayName,
+        string Username,
+        string? Email,
+        string? DiscordId,
+        List<PlayerEnrollment> Enrollments);
+
+    /// <summary>Every player account in the system with the tournaments it sits
+    ///  in — the desk's global list. Accounts get here by signing in with Google;
+    ///  enrollment is assigned afterwards.</summary>
+    public async Task<List<PlayerAccount>> ListPlayersAsync()
     {
-        var tid = Guid.Parse(tournamentId);
-        var email = rawEmail.Trim().ToLowerInvariant();
-        if (!EmailShape.IsMatch(email))
-            throw new TournamentError(TournamentErrorCode.VALIDATION,
-                $"\"{rawEmail}\" does not look like an email address");
-        if (email.EndsWith(PlaceholderDomain))
-            throw new TournamentError(TournamentErrorCode.NOT_FOUND, NoAccountYet(email));
+        var users = await db.Users.AsNoTracking()
+            .Where(u => u.Role == UserRole.PLAYER)
+            .OrderBy(u => u.DisplayName)
+            .ThenBy(u => u.Username)
+            .Select(u => new { u.Id, u.DisplayName, u.Username, u.Email, u.DiscordId })
+            .ToListAsync();
 
-        var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Email == email);
-        if (user is null || user.Role != UserRole.PLAYER)
-            throw new TournamentError(TournamentErrorCode.NOT_FOUND, NoAccountYet(email));
-        if (user.DisabledAt is not null)
-            throw new TournamentError(TournamentErrorCode.FORBIDDEN, $"{email} belongs to a disabled account");
+        var memberships = await db.TournamentPlayers.AsNoTracking()
+            .Select(p => new { p.UserId, p.TournamentId })
+            .ToListAsync();
 
-        if (await EnrolledRowAsync(tid, user.Id) is not null)
-            throw new TournamentError(TournamentErrorCode.CONFLICT, $"{email} is already on this roster");
+        var tournaments = await db.Tournaments.AsNoTracking()
+            .Where(t => t.DeletedAt == null)
+            .Select(t => new { t.Id, t.Name, t.Current, t.ClosedAt })
+            .ToListAsync();
+        var byId = tournaments.ToDictionary(t => t.Id);
 
-        await EnrollPlayersAsync(tid, [user.Id]);
-        return new EnrolledResult(user.Id.ToString(), user.DisplayName, email!, null);
-    }
+        var idsByUser = memberships
+            .Where(m => byId.ContainsKey(m.TournamentId))
+            .GroupBy(m => m.UserId)
+            .ToDictionary(g => g.Key, g => g.Select(m => m.TournamentId).ToList());
 
-    public async Task<ContestantResult> CreateContestantAsync(
-        string tournamentId, string displayName, string password, string? email, string? discordId = null)
-    {
-        var tid = Guid.Parse(tournamentId);
-        var name = displayName.Trim();
-        if (name.Length == 0)
-            throw new TournamentError(TournamentErrorCode.VALIDATION, "a contestant needs a display name");
-        if (password.Length < PasswordMin)
-            throw new TournamentError(TournamentErrorCode.VALIDATION,
-                $"a first password needs at least {PasswordMin} characters");
-
-        var roster = await ListEnrolledAsync(tournamentId);
-        if (roster.Any(r => r.DisplayName.ToLowerInvariant() == name.ToLowerInvariant()))
-            throw new TournamentError(TournamentErrorCode.CONFLICT,
-                $"\"{name}\" is already a contestant in this tournament");
-
-        var address = email?.Trim().ToLowerInvariant();
-        if (!string.IsNullOrEmpty(address) && !EmailShape.IsMatch(address))
-            throw new TournamentError(TournamentErrorCode.VALIDATION,
-                $"\"{email}\" does not look like an email address");
-
-        if (!string.IsNullOrEmpty(address))
+        return users.Select(user =>
         {
-            var existing = await db.Users.AsNoTracking()
-                .FirstOrDefaultAsync(u => u.Email == address);
-            if (existing is not null)
-                throw new TournamentError(TournamentErrorCode.CONFLICT,
-                    $"\"{address}\" already belongs to {existing.DisplayName} — enroll that account instead of creating a new one",
-                    [existing.Id.ToString(), existing.DisplayName]);
-        }
+            List<Guid> enrolled = idsByUser.TryGetValue(user.Id, out var ids) ? ids : [];
+            var enrollments = enrolled
+                .Select(id => byId[id])
+                .OrderBy(t => t.Current ? 0 : 1)
+                .ThenBy(t => t.Name)
+                .Select(t => new PlayerEnrollment(
+                    t.Id.ToString(), t.Name, t.Current, t.ClosedAt != null))
+                .ToList();
 
-        var username = await Usernames.PickUsernameAsync(db, name);
-        var user = new UserEntity
-        {
-            Role = UserRole.PLAYER,
-            Username = username,
-            DisplayName = name,
-            Email = address,
-            EmailVerified = address is not null,
-            DiscordId = discordId,
-            PasswordHash = await PasswordHasher.HashAsync(password),
-            MustChangePassword = true,
-            TokenVersion = 0
-        };
-        db.Users.Add(user);
-        await db.SaveChangesAsync();
-
-        await EnrollPlayersAsync(tid, [user.Id]);
-        return new ContestantResult(user.Id.ToString(), user.DisplayName, user.Username, null);
-    }
-
-    public async Task<object> ResetPasswordAsync(string tournamentId, string userId, string password)
-    {
-        var tid = Guid.Parse(tournamentId);
-        var uid = Guid.Parse(userId);
-        if (await EnrolledRowAsync(tid, uid) is null)
-            throw new TournamentError(TournamentErrorCode.NOT_ENROLLED,
-                "this player is not enrolled in the tournament");
-        if (password.Length < PasswordMin)
-            throw new TournamentError(TournamentErrorCode.VALIDATION,
-                $"a first password needs at least {PasswordMin} characters");
-
-        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == uid)
-            ?? throw new TournamentError(TournamentErrorCode.NOT_FOUND, "no such account");
-        if (user.DisabledAt is not null)
-            throw new TournamentError(TournamentErrorCode.FORBIDDEN,
-                $"{user.Username} belongs to a disabled account");
-
-        user.PasswordHash = await PasswordHasher.HashAsync(password);
-        user.MustChangePassword = true;
-        user.TokenVersion = user.TokenVersion + 1;
-        user.UpdatedAt = DateTime.UtcNow;
-        await db.SaveChangesAsync();
-
-        return new { userId, username = user.Username };
+            return new PlayerAccount(
+                user.Id.ToString(),
+                user.DisplayName,
+                user.Username ?? "",
+                user.Email is not null && !user.Email.EndsWith(PlaceholderDomain) ? user.Email : null,
+                user.DiscordId,
+                enrollments);
+        }).ToList();
     }
 
     public sealed record EnrolledRow(
@@ -167,8 +119,6 @@ public sealed class RosterService(AOCDbContext db)
         string Username,
         string? Email,
         string? DiscordId,
-        bool HasPassword,
-        bool MustChangePassword,
         GroupLabel? Group,
         DateTime EnrolledAt);
 
@@ -186,8 +136,6 @@ public sealed class RosterService(AOCDbContext db)
                 u.Username,
                 u.Email,
                 u.DiscordId,
-                HasPassword = u.PasswordHash != null,
-                u.MustChangePassword,
                 tp.Group,
                 tp.EnrolledAt
             }
@@ -199,23 +147,18 @@ public sealed class RosterService(AOCDbContext db)
             row.Username,
             row.Email is not null && !row.Email.EndsWith(PlaceholderDomain) ? row.Email : null,
             row.DiscordId,
-            row.HasPassword,
-            row.MustChangePassword,
             ToGroupLabel(row.Group),
             row.EnrolledAt)).ToList();
     }
 
-    public async Task<(string DisplayName, string? Email)> UpdateContestantAsync(
-        string tournamentId, string userId, JsonElement edit)
+    /// <summary>Edits the ACCOUNT itself (name / email / Discord) — no
+    ///  tournament involved, so it works for a player the desk hasn't enrolled yet.</summary>
+    public async Task<(string DisplayName, string? Email)> UpdatePlayerAsync(
+        string userId, JsonElement edit)
     {
-        var tid = Guid.Parse(tournamentId);
         var uid = Guid.Parse(userId);
-        if (await EnrolledRowAsync(tid, uid) is null)
-            throw new TournamentError(TournamentErrorCode.NOT_ENROLLED,
-                "this player is not enrolled in the tournament");
-
-        var user = await db.Users.FirstAsync(u => u.Id == uid);
-        var roster = await ListEnrolledAsync(tournamentId);
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == uid)
+            ?? throw new TournamentError(TournamentErrorCode.NOT_FOUND, "no such account");
 
         if (edit.TryGetProperty("discordId", out var discordEl))
         {
@@ -232,12 +175,7 @@ public sealed class RosterService(AOCDbContext db)
         {
             var name = nameEl.GetString()!.Trim();
             if (name.Length == 0)
-                throw new TournamentError(TournamentErrorCode.VALIDATION, "a contestant needs a display name");
-            var clash = roster.FirstOrDefault(r =>
-                r.UserId != userId && r.DisplayName.ToLowerInvariant() == name.ToLowerInvariant());
-            if (clash is not null)
-                throw new TournamentError(TournamentErrorCode.CONFLICT,
-                    $"\"{name}\" is already a contestant in this tournament");
+                throw new TournamentError(TournamentErrorCode.VALIDATION, "a player needs a display name");
             user.DisplayName = name;
         }
 
@@ -258,7 +196,7 @@ public sealed class RosterService(AOCDbContext db)
                     .FirstOrDefaultAsync(u => u.Email == address);
                 if (owner is not null && owner.Id != uid)
                     throw new TournamentError(TournamentErrorCode.CONFLICT,
-                        $"\"{address}\" already belongs to {owner.DisplayName} — enroll that account instead of creating a new one",
+                        $"\"{address}\" already belongs to {owner.DisplayName} — that address links one Google account only",
                         [owner.Id.ToString(), owner.DisplayName]);
                 user.Email = address;
             }
@@ -373,7 +311,3 @@ public sealed class RosterService(AOCDbContext db)
         command.Parameters.Add(parameter);
     }
 }
-
-public sealed record EnrolledResult(string UserId, string DisplayName, string Email, GroupLabel? Group);
-
-public sealed record ContestantResult(string UserId, string DisplayName, string Username, GroupLabel? Group);

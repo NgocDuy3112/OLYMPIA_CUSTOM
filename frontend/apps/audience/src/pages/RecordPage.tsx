@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom"
 import type { RemoteVideoTrack } from "livekit-client"
 import { AudienceScreen } from "@/components/AudienceScreen"
 import { audienceView, useAudienceLive } from "@/lib/audience"
+import { useAudienceSfx } from "@/lib/sfx"
 import { api } from "@shared/lib/api"
 import { useRtcPeerTracks, useRtcRoom } from "@shared/lib/rtc"
 
@@ -53,6 +54,7 @@ function CameraTile({ track }: { track: RemoteVideoTrack }) {
 export function RecordPage() {
     const { tournamentId = "", matchId = "" } = useParams()
     const live = useAudienceLive(tournamentId, matchId)
+    useAudienceSfx(tournamentId, matchId)
 
     // Join as a plain viewer: audio arrives through the SDK's own playback
     // (the same path useAudioGate volumes on the player deck), so this page

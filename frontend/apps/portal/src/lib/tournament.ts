@@ -258,8 +258,6 @@ export interface ContestantRow {
     username: string
     email: string | null
     discordId: string | null
-    hasPassword: boolean
-    mustChangePassword: boolean
     group: "A" | "B" | null
     enrolledAt: string
 }
@@ -269,83 +267,6 @@ export function useContestants(tournamentId: string) {
         queryKey: ["enrolled", tournamentId],
         queryFn: () => api<{ items: ContestantRow[] }>(`/portal/tournaments/${tournamentId}/players`),
         enabled: Boolean(tournamentId),
-    })
-}
-
-export function useUpdateContestant(tournamentId: string) {
-    const queryClient = useQueryClient()
-
-    return useMutation({
-        mutationFn: (edit: {
-            userId: string
-            displayName?: string
-            email?: string | null
-            discordId?: string | null
-        }) =>
-            api<{ userId: string; displayName: string; email: string | null }>(
-                `/portal/tournaments/${tournamentId}/players/${edit.userId}`,
-                {
-                    method: "PATCH",
-                    body: JSON.stringify({
-                        ...(edit.displayName !== undefined ? { displayName: edit.displayName } : {}),
-                        ...(edit.email !== undefined ? { email: edit.email } : {}),
-                        ...(edit.discordId !== undefined ? { discordId: edit.discordId } : {}),
-                    }),
-                }
-            ),
-        onSuccess: () => {
-            void queryClient.invalidateQueries({ queryKey: ["enrolled", tournamentId] })
-            void queryClient.invalidateQueries({ queryKey: ["groups", tournamentId] })
-        },
-    })
-}
-
-export function useRemoveContestant(tournamentId: string) {
-    const queryClient = useQueryClient()
-
-    return useMutation({
-        mutationFn: (userId: string) =>
-            api<{ removed: string }>(`/portal/tournaments/${tournamentId}/players/${userId}`, {
-                method: "DELETE",
-            }),
-        onSuccess: () => {
-            void queryClient.invalidateQueries({ queryKey: ["enrolled", tournamentId] })
-            void queryClient.invalidateQueries({ queryKey: ["groups", tournamentId] })
-        },
-    })
-}
-
-export function useCreateContestant(tournamentId: string) {
-    const queryClient = useQueryClient()
-
-    return useMutation({
-        mutationFn: (input: { displayName: string; password: string; email?: string }) =>
-            api<{ userId: string; displayName: string; username: string; group: "A" | "B" | null }>(
-                `/portal/tournaments/${tournamentId}/players/new`,
-                { method: "POST", body: JSON.stringify(input) }
-            ),
-        onSuccess: () => {
-            void queryClient.invalidateQueries({ queryKey: ["groups", tournamentId] })
-            void queryClient.invalidateQueries({ queryKey: ["enrolled", tournamentId] })
-            void queryClient.invalidateQueries({ queryKey: ["tournament", tournamentId] })
-        },
-    })
-}
-
-export function useEnrollByEmail(tournamentId: string) {
-    const queryClient = useQueryClient()
-
-    return useMutation({
-        mutationFn: (email: string) =>
-            api<{ userId: string; displayName: string; email: string; group: "A" | "B" | null }>(
-                `/portal/tournaments/${tournamentId}/players/by-email`,
-                { method: "POST", body: JSON.stringify({ email }) }
-            ),
-        onSuccess: () => {
-            void queryClient.invalidateQueries({ queryKey: ["groups", tournamentId] })
-            void queryClient.invalidateQueries({ queryKey: ["enrolled", tournamentId] })
-            void queryClient.invalidateQueries({ queryKey: ["tournament", tournamentId] })
-        },
     })
 }
 
@@ -360,22 +281,6 @@ export function useAssignGroup(tournamentId: string) {
             ),
         onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: ["groups", tournamentId] })
-            void queryClient.invalidateQueries({ queryKey: ["enrolled", tournamentId] })
-        },
-    })
-}
-
-
-export function useResetPassword(tournamentId: string) {
-    const queryClient = useQueryClient()
-
-    return useMutation({
-        mutationFn: (input: { userId: string; password: string }) =>
-            api<{ userId: string; username: string }>(
-                `/portal/tournaments/${tournamentId}/players/${input.userId}/password`,
-                { method: "POST", body: JSON.stringify({ password: input.password }) }
-            ),
-        onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: ["enrolled", tournamentId] })
         },
     })

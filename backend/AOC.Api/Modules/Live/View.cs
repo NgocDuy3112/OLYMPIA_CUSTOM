@@ -102,12 +102,14 @@ public static class LiveView
         var windowOpen = state.OpenHint is not null && state.OpenHintAt is not null
             && GiaiMaTurn.IsWindowOpen(state, input.Now);
         var open = new List<object?>();
-        if (windowOpen)
+        if (state.OpenHint is not null)
         {
             open.Add(new Dictionary<string, object?>
             {
                 ["questionId"] = state.OpenHint,
-                ["deadlineAt"] = PlusSeconds(state.OpenHintAt!, 15),
+                // the pick shows the question at once; the countdown only exists
+                // once the desk presses Đếm giờ
+                ["deadlineAt"] = windowOpen ? PlusSeconds(state.OpenHintAt!, 15) : null,
                 ["question"] = QuestionOf(input, state.OpenHint!)
             });
         }
@@ -475,7 +477,7 @@ public static class LiveFacts
         };
     }
 
-    public static Dictionary<string, object?>? ConsoleFacts(string roundId, JsonElement raw)
+    public static Dictionary<string, object?>? ConsoleFacts(string roundId, JsonElement raw, string now)
     {
         if (raw.ValueKind != JsonValueKind.Object || !raw.EnumerateObject().Any()) return null;
 
@@ -489,6 +491,8 @@ public static class LiveFacts
                     ["hintsRemaining"] = GiaiMaTurn.RemainingHints(state),
                     ["hintsPicked"] = state.Picked,
                     ["openHintId"] = state.OpenHint,
+                    // picked ≠ running: the Đếm giờ button is armed only in between
+                    ["windowOpen"] = GiaiMaTurn.IsWindowOpen(state, now),
                     ["players"] = state.Players.Select(p => (object)new Dictionary<string, object?>
                     {
                         ["id"] = p.Id,

@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api } from "@shared/lib/api"
+import { logError } from "@shared/lib/log"
+import { playSfx } from "@shared/lib/sfx"
 import { useSocketStream } from "@shared/lib/ws"
 import type { LiveAction, Verdict } from "./live-actions"
 
@@ -52,6 +54,8 @@ export interface GiaiMaConsole {
     hintsRemaining: string[]
     hintsPicked: string[]
     openHintId: string | null
+    /** Đếm giờ has been pressed for the open hint — the 15 s is running */
+    windowOpen: boolean
     players: Array<{ id: string; keywordLocked: boolean; eliminated: boolean }>
 }
 export interface VeDichConsole {
@@ -68,6 +72,12 @@ export interface VeDichConsole {
     power: "STAR" | "ASSIGN" | null
     assignedToId: string | null
     pendingQuestionId: string | null
+    /** the picked questions still to play, in play order */
+    pendingValues?: number[]
+    /** how many questions this turn picked — stays at the batch size while
+     *  questions open, so the board can tell a turn in progress from a batch
+     *  still being assembled */
+    turnPicked?: number
     stagedPower: { power: "STAR" | "ASSIGN"; targetId?: string } | null
     turnPowerUsed: boolean
 }
@@ -145,9 +155,9 @@ const liveKey = (tournamentId: string, matchId: string) =>
 
 interface ConsoleStreamFrame {
     v?: number
-    type?: "console" | "error"
+    type?: "console" | "error" | "sfx"
     at?: string
-    data?: { view?: LiveResponse }
+    data?: { view?: LiveResponse; name?: string; url?: string }
 }
 
 export function useLive(tournamentId: string, matchId: string, onFrame?: (at: string) => void) {
@@ -169,6 +179,12 @@ export function useLive(tournamentId: string, matchId: string, onFrame?: (at: st
             const frame = message as ConsoleStreamFrame | null
             if (!frame || typeof frame !== "object") return
 
+            // the room's soundtrack: a cue, not a state change
+            if (frame.type === "sfx") {
+                if (frame.data?.url) playSfx(frame.data.url)
+                return
+            }
+
             if (frame.type === "console" && frame.data?.view) {
                 if (frame.at) onFrame?.(frame.at)
                 const incoming = frame.data.view
@@ -179,6 +195,7 @@ export function useLive(tournamentId: string, matchId: string, onFrame?: (at: st
             }
 
             if (frame.type === "error") {
+                logError("live", frame.data ?? "error frame")
                 void queryClient.invalidateQueries({ queryKey: liveKey(tournamentId, matchId) })
             }
         }

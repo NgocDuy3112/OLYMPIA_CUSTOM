@@ -21,6 +21,13 @@ public abstract record LiveAction
         public override string Kind => "giai-ma.openHint";
     }
 
+    /// <summary>Đếm giờ — open the picked hint's 15 s answer window (the pick itself
+    ///  only reveals the hint; the clock is this separate press).</summary>
+    public sealed record GiaiMaStartWindow : LiveAction
+    {
+        public override string Kind => "giai-ma.startWindow";
+    }
+
     public sealed record GiaiMaCloseHintWindow : LiveAction
     {
         public override string Kind => "giai-ma.closeHintWindow";
@@ -329,6 +336,7 @@ public sealed class LiveActionConverter : JsonConverter<LiveAction>
         {
             "giai-ma.start" => new LiveAction.GiaiMaStart(StrList("playerIds"), StrList("hintIds")),
             "giai-ma.openHint" => new LiveAction.GiaiMaOpenHint(Str("hintId")),
+            "giai-ma.startWindow" => new LiveAction.GiaiMaStartWindow(),
             "giai-ma.closeHintWindow" => new LiveAction.GiaiMaCloseHintWindow(),
             "giai-ma.resolveHint" => new LiveAction.GiaiMaResolveHint(VerdictList("verdicts")),
             "giai-ma.submitKeyword" => new LiveAction.GiaiMaSubmitKeyword(

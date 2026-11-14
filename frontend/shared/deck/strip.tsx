@@ -60,12 +60,3 @@ export function VeDichStripCells({ cells, phase2 }: {
         </>
     )
 }
-
-
-export function Band({ children }: { children: ReactNode }) {
-    return (
-        <div className="flex min-h-[3.3cqw] shrink-0 flex-wrap items-center gap-[1cqw]">
-            {children}
-        </div>
-    )
-}

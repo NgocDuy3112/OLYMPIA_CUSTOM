@@ -25,13 +25,16 @@ public static class GiaiMaApplier
 
             case LiveAction.GiaiMaOpenHint openHint:
             {
-                var next = GiaiMaTurn.OpenHint(state, openHint.HintId, ctx.Now);
+                var next = GiaiMaTurn.PickHint(state, openHint.HintId);
                 var facts = new List<LiveFact>
                 {
                     Facts.Pick(openHint.HintId, ctx.ActorId, ctx.RoundId, ctx.HintTurnId, next.Picked.Count + 1)
                 };
                 return (next, facts);
             }
+
+            case LiveAction.GiaiMaStartWindow:
+                return (GiaiMaTurn.StartWindow(state, ctx.Now), []);
 
             case LiveAction.GiaiMaCloseHintWindow:
                 return (GiaiMaTurn.CloseHintWindow(state), []);

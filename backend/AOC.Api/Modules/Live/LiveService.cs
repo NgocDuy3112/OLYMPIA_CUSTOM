@@ -105,7 +105,8 @@ public sealed class LiveService(
             projection,
             LiveFacts.IsRoundEnded(live.RoundId, live.State),
             hub.ConnectedUsers(matchId.ToString()),
-            LiveFacts.ConsoleFacts(live.RoundId, live.State));
+            LiveFacts.ConsoleFacts(live.RoundId, live.State,
+                DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")));
     }
 
     public async Task<ConsoleView?> AudienceViewOfAsync(Guid matchId)
@@ -258,7 +259,7 @@ public sealed class LiveService(
         var now = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
 
         var store = new PgLiveStore(db, matchId);
-        return await Apply.ApplyLiveAction(store, expectedVersion, async (current, tx) =>
+        var next = await Apply.ApplyLiveAction(store, expectedVersion, async (current, tx) =>
         {
             if (action is LiveAction.ScoreAdjust scoreAdjust)
             {
@@ -524,5 +525,24 @@ public sealed class LiveService(
                         $"round {current.RoundId} has no controller actions yet");
             }
         });
+
+        // the cue rides ahead of the view pushes the route fires next
+        await BroadcastSfxAsync(matchId, action, next);
+        return next;
+    }
+
+    /// <summary>Resolve the action's sound and hand it to the console + audience.</summary>
+    private async Task BroadcastSfxAsync(Guid matchId, LiveAction action, LiveRecord<JsonElement> next)
+    {
+        try
+        {
+            var file = Sfx.FileFor(action, next.State, next.RoundId);
+            if (file is null) return;
+            await Sfx.BroadcastAsync(hub, matchId.ToString(), file);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "sfx cue for match {MatchId} failed", matchId);
+        }
     }
 }

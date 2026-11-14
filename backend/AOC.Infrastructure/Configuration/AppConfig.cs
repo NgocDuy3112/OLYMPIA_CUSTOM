@@ -54,6 +54,9 @@ public sealed class AppConfig
             Optional("LIVEKIT_INTERNAL_URL"));
 
         RecordPageBaseUrl = Optional("RECORD_PAGE_BASE_URL");
+        DiscordLog = new DiscordLogOptions(
+            Optional("DISCORD_WEBHOOK_URL"),
+            Optional("DISCORD_LOG_LEVEL") ?? "Warning");
         SeedAdminPassword = Optional("SEED_ADMIN_PASSWORD");
         SeedAdminUsername = Optional("SEED_ADMIN_USERNAME");
         CorsOrigins = (Environment.GetEnvironmentVariable("CORS_ORIGINS") ?? "")
@@ -70,6 +73,7 @@ public sealed class AppConfig
     public S3Options S3 { get; }
     public LivekitOptions Livekit { get; }
     public string? RecordPageBaseUrl { get; }
+    public DiscordLogOptions DiscordLog { get; }
     public string? SeedAdminPassword { get; }
     public string? SeedAdminUsername { get; }
     public string[] CorsOrigins { get; }
@@ -132,4 +136,11 @@ public sealed record LivekitOptions(
 {
     public bool Configured =>
         !string.IsNullOrEmpty(Url) && !string.IsNullOrEmpty(ApiKey) && !string.IsNullOrEmpty(ApiSecret);
+}
+
+/// <summary>Where warnings and errors are shouted: a Discord webhook the crew
+///  already watches. Empty URL = the mirror is off, console stays the record.</summary>
+public sealed record DiscordLogOptions(string? WebhookUrl, string Level)
+{
+    public bool Configured => !string.IsNullOrEmpty(WebhookUrl);
 }

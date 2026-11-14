@@ -78,7 +78,7 @@ describe("GroupsTab — the derived tables", () => {
         stubFetch({ [GROUPS_URL]: { body: tables({ a: [], b: [], unassigned: [], aPoints: 0 }) } })
         render()
 
-        expect(await screen.findByText(/add them in the Thí sinh tab/)).toBeInTheDocument()
+        expect(await screen.findByText(/enroll them on the Thí sinh page/)).toBeInTheDocument()
         expect(screen.getAllByText("Tổng điểm nhóm")).toHaveLength(2)
     })
 

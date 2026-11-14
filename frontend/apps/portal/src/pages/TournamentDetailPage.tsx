@@ -63,7 +63,7 @@ export function TournamentDetailPage() {
                 </TabsContent>
 
                 <TabsContent value="players">
-                    <PlayersTab tournamentId={tournamentId} frozen={frozen} />
+                    <PlayersTab tournamentId={tournamentId} />
                 </TabsContent>
 
                 <TabsContent value="groups">

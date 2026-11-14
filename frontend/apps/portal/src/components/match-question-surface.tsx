@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { arrayMove } from "@dnd-kit/sortable"
-import { Pencil, RefreshCw, X } from "lucide-react"
+import { Pencil, RefreshCw, Upload, X } from "lucide-react"
 import { ApiError, api, type PageResult } from "@shared/lib/api"
 import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
@@ -12,6 +12,7 @@ import {
     ComposeGroup,
     type ComposeRow,
 } from "@/components/compose-group"
+import { ExcelImportDialog } from "@/components/excel-import-dialog"
 import { useTournament, type MatchSummary, type RoundConfig } from "@/lib/tournament"
 
 
@@ -264,6 +265,7 @@ export function MatchQuestionSurface({
     const [saveError, setSaveError] = useState<string | null>(null)
     const [conflict, setConflict] = useState<string | null>(null)
     const [notice, setNotice] = useState<string | null>(null)
+    const [importOpen, setImportOpen] = useState(false)
     const [pendingAdd] = useState(() =>
         typeof window === "undefined"
             ? null
@@ -316,13 +318,6 @@ export function MatchQuestionSurface({
         setSaveError(null)
         setConflict(null)
         setNotice(null)
-    }
-
-    const leaveCompose = () => {
-        setDraft(null)
-        setFlash(null)
-        setSaveError(null)
-        setConflict(null)
     }
 
     const insertRow = useCallback(
@@ -447,7 +442,7 @@ export function MatchQuestionSurface({
                     if (tabDef) setTabId(tabDef.id)
                     await insertRow(placedRow.row, placedRow.bucket, Number.MAX_SAFE_INTEGER)
                 }
-                setNotice(`Đã thêm ${placed.length} câu — kiểm tra lại rồi bấm Lưu.`)
+                setNotice(`Đã thêm ${placed.length} câu — tự lưu sau thao tác.`)
                 if (skipped.length > 0) {
                     setFlash(`${skipped.length} câu bỏ qua vì chưa gán nhóm.`)
                 }
@@ -519,6 +514,9 @@ export function MatchQuestionSurface({
         const entries = shown[group.bucket] ?? []
         return new Set(entries.map((entry) => entry.sourceId)).size !== entries.length
     })
+    // set only by "Xong" — an autosave writes without closing the editor
+    const closeAfterSaveRef = useRef(false)
+
     const save =
         useMutation({
             mutationFn: () =>
@@ -533,7 +531,10 @@ export function MatchQuestionSurface({
                     }
                 ),
             onSuccess: (result) => {
-                setDraft(null)
+                if (closeAfterSaveRef.current) {
+                    closeAfterSaveRef.current = false
+                    setDraft(null)
+                }
                 setSaveError(null)
                 setConflict(null)
                 setNotice(`Đã lưu — revision ${result.assemblyRevision}.`)
@@ -543,6 +544,7 @@ export function MatchQuestionSurface({
                 })
             },
             onError: (error) => {
+                closeAfterSaveRef.current = false
                 if (error instanceof ApiError && error.code === "CONFLICT") {
                     setConflict(error.message)
                     void queryClient.invalidateQueries({ queryKey: ["matches", tournamentId] })
@@ -558,6 +560,37 @@ export function MatchQuestionSurface({
           ? "Chưa có thay đổi."
           : null
 
+
+    // Autosave: a hand that stops for 750 ms has finished its thought, so the
+    // change goes up by itself. Conflicts pause it — an overwrite is a human
+    // decision (the banner below asks for it), never a timer's.
+    const saveRef = useRef(save)
+    useEffect(() => {
+        saveRef.current = save
+    }, [save])
+
+    const pendingWork = draft !== null && changes > 0 && saveReason === null && !conflict
+
+    useEffect(() => {
+        if (!pendingWork || save.isPending) return
+        const timer = setTimeout(() => saveRef.current.mutate(), 750)
+        return () => clearTimeout(timer)
+    }, [pendingWork, save.isPending, changes])
+
+    const leaveCompose = () => {
+        // autosave means "Xong" flushes the last stopped-hand change; the
+        // editor only closes when there is nothing left to write
+        if (draft !== null && changes > 0 && saveReason === null && !conflict) {
+            closeAfterSaveRef.current = true
+            save.mutate()
+            return
+        }
+        if (conflict) return // the banner decides whether to overwrite
+        setDraft(null)
+        setFlash(null)
+        setSaveError(null)
+        setConflict(null)
+    }
 
     const groupPanes = (
         <div className="grid gap-4">
@@ -666,22 +699,28 @@ export function MatchQuestionSurface({
                     <div className="ml-auto flex items-center gap-2">
                         {editable ? (
                             <>
+                                <span aria-live="polite" className="text-xs text-muted-foreground">
+                                    {save.isPending
+                                        ? "Đang tự lưu…"
+                                        : conflict
+                                          ? "Bản nháp chờ bạn ghi đè"
+                                          : changes === 0
+                                            ? "✓ đã đồng bộ"
+                                            : saveReason ?? "Đang chờ tự lưu…"}
+                                </span>
                                 <Button variant="ghost" size="sm" onClick={leaveCompose} disabled={save.isPending}>
-                                    <X className="size-4" /> Hủy
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    onClick={() => save.mutate()}
-                                    disabled={saveReason !== null || save.isPending}
-                                    title={saveReason ?? undefined}
-                                >
-                                    {save.isPending ? "…" : `Lưu · ${changes} thay đổi`}
+                                    <X className="size-4" /> Xong
                                 </Button>
                             </>
                         ) : match.status === "UPCOMING" ? (
-                            <Button variant="outline" size="sm" onClick={enterCompose}>
-                                <Pencil className="size-3.5" /> Sửa câu hỏi
-                            </Button>
+                            <>
+                                <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+                                    <Upload className="size-3.5" /> Nhập Excel
+                                </Button>
+                                <Button variant="outline" size="sm" onClick={enterCompose}>
+                                    <Pencil className="size-3.5" /> Sửa câu hỏi
+                                </Button>
+                            </>
                         ) : (
                             <span className="text-xs text-muted-foreground">
                                 Chỉ sửa được khi trận còn UPCOMING
@@ -714,6 +753,22 @@ export function MatchQuestionSurface({
                     <p className="rounded-lg border border-emerald-600/40 bg-emerald-500/10 px-3 py-2 text-xs">
                         ✓ {notice}
                     </p>
+                )}
+
+                {importOpen && match.status === "UPCOMING" && (
+                    <ExcelImportDialog
+                        open
+                        onClose={() => setImportOpen(false)}
+                        commitTo={{
+                            tournamentId,
+                            matchId: match.id,
+                            onDone: (created, revision) => {
+                                setNotice(
+                                    `Đã nhập ${created} câu vào trận${revision !== null ? ` · rev ${revision}` : ""}.`
+                                )
+                            },
+                        }}
+                    />
                 )}
 
                 <div className="flex flex-wrap gap-2" role="tablist" aria-label="Vòng thi">

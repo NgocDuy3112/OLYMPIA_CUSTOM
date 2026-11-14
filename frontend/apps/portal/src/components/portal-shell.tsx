@@ -1,5 +1,6 @@
 import { Link, Outlet, useLocation } from "react-router-dom"
-import { BookOpen, KeyRound, Trophy, Users } from "lucide-react"
+import { BookOpen, KeyRound, Trophy, Users, UsersRound } from "lucide-react"
+import { SfxUnlockBar } from "@shared/ui/sfx-unlock-bar"
 import { useMe } from "@/lib/session"
 
 
@@ -10,6 +11,7 @@ const NAV = [
         icon: Trophy,
         match: (path: string) => path === "/" || path.startsWith("/tournaments"),
     },
+    { to: "/players", label: "Thí sinh", icon: UsersRound, match: (p: string) => p === "/players" || p.startsWith("/players") },
     { to: "/questions", label: "Questions", icon: BookOpen, match: (p: string) => p.startsWith("/questions") },
     { to: "/mcp-keys", label: "MCP keys", icon: KeyRound, match: (p: string) => p.startsWith("/mcp-keys") },
     { to: "/operators", label: "Operators", icon: Users, match: (p: string) => p.startsWith("/operators"), adminOnly: true },
@@ -33,7 +35,7 @@ export function PortalShell() {
                     >
                         O
                     </span>
-                    Olympia Custom
+                    AOC
                 </Link>
 
                 <nav className="flex flex-col gap-1 p-2">
@@ -63,6 +65,8 @@ export function PortalShell() {
             <main className="min-w-0 flex-1">
                 <Outlet />
             </main>
+
+            <SfxUnlockBar />
         </div>
     )
 }

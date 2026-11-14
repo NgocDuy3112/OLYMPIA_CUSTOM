@@ -19,6 +19,7 @@ const giaiMaMc = (over: Partial<GiaiMaConsole> = {}): GiaiMaConsole => ({
     hintsRemaining: [],
     hintsPicked: [],
     openHintId: null,
+    windowOpen: false,
     players: [],
     ...over,
 })

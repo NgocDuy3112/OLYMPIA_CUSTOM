@@ -42,6 +42,15 @@ public static class Protocol
             ["message"] = message
         });
 
+    /// <summary>Not a state change — a sound cue: the console and the audience
+    ///  play it, player devices never do (the hub decides who gets the frame).</summary>
+    public static Dictionary<string, object?> Sfx(string name, string url)
+        => Envelope("sfx", null, new Dictionary<string, object?>
+        {
+            ["name"] = name,
+            ["url"] = url
+        });
+
     /// <summary>Client message: { v, type, requestId?, data }.</summary>
     public static (string Type, string? RequestId, JsonElement Data)? ParseClientMessage(JsonElement raw)
     {

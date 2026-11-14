@@ -44,6 +44,14 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
                 { label: COPY.wrong },
                 { label: COPY.judgeKeyword, onClick: ctx.commitKeywordReady ? () => ctx.commitKeyword() : undefined },
                 {
+                    // the pick already put the question on screen — this is the
+                    // clock: armed only between pick and window
+                    label: "Đếm giờ",
+                    onClick: openHintId && !consoleGiaiMa?.windowOpen
+                        ? () => ctx.send({ kind: "giai-ma.startWindow" })
+                        : undefined,
+                },
+                {
                     label: "Hiện đáp án gợi ý",
                     onClick: hintTarget
                         ? () => ctx.send({ kind: "reveal.answer", questionId: hintTarget })

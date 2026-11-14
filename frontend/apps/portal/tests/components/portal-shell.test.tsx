@@ -45,6 +45,7 @@ describe("PortalShell", () => {
 
         expect(await screen.findByText("list page")).toBeInTheDocument()
         expect(screen.getByText("Tournaments")).toBeInTheDocument()
+        expect(screen.getByText("Thí sinh")).toBeInTheDocument()
         expect(screen.getByText("Questions")).toBeInTheDocument()
         expect(screen.getByText("MCP keys")).toBeInTheDocument()
         expect(await screen.findByText("Operators")).toBeInTheDocument()

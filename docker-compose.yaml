@@ -3,6 +3,13 @@ services:
     container_name: aoc-postgresql
     image: docker.io/library/postgres:18-trixie
     restart: unless-stopped
+    logging:
+      # keep `podman logs` from eating the disk over a multi-day festival:
+      # 10 MB × 3 files per container, oldest rolled out
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -21,6 +28,13 @@ services:
     container_name: aoc-redis
     image: docker.io/library/redis:7-alpine
     restart: unless-stopped
+    logging:
+      # keep `podman logs` from eating the disk over a multi-day festival:
+      # 10 MB × 3 files per container, oldest rolled out
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     volumes:
       - aoc-redis:/data
     healthcheck:
@@ -35,6 +49,13 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
+    logging:
+      # keep `podman logs` from eating the disk over a multi-day festival:
+      # 10 MB × 3 files per container, oldest rolled out
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     env_file:
       - ./configs/.env
     environment:
@@ -57,6 +78,13 @@ services:
     container_name: aoc-livekit
     image: docker.io/livekit/livekit-server:v1.13.11
     restart: unless-stopped
+    logging:
+      # keep `podman logs` from eating the disk over a multi-day festival:
+      # 10 MB × 3 files per container, oldest rolled out
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     env_file:
       - ./configs/.env
     depends_on:
@@ -89,10 +117,16 @@ services:
       retries: 5
 
   egress:
-    profiles: ["recordings"]
     container_name: aoc-egress
     image: docker.io/livekit/egress:v1.15.0
     restart: unless-stopped
+    logging:
+      # keep `podman logs` from eating the disk over a multi-day festival:
+      # 10 MB × 3 files per container, oldest rolled out
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     env_file:
       - ./configs/.env
     depends_on:
@@ -134,8 +168,28 @@ services:
         export EGRESS_CONFIG_FILE=/tmp/egress.yaml
         exec egress
 
+  backup:
+    container_name: aoc-backup
+    build:
+      context: ./scripts/backup
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    logging:
+      # keep `podman logs` from eating the disk over a multi-day festival:
+      # 10 MB × 3 files per container, oldest rolled out
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    env_file:
+      - ./configs/.env
+    environment:
+      POSTGRES_HOST: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   aoc-postgresql:
     external: true
   aoc-redis:
-    external: true

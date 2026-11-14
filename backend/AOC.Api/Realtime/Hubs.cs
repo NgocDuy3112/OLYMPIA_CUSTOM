@@ -47,8 +47,8 @@ public abstract class LiveHubBase(MatchHubRegistry registry) : Hub
     protected async Task PushAsync(Dictionary<string, object?> envelope)
         => await (Self ?? Clients.Caller).SendAsync("message", envelope);
 
-    protected Action Subscribe(string userId, Func<Task> push)
-        => registry.Subscribe(MatchId, new HubSubscriber(userId, push));
+    protected Action Subscribe(string userId, Func<Task> push, string kind)
+        => registry.Subscribe(MatchId, new HubSubscriber(userId, push, PushAsync, kind));
 }
 
 /// <summary>/gameplay/matches/:matchId/live/stream — seated players.</summary>
@@ -122,7 +122,7 @@ public sealed class PlayerLiveHub(
             await PushAsync(Protocol.View(view));
         }
 
-        var stop = Subscribe(userId.ToString(), SendAsync);
+        var stop = Subscribe(userId.ToString(), SendAsync, "player");
 
         // Session guard: drop the connection when the session is revoked.
         _ = Task.Run(async () =>
@@ -304,7 +304,7 @@ public sealed class ConsoleLiveHub(
             await PushAsync(Protocol.Console(payload));
         }
 
-        var stop = Subscribe("__console__", SendAsync);
+        var stop = Subscribe("__console__", SendAsync, "console");
 
         var userId = user.Id;
         var tokenVersion = user.TokenVersion;
@@ -387,7 +387,7 @@ public sealed class SpectateLiveHub(
             await PushAsync(Protocol.Console(payload));
         }
 
-        var stop = Subscribe("__console__", SendAsync);
+        var stop = Subscribe("__console__", SendAsync, "spectate");
         try
         {
             await SendAsync();

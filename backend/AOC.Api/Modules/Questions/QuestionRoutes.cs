@@ -102,6 +102,9 @@ public static class QuestionRoutes
 
             var dryRunRaw = Validate.Query(http).GetValueOrDefault("dryRun");
             var dryRun = dryRunRaw is "true" or "1";
+            // stage=true parks the rows for commit-to-match instead of writing the bank
+            var stageRaw = Validate.Query(http).GetValueOrDefault("stage");
+            var stage = stageRaw is "true" or "1";
 
             var (workbook, sourceName, attachments) = await ReadBundleAsync(http);
 
@@ -117,7 +120,7 @@ public static class QuestionRoutes
                 .CreateLogger("AOC.Api.Questions.ExcelImport");
             var report = await ExcelImport.ImportExcelAsync(
                 new QuestionsService.WriteContext(user.Id),
-                workbook, dryRun, attachments, sourceName, service, db, logger);
+                workbook, dryRun, attachments, sourceName, service, db, logger, forceStage: stage);
 
             if (!report.DryRun && report.Errors.Count > 0 && report.StagedBatchId is null)
                 http.Response.StatusCode = 400;
@@ -221,7 +224,7 @@ public static class QuestionRoutes
 
         app.MapPost("/portal/question-imports/{batchId}/commit-to-match", async (HttpContext http) =>
         {
-            var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN");
+            var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
             var batchId = Validate.RouteUuid(http, "batchId");
             var body = Validate.Object(await Validate.ReadJsonBodyAsync(http));
             var tournamentId = Validate.RequiredUuid(body, "tournamentId");

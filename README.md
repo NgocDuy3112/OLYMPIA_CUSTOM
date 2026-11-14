@@ -80,3 +80,48 @@ Notes:
 - Seed the first admin: `cd backend && set -a && source ../configs/.env && set +a && dotnet run -- --seed-admin`.
 - Other CLI helpers: `--mint-portal-session <username>`, `--mint-mcp-key [label]`.
 - Run the engine test suite: `cd backend && dotnet test`.
+
+## Backups
+
+The `backup` container dumps Postgres **once a day at 02:00 Vietnam time** and pushes it to the bucket the show already uses:
+
+```
+s3://aoc/backups/pg_dump_14-11-2026_02-00-00.sql.gz
+```
+
+Filenames are stamped **day-first in ICT** (`Asia/Ho_Chi_Minh`), the order the desk writes by hand. The container also dumps once at boot, so a fresh box is never a day behind.
+
+```bash
+podman compose up -d backup        # build + start the cron
+podman logs -f aoc-backup          # follow the runs (boot dump, then daily)
+
+# what's in the bucket
+aws --endpoint-url "$S3_ENDPOINT" s3 ls s3://aoc/backups/
+
+# restore one dump into a scratch database
+aws --endpoint-url "$S3_ENDPOINT" s3 cp s3://aoc/backups/pg_dump_….sql.gz - \
+  | gunzip | psql -h localhost -U postgres aoc
+```
+
+No retention runs — every day is kept forever. Say the word to have the job prune copies older than N days.
+
+## Sound effects (SFX)
+
+Cues live in `s3://aoc/sfx/` (public read, like `media/`) and the backend pushes each one to the **console** and **audience** hubs as an `sfx` frame — player devices never receive one. The whole action→file table is one file: `backend/AOC.Api/Modules/Live/Sfx.cs`.
+
+Browsers refuse audio that starts without a user gesture, so both apps attempt every cue anyway and, when one is refused, show a one-tap bar (**Trình duyệt đang chặn âm thanh — Chạm để bật**). The host's first click unlocks it too. For an unattended projector, launch it with the flag instead:
+
+```bash
+chromium --autoplay-policy=no-user-gesture-required http://…/live/<tournament>/<match>
+```
+
+Recordings (`/record/…`, rendered headless by the egress worker) can only carry the SFX if that same flag reaches egress's Chromium — check one test MP4; if it's silent, that's the knob to turn.
+
+## Logging
+
+- **Backend → stdout.** `podman logs -f aoc-backend` — single-line `HH:mm:ss` records (UTC in dev). `RequestLoggingMiddleware` writes **one line per request**: `GET /portal/players?limit=100 → 200 in 12ms · user 3f…` (Information for 2xx–4xx, **Error for 5xx** so Discord sees those; `/health` is skipped — the healthchecks would drown it). `ErrorHandlingMiddleware` still logs the exception behind a 5xx. Every service caps its own log at 10 MB × 3 files.
+- **Discord mirror (optional).** Set `DISCORD_WEBHOOK_URL` in `configs/.env` and every **WARNING+** line is mirrored into that channel — at most one message per 5 s, hard-capped at Discord's 2000 chars, sheds the oldest lines under a stampede and says how many it dropped. `DISCORD_LOG_LEVEL` picks the floor (`Trace…Critical`, default `Warning`). Empty URL = inert, console stays the record. A failed delivery is swallowed silently — the logger never breaks the show.
+- **Browser → devtools.** Every failed API call logs `[aoc:api] METHOD /path → reason`; a live stream closed by 4401/4403 logs `[aoc:ws] …`; a server-pushed error frame logs `[aoc:live] …`. Suppressed in test runs, where the assertion is the message.
+- **Audit ≠ logs.** Security-relevant actions are rows in `audit_events` (`answer_judged`, `score_adjusted`, `question_published`, `player_updated`, `mcp_tool_call`, …) — queryable history, not a console.
+
+No log files are written anywhere on disk.

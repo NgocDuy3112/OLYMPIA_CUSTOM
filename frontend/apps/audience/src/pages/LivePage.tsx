@@ -1,11 +1,13 @@
 import { useParams } from "react-router-dom"
 import { AudienceScreen } from "@/components/AudienceScreen"
 import { audienceView, useAudienceLive } from "@/lib/audience"
+import { useAudienceSfx } from "@/lib/sfx"
 
 
 export function LivePage() {
     const { tournamentId = "", matchId = "" } = useParams()
     const live = useAudienceLive(tournamentId, matchId)
+    useAudienceSfx(tournamentId, matchId)
 
     if (!tournamentId || !matchId) {
         return <Notice title="Thiếu đường dẫn" body="" />

@@ -1,5 +1,5 @@
 import { useState, type SubmitEvent } from "react"
-import { Link, useLocation, useNavigate } from "react-router-dom"
+import { useLocation, useNavigate } from "react-router-dom"
 import { cn } from "cn"
 
 import { Button } from "@shared/ui/button"
@@ -116,7 +116,7 @@ export function LoginForm({
                 <div className="flex flex-col items-center gap-2 text-center">
                   <h1 className="text-2xl font-bold">Sign in</h1>
                   <p className="text-balance text-muted-foreground">
-                    Operator access to Olympia Custom
+                    Operator access to AOC
                   </p>
                 </div>
                 <Field>
@@ -152,10 +152,7 @@ export function LoginForm({
                   </Button>
                 </Field>
                 <FieldDescription className="text-center">
-                  Have an invite?{" "}
-                  <Link to="/signup" className="underline underline-offset-2">
-                    Create your account
-                  </Link>
+                  Ban điều hành đăng nhập ở đây — thí sinh vào trận bằng Google ở ứng dụng thi đấu.
                 </FieldDescription>
               </FieldGroup>
             </form>

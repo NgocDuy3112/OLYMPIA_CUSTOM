@@ -63,13 +63,28 @@ public static class GiaiMaTurn
         return GiaiMaScoring.KeywordValue(player.HintsRevealed, KeywordRulesOf(state));
     }
 
-    public static GiaiMaState OpenHint(GiaiMaState state, string hintId, string openedAt)
+    /// <summary>Pick a hint: it appears on every screen, but NO clock runs yet —
+    ///  the 15 s window is its own press (StartWindow), per the rulebook.</summary>
+    public static GiaiMaState PickHint(GiaiMaState state, string hintId)
     {
         if (state.Stage != "hints") throw Err("WRONG_STAGE", "hints are over");
         if (state.OpenHint is not null) throw Err("WINDOW_OPEN", $"hint {state.OpenHint} is already open");
         if (!RemainingHints(state).Contains(hintId))
             throw Err("HINT_CONSUMED", $"hint {hintId} is not available");
-        return state with { OpenHint = hintId, OpenHintAt = openedAt };
+        return state with { OpenHint = hintId, OpenHintAt = null };
+    }
+
+    /// <summary>Đếm giờ — open the 15 s answer window on the hint already picked.
+    ///  Pressing it again after the window has run out re-opens it (the desk's call);
+    ///  pressing it while the window is running is refused.</summary>
+    public static GiaiMaState StartWindow(GiaiMaState state, string nowIso)
+    {
+        if (state.Stage != "hints") throw Err("WRONG_STAGE", "hints are over");
+        if (state.OpenHint is null)
+            throw Err("NO_OPEN_HINT", "no hint is open — pick a hint first");
+        if (IsWindowOpen(state, nowIso))
+            throw Err("WINDOW_OPEN", "the answer window is already running");
+        return state with { OpenHintAt = nowIso };
     }
 
     public static bool IsWindowOpen(GiaiMaState state, string nowIso)

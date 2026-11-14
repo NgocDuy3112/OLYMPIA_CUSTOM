@@ -570,7 +570,8 @@ public static class ExcelImport
         string? sourceName,
         QuestionsService questions,
         AOCDbContext db,
-        ILogger logger)
+        ILogger logger,
+        bool forceStage = false)
     {
         var parsed = ParseWorkbook(buffer);
 
@@ -644,6 +645,15 @@ public static class ExcelImport
             return await RefuseAsync(sorted) ?? Report(dryRun, parsed, sorted);
         }
         if (dryRun) return Report(true, parsed);
+
+        // stage=true: park the rows instead of writing them, so the caller can
+        // commit the batch straight into a match — which publishes the questions
+        // into the bank AND assembles them into that match in one gesture.
+        if (forceStage)
+        {
+            var stagedId = await StageWorkbookAsync(db, ctx, parsed, sourceName, [], logger);
+            return Report(false, parsed, null, stagedId);
+        }
 
         var uploadErrors = await UploadMediaAsync(parsed, logger);
         if (uploadErrors.Count > 0)

@@ -262,6 +262,8 @@ public sealed class SubmitService(
                 JsonSerializer.SerializeToElement(nextState, JsonDefaults.Options), facts);
         });
 
+        // the keyword lands with a ping for the room
+        await Sfx.BroadcastAsync(hub, ctx.MatchId.ToString(), "ping.mp3");
         await hub.PublishAsync(ctx.MatchId.ToString());
         return new AnswerResult();
     }
@@ -293,6 +295,7 @@ public sealed class SubmitService(
                 JsonSerializer.SerializeToElement(nextState, JsonDefaults.Options), facts);
         });
 
+        await Sfx.BroadcastAsync(hub, matchId.ToString(), "ping.mp3");
         await hub.PublishAsync(matchId.ToString());
         return new { applied = command };
     }

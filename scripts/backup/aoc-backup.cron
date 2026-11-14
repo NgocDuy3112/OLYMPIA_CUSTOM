@@ -1,0 +1,4 @@
+# Daily dump at 02:00 Vietnam time — the container's localtime is
+# Asia/Ho_Chi_Minh, so this really is 02:00 in the room, not UTC.
+# Output lands on pid 1 (cron -f) → follow it with `podman logs -f aoc-backup`.
+0 2 * * * root /usr/local/bin/backup.sh >> /proc/1/fd/1 2>&1

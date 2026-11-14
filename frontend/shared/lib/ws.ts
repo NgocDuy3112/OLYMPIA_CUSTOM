@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react"
+import { logError } from "./log"
 
 
 const BASE_BACKOFF_MS = 2_000
@@ -100,7 +101,13 @@ export function useSocketStream(
             }
 
             ws.onclose = (event) => {
-                if (stopped || STOP_CODES.has(event.code)) return
+                if (stopped || STOP_CODES.has(event.code)) {
+                    // 4401/4403 end the stream on purpose (session revoked, seat
+                    // gone) — the UI shows its gate; this line is for devtools
+                    if (STOP_CODES.has(event.code))
+                        logError("ws", `live stream closed ${event.code} · ${path}`)
+                    return
+                }
                 const delay = Math.min(BASE_BACKOFF_MS * 2 ** attempt, MAX_BACKOFF_MS)
                 attempt += 1
                 timer = setTimeout(connect, delay)
