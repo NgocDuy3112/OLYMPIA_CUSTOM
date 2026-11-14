@@ -45,6 +45,6 @@ if ! curl -sf http://localhost:3000/health >/dev/null 2>&1; then
 fi
 
 echo "==> Seeding the first admin (no-op if it already exists)"
-"${COMPOSE[@]}" exec -T backend dotnet Olympia.Api.dll --seed-admin
+"${COMPOSE[@]}" exec -T backend dotnet AOC.Api.dll --seed-admin
 
 echo "==> Done"

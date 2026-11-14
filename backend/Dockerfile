@@ -1,13 +1,13 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-COPY Olympia.Domain/Olympia.Domain.csproj Olympia.Domain/
-COPY Olympia.Infrastructure/Olympia.Infrastructure.csproj Olympia.Infrastructure/
-COPY Olympia.Api/Olympia.Api.csproj Olympia.Api/
-RUN dotnet restore Olympia.Api/Olympia.Api.csproj
+COPY AOC.Domain/AOC.Domain.csproj AOC.Domain/
+COPY AOC.Infrastructure/AOC.Infrastructure.csproj AOC.Infrastructure/
+COPY AOC.Api/AOC.Api.csproj AOC.Api/
+RUN dotnet restore AOC.Api/AOC.Api.csproj
 
 COPY . .
-RUN dotnet publish Olympia.Api/Olympia.Api.csproj -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish AOC.Api/AOC.Api.csproj -c Release -o /app/publish /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
@@ -24,4 +24,4 @@ COPY migrations ./migrations
 ENV NODE_ENV=production
 EXPOSE 3000
 
-CMD ["sh", "-c", "ASPNETCORE_URLS=http://+:${PORT:-3000} exec dotnet Olympia.Api.dll"]
+CMD ["sh", "-c", "ASPNETCORE_URLS=http://+:${PORT:-3000} exec dotnet AOC.Api.dll"]

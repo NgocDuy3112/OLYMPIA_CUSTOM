@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="AOC.Api/AOC.Api.csproj" />
+  <Project Path="AOC.Domain/AOC.Domain.csproj" />
+  <Project Path="AOC.Infrastructure/AOC.Infrastructure.csproj" />
+  <Project Path="AOC.Tests/AOC.Tests.csproj" />
+</Solution>
