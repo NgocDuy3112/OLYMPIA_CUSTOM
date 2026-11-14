@@ -4,8 +4,6 @@ services:
     image: docker.io/library/postgres:18-trixie
     restart: unless-stopped
     logging:
-      # keep `podman logs` from eating the disk over a multi-day festival:
-      # 10 MB × 3 files per container, oldest rolled out
       driver: json-file
       options:
         max-size: "10m"
@@ -29,8 +27,6 @@ services:
     image: docker.io/library/redis:7-alpine
     restart: unless-stopped
     logging:
-      # keep `podman logs` from eating the disk over a multi-day festival:
-      # 10 MB × 3 files per container, oldest rolled out
       driver: json-file
       options:
         max-size: "10m"
@@ -50,8 +46,6 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     logging:
-      # keep `podman logs` from eating the disk over a multi-day festival:
-      # 10 MB × 3 files per container, oldest rolled out
       driver: json-file
       options:
         max-size: "10m"
@@ -79,8 +73,6 @@ services:
     image: docker.io/livekit/livekit-server:v1.13.11
     restart: unless-stopped
     logging:
-      # keep `podman logs` from eating the disk over a multi-day festival:
-      # 10 MB × 3 files per container, oldest rolled out
       driver: json-file
       options:
         max-size: "10m"
@@ -90,22 +82,10 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        set -eu
-        cat > /tmp/livekit.yaml <<EOF
-        port: 7880
-        keys:
-          $${LIVEKIT_API_KEY}: $${LIVEKIT_API_SECRET}
-        redis:
-          address: redis:6379
-        rtc:
-          node_ip: 127.0.0.1
-          udp_port: 7882
-          tcp_port: 7881
-        EOF
-        exec /livekit-server --config /tmp/livekit.yaml
+    # Same treatment as egress: the startup lives in a file compose mounts.
+    volumes:
+      - ./scripts/livekit/run-livekit.sh:/usr/local/bin/run-livekit.sh:ro
+    entrypoint: ["/bin/sh", "/usr/local/bin/run-livekit.sh"]
     ports:
       - "7880:7880"
       - "7881:7881/tcp"
@@ -121,8 +101,6 @@ services:
     image: docker.io/livekit/egress:v1.15.0
     restart: unless-stopped
     logging:
-      # keep `podman logs` from eating the disk over a multi-day festival:
-      # 10 MB × 3 files per container, oldest rolled out
       driver: json-file
       options:
         max-size: "10m"
@@ -134,39 +112,9 @@ services:
         condition: service_healthy
       livekit:
         condition: service_healthy
-    entrypoint: ["/bin/bash", "-c"]
-    command:
-      - |
-        set -euo pipefail
-        : "$${S3_ACCESS_KEY_ID:?set S3_ACCESS_KEY_ID in configs/.env}"
-        : "$${S3_SECRET_ACCESS_KEY:?set S3_SECRET_ACCESS_KEY in configs/.env}"
-        : "$${S3_ENDPOINT:?set S3_ENDPOINT in configs/.env}"
-        : "$${S3_BUCKET:?set S3_BUCKET in configs/.env}"
-        cat > /tmp/egress.yaml <<EOF
-        logging:
-          level: info
-        api_key: $${LIVEKIT_API_KEY}
-        api_secret: $${LIVEKIT_API_SECRET}
-        ws_url: ws://livekit:7880
-        insecure: true
-        redis:
-          address: redis:6379
-        session_limits:
-          file_output_max_duration: 4h
-        storage:
-          s3:
-            access_key: $${S3_ACCESS_KEY_ID}
-            secret: $${S3_SECRET_ACCESS_KEY}
-            region: $${S3_REGION}
-            endpoint: $${S3_ENDPOINT}
-            bucket: $${S3_BUCKET}
-        EOF
-        rm -rf /home/egress/tmp/* || true
-        ulimit -n 65536 || true
-        rm -rf /var/run/pulse /var/lib/pulse /home/egress/.config/pulse /home/egress/.cache/xdgr/pulse || true
-        pulseaudio -D --verbose --exit-idle-time=-1 --disallow-exit >/dev/null 2>&1 || true
-        export EGRESS_CONFIG_FILE=/tmp/egress.yaml
-        exec egress
+    volumes:
+      - ./scripts/egress/run-egress.sh:/usr/local/bin/run-egress.sh:ro
+    entrypoint: ["/bin/bash", "/usr/local/bin/run-egress.sh"]
 
   backup:
     container_name: aoc-backup
@@ -175,8 +123,6 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     logging:
-      # keep `podman logs` from eating the disk over a multi-day festival:
-      # 10 MB × 3 files per container, oldest rolled out
       driver: json-file
       options:
         max-size: "10m"
