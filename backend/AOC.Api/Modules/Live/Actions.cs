@@ -94,6 +94,11 @@ public abstract record LiveAction
         public override string Kind => "khoi-dong.setTurn";
     }
 
+    public sealed record KhoiDongStartClock : LiveAction
+    {
+        public override string Kind => "khoi-dong.startClock";
+    }
+
     public sealed record KhoiDongTimeOutRun : LiveAction
     {
         public override string Kind => "khoi-dong.timeOutRun";
@@ -342,6 +347,7 @@ public sealed class LiveActionConverter : JsonConverter<LiveAction>
             "khoi-dong.start" => new LiveAction.KhoiDongStart(OptInt("phase")),
             "khoi-dong.recordOral" => new LiveAction.KhoiDongRecordOral(Bool("correct"), Num("spentS"), OptStr("playerId")),
             "khoi-dong.setTurn" => new LiveAction.KhoiDongSetTurn(Str("playerId")),
+            "khoi-dong.startClock" => new LiveAction.KhoiDongStartClock(),
             "khoi-dong.timeOutRun" => new LiveAction.KhoiDongTimeOutRun(),
             "khoi-dong.beginPhase2" => new LiveAction.KhoiDongBeginPhase2(),
             "khoi-dong.startWindow" => new LiveAction.KhoiDongStartWindow(),

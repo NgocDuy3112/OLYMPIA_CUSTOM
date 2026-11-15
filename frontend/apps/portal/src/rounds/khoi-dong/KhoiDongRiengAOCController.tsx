@@ -48,8 +48,11 @@ export function KhoiDongRiengAOCController({ ctx }: { ctx: KhoiDongRiengCtx }) {
         })
     }
 
-    let toggleWatch: (() => void) | undefined = ctx.toggleWatch
-    if (ctx.watchRunning) toggleWatch = undefined
+    let startClock: (() => void) | undefined = () => {
+        ctx.send({ kind: "khoi-dong.startClock" })
+        ctx.toggleWatch()
+    }
+    if (ctx.watchRunning) startClock = undefined
     let oralTimerRemaining: number | null = null
     if (ctx.watchRunning) oralTimerRemaining = remainingMs
     let rightSlot: ReactNode = null
@@ -64,16 +67,8 @@ export function KhoiDongRiengAOCController({ ctx }: { ctx: KhoiDongRiengCtx }) {
             </>
         )
     }
-    let questionStarted = false
-    if (ctx.watchRunning) questionStarted = true
-    if (ctx.watchMs > 0) questionStarted = true
     let questionText: string | null = null
-    if (questionStarted) {
-        if (oral) {
-            const asked = v.questions.find((q) => q._id === oral.questionId)
-            questionText = asked?.questionText ?? oral.question?.questionText ?? null
-        }
-    }
+    if (oral) questionText = oral.question?.questionText ?? null
 
     return (
         <ConsoleStage
@@ -81,7 +76,7 @@ export function KhoiDongRiengAOCController({ ctx }: { ctx: KhoiDongRiengCtx }) {
             actions={[
                 {
                     label: COPY.startClock,
-                    onClick: toggleWatch,
+                    onClick: startClock,
                 },
                 ...verdictActions({ canVerdict, onVerdict: record }),
                 {

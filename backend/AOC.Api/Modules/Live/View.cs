@@ -225,7 +225,7 @@ public static class LiveView
                 view["oral"] = new Dictionary<string, object?>
                 {
                     ["questionId"] = currentId,
-                    ["question"] = state.Engaged ? QuestionOf(input, currentId) : null,
+                    ["question"] = state.ClockStarted ? QuestionOf(input, currentId) : null,
                     ["playerId"] = activeId,
                     ["index"] = run.Cursor,
                     ["total"] = run.QuestionIds.Count,

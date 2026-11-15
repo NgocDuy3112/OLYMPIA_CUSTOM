@@ -115,7 +115,14 @@ export function useLiveMatch(matchId: string, enabled: boolean): UseLiveMatch {
 
     const query = useQuery({
         queryKey: liveKey(matchId),
-        queryFn: () => api<LiveView>(`/gameplay/matches/${matchId}/live`),
+        queryFn: async () => {
+            const incoming = await api<LiveView>(`/gameplay/matches/${matchId}/live`)
+            const current = queryClient.getQueryData<LiveView>(liveKey(matchId))
+            if (current) {
+                if (current.version > incoming.version) return current
+            }
+            return incoming
+        },
         enabled: enabled && Boolean(matchId),
         retry: false,
         staleTime: Infinity,

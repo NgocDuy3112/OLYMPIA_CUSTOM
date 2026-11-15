@@ -190,6 +190,9 @@ public static class KhoiDongApplier
             case LiveAction.KhoiDongSetTurn setTurn:
                 return (KhoiDongRound.SetTurn(state, setTurn.PlayerId), []);
 
+            case LiveAction.KhoiDongStartClock:
+                return (KhoiDongRound.StartClock(state), []);
+
             case LiveAction.KhoiDongTimeOutRun:
                 return (KhoiDongRound.TimeOutRun(state), []);
 

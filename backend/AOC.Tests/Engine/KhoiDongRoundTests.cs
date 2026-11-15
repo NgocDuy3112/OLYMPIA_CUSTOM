@@ -263,4 +263,36 @@ public class KhoiDongRoundTests
         Assert.Equal("ENDED", CodeOf(() => KhoiDongRound.OpenWindow(s, Opened)));
         Assert.Equal("ENDED", CodeOf(() => KhoiDongRound.JudgeCard(s, "p0", true)));
     }
+
+    [Fact]
+    public void ClockStartedGatesTheQuestion_MarkingAndNextQuestionHideItAgain()
+    {
+        var started = KhoiDongRound.StartKhoiDong(Players, P1);
+        Assert.False(started.ClockStarted);
+
+        var clocked = KhoiDongRound.StartClock(started);
+        Assert.True(clocked.ClockStarted);
+
+        var marked = KhoiDongRound.SetTurn(clocked, "p1");
+        Assert.False(marked.ClockStarted);
+
+        var clockedAgain = KhoiDongRound.StartClock(marked);
+        var graded = KhoiDongRound.RecordOral(clockedAgain, correct: true, spentS: 1);
+        Assert.False(graded.ClockStarted);
+
+        var clockedForTimeout = KhoiDongRound.StartClock(graded);
+        var timedOut = KhoiDongRound.TimeOutRun(clockedForTimeout);
+        Assert.False(timedOut.ClockStarted);
+    }
+
+    [Fact]
+    public void StartClockRefusesOutsidePhase1()
+    {
+        Assert.Equal("WRONG_STAGE", CodeOf(() =>
+        {
+            var s = KhoiDongRound.StartKhoiDong(Players, P1);
+            KhoiDongRound.StartClock(s with { Stage = "phase2" });
+        }));
+    }
 }
+

@@ -11,6 +11,7 @@ public sealed record KhoiDongState
     [JsonPropertyName("activeIndex")] public int ActiveIndex { get; init; }
 
     [JsonPropertyName("engaged")] public bool Engaged { get; init; }
+    [JsonPropertyName("clockStarted")] public bool ClockStarted { get; init; }
     [JsonPropertyName("runs")] public Dictionary<string, Phase1State> Runs { get; init; } = new();
     [JsonPropertyName("phase2")] public Phase2State? Phase2 { get; init; }
 
@@ -100,7 +101,7 @@ public static class KhoiDongRound
         {
             [id] = KhoiDongTurn.AnswerPhase1(run, correct, spentS)
         };
-        return state with { Runs = runs, Engaged = true };
+        return state with { Runs = runs, Engaged = true, ClockStarted = false };
     }
 
     public static KhoiDongState SetTurn(KhoiDongState state, string playerId)
@@ -108,7 +109,13 @@ public static class KhoiDongRound
         if (state.Stage != "phase1") Fail("WRONG_STAGE", "phase 1 is over");
         var index = state.Order.IndexOf(playerId);
         if (index < 0) Fail("NO_ACTIVE_PLAYER", $"{playerId} is not answering");
-        return state with { ActiveIndex = index, Engaged = true };
+        return state with { ActiveIndex = index, Engaged = true, ClockStarted = false };
+    }
+
+    public static KhoiDongState StartClock(KhoiDongState state)
+    {
+        if (state.Stage != "phase1") Fail("WRONG_STAGE", "phase 1 is over");
+        return state with { ClockStarted = true };
     }
 
     public static KhoiDongState TimeOutRun(KhoiDongState state)
@@ -121,7 +128,7 @@ public static class KhoiDongRound
         {
             [id] = KhoiDongTurn.TimeOutPhase1(state.Runs[id])
         };
-        return AdvanceActive(state with { Runs = runs, Engaged = true });
+        return AdvanceActive(state with { Runs = runs, Engaged = true, ClockStarted = false });
     }
 
     public static KhoiDongState BeginPhase2(KhoiDongState state, IReadOnlyList<string> phase2Ids)

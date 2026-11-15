@@ -147,24 +147,18 @@ describe("KhoiDongRieng — S1, the oral run", () => {
         },
     }
 
-    it("the oral question stays blank on the QuestionCard until Tính giờ", () => {
+    it("the view's oral question rides on the QuestionCard — no local clock needed", () => {
         renderRound("khoi-dong", {}, oralRun)
-
-        expect(screen.queryByText("Câu hỏi miệng")).toBeNull()
-    })
-
-    it("Tính giờ puts the run's question on the QuestionCard", () => {
-        renderRound("khoi-dong", { watchRunning: true }, oralRun)
 
         expect(screen.getByText("Câu hỏi miệng")).toBeInTheDocument()
     })
 
-    it("Tính giờ shows the asked question from the match list even before the run is engaged", () => {
+    it("the engine withholds the question — the match list does not leak it", () => {
         renderRound(
             "khoi-dong",
             { watchRunning: true },
             {
-                oral: { questionId: "q9", question: null, playerId: null, index: 0, total: 6, elapsedS: 0, budgetS: 40 },
+                oral: { questionId: "q9", question: null, playerId: "u1", index: 0, total: 6, elapsedS: 0, budgetS: 40 },
             },
             null,
             [{
@@ -180,10 +174,19 @@ describe("KhoiDongRieng — S1, the oral run", () => {
             }]
         )
 
-        expect(screen.getByText("Câu hỏi từ danh sách")).toBeInTheDocument()
+        expect(screen.queryByText("Câu hỏi từ danh sách")).toBeNull()
     })
 
-    it("a card click moves the engine's cursor so that player's question shows", async () => {
+    it("Tính giờ tells the engine to reveal the question", async () => {
+        const user = userEvent.setup()
+        const f = renderRound("khoi-dong", {}, oralRun)
+
+        await user.click(screen.getByRole("button", { name: "Tính giờ" }))
+
+        expect(f.send).toHaveBeenCalledWith({ kind: "khoi-dong.startClock" })
+    })
+
+    it("a card click marks that player for the turn — setTurn only", async () => {
         const user = userEvent.setup()
         const f = renderRound("khoi-dong", {
             baseCards: [{ id: "u1", name: "An", points: 10 }, { id: "u2", name: "Bình", points: 5 }],

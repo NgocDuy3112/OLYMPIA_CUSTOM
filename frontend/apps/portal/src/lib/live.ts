@@ -181,8 +181,16 @@ export function useLive(tournamentId: string, matchId: string, onFrame?: (at: st
     const queryClient = useQueryClient()
     const query = useQuery({
         queryKey: liveKey(tournamentId, matchId),
-        queryFn: () =>
-            api<LiveResponse>(`/portal/tournaments/${tournamentId}/matches/${matchId}/live`),
+        queryFn: async () => {
+            const incoming = await api<LiveResponse>(
+                `/portal/tournaments/${tournamentId}/matches/${matchId}/live`
+            )
+            const current = queryClient.getQueryData<LiveResponse>(liveKey(tournamentId, matchId))
+            if (current) {
+                if (current.version > incoming.version) return current
+            }
+            return incoming
+        },
         enabled: Boolean(tournamentId && matchId),
         refetchInterval: (query) => {
             if (query.state.status === "error") return 15_000

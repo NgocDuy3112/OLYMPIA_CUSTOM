@@ -23,6 +23,7 @@ export type LiveAction =
     | { kind: "khoi-dong.start"; phase?: 1 | 2 }
     | { kind: "khoi-dong.recordOral"; correct: boolean; spentS: number; playerId?: string }
     | { kind: "khoi-dong.setTurn"; playerId: string }
+    | { kind: "khoi-dong.startClock" }
     | { kind: "khoi-dong.timeOutRun" }
     | { kind: "khoi-dong.startWindow" }
     | { kind: "khoi-dong.judge"; playerId: string; correct: boolean }
