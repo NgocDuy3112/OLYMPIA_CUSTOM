@@ -1,8 +1,9 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import type { HostBroadcast } from "@shared/lib/rtc"
 import type { ConsoleFacts } from "@/components/stage/deck"
 import { railVariantOf, roundModuleOf, type RoundModule } from "@/rounds"
-import { useLobby, type GiaiMaConsole, type KhoiDongConsole, type LobbyData, type VeDichConsole } from "@/lib/live"
+import { postControl, useLobby, type GiaiMaConsole, type KhoiDongConsole, type LobbyData, type MatchController, type VeDichConsole } from "@/lib/live"
+import { useMe } from "@/lib/session"
 import { useConsoleTransport } from "./model/use-console-transport"
 import { useConsoleWatch } from "./model/use-console-watch"
 import { useConsoleJudging } from "./model/use-console-judging"
@@ -20,8 +21,16 @@ import { consoleFactsOf } from "./lib/facts"
 import { readinessOf } from "./lib/phase"
 
 function startRefusal(error: Error): string {
-    const details = error instanceof ApiError ? error.details ?? [] : []
+    let details: string[] = []
+    if (error instanceof ApiError) details = error.details ?? []
     return [error.message, ...details].join(" — ")
+}
+
+export interface ConsoleControl {
+    blocked: boolean
+    holding: boolean
+    controllerName: string | null
+    takeover: () => void
 }
 
 type ConsoleModel = {
@@ -29,6 +38,7 @@ type ConsoleModel = {
     openAdjust: (userId: string) => void
     closeAdjust: () => void
     submitAdjust: (delta: number, reason: string) => void
+    control: ConsoleControl
 } & (
     | { phase: "loading" }
     | { phase: "error"; message: string; retry: () => void }
@@ -72,15 +82,19 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         sendChain,
     })
 
-    const consoleGiaiMa = roundId === "giai-ma" ? (v?.console as GiaiMaConsole | null) : null
-    const consoleVeDich = roundId === "ve-dich" ? (v?.console as VeDichConsole | null) : null
-    const consoleKhoiDong = roundId === "khoi-dong" ? (v?.console as KhoiDongConsole | null) : null
-    const railVariant = railVariantOf({ roundId, stage, veDichPhase: consoleVeDich ? consoleVeDich.phase : null })
+    let consoleGiaiMa: GiaiMaConsole | null = null
+    if (roundId === "giai-ma") consoleGiaiMa = v?.console as GiaiMaConsole | null
+    let consoleVeDich: VeDichConsole | null = null
+    if (roundId === "ve-dich") consoleVeDich = v?.console as VeDichConsole | null
+    let consoleKhoiDong: KhoiDongConsole | null = null
+    if (roundId === "khoi-dong") consoleKhoiDong = v?.console as KhoiDongConsole | null
+    let veDichPhase: 1 | 2 | null = null
+    if (consoleVeDich) veDichPhase = consoleVeDich.phase
+    const railVariant = railVariantOf({ roundId, stage, veDichPhase })
 
     const readiness = readinessOf({
         entered: nav.entered,
         atWaiting: nav.atWaiting,
-        roundsView: nav.roundsView,
         roundId,
         stage,
         viewPainted: projection !== undefined,
@@ -88,7 +102,9 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     })
     const lobby = useLobby(tournamentId, matchId, readiness.waiting)
 
-    const stagePhase: 1 | 2 | null = stage === "phase1" ? 1 : stage === "phase2" ? 2 : null
+    let stagePhase: 1 | 2 | null = null
+    if (stage === "phase1") stagePhase = 1
+    if (stage === "phase2") stagePhase = 2
     const plans = useConsolePlans({
         transport,
         judging,
@@ -101,14 +117,42 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
 
     const adjust = useConsoleAdjust(send)
 
+    const me = useMe()
+    const controller: MatchController | null = v?.controller ?? null
+    const myId = me.data?.id ?? null
+    const blocked = controller !== null && controller.active && myId !== null && controller.id !== myId
+    let controllerName: string | null = null
+    if (blocked) {
+        if (controller !== null) controllerName = controller.name
+    }
+    const control: ConsoleControl = {
+        blocked,
+        holding: !blocked,
+        controllerName,
+        takeover: () => {
+            void postControl(tournamentId, matchId, true).catch(() => {})
+        },
+    }
+
+    useEffect(() => {
+        if (!tournamentId || !matchId) return
+        const ping = () => {
+            void postControl(tournamentId, matchId, false).catch(() => {})
+        }
+        ping()
+        const timer = setInterval(ping, 10_000)
+        return () => clearInterval(timer)
+    }, [tournamentId, matchId])
+
     const prepareLobby = (l: LobbyData): LobbyData =>
         lobbyViewOf({ lobby: l, stagePhase, videoOf: (id) => peers.get(id)?.video ?? null })
 
-    if (live.isPending) return { phase: "loading", ...adjust }
+    if (live.isPending) return { phase: "loading", control, ...adjust }
 
     if (live.isError || !v || !projection) {
         if (lobby.data) {
             const startFromWaiting = async (roundId: string, phase?: 1 | 2) => {
+                if (control.blocked) return
                 if (starting) return
                 setStarting(true)
                 setStartError(null)
@@ -126,11 +170,17 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
                     let next = version
                     for (const action of plan) {
                         const res = await writer.mutateAsync({ expectedVersion: next, action })
-                        next = typeof res?.version === "number" ? res.version : next + 1
+                        if (typeof res?.version === "number") {
+                            next = res.version
+                        } else {
+                            next = next + 1
+                        }
                     }
                     nav.enterRound()
                 } catch (error) {
-                    setStartError(startRefusal(error instanceof Error ? error : new Error("Không bắt đầu được vòng")))
+                    let refusal: Error = new Error("Không bắt đầu được vòng")
+                    if (error instanceof Error) refusal = error
+                    setStartError(startRefusal(refusal))
                 } finally {
                     setStarting(false)
                 }
@@ -138,6 +188,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
 
             return {
                 ...adjust,
+                control,
                 phase: "not-live",
                 lobby: prepareLobby(lobby.data),
                 onStart: (roundId: string, phase?: 1 | 2) => void startFromWaiting(roundId, phase),
@@ -147,6 +198,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         }
         return {
             ...adjust,
+            control,
             phase: "error",
             message: live.error?.message ?? "Không đọc được trạng thái vòng thi",
             retry: live.refetch,
@@ -156,9 +208,13 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     if (!readiness.roundScreenReady && lobby.data) {
         return {
             ...adjust,
+            control,
             phase: "lobby",
             lobby: prepareLobby(lobby.data),
-            onStart: plans.onStart,
+            onStart: (roundId: string, phase?: 1 | 2) => {
+                if (control.blocked) return
+                plans.onStart(roundId, phase)
+            },
             busy: writer.isPending,
             startError,
             host: transport.host,
@@ -166,13 +222,15 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     }
 
     const railQ = judgingId ?? resolvingId
+    let railQuestion: ReturnType<typeof byId> = null
+    if (railQ) railQuestion = byId(railQ)
     const baseCards = railCardsOf({
         table,
         rows,
         roundId,
         railVariant,
         railQ,
-        railQuestion: railQ ? byId(railQ) : null,
+        railQuestion,
         judgingId,
         resolvingId,
         target,
@@ -192,9 +250,8 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         judging,
         commits,
         plans,
-        nav,
         watch,
         openAdjust: adjust.openAdjust,
     })
-    return { phase: "deck", facts, roundModule: roundModuleOf(roundId), host: transport.host, ...adjust }
+    return { phase: "deck", control, facts, roundModule: roundModuleOf(roundId), host: transport.host, ...adjust }
 }

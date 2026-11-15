@@ -32,23 +32,14 @@ export function CardHeader({ left, mid, right }: { left?: ReactNode; mid?: React
 }
 
 
-export function Badges({ round, mode, size = 32, onRoundClick }: {
-    round: string; mode?: string; size?: number; onRoundClick?: () => void
+export function Badges({ round, mode, size = 32 }: {
+    round: string; mode?: string; size?: number
 }) {
-    const label = (
-        <span className="font-display font-bold uppercase leading-none text-foreground" style={{ fontSize: pt(size), ...DECK_PAD }}>
-            {round}
-        </span>
-    )
     return (
         <div className="flex shrink-0 flex-col items-start gap-[0.5cqw]">
-            {onRoundClick ? (
-                <button type="button" onClick={onRoundClick} title="Chọn vòng" className="cursor-pointer transition hover:opacity-70">
-                    {label}
-                </button>
-            ) : (
-                label
-            )}
+            <span className="font-display font-bold uppercase leading-none text-foreground" style={{ fontSize: pt(size), ...DECK_PAD }}>
+                {round}
+            </span>
             {mode && (
                 <span className="font-display font-medium leading-none text-muted-foreground" style={{ fontSize: pt(16), ...DECK_PAD }}>
                     {mode}
@@ -65,20 +56,24 @@ const SQUARE: Record<SquareState, string> = {
     active: "bg-card text-foreground ring-2 ring-primary",
     pending: "bg-card text-muted-foreground ring-1 ring-border",
 }
-const squareState = (i: number, done: number, active: number): SquareState =>
-    i < done ? "done" : i === active ? "active" : "pending"
+const squareState = (i: number, done: number, active: number): SquareState => {
+    if (i < done) return "done"
+    if (i === active) return "active"
+    return "pending"
+}
 
 export function Progress({ total, done, active, onPick }: { total: number; done: number; active: number; onPick?: (i: number) => void }) {
     return (
         <div className="flex shrink-0 items-center gap-[0.98cqw]">
             {Array.from({ length: total }, (_, i) => {
-                const className = `flex items-center justify-center font-display font-bold leading-none ${SQUARE[squareState(i, done, active)]} ${onPick ? "cursor-pointer hover:ring-sky-500" : ""}`
+                let pickHint = ""
+                if (onPick) pickHint = "cursor-pointer hover:ring-sky-500"
+                const className = `flex items-center justify-center font-display font-bold leading-none ${SQUARE[squareState(i, done, active)]} ${pickHint}`
                 const style = { width: "1.95cqw", height: "1.95cqw", fontSize: pt(12), borderRadius: STRIP_R }
-                return onPick ? (
-                    <button key={i} type="button" onClick={() => onPick(i)} className={className} style={style}>{i + 1}</button>
-                ) : (
-                    <span key={i} className={className} style={style}>{i + 1}</span>
-                )
+                if (onPick) {
+                    return <button key={i} type="button" onClick={() => onPick(i)} className={className} style={style}>{i + 1}</button>
+                }
+                return <span key={i} className={className} style={style}>{i + 1}</span>
             })}
         </div>
     )
@@ -91,7 +86,9 @@ export function Timer({ remaining, fallback, size = 40 }: {
     size?: number
 }) {
     if (remaining === null && fallback === undefined) return null
-    const text = toClock(remaining !== null ? formatRemaining(remaining) : fallback as string)
+    let clockInput = fallback as string
+    if (remaining !== null) clockInput = formatRemaining(remaining)
+    const text = toClock(clockInput)
     return (
         <span className="shrink-0 text-right font-display font-bold leading-none tabular-nums text-foreground" style={{ fontSize: pt(size) }}>
             {text}
@@ -107,13 +104,13 @@ export function VerdictIcon({ verdict }: { verdict: "CORRECT" | "INCORRECT" | nu
 }
 
 export function Status({ error, hint }: { error?: string | null; hint?: ReactNode }) {
+    let statusSlot: ReactNode = <span className="text-muted-foreground">{hint}</span>
+    if (error) {
+        statusSlot = <span role="alert" className="font-semibold text-destructive">{error}</span>
+    }
     return (
         <div className="flex shrink-0 items-center justify-end pr-[1cqw] text-right leading-tight" style={{ fontSize: pt(10), ...DECK_PAD }}>
-            {error ? (
-                <span role="alert" className="font-semibold text-destructive">{error}</span>
-            ) : (
-                <span className="text-muted-foreground">{hint}</span>
-            )}
+            {statusSlot}
         </div>
     )
 }

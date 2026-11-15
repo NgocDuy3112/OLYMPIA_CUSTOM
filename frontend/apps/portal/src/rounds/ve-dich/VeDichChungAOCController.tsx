@@ -17,7 +17,7 @@ export type VeDichChungCtx = ScreenCore & {
 }
 
 export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
-    const { v, remaining, baseCards, consoleVeDich, flash, openRounds, rows } = ctx
+    const { v, remaining, baseCards, consoleVeDich, flash, rows } = ctx
     const projection = v.projection
 
     const stripCells = (projection.board ?? []).filter((c) => c.where === "open" || c.where === "pending")
@@ -27,7 +27,10 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
     const gradeableIds = () => {
         const answered = (id: string) => rows.some((r) => r.userId === id)
         if (ctx.selectedIds.size > 0) return [...ctx.selectedIds].filter(answered)
-        return ctx.target !== null && answered(ctx.target) ? [ctx.target] : []
+        if (ctx.target !== null) {
+            if (answered(ctx.target)) return [ctx.target]
+        }
+        return []
     }
     const canMark = gradeableIds().length > 0
 
@@ -37,9 +40,22 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
         ctx.sendChain(ids.map((playerId) => ({ kind: "ve-dich.judge" as const, playerId, correct })))
     }
 
-    const reveal = openNow && !revealed
-        ? () => ctx.send({ kind: "ve-dich.reveal" })
-        : undefined
+    let reveal: (() => void) | undefined = undefined
+    if (openNow) {
+        if (!revealed) reveal = () => ctx.send({ kind: "ve-dich.reveal" })
+    }
+    let startClock: (() => void) | undefined = undefined
+    if (openNow) {
+        if (revealed) startClock = () => ctx.send({ kind: "ve-dich.startClock" })
+    }
+    let revealAnswer: (() => void) | undefined = undefined
+    if (openNow) {
+        revealAnswer = () => ctx.send({ kind: "reveal.answer", questionId: openNow.questionId })
+    }
+    let endTurn: (() => void) | undefined = () => ctx.hetLuot()
+    if (needsVerdict) endTurn = undefined
+    let timerRemaining: number | null = null
+    if (openNow.deadlineAt) timerRemaining = remaining
 
     return (
         <ConsoleStage
@@ -47,18 +63,14 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
             actions={[
                 {
                     label: "Tính giờ",
-                    onClick: openNow && revealed
-                        ? () => ctx.send({ kind: "ve-dich.startClock" })
-                        : undefined,
+                    onClick: startClock,
                 },
                 ...verdictActions({ canVerdict: canMark, onVerdict: mark }),
                 {
                     label: "Hiện đáp án",
-                    onClick: openNow
-                        ? () => ctx.send({ kind: "reveal.answer", questionId: openNow.questionId })
-                        : undefined,
+                    onClick: revealAnswer,
                 },
-                { label: COPY.endTurn, onClick: needsVerdict ? undefined : () => ctx.hetLuot() },
+                { label: COPY.endTurn, onClick: endTurn },
                 backToLobbyAction(ctx.backToLobby),
             ]}
             flash={flash}
@@ -66,9 +78,8 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
             <QuestionCard
                 round="Về đích"
                 mode="Lượt chung"
-                onRoundClick={openRounds}
                 mid={<VeDichStripCells cells={stripCells} phase2={false} />}
-                right={<Timer remaining={openNow.deadlineAt ? remaining : null} />}
+                right={<Timer remaining={timerRemaining} />}
                 question={openNow.question?.questionText ?? ""}
                 media={openNow.question?.media ?? null}
                 onReveal={reveal}

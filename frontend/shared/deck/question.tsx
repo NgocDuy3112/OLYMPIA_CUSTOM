@@ -2,36 +2,43 @@ import { useState, type KeyboardEvent, type ReactNode } from "react"
 import { DECK_PAD, pt } from "./geometry"
 import { Badges, CardHeader, MainCard } from "./primitives"
 
+const buildRevealProps = (onReveal?: () => void) => {
+    if (!onReveal) return {}
+    return {
+        role: "button",
+        tabIndex: 0,
+        "aria-label": "Mở câu hỏi",
+        title: "Nhấn để mở câu hỏi",
+        onClick: onReveal,
+        onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault()
+                onReveal()
+            }
+        },
+    }
+}
+
 export function QuestionBlock({ question, media, mediaHint = "hình ảnh câu hỏi", onReveal }: {
     question: string | null
     media?: { url: string; type: string } | null
     mediaHint?: string
     onReveal?: () => void
 }) {
-    const revealProps = onReveal
-        ? {
-            role: "button",
-            tabIndex: 0,
-            "aria-label": "Mở câu hỏi",
-            title: "Nhấn để mở câu hỏi",
-            onClick: onReveal,
-            onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
-                if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault()
-                    onReveal()
-                }
-            },
-        }
-        : {}
+    const revealProps = buildRevealProps(onReveal)
+    let mediaPad = ""
+    if (media) mediaPad = "pr-[1.2cqw]"
+    let revealCls = ""
+    if (onReveal) revealCls = "cursor-pointer rounded-xl ring-1 ring-transparent transition hover:ring-primary/40"
+    let questionWidth = "flex-1"
+    if (media) questionWidth = "w-[26.7cqw] shrink-0"
     return (
         <div
-            className={`flex min-h-0 flex-1 items-stretch gap-[1.4cqw] ${media ? "pr-[1.2cqw]" : ""} ${
-                onReveal ? "cursor-pointer rounded-xl ring-1 ring-transparent transition hover:ring-primary/40" : ""
-            }`}
+            className={`flex min-h-0 flex-1 items-stretch gap-[1.4cqw] ${mediaPad} ${revealCls}`}
             {...revealProps}
         >
             <p
-                className={`min-w-0 font-sans font-medium leading-snug text-foreground ${media ? "w-[26.7cqw] shrink-0" : "flex-1"}`}
+                className={`min-w-0 font-sans font-medium leading-snug text-foreground ${questionWidth}`}
                 style={{ fontSize: pt(14), ...DECK_PAD }}
             >
                 {question ?? ""}
@@ -46,15 +53,19 @@ function MediaWell({ media, mediaHint }: { media: { url: string; type: string };
     const [broken, setBroken] = useState(false)
 
     if (media.type !== "image" || broken) {
+        let mediaText = `media: ${media.type}`
+        if (broken) mediaText = mediaHint
         return (
             <div className="ml-auto flex h-full w-[37.4cqw] shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-muted ring-1 ring-border">
                 <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>
-                    {broken ? mediaHint : `media: ${media.type}`}
+                    {mediaText}
                 </span>
             </div>
         )
     }
 
+    let aspect = "16 / 9"
+    if (natural) aspect = `${natural.w} / ${natural.h}`
     return (
         <div
             className="ml-auto flex shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-muted ring-1 ring-border"
@@ -62,7 +73,7 @@ function MediaWell({ media, mediaHint }: { media: { url: string; type: string };
                 height: "100%",
                 maxHeight: "min(100%, 34cqw)",
                 maxWidth: "37.4cqw",
-                aspectRatio: natural ? `${natural.w} / ${natural.h}` : "16 / 9",
+                aspectRatio: aspect,
             }}
         >
             <img
@@ -104,11 +115,10 @@ export function AnswerReveal({ answer }: { answer?: string | null }) {
     )
 }
 
-export function QuestionCard({ round, mode, size, onRoundClick, mid, right, question, media, answer, face, onReveal, className, children }: {
+export function QuestionCard({ round, mode, size, mid, right, question, media, answer, face, onReveal, className, children }: {
     round: string
     mode?: string
     size?: number
-    onRoundClick?: () => void
     mid?: ReactNode
     right?: ReactNode
     question?: string | null
@@ -122,7 +132,7 @@ export function QuestionCard({ round, mode, size, onRoundClick, mid, right, ques
     return (
         <MainCard className={className}>
             <CardHeader
-                left={<Badges round={round} mode={mode} size={size} onRoundClick={onRoundClick} />}
+                left={<Badges round={round} mode={mode} size={size} />}
                 mid={mid}
                 right={right}
             />

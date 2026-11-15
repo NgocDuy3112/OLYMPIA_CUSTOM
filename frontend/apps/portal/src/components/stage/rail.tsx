@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, type ReactNode } from "react"
 import type { RemoteVideoTrack } from "livekit-client"
 import { pt } from "@shared/deck/geometry"
 import { railCardClass, railCardState, railScoreClass } from "@shared/deck/rail-card"
@@ -26,8 +26,11 @@ const PILL_TONE: Record<NonNullable<CardData["badge"]>["tone"], string> = {
 const badgePill = (tone: NonNullable<CardData["badge"]>["tone"]): string =>
     `flex items-center justify-center rounded-full px-[0.6cqw] font-sans font-semibold leading-tight ${PILL_TONE[tone]}`
 
-const cardRing = (ring: CardData["ring"]): string =>
-    ring === "selected" ? "ring-2 ring-primary" : ring === "active" ? "ring-2 ring-amber-400" : ""
+const cardRing = (ring: CardData["ring"]): string => {
+    if (ring === "selected") return "ring-2 ring-primary"
+    if (ring === "active") return "ring-2 ring-amber-400"
+    return ""
+}
 
 function CardVideo({ track }: { track: RemoteVideoTrack }) {
     const holder = useRef<HTMLSpanElement>(null)
@@ -50,7 +53,10 @@ const initialsOf = (name: string): string =>
 
 export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answers"; cards: CardData[]; onSelect?: (id: string) => void }) {
     const isAnswers = variant === "answers"
-    const Interactive = onSelect ? "button" : "div"
+    let Interactive: "button" | "div" = "div"
+    if (onSelect) Interactive = "button"
+    let scoreSize = 34
+    if (isAnswers) scoreSize = 44
     return (
         <>
             {cards.map((c) => {
@@ -59,38 +65,51 @@ export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answe
                     locked: c.dimmed === true,
                     buzzing: c.buzzing === true
                 })
-                const badgeNode = c.badge ? (
-                    <span className={badgePill(c.badge.tone)} style={{ fontSize: pt(9) }}>{c.badge.text}</span>
-                ) : null
+                let badgeNode: ReactNode = null
+                if (c.badge) {
+                    badgeNode = <span className={badgePill(c.badge.tone)} style={{ fontSize: pt(9) }}>{c.badge.text}</span>
+                }
                 const hasAnswer = typeof c.answer === "string" && c.answer !== "" && c.answer !== "—"
-                const statusLine = hasAnswer || c.badge ? (
-                    <span
-                        className="flex min-w-0 items-center justify-center gap-[0.3cqw] font-sans leading-none text-foreground/85"
-                        style={{ fontSize: pt(12) }}
-                        title={c.answer}
-                    >
-                        {hasAnswer && <span className="truncate">{c.answer}</span>}
-                        {!c.badge && typeof c.value === "string" && c.value !== "" && c.value !== "—" && (
-                            <span className={`shrink-0 font-semibold tabular-nums ${railScoreClass(state)}`}>
-                                · {c.value}
-                            </span>
-                        )}
-                        {badgeNode}
-                    </span>
-                ) : null
+                let showStatus = hasAnswer
+                if (c.badge) showStatus = true
+                let statusLine: ReactNode = null
+                if (showStatus) {
+                    statusLine = (
+                        <div className="flex min-w-0 flex-col items-center justify-center gap-[0.2cqw] font-sans leading-none text-foreground/85">
+                            {hasAnswer && (
+                                <span className="w-full truncate text-center" style={{ fontSize: pt(12) }} title={c.answer}>
+                                    {c.answer}
+                                </span>
+                            )}
+                            {!c.badge && typeof c.value === "string" && c.value !== "" && c.value !== "—" && (
+                                <span className={`font-semibold tabular-nums ${railScoreClass(state)}`} style={{ fontSize: pt(12) }}>
+                                    {c.value}
+                                </span>
+                            )}
+                            {badgeNode}
+                        </div>
+                    )
+                }
+                let interactiveProps: { type: "button"; onClick: () => void; "aria-pressed": boolean } | undefined = undefined
+                if (onSelect) {
+                    interactiveProps = {
+                        type: "button",
+                        onClick: () => onSelect(c.id),
+                        "aria-pressed": c.ring === "selected",
+                    }
+                }
+                let cardHeight = "h-[9.3cqw]"
+                if (isAnswers) cardHeight = "h-[11.9cqw]"
+                let hoverCls = ""
+                if (onSelect) {
+                    hoverCls = "cursor-pointer hover:ring-sky-400 active:ring-sky-600"
+                    if (c.ring === "selected") hoverCls = "cursor-pointer"
+                }
                 return (
                 <Interactive
                     key={c.id}
-                    {...(onSelect
-                        ? { type: "button" as const, onClick: () => onSelect(c.id), "aria-pressed": c.ring === "selected" }
-                        : {})}
-                    className={`flex ${isAnswers ? "h-[11.9cqw]" : "h-[9.3cqw]"} w-full shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl p-[0.9cqw] text-left shadow-sm ${railCardClass(state)} ${
-                        onSelect
-                            ? c.ring === "selected"
-                                ? "cursor-pointer"
-                                : "cursor-pointer hover:ring-sky-400 active:ring-sky-600"
-                            : ""
-                    } ${cardRing(c.ring)}`}
+                    {...(interactiveProps ?? {})}
+                    className={`flex ${cardHeight} w-full shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl p-[0.9cqw] text-left shadow-sm ${railCardClass(state)} ${hoverCls} ${cardRing(c.ring)}`}
                 >
                     <div className="flex min-h-0 flex-1 gap-[0.7cqw]">
                         <div className="relative w-[52%] shrink-0">
@@ -107,7 +126,7 @@ export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answe
                             <span className="flex min-w-0 items-center justify-center gap-[0.3cqw] font-display font-semibold leading-none text-foreground" style={{ fontSize: pt(16) }}>
                                 <span className="truncate">{c.name}</span>
                             </span>
-                            <span className={`font-display font-bold leading-none tabular-nums ${railScoreClass(state)}`} style={{ fontSize: pt(isAnswers ? 44 : 34) }}>
+                            <span className={`font-display font-bold leading-none tabular-nums ${railScoreClass(state)}`} style={{ fontSize: pt(scoreSize) }}>
                                 {c.points}
                             </span>
                             {statusLine}

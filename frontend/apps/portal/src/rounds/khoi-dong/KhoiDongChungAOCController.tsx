@@ -11,7 +11,7 @@ export type KhoiDongChungCtx = ScreenCore & {
 }
 
 export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
-    const { v, remaining, baseCards, flash, openRounds, consoleKhoiDong, target, toggleSelect, selectedIds, sendChain } = ctx
+    const { v, remaining, baseCards, flash, consoleKhoiDong, target, toggleSelect, selectedIds, sendChain } = ctx
     const openNow = v.projection.open[0]
     const index = consoleKhoiDong?.questionIndex ?? 0
     const total = consoleKhoiDong?.questionCount || 6
@@ -19,12 +19,27 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
 
     const gradeable = () => {
         if (selectedIds.size > 0) return [...selectedIds]
-        return target !== null ? [target] : []
+        if (target !== null) return [target]
+        return []
     }
     const judge = (correct: boolean) => {
         const ids = gradeable()
         if (ids.length === 0) return
         sendChain(ids.map((playerId) => ({ kind: "khoi-dong.judge" as const, playerId, correct })))
+    }
+
+    let startWindow: (() => void) | undefined = undefined
+    if (!windowOpen) {
+        if (openNow) startWindow = () => ctx.send({ kind: "khoi-dong.startWindow" })
+    }
+    let revealAnswer: (() => void) | undefined = undefined
+    if (openNow) {
+        revealAnswer = () => ctx.send({ kind: "reveal.answer", questionId: openNow.questionId })
+    }
+    const questionText: string | null = openNow?.question?.questionText ?? null
+    let nextQuestion: (() => void) | undefined = undefined
+    if (!openNow) {
+        if (index < total) nextQuestion = () => ctx.send({ kind: "khoi-dong.nextQuestion" })
     }
 
     return (
@@ -33,16 +48,12 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
             actions={[
                 {
                     label: "Bấm giờ",
-                    onClick: !windowOpen && openNow
-                        ? () => ctx.send({ kind: "khoi-dong.startWindow" })
-                        : undefined,
+                    onClick: startWindow,
                 },
                 ...verdictActions({ canVerdict: gradeable().length > 0 && openNow !== null, onVerdict: judge }),
                 {
                     label: "Hiện đáp án",
-                    onClick: openNow
-                        ? () => ctx.send({ kind: "reveal.answer", questionId: openNow.questionId })
-                        : undefined,
+                    onClick: revealAnswer,
                 },
                 backToLobbyAction(ctx.backToLobby),
             ]}
@@ -51,7 +62,6 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
             <QuestionCard
                 round="Khởi động"
                 mode="Lượt chung"
-                onRoundClick={openRounds}
                 right={
                     <>
                         <Progress
@@ -65,14 +75,9 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
                         <Timer remaining={remaining} fallback="10" />
                     </>
                 }
-                question={
-                    openNow?.question?.questionText ??
-                    (index >= total ? "Đã hết sáu câu — Kết thúc vòng để chốt điểm" : "Chờ mở câu tiếp theo…")
-                }
+                question={questionText}
                 media={openNow?.question?.media ?? null}
-                onReveal={!openNow && index < total
-                    ? () => ctx.send({ kind: "khoi-dong.nextQuestion" })
-                    : undefined}
+                onReveal={nextQuestion}
             />
         </ConsoleStage>
     )

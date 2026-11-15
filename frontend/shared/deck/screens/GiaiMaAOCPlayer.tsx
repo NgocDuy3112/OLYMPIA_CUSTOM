@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { AnswerBand, AnswerBandIdle, KeywordBox, KeywordLengthBanner, PlayerStage, QuestionCard, Rail, Timer, VerdictIcon, type PlayerCore } from "../player-deck"
 import { STRIP_R, pt } from "../geometry"
 import { HINT_TILES, playerHintTileClass } from "../cells"
@@ -19,20 +20,49 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
     const eliminated = v.me.eliminated === true
     const codeLength = keyword?.question?.payload.codeLength ?? null
 
-    const keywordSlot = eliminated ? (
-        <span className="flex h-[3.3cqw] items-center rounded-lg bg-red-50 px-[1.2cqw] font-sans font-semibold text-red-600 ring-1 ring-red-200" style={{ fontSize: pt(12), borderRadius: STRIP_R }}>
-            Bạn không giải được từ khóa — bị loại vòng này
-        </span>
-    ) : locked ? (
-        <span className="inline-flex items-center gap-[0.5cqw] font-sans font-semibold text-emerald-600" style={{ fontSize: pt(12) }}>
-            Đã khóa từ khóa <VerdictIcon verdict={v.me.verdicts?.[keyword?.questionId ?? ""]} />
-        </span>
-    ) : keyword ? (
-        <KeywordBox
-            busy={keywordBusy}
-            onSubmit={(text) => submitKeyword(keyword.questionId, text)}
-        />
-    ) : null
+    let keywordSlot: ReactNode = null
+    if (keyword) {
+        keywordSlot = (
+            <KeywordBox
+                busy={keywordBusy}
+                onSubmit={(text) => submitKeyword(keyword.questionId, text)}
+            />
+        )
+    }
+    if (locked) {
+        keywordSlot = (
+            <span className="inline-flex items-center gap-[0.5cqw] font-sans font-semibold text-emerald-600" style={{ fontSize: pt(12) }}>
+                Đã khóa từ khóa <VerdictIcon verdict={v.me.verdicts?.[keyword?.questionId ?? ""]} />
+            </span>
+        )
+    }
+    if (eliminated) {
+        keywordSlot = (
+            <span className="flex h-[3.3cqw] items-center rounded-lg bg-red-50 px-[1.2cqw] font-sans font-semibold text-red-600 ring-1 ring-red-200" style={{ fontSize: pt(12), borderRadius: STRIP_R }}>
+                Bạn không giải được từ khóa — bị loại vòng này
+            </span>
+        )
+    }
+
+    let timerRemaining: number | null = null
+    if (hintWindow) {
+        if (hintWindow.deadlineAt) timerRemaining = remaining
+    }
+    let questionText: string | null = null
+    if (hintWindow) questionText = hintWindow.question?.questionText ?? null
+    let answerSlot: ReactNode = <AnswerBandIdle />
+    if (hintWindow) {
+        answerSlot = (
+            <AnswerBand
+                question={hintWindow.question}
+                answerState={v.me.answerState}
+                disabled={remaining <= 0}
+                busy={answerBusy}
+                error={flash}
+                onSubmit={(value) => submitAnswer(hintWindow.questionId, value)}
+            />
+        )
+    }
 
     return (
         <PlayerStage
@@ -61,28 +91,13 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
             <QuestionCard
                 round="Giải mã"
                 size={28}
-                right={<Timer remaining={hintWindow?.deadlineAt ? remaining : null} size={32} />}
-                question={
-                    hintWindow
-                        ? hintWindow.question?.questionText ?? ""
-                        : keyword?.question?.questionText ?? ""
-                }
+                right={<Timer remaining={timerRemaining} size={32} />}
+                question={questionText}
                 answer={v.revealed?.answer}
                 className="min-h-[16cqw] flex-none"
             />
             <div className="flex w-full flex-col gap-[0.7cqw]">
-                {hintWindow ? (
-                    <AnswerBand
-                        question={hintWindow.question}
-                        answerState={v.me.answerState}
-                        disabled={remaining <= 0}
-                        busy={answerBusy}
-                        error={flash}
-                        onSubmit={(value) => submitAnswer(hintWindow.questionId, value)}
-                    />
-                ) : (
-                    <AnswerBandIdle />
-                )}
+                {answerSlot}
                 {keywordSlot}
             </div>
         </PlayerStage>

@@ -89,6 +89,12 @@ export interface ButPhaConsole {
     clockStarted?: boolean
 }
 
+export interface MatchController {
+    id: string
+    name: string
+    active: boolean
+}
+
 export interface LiveResponse {
     version: number
     roundId: string
@@ -98,6 +104,18 @@ export interface LiveResponse {
     roundEnded: boolean
     connected?: string[]
     console: Record<string, unknown> | null
+    controller?: MatchController | null
+}
+
+export function postControl(
+    tournamentId: string,
+    matchId: string,
+    takeover: boolean
+): Promise<MatchController> {
+    return api<MatchController>(
+        `/portal/tournaments/${tournamentId}/matches/${matchId}/live/control`,
+        { method: "POST", body: JSON.stringify({ takeover }) }
+    )
 }
 
 
@@ -179,9 +197,12 @@ export function useLive(tournamentId: string, matchId: string, onFrame?: (at: st
             if (frame.type === "console" && frame.data?.view) {
                 if (frame.at) onFrame?.(frame.at)
                 const incoming = frame.data.view
-                queryClient.setQueryData<LiveResponse>(liveKey(tournamentId, matchId), (current) =>
-                    current && current.version > incoming.version ? current : incoming
-                )
+                queryClient.setQueryData<LiveResponse>(liveKey(tournamentId, matchId), (current) => {
+                    if (current) {
+                        if (current.version > incoming.version) return current
+                    }
+                    return incoming
+                })
                 return
             }
 
@@ -246,6 +267,7 @@ export function mergedVerdicts(
 ): Verdict[] {
     return rows.flatMap((row) => {
         const correct = overrides[`${questionId}:${row.userId}`]
-        return correct === undefined ? [] : [{ playerId: row.userId, correct }]
+        if (correct === undefined) return []
+        return [{ playerId: row.userId, correct }]
     })
 }

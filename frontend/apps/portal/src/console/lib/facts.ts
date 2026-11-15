@@ -1,7 +1,6 @@
 import type { CardData, ConsoleFacts } from "@/components/stage/deck"
 import type { ConsoleCommits } from "../model/use-console-commits"
 import type { ConsoleJudging } from "../model/use-console-judging"
-import type { ConsoleNav } from "../model/use-console-nav"
 import type { ConsolePlans } from "../model/use-console-plans"
 import type { ConsoleTransport } from "../model/use-console-transport"
 import type { ConsoleWatch } from "../model/use-console-watch"
@@ -13,13 +12,12 @@ interface ConsoleFactsParts {
     judging: ConsoleJudging
     commits: ConsoleCommits
     plans: Pick<ConsolePlans, "hetLuot" | "backToLobby" | "pickQuestion">
-    nav: Pick<ConsoleNav, "openRounds">
     watch: ConsoleWatch
     openAdjust: (userId: string) => void
 }
 
 export function consoleFactsOf(parts: ConsoleFactsParts): ConsoleFacts {
-    const { transport, judging, commits, plans, nav, watch } = parts
+    const { transport, judging, commits, plans, watch } = parts
     return {
         v: transport.v!,
         stage: parts.stage,
@@ -48,7 +46,6 @@ export function consoleFactsOf(parts: ConsoleFactsParts): ConsoleFacts {
         watchMs: watch.ms,
         toggleWatch: watch.toggle,
         flash: transport.flash,
-        openRounds: nav.openRounds,
         openAdjust: parts.openAdjust,
     }
 }

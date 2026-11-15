@@ -30,6 +30,5 @@ export interface ConsoleFacts {
     watchMs: number
     toggleWatch: () => void
     flash: string | null
-    openRounds: () => void
     openAdjust: (userId: string) => void
 }

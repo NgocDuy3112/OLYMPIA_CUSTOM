@@ -57,7 +57,6 @@ function facts(
         watchMs: 0,
         toggleWatch: vi.fn(),
         flash: null,
-        openRounds: vi.fn(),
         openAdjust: vi.fn(),
         ...over,
     }
@@ -119,21 +118,45 @@ describe("KhoiDongRieng — S1, the oral run", () => {
         expect(f.send).toHaveBeenCalledWith({ kind: "khoi-dong.timeOutRun" })
     })
 
-    it("after the sixth the stage is blank: Hết lượt hint, no strip, no verdict buttons", () => {
+    it("after the sixth the QuestionCard is blank: no question text, no verdict buttons", () => {
         renderRound("khoi-dong", {}, { oral: null })
 
-        expect(screen.getByText(/Lượt đã xong — bấm Hết lượt/)).toBeInTheDocument()
+        expect(screen.queryByText(/Lượt đã xong/)).toBeNull()
+        expect(screen.queryByText(/Chưa chọn người chơi/)).toBeNull()
         expect(screen.queryByRole("button", { name: "Đúng" })).toBeNull()
         expect(screen.getByRole("button", { name: "Tính giờ" })).toBeInTheDocument()
     })
 
-    it("before anyone is picked the stage asks for a rail card", () => {
-        renderRound("khoi-dong", {}, {
-            oral: { questionId: "q1", question: null, playerId: null, index: 0, total: 6, elapsedS: 0, budgetS: 40 },
-        })
+    const oralRun = {
+        oral: {
+            questionId: "q1",
+            question: {
+                questionId: "q1",
+                kind: "TEXT",
+                position: 1,
+                questionText: "Câu hỏi miệng",
+                media: null,
+                timeLimit: null,
+                payload: {},
+            },
+            playerId: "u1",
+            index: 0,
+            total: 6,
+            elapsedS: 0,
+            budgetS: 40,
+        },
+    }
 
-        expect(screen.getByText(/Chưa chọn người chơi/)).toBeInTheDocument()
-        expect(screen.queryByRole("button", { name: "Đúng" })).toBeNull()
+    it("the oral question stays blank on the QuestionCard until Tính giờ", () => {
+        renderRound("khoi-dong", {}, oralRun)
+
+        expect(screen.queryByText("Câu hỏi miệng")).toBeNull()
+    })
+
+    it("Tính giờ puts the run's question on the QuestionCard", () => {
+        renderRound("khoi-dong", { watchRunning: true }, oralRun)
+
+        expect(screen.getByText("Câu hỏi miệng")).toBeInTheDocument()
     })
 
     it("a card click moves the engine's cursor so that player's question shows", async () => {

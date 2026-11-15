@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import { COPY } from "@shared/deck/copy"
 import { ConsoleStage, Progress, QuestionCard, Rail, Timer } from "@/components/stage/deck"
 import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
@@ -12,11 +12,14 @@ export type KhoiDongRiengCtx = ScreenCore & {
 }
 
 export function KhoiDongRiengAOCController({ ctx }: { ctx: KhoiDongRiengCtx }) {
-    const { v, baseCards, flash, openRounds } = ctx
+    const { v, baseCards, flash } = ctx
     const oral = v.projection.oral
-    const budgetMs = (oral ? Math.max(0, oral.budgetS - oral.elapsedS) : 45) * 1000
+    let budgetSeconds = 45
+    if (oral) budgetSeconds = Math.max(0, oral.budgetS - oral.elapsedS)
+    const budgetMs = budgetSeconds * 1000
     const remainingMs = Math.max(0, budgetMs - ctx.watchMs)
-    const overBudget = oral ? ctx.watchMs > budgetMs : false
+    let overBudget = false
+    if (oral) overBudget = ctx.watchMs > budgetMs
     const canVerdict = Boolean(oral?.playerId) && !overBudget
     const spentS = Math.max(0, Math.floor(ctx.watchMs / 1000))
     const [marked, setMarked] = useState<string | null>(null)
@@ -25,17 +28,47 @@ export function KhoiDongRiengAOCController({ ctx }: { ctx: KhoiDongRiengCtx }) {
         ctx.send({ kind: "khoi-dong.setTurn", playerId: id })
     }
     const record = (correct: boolean) => {
-        ctx.send({
-            kind: "khoi-dong.recordOral",
+        const base = {
+            kind: "khoi-dong.recordOral" as const,
             correct,
             spentS,
-            ...(marked ? { playerId: marked } : {}),
-        })
+        }
+        if (marked) {
+            ctx.send({ ...base, playerId: marked })
+        } else {
+            ctx.send(base)
+        }
         setMarked(null)
     }
-    const cards = marked
-        ? baseCards.map((c) => (c.id === marked ? { ...c, ring: "selected" as const } : c))
-        : baseCards
+    let cards = baseCards
+    if (marked) {
+        cards = baseCards.map((c) => {
+            if (c.id === marked) return { ...c, ring: "selected" as const }
+            return c
+        })
+    }
+
+    let toggleWatch: (() => void) | undefined = ctx.toggleWatch
+    if (ctx.watchRunning) toggleWatch = undefined
+    let oralTimerRemaining: number | null = null
+    if (ctx.watchRunning) oralTimerRemaining = remainingMs
+    let rightSlot: ReactNode = null
+    if (oral?.playerId) {
+        rightSlot = (
+            <>
+                <Progress total={oral.total} done={oral.index} active={oral.index} />
+                <Timer
+                    remaining={oralTimerRemaining}
+                    fallback={String(Math.ceil(remainingMs / 1000))}
+                />
+            </>
+        )
+    }
+    let questionStarted = false
+    if (ctx.watchRunning) questionStarted = true
+    if (ctx.watchMs > 0) questionStarted = true
+    let questionText: string | null = null
+    if (questionStarted) questionText = oral?.question?.questionText ?? null
 
     return (
         <ConsoleStage
@@ -43,7 +76,7 @@ export function KhoiDongRiengAOCController({ ctx }: { ctx: KhoiDongRiengCtx }) {
             actions={[
                 {
                     label: COPY.startClock,
-                    onClick: ctx.watchRunning ? undefined : ctx.toggleWatch,
+                    onClick: toggleWatch,
                 },
                 ...verdictActions({ canVerdict, onVerdict: record }),
                 {
@@ -57,26 +90,8 @@ export function KhoiDongRiengAOCController({ ctx }: { ctx: KhoiDongRiengCtx }) {
             <QuestionCard
                 round="Khởi động"
                 mode="Lượt cá nhân"
-                onRoundClick={openRounds}
-                right={
-                    oral?.playerId ? (
-                        <>
-                            <Progress total={oral.total} done={oral.index} active={oral.index} />
-                            <Timer
-                                remaining={ctx.watchRunning ? remainingMs : null}
-                                fallback={String(Math.ceil(remainingMs / 1000))}
-                            />
-                        </>
-                    ) : null
-                }
-                question={
-                    oral?.question?.questionText ??
-                    (!oral
-                        ? "Lượt đã xong — bấm Hết lượt để chuyển người chơi."
-                        : oral.playerId
-                          ? ""
-                          : "Chưa chọn người chơi — bấm thẻ bên phải.")
-                }
+                right={rightSlot}
+                question={questionText}
                 media={oral?.question?.media ?? null}
             />
         </ConsoleStage>

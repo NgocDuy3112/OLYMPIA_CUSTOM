@@ -1,3 +1,4 @@
+import type { KeyboardEventHandler } from "react"
 import { ConsoleStage, KeywordLengthBanner, QuestionCard, Rail, Timer } from "@/components/stage/deck"
 import { backToLobbyAction } from "@/components/stage/actions"
 import { pt } from "@shared/deck/geometry"
@@ -19,47 +20,67 @@ export type GiaiMaCtx = ScreenCore & {
 }
 
 export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
-    const { v, remaining, questions, baseCards, consoleGiaiMa, flash, openRounds } = ctx
+    const { v, remaining, questions, baseCards, consoleGiaiMa, flash } = ctx
     const open = v.projection.open
 
     const keywordQ = questions.find((q) => q.roundId === "giai-ma" && q.kind === "KEYWORD")
-    const keywordLength = typeof keywordQ?.payload.code === "string" ? keywordQ.payload.code.length : null
+    let keywordLength: number | null = null
+    if (typeof keywordQ?.payload.code === "string") keywordLength = keywordQ.payload.code.length
     const hintQuestions = questions
         .filter((q) => q.roundId === "giai-ma" && q.kind !== "KEYWORD")
         .sort((a, b) => a.position - b.position)
     const openHintId = consoleGiaiMa?.openHintId ?? null
     const pickedHints = consoleGiaiMa?.hintsPicked ?? []
-    const hintTarget = openHintId
-        ?? (pickedHints.length > 0 ? pickedHints[pickedHints.length - 1] : null)
-    const tileState = (qid: string): HintTile =>
-        qid === openHintId ? "open" : consoleGiaiMa?.hintsPicked.includes(qid) ? "used" : "free"
+    let hintTarget = openHintId
+    if (hintTarget === null) {
+        if (pickedHints.length > 0) hintTarget = pickedHints[pickedHints.length - 1]
+    }
+    const tileState = (qid: string): HintTile => {
+        if (qid === openHintId) return "open"
+        if (consoleGiaiMa?.hintsPicked.includes(qid)) return "used"
+        return "free"
+    }
     const openHint = (qid: string) => ctx.send({ kind: "giai-ma.openHint", hintId: qid })
     const tiles = Array.from({ length: HINT_TILES }, (_, i) => hintQuestions[i] ?? null)
+
+    let commitHint: (() => void) | undefined = undefined
+    if (ctx.commitHintReady) commitHint = () => ctx.commitHint()
+    let commitKeyword: (() => void) | undefined = undefined
+    if (ctx.commitKeywordReady) commitKeyword = () => ctx.commitKeyword()
+    let startWindow: (() => void) | undefined = undefined
+    if (openHintId) {
+        if (!consoleGiaiMa?.windowOpen) startWindow = () => ctx.send({ kind: "giai-ma.startWindow" })
+    }
+    let revealHint: (() => void) | undefined = undefined
+    if (hintTarget) {
+        const targetId = hintTarget
+        revealHint = () => ctx.send({ kind: "reveal.answer", questionId: targetId })
+    }
+    let revealKeyword: (() => void) | undefined = undefined
+    if (keywordQ) revealKeyword = () => ctx.send({ kind: "reveal.answer", questionId: keywordQ._id })
+    let timerRemaining: number | null = null
+    if (open[0]?.deadlineAt) timerRemaining = remaining
+    let questionText: string | null = null
+    if (open.length > 0) questionText = open[0].question?.questionText ?? null
 
     return (
         <ConsoleStage
             rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.toggleSelect} />}
             actions={[
-                { label: COPY.correct, onClick: ctx.commitHintReady ? () => ctx.commitHint() : undefined },
+                { label: COPY.correct, onClick: commitHint },
                 { label: COPY.wrong },
-                { label: COPY.judgeKeyword, onClick: ctx.commitKeywordReady ? () => ctx.commitKeyword() : undefined },
+                { label: COPY.judgeKeyword, onClick: commitKeyword },
                 {
                     label: "Đếm giờ",
-                    onClick: openHintId && !consoleGiaiMa?.windowOpen
-                        ? () => ctx.send({ kind: "giai-ma.startWindow" })
-                        : undefined,
+                    onClick: startWindow,
                 },
                 {
                     label: "Hiện đáp án gợi ý",
-                    onClick: hintTarget
-                        ? () => ctx.send({ kind: "reveal.answer", questionId: hintTarget })
-                        : undefined,
+                    onClick: revealHint,
                 },
                 {
                     label: "Hiện đáp án từ khoá",
-                    onClick: keywordQ
-                        ? () => ctx.send({ kind: "reveal.answer", questionId: keywordQ._id })
-                        : undefined,
+                    onClick: revealKeyword,
                 },
                 backToLobbyAction(ctx.backToLobby),
             ]}
@@ -76,20 +97,37 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
                 }}
             >
                 {tiles.map((q, i) => {
-                    const state: HintTile = q ? tileState(q._id) : "absent"
+                    let state: HintTile = "absent"
+                    if (q) state = tileState(q._id)
                     const interactive = state === "free"
-                    return (
-                        <div
-                            key={q?._id ?? `absent-${i}`}
-                            onClick={interactive && q ? () => openHint(q._id) : undefined}
-                            role={interactive ? "button" : undefined}
-                            tabIndex={interactive ? 0 : undefined}
-                            onKeyDown={interactive && q ? (event) => {
+                    let tileClick: (() => void) | undefined = undefined
+                    if (interactive) {
+                        if (q) tileClick = () => openHint(q._id)
+                    }
+                    let tileRole: "button" | undefined = undefined
+                    let tileTabIndex: number | undefined = undefined
+                    if (interactive) {
+                        tileRole = "button"
+                        tileTabIndex = 0
+                    }
+                    let tileKeyDown: KeyboardEventHandler<HTMLDivElement> | undefined = undefined
+                    if (interactive) {
+                        if (q) {
+                            tileKeyDown = (event) => {
                                 if (event.key === "Enter" || event.key === " ") {
                                     event.preventDefault()
                                     openHint(q._id)
                                 }
-                            } : undefined}
+                            }
+                        }
+                    }
+                    return (
+                        <div
+                            key={q?._id ?? `absent-${i}`}
+                            onClick={tileClick}
+                            role={tileRole}
+                            tabIndex={tileTabIndex}
+                            onKeyDown={tileKeyDown}
                             className={hintTileClass(state, interactive)}
                             style={{ fontSize: pt(60) }}
                         >
@@ -102,9 +140,8 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
             <QuestionCard
                 round="Giải mã"
                 size={28}
-                onRoundClick={openRounds}
-                right={<Timer remaining={open[0]?.deadlineAt ? remaining : null} size={32} />}
-                question={open.length > 0 ? open[0].question?.questionText ?? "" : "Chọn một hint để mở cửa sổ trả lời"}
+                right={<Timer remaining={timerRemaining} size={32} />}
+                question={questionText}
                 className="flex-none"
             />
         </ConsoleStage>

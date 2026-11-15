@@ -14,6 +14,19 @@ const LOBBY = `GET /portal/tournaments/${T}/matches/${M}/lobby`
 const MATCHES = `GET /portal/tournaments/${T}/matches`
 const RTC = `POST /portal/tournaments/${T}/matches/${M}/rtc/token`
 const ACTIONS = `POST /portal/tournaments/${T}/matches/${M}/live/actions`
+const CONTROL_PATH = `/portal/tournaments/${T}/matches/${M}/live/control`
+const CONTROL = `POST ${CONTROL_PATH}`
+const ME = "GET /portal/auth/me"
+
+const ME_BODY = {
+    id: "me1",
+    username: "operator",
+    displayName: "Operator",
+    role: "OPERATOR",
+    emailVerified: true,
+    totpEnabled: false,
+    avatarUrl: null,
+}
 
 function liveView(over: Partial<LiveResponse> = {}): LiveResponse {
     return {
@@ -67,6 +80,8 @@ function renderModel(routes: Record<string, { body: unknown; status?: number }> 
         [MATCHES]: { body: { items: [], total: 0, limit: 20, offset: 0 } },
         [RTC]: { body: { message: "not live" }, status: 409 },
         [ACTIONS]: { body: { version: 8 } },
+        [ME]: { body: ME_BODY },
+        [CONTROL]: { body: { id: "me1", name: "Operator", active: true } },
         ...routes,
     })
 
@@ -209,5 +224,95 @@ describe("useConsoleModel — the deck and the waiting room", () => {
             .filter(([url]) => String(url) === `/portal/tournaments/${T}/matches/${M}/live/actions`)
             .map(([, init]) => (JSON.parse(String(init?.body)) as { action: { kind: string; phase?: number } }).action)
         expect(actions).toContainEqual(expect.objectContaining({ kind: "khoi-dong.start", phase: 2 }))
+    })
+})
+
+describe("useConsoleModel — single controller", () => {
+    it("claims control on mount and holds it while no one else does", async () => {
+        const { result, fetchMock } = renderModel()
+        await waitFor(() => expect(phaseOf(result.current)).toBe("deck"))
+
+        expect(result.current.control.blocked).toBe(false)
+        expect(result.current.control.holding).toBe(true)
+        expect(result.current.control.controllerName).toBeNull()
+
+        await waitFor(() => {
+            const pings = fetchMock.mock.calls.filter(
+                ([url, init]) => init?.method === "POST" && String(url) === CONTROL_PATH
+            )
+            expect(pings.length).toBeGreaterThan(0)
+        })
+    })
+
+    it("blocks with the holder's name when another operator holds an active lease", async () => {
+        const { result } = renderModel({
+            [LIVE]: { body: liveView({ controller: { id: "other1", name: "Minh", active: true } }) },
+        })
+        await waitFor(() => expect(phaseOf(result.current)).toBe("deck"))
+
+        expect(result.current.control.blocked).toBe(true)
+        expect(result.current.control.holding).toBe(false)
+        expect(result.current.control.controllerName).toBe("Minh")
+    })
+
+    it("stays in control when the lease is mine", async () => {
+        const { result } = renderModel({
+            [LIVE]: { body: liveView({ controller: { id: "me1", name: "Operator", active: true } }) },
+        })
+        await waitFor(() => expect(phaseOf(result.current)).toBe("deck"))
+
+        expect(result.current.control.blocked).toBe(false)
+        expect(result.current.control.holding).toBe(true)
+    })
+
+    it("treats a stale lease as free so the console can steal it back", async () => {
+        const { result } = renderModel({
+            [LIVE]: { body: liveView({ controller: { id: "other1", name: "Minh", active: false } }) },
+        })
+        await waitFor(() => expect(phaseOf(result.current)).toBe("deck"))
+
+        expect(result.current.control.blocked).toBe(false)
+        expect(result.current.control.holding).toBe(true)
+    })
+
+    it("takeover posts takeover: true to the control endpoint", async () => {
+        const { result, fetchMock } = renderModel({
+            [LIVE]: { body: liveView({ controller: { id: "other1", name: "Minh", active: true } }) },
+        })
+        await waitFor(() => expect(phaseOf(result.current)).toBe("deck"))
+
+        result.current.control.takeover()
+
+        await waitFor(() => {
+            const call = fetchMock.mock.calls.find(
+                ([url, init]) =>
+                    init?.method === "POST" &&
+                    String(url) === CONTROL_PATH &&
+                    String(init?.body) === JSON.stringify({ takeover: true })
+            )
+            expect(call).toBeTruthy()
+        })
+    })
+
+    it("refuses to start a round from the waiting room while blocked", async () => {
+        const { result, fetchMock } = renderModel({
+            [LIVE]: { body: liveView({ controller: { id: "other1", name: "Minh", active: true } }) },
+        })
+        await waitFor(() => expect(phaseOf(result.current)).toBe("deck"))
+
+        deckOf(result.current).backToLobby()
+        await waitFor(() => expect(phaseOf(result.current)).toBe("lobby"))
+
+        const countActions = () =>
+            fetchMock.mock.calls.filter(
+                ([url, init]) => init?.method === "POST" && String(url) === ACTIONS
+            ).length
+        const before = countActions()
+
+        lobbyOf(result.current).onStart("khoi-dong", 2)
+        await new Promise((resolve) => setTimeout(resolve, 50))
+
+        expect(countActions()).toBe(before)
+        expect(phaseOf(result.current)).toBe("lobby")
     })
 })

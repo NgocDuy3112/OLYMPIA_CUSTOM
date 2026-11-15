@@ -1,10 +1,30 @@
+import type { ReactNode } from "react"
 import { StageShell } from "@shared/deck/stage-shell"
 import { Lobby } from "@shared/deck/lobby"
 import { Badges, StageLayout } from "@/components/stage/deck"
 import { ROUND_LABEL, pt } from "@shared/deck/geometry"
 import { AdjustScoreDialog } from "./AdjustScoreDialog"
 import { ConsoleHostContext, ConsoleToolbar } from "./ConsoleToolbar"
-import { useConsoleModel } from "./use-console-model"
+import { useConsoleModel, type ConsoleControl } from "./use-console-model"
+import { ConsoleControlContext } from "./control-context"
+import { Button } from "@shared/ui/button"
+
+function ControlBanner({ control }: { control: ConsoleControl }) {
+    if (!control.blocked) return null
+    return (
+        <div
+            role="status"
+            className="absolute inset-x-0 top-0 z-40 flex flex-wrap items-center justify-center gap-3 border-b border-amber-600/40 bg-amber-500/10 px-3 py-2 text-center font-sans text-xs text-amber-800 backdrop-blur dark:text-amber-400"
+        >
+            <span>
+                Đang điều khiển: <b>{control.controllerName}</b> — mỗi trận chỉ có một người điều hành.
+            </span>
+            <Button size="sm" variant="outline" onClick={control.takeover}>
+                Nhận quyền điều khiển
+            </Button>
+        </div>
+    )
+}
 
 
 export function Controller({ tournamentId, matchId }: { tournamentId: string; matchId: string }) {
@@ -31,6 +51,7 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
     if (model.phase === "not-live") {
         return (
             <StageShell>
+                <ControlBanner control={model.control} />
                 
                 <Lobby
                     data={model.lobby}
@@ -43,11 +64,11 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
                     hint={
                         <span className="flex max-w-[60cqw] flex-col items-center gap-[0.8cqw]">
                             <span>Trận chưa LIVE — chọn vòng để bắt đầu (trận sẽ được mở cùng lúc).</span>
-                            {model.startError ? (
+                            {model.startError && (
                                 <span role="alert" className="text-destructive" style={{ fontSize: pt(12) }}>
                                     {model.startError}
                                 </span>
-                            ) : null}
+                            )}
                         </span>
                     }
                 />
@@ -56,8 +77,17 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
     }
 
     if (model.phase === "lobby") {
+        let startErrorHint: ReactNode = undefined
+        if (model.startError) {
+            startErrorHint = (
+                <span role="alert" className="text-destructive">
+                    {model.startError}
+                </span>
+            )
+        }
         return (
             <StageShell>
+                <ControlBanner control={model.control} />
                 <Lobby
                     data={model.lobby}
                     mc={{
@@ -65,13 +95,7 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
                         busy: model.busy,
                         onStart: model.onStart,
                     }}
-                    hint={
-                        model.startError ? (
-                            <span role="alert" className="text-destructive">
-                                {model.startError}
-                            </span>
-                        ) : undefined
-                    }
+                    hint={startErrorHint}
                 />
                 <ConsoleToolbar
                     tournamentId={tournamentId}
@@ -83,28 +107,30 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
     }
 
     const { facts, roundModule } = model
-    const screen = roundModule
-        ? roundModule.render(facts)
-        : (
-            <StageLayout>
-                <Badges round={ROUND_LABEL[facts.v.roundId] ?? facts.v.roundId} onRoundClick={facts.openRounds} />
-                <p className="font-sans text-muted-foreground" style={{ fontSize: pt(14) }}>
-                    Đang chờ dữ liệu vòng…
-                </p>
-            </StageLayout>
-        )
+    let screen: ReactNode = (
+        <StageLayout>
+            <Badges round={ROUND_LABEL[facts.v.roundId] ?? facts.v.roundId} />
+            <p className="font-sans text-muted-foreground" style={{ fontSize: pt(14) }}>
+                Đang chờ dữ liệu vòng…
+            </p>
+        </StageLayout>
+    )
+    if (roundModule) screen = roundModule.render(facts)
     return (
         <ConsoleHostContext.Provider value={{ tournamentId, matchId, host: model.host }}>
-            <StageShell>
-                {screen}
-                {model.adjustFor && (
-                    <AdjustScoreDialog
-                        playerName={facts.baseCards.find((c) => c.id === model.adjustFor)?.name ?? model.adjustFor}
-                        onCancel={model.closeAdjust}
-                        onSubmit={model.submitAdjust}
-                    />
-                )}
-            </StageShell>
+            <ConsoleControlContext.Provider value={model.control}>
+                <StageShell>
+                    <ControlBanner control={model.control} />
+                    {screen}
+                    {model.adjustFor && (
+                        <AdjustScoreDialog
+                            playerName={facts.baseCards.find((c) => c.id === model.adjustFor)?.name ?? model.adjustFor}
+                            onCancel={model.closeAdjust}
+                            onSubmit={model.submitAdjust}
+                        />
+                    )}
+                </StageShell>
+            </ConsoleControlContext.Provider>
         </ConsoleHostContext.Provider>
     )
 }

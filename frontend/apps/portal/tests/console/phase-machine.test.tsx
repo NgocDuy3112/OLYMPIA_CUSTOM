@@ -16,6 +16,8 @@ const RTC = `POST /portal/tournaments/${T}/matches/${M}/rtc/token`
 const ACTIONS = `POST /portal/tournaments/${T}/matches/${M}/live/actions`
 const STATUS = `PATCH /portal/tournaments/${T}/matches/${M}/status`
 const LIVE_PATH = `/portal/tournaments/${T}/matches/${M}/live`
+const CONTROL_PATH = `/portal/tournaments/${T}/matches/${M}/live/control`
+const ME = "GET /portal/auth/me"
 
 function liveView(over: Partial<LiveResponse> = {}): LiveResponse {
     return {
@@ -68,6 +70,18 @@ function draw(routes: Record<string, { body: unknown; status?: number }> = {}) {
         [MATCHES]: { body: { items: [], total: 0, limit: 20, offset: 0 } },
         [RTC]: { body: { message: "not live" }, status: 409 },
         [ACTIONS]: { body: { version: 8 } },
+        [ME]: {
+            body: {
+                id: "me1",
+                username: "operator",
+                displayName: "Operator",
+                role: "OPERATOR",
+                emailVerified: true,
+                totpEnabled: false,
+                avatarUrl: null,
+            },
+        },
+        [`POST ${CONTROL_PATH}`]: { body: { id: "me1", name: "Operator", active: true } },
         ...routes,
     })
     const client = new QueryClient({
@@ -197,5 +211,25 @@ describe("the waiting room before the match is LIVE", () => {
 
         await userEvent.click(await screen.findByRole("button", { name: /Khởi động · Riêng/ }))
         expect(await screen.findByRole("alert")).toHaveTextContent(/no questions assembled/)
+    })
+})
+
+describe("the console's single-controller lock", () => {
+    it("runs the strip normally when no one else holds the match", async () => {
+        draw()
+        expect(await screen.findByRole("button", { name: "Về sảnh" })).toBeTruthy()
+        expect(screen.queryByText(/Đang điều khiển/)).toBeNull()
+    })
+
+    it("flips to a read-only banner when another operator holds an active lease", async () => {
+        draw({
+            [LIVE]: { body: liveView({ controller: { id: "other1", name: "Minh", active: true } }) },
+        })
+        expect(await screen.findByText(/Đang điều khiển/)).toBeInTheDocument()
+        expect(screen.getByText("Minh")).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Nhận quyền điều khiển" })).toBeTruthy()
+        await waitFor(() => {
+            expect(screen.queryByRole("button", { name: "Về sảnh" })).toBeNull()
+        })
     })
 })

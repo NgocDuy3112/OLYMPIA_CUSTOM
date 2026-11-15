@@ -6,7 +6,6 @@ function input(over: Partial<ReadinessInput> = {}): ReadinessInput {
     return {
         entered: false,
         atWaiting: false,
-        roundsView: false,
         roundId: "khoi-dong",
         stage: "phase1",
         viewPainted: true,
@@ -56,10 +55,6 @@ describe("readinessOf — the waiting room", () => {
 
     it("has Về sảnh outrank a live stage even without a navigation", () => {
         expect(readinessOf(input({ atWaiting: true })).roundScreenReady).toBe(false)
-    })
-
-    it("does not draw a round behind the rounds navigator", () => {
-        expect(readinessOf(input({ roundsView: true })).waiting).toBe(true)
     })
 })
 

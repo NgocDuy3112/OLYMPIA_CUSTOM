@@ -29,7 +29,6 @@ export type ScreenCore = Pick<
     | "send"
     | "sendChain"
     | "backToLobby"
-    | "openRounds"
     | "openAdjust"
     | "toggleSelect"
     | "selectedIds"
@@ -37,10 +36,10 @@ export type ScreenCore = Pick<
 
 export function screenCore(facts: ConsoleFacts): ScreenCore {
     const {
-        v, flash, baseCards, send, sendChain, backToLobby, openRounds, openAdjust,
+        v, flash, baseCards, send, sendChain, backToLobby, openAdjust,
         toggleSelect, selectedIds,
     } = facts
-    return { v, flash, baseCards, send, sendChain, backToLobby, openRounds, openAdjust, toggleSelect, selectedIds }
+    return { v, flash, baseCards, send, sendChain, backToLobby, openAdjust, toggleSelect, selectedIds }
 }
 
 export interface RoundModule {

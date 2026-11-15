@@ -16,13 +16,27 @@ export type ButPhaCtx = ScreenCore & {
 }
 
 export function ButPhaAOCController({ ctx }: { ctx: ButPhaCtx }) {
-    const { v, remaining, baseCards, flash, openRounds, consoleButPha } = ctx
+    const { v, remaining, baseCards, flash, consoleButPha } = ctx
     const open = v.projection.open
     const openQ = open[0] ?? null
-    const pos = openQ ? (ctx.byId(openQ.questionId)?.position ?? 0) : null
+    let pos: number | null = null
+    if (openQ) pos = ctx.byId(openQ.questionId)?.position ?? 0
     const done = pos ?? 0
-    const revealId = consoleButPha?.opened === true ? consoleButPha.questionId : null
+    let revealId: string | null = null
+    if (consoleButPha?.opened === true) revealId = consoleButPha.questionId
     const clockStarted = consoleButPha?.clockStarted === true
+
+    let startClock: (() => void) | undefined = undefined
+    if (openQ) {
+        if (!clockStarted) startClock = () => ctx.send({ kind: "but-pha.startClock" })
+    }
+    let revealAnswer: (() => void) | undefined = undefined
+    if (revealId) {
+        const answerId = revealId
+        revealAnswer = () => ctx.send({ kind: "reveal.answer", questionId: answerId })
+    }
+    let timerRemaining: number | null = null
+    if (openQ?.deadlineAt) timerRemaining = remaining
 
     return (
         <ConsoleStage
@@ -30,9 +44,7 @@ export function ButPhaAOCController({ ctx }: { ctx: ButPhaCtx }) {
             actions={[
                 {
                     label: COPY.startClock,
-                    onClick: openQ && !clockStarted
-                        ? () => ctx.send({ kind: "but-pha.startClock" })
-                        : undefined,
+                    onClick: startClock,
                 },
                 ...verdictActions({
                     canVerdict: (ctx.target !== null || ctx.selectedIds.size > 0) && openQ !== null,
@@ -40,9 +52,7 @@ export function ButPhaAOCController({ ctx }: { ctx: ButPhaCtx }) {
                 }),
                 {
                     label: "Hiện đáp án",
-                    onClick: revealId
-                        ? () => ctx.send({ kind: "reveal.answer", questionId: revealId })
-                        : undefined,
+                    onClick: revealAnswer,
                 },
                 backToLobbyAction(ctx.backToLobby),
             ]}
@@ -50,14 +60,13 @@ export function ButPhaAOCController({ ctx }: { ctx: ButPhaCtx }) {
         >
             <QuestionCard
                 round="Bứt phá"
-                onRoundClick={openRounds}
                 right={
                     <>
                         <Progress total={4} done={done} active={pos ?? done} />
-                        <Timer remaining={openQ?.deadlineAt ? remaining : null} />
+                        <Timer remaining={timerRemaining} />
                     </>
                 }
-                question={openQ?.question?.questionText ?? "Nhấn vào thẻ để mở câu tiếp theo"}
+                question={openQ?.question?.questionText ?? null}
                 media={openQ?.question?.media ?? null}
                 onReveal={() => ctx.pickQuestion()}
             />
