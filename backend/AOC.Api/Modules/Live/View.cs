@@ -68,20 +68,24 @@ public static class LiveView
     public static List<RankedScore> RankTable(List<ScoreRow>? table)
     {
         table ??= [];
-        var sorted = table.OrderByDescending(r => r.Points).ToList();
-        var ranked = new List<RankedScore>();
+        var byPoints = table.OrderByDescending(r => r.Points).ToList();
+        var rankById = new Dictionary<string, int>();
         var rank = 0;
         int? lastPoints = null;
-        for (var index = 0; index < sorted.Count; index++)
+        for (var index = 0; index < byPoints.Count; index++)
         {
-            var row = sorted[index];
+            var row = byPoints[index];
             if (row.Points != lastPoints)
             {
                 rank = index + 1;
                 lastPoints = row.Points;
             }
-            ranked.Add(new RankedScore(row.Id, row.DisplayName, row.Points, rank));
+            rankById[row.Id] = rank;
         }
+
+        var ranked = new List<RankedScore>();
+        foreach (var row in table)
+            ranked.Add(new RankedScore(row.Id, row.DisplayName, row.Points, rankById[row.Id]));
         return ranked;
     }
 

@@ -696,7 +696,7 @@ export function MatchQuestionSurface({
         headerActions = (
             <>
                 <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
-                    <Upload className="size-3.5" /> Nhập Excel
+                    <Upload className="size-3.5" /> Nhập đề
                 </Button>
                 <Button variant="outline" size="sm" onClick={enterCompose}>
                     <Pencil className="size-3.5" /> Sửa câu hỏi

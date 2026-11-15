@@ -184,7 +184,10 @@ export function useLive(tournamentId: string, matchId: string, onFrame?: (at: st
         queryFn: () =>
             api<LiveResponse>(`/portal/tournaments/${tournamentId}/matches/${matchId}/live`),
         enabled: Boolean(tournamentId && matchId),
-        refetchInterval: 3_000,
+        refetchInterval: (query) => {
+            if (query.state.status === "error") return 15_000
+            return 3_000
+        },
         staleTime: 0,
         retry: false,
     })

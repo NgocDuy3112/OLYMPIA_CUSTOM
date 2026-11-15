@@ -53,7 +53,7 @@ describe("the match's Câu hỏi tab", () => {
     it("offers the bank's upload and the compose door — and no manual Save button", async () => {
         draw()
 
-        expect(await screen.findByRole("button", { name: /Nhập Excel/ })).toBeInTheDocument()
+        expect(await screen.findByRole("button", { name: /Nhập đề/ })).toBeInTheDocument()
         expect(screen.getByRole("button", { name: /Sửa câu hỏi/ })).toBeInTheDocument()
         expect(screen.queryByRole("button", { name: /Lưu ·/ })).toBeNull()
     })
@@ -103,7 +103,7 @@ describe("the match's Câu hỏi tab", () => {
         draw({}, { ...match, status: "FINISHED" })
 
         expect(await screen.findByText(/Chỉ sửa được khi trận còn UPCOMING/)).toBeInTheDocument()
-        expect(screen.queryByRole("button", { name: /Nhập Excel/ })).toBeNull()
+        expect(screen.queryByRole("button", { name: /Nhập đề/ })).toBeNull()
         expect(screen.queryByRole("button", { name: /Sửa câu hỏi/ })).toBeNull()
     })
 })
