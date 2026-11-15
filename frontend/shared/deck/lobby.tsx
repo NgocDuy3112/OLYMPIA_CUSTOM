@@ -1,6 +1,9 @@
-import { useEffect, useRef, type ReactNode } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import type { LocalVideoTrack, RemoteVideoTrack } from "livekit-client"
+import { X } from "lucide-react"
 import { useSelfCam } from "@shared/lib/rtc"
+import { Button } from "@shared/ui/button"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@shared/ui/dialog"
 import { pt } from "./geometry"
 import { SelfCamControls } from "./cam-controls"
 import type { LobbyData } from "./types"
@@ -43,6 +46,7 @@ export function Lobby({
     belowHint?: ReactNode
 }) {
     const selfCam = useSelfCam()
+    const [confirmEnd, setConfirmEnd] = useState(false)
 
     let endable: (() => void) | undefined = undefined
     if (mc) endable = mc.onEndMatch
@@ -168,7 +172,7 @@ export function Lobby({
                 <div className="mt-[3cqw] flex justify-center">
                     <button
                         type="button"
-                        onClick={endable}
+                        onClick={() => setConfirmEnd(true)}
                         disabled={mc?.endingMatch === true}
                         title="Chốt điểm và kết thúc trận — bảng xếp hạng cập nhật ngay"
                         className="rounded-[0.5cqw] border border-destructive/40 bg-destructive/10 px-[1.8cqw] py-[0.8cqw] font-sans font-semibold uppercase leading-none tracking-wide text-destructive transition hover:brightness-110 disabled:opacity-50"
@@ -177,6 +181,35 @@ export function Lobby({
                         {endLabel}
                     </button>
                 </div>
+            )}
+            {confirmEnd && endable && (
+                <Dialog open onOpenChange={(next) => { if (!next) setConfirmEnd(false) }}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Kết thúc trận đấu?</DialogTitle>
+                        </DialogHeader>
+                        <p className="text-sm text-muted-foreground">
+                            Trận sẽ được chốt kết quả và cập nhật bảng xếp hạng — kết quả đóng băng sau khi kết thúc.
+                        </p>
+                        <DialogFooter className="items-center gap-2">
+                            <Button variant="outline" aria-label="Huỷ" title="Huỷ" onClick={() => setConfirmEnd(false)}>
+                                <X className="size-4" aria-hidden />
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                aria-label="Kết thúc trận"
+                                title="Kết thúc trận"
+                                disabled={mc?.endingMatch === true}
+                                onClick={() => {
+                                    setConfirmEnd(false)
+                                    endable()
+                                }}
+                            >
+                                Kết thúc trận đấu
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             )}
         </div>
     )

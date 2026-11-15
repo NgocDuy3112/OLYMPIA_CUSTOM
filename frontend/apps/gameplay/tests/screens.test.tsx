@@ -1,4 +1,5 @@
 import { render } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 import type { PlayerCtx, PlayerView } from "@shared/deck/types"
 import { GiaiMaAOCPlayer } from "@shared/deck/screens/GiaiMaAOCPlayer"
@@ -179,6 +180,28 @@ describe("player screens render from a plain fixture", () => {
         expect(idle.disabled).toBe(true)
         expect(idle.placeholder).toBe("")
         expect(withoutWindow.getByLabelText("Từ khóa của bạn")).toBeTruthy()
+    })
+
+    it("giải mã — submitting the keyword asks for confirmation first", async () => {
+        const user = userEvent.setup()
+        const submitKeyword = vi.fn()
+        const v = view({
+            roundId: "giai-ma",
+            keyword: { questionId: "k1", question: question("k1", "KEYWORD") },
+        })
+        const { getByLabelText, getByRole } = render(
+            <GiaiMaAOCPlayer ctx={ctx({ v, submitKeyword })} />
+        )
+
+        const input = getByLabelText("Từ khóa của bạn") as HTMLInputElement
+        await user.type(input, "CHUNGKET")
+
+        await user.click(getByRole("button", { name: "Nộp" }))
+        expect(submitKeyword).not.toHaveBeenCalled()
+        expect(getByRole("button", { name: "Xác nhận" })).toBeTruthy()
+
+        await user.click(getByRole("button", { name: "Xác nhận" }))
+        expect(submitKeyword).toHaveBeenCalledWith("k1", "CHUNGKET")
     })
 
     it("về đích · câu hỏi chung — the typed band", () => {

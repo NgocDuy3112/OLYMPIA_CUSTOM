@@ -117,13 +117,24 @@ describe("the console's phase machine — which screen a phase draws", () => {
         expect(await screen.findByRole("button", { name: /Khởi động · Riêng/ })).toBeInTheDocument()
     })
 
-    it("offers Kết thúc trận đấu in the waiting room", async () => {
-        draw()
+    it("asks for confirmation, then ends the match from the waiting room", async () => {
+        const { fetchMock } = draw()
         const user = userEvent.setup()
 
         await user.click(await screen.findByRole("button", { name: "Về sảnh" }))
+        await user.click(await screen.findByRole("button", { name: "Kết thúc trận đấu" }))
+        expect(await screen.findByText("Kết thúc trận đấu?")).toBeInTheDocument()
 
-        expect(await screen.findByRole("button", { name: "Kết thúc trận đấu" })).toBeInTheDocument()
+        await user.click(screen.getByRole("button", { name: "Kết thúc trận" }))
+        await waitFor(() => {
+            const call = fetchMock.mock.calls.find(
+                ([url, init]) =>
+                    init?.method === "PATCH" &&
+                    String(url) === `/portal/tournaments/${T}/matches/${M}/status`
+            )
+            expect(call).toBeTruthy()
+            expect(String(call?.[1]?.body)).toBe(JSON.stringify({ status: "FINISHED" }))
+        })
     })
 
     it("hides the end button once the match is FINISHED", async () => {

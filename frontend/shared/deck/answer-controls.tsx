@@ -131,23 +131,34 @@ export function AnswerBandIdle() {
 
 export function KeywordBox({ busy, onSubmit }: { busy: boolean; onSubmit: (text: string) => void }) {
     const [draft, setDraft] = useState({ locked: false, text: "" })
+    const [confirming, setConfirming] = useState(false)
     if (draft.locked) {
         return <span className="inline-flex items-center gap-[0.5cqw] font-sans font-semibold text-emerald-600" style={{ fontSize: pt(12) }}>Đã nộp từ khóa — chờ điều hành chốt</span>
     }
     const commit = () => {
         if (!draft.text.trim() || busy) return
+        if (!confirming) {
+            setConfirming(true)
+            return
+        }
         onSubmit(draft.text.trim())
         setDraft({ locked: true, text: draft.text })
     }
     let submitLabel: string = COPY.submit
+    if (confirming) submitLabel = "Xác nhận"
     if (busy) submitLabel = "…"
+    let submitTitle: string = COPY.submit
+    if (confirming) submitTitle = "Nhấn lần nữa để nộp — không sửa được sau đó"
     return (
         <div className="flex w-full items-center gap-[1cqw]">
             <input
                 type="text"
                 value={draft.text}
                 disabled={busy}
-                onChange={(event) => setDraft({ locked: false, text: event.target.value })}
+                onChange={(event) => {
+                    setDraft({ locked: false, text: event.target.value })
+                    setConfirming(false)
+                }}
                 onKeyDown={(event) => {
                     if (event.key === "Enter") commit()
                 }}
@@ -160,6 +171,7 @@ export function KeywordBox({ busy, onSubmit }: { busy: boolean; onSubmit: (text:
                 type="button"
                 disabled={busy || !draft.text.trim()}
                 onClick={commit}
+                title={submitTitle}
                 className={submitClass(!busy && Boolean(draft.text.trim()))}
                 style={{ fontSize: pt(11), borderRadius: STRIP_R }}
             >
