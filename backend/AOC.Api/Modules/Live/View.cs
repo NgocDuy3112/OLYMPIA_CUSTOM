@@ -219,7 +219,7 @@ public static class LiveView
                 {
                     ["questionId"] = currentId,
                     ["question"] = state.Engaged ? QuestionOf(input, currentId) : null,
-                    ["playerId"] = state.Engaged ? activeId : null,
+                    ["playerId"] = activeId,
                     ["index"] = run.Cursor,
                     ["total"] = run.QuestionIds.Count,
                     ["elapsedS"] = run.ElapsedS,

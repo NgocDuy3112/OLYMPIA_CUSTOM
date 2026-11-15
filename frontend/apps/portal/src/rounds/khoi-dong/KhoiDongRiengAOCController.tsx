@@ -68,7 +68,12 @@ export function KhoiDongRiengAOCController({ ctx }: { ctx: KhoiDongRiengCtx }) {
     if (ctx.watchRunning) questionStarted = true
     if (ctx.watchMs > 0) questionStarted = true
     let questionText: string | null = null
-    if (questionStarted) questionText = oral?.question?.questionText ?? null
+    if (questionStarted) {
+        if (oral) {
+            const asked = v.questions.find((q) => q._id === oral.questionId)
+            questionText = asked?.questionText ?? oral.question?.questionText ?? null
+        }
+    }
 
     return (
         <ConsoleStage

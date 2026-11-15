@@ -159,6 +159,30 @@ describe("KhoiDongRieng — S1, the oral run", () => {
         expect(screen.getByText("Câu hỏi miệng")).toBeInTheDocument()
     })
 
+    it("Tính giờ shows the asked question from the match list even before the run is engaged", () => {
+        renderRound(
+            "khoi-dong",
+            { watchRunning: true },
+            {
+                oral: { questionId: "q9", question: null, playerId: null, index: 0, total: 6, elapsedS: 0, budgetS: 40 },
+            },
+            null,
+            [{
+                _id: "q9",
+                kind: "TEXT",
+                roundId: "khoi-dong",
+                turnId: "phase1",
+                position: 1,
+                questionText: "Câu hỏi từ danh sách",
+                timeLimit: null,
+                points: 10,
+                payload: {},
+            }]
+        )
+
+        expect(screen.getByText("Câu hỏi từ danh sách")).toBeInTheDocument()
+    })
+
     it("a card click moves the engine's cursor so that player's question shows", async () => {
         const user = userEvent.setup()
         const f = renderRound("khoi-dong", {
