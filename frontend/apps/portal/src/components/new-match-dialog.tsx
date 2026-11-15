@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import { Button } from "@shared/ui/button"
 import {
     Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
@@ -46,14 +46,12 @@ export function NewMatchDialog({
         setPicked((current) => Array.from({ length: count }, (_, index) => current[index] ?? ""))
     }
 
-    const reason =
-        label.trim().length === 0
-            ? "Give the match a label"
-            : stages.length === 0 || stageId.length === 0
-              ? "Choose a stage"
-              : chosenPlayers.length !== seatCount || new Set(chosenPlayers).size !== seatCount
-                ? `Pick ${seatCount} distinct players`
-                : null
+    let reason: string | null = null
+    if (chosenPlayers.length !== seatCount) reason = `Pick ${seatCount} distinct players`
+    if (new Set(chosenPlayers).size !== seatCount) reason = `Pick ${seatCount} distinct players`
+    if (stages.length === 0) reason = "Choose a stage"
+    if (stageId.length === 0) reason = "Choose a stage"
+    if (label.trim().length === 0) reason = "Give the match a label"
     const valid = reason === null
 
     const reset = () => {
@@ -71,8 +69,33 @@ export function NewMatchDialog({
         )
     }
 
-    const error = create.isError ? create.error : null
+    let error: typeof create.error = null
+    if (create.isError) error = create.error
     const pending = create.isPending
+    let createLabel = "Create match"
+    if (pending) createLabel = "Creating…"
+
+    let stageSlot: ReactNode = (
+        <select
+            className="h-9 rounded-lg border border-input bg-transparent px-2.5 text-sm"
+            value={stageId}
+            onChange={(event) => setStageId(event.target.value)}
+        >
+            {stages.map((stage, index) => (
+                <option key={stage.id} value={stage.id}>
+                    {index + 1} · {stage.title}
+                </option>
+            ))}
+        </select>
+    )
+    if (stages.length === 0) {
+        stageSlot = (
+            <span className="text-sm text-destructive">
+                This tournament has no stages yet. Add them first — a match has
+                to name one, and the stage order is what places the players.
+            </span>
+        )
+    }
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -93,43 +116,30 @@ export function NewMatchDialog({
 
                             <label className="flex flex-col gap-2 text-sm">
                                 Stage
-                                {stages.length === 0 ? (
-                                    <span className="text-sm text-destructive">
-                                        This tournament has no stages yet. Add them first — a match has
-                                        to name one, and the stage order is what places the players.
-                                    </span>
-                                ) : (
-                                    <select
-                                        className="h-9 rounded-lg border border-input bg-transparent px-2.5 text-sm"
-                                        value={stageId}
-                                        onChange={(event) => setStageId(event.target.value)}
-                                    >
-                                        {stages.map((stage, index) => (
-                                            <option key={stage.id} value={stage.id}>
-                                                {index + 1} · {stage.title}
-                                            </option>
-                                        ))}
-                                    </select>
-                                )}
+                                {stageSlot}
                             </label>
 
                             
-                            {allowedSeats.length > 1 ? (
+                            {allowedSeats.length > 1 && (
                                 <div className="flex items-center gap-2 text-sm">
                                     <span className="text-muted-foreground">Seats</span>
-                                    {allowedSeats.map((count) => (
-                                        <Button
-                                            key={count}
-                                            type="button"
-                                            size="sm"
-                                            variant={seatCount === count ? "default" : "outline"}
-                                            onClick={() => reseat(count)}
-                                        >
-                                            {count}
-                                        </Button>
-                                    ))}
+                                    {allowedSeats.map((count) => {
+                                        let variant: "default" | "outline" = "outline"
+                                        if (seatCount === count) variant = "default"
+                                        return (
+                                            <Button
+                                                key={count}
+                                                type="button"
+                                                size="sm"
+                                                variant={variant}
+                                                onClick={() => reseat(count)}
+                                            >
+                                                {count}
+                                            </Button>
+                                        )
+                                    })}
                                 </div>
-                            ) : null}
+                            )}
 
                             <div className="flex flex-col gap-2">
                                 {picked.map((value, seat) => (
@@ -139,24 +149,29 @@ export function NewMatchDialog({
                                         value={value}
                                         onChange={(event) =>
                                             setPicked((current) =>
-                                                current.map((item, index) =>
-                                                    index === seat ? event.target.value : item
-                                                )
+                                                current.map((item, index) => {
+                                                    if (index === seat) return event.target.value
+                                                    return item
+                                                })
                                             )
                                         }
                                     >
                                         <option value="">Seat {seat + 1} — choose a player…</option>
-                                        {players.map((player) => (
-                                            <option
-                                                key={player.userId}
-                                                value={player.userId}
-                                                disabled={picked.includes(player.userId) && picked[seat] !== player.userId}
-                                            >
-                                                
-                                                {player.displayName}
-                                                {player.group ? ` · Nhóm ${player.group}` : " · chưa xếp nhóm"}
-                                            </option>
-                                        ))}
+                                        {players.map((player) => {
+                                            let groupText = " · chưa xếp nhóm"
+                                            if (player.group) groupText = ` · Nhóm ${player.group}`
+                                            return (
+                                                <option
+                                                    key={player.userId}
+                                                    value={player.userId}
+                                                    disabled={picked.includes(player.userId) && picked[seat] !== player.userId}
+                                                >
+                                                    
+                                                    {player.displayName}
+                                                    {groupText}
+                                                </option>
+                                            )
+                                        })}
                                     </select>
                                 ))}
                             </div>
@@ -169,7 +184,7 @@ export function NewMatchDialog({
                         )}
                         <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
                         <Button onClick={submit} disabled={!valid || pending}>
-                            {pending ? "Creating…" : "Create match"}
+                            {createLabel}
                         </Button>
                     </DialogFooter>
                 </div>

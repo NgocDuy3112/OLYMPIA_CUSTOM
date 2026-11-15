@@ -11,7 +11,9 @@ const CELL_STATE: Record<Exclude<CellWhere, "free">, string> = {
 
 export function mcCellClass(where: CellWhere, faded: boolean): string {
     if (where === "free") {
-        return `${CELL_SHAPE} ${faded ? "bg-card text-muted-foreground/40 ring-1 ring-border opacity-50" : "bg-card ring-1 ring-border"}`
+        let freeTone = "bg-card ring-1 ring-border"
+        if (faded) freeTone = "bg-card text-muted-foreground/40 ring-1 ring-border opacity-50"
+        return `${CELL_SHAPE} ${freeTone}`
     }
     return `${CELL_SHAPE} ${CELL_STATE[where]}`
 }
@@ -38,9 +40,13 @@ export function hintTileClass(state: HintTile, interactive: boolean): string {
     if (state === "open") return `${TILE} bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2 ring-offset-background`
     if (state === "used") return `${TILE} bg-muted text-muted-foreground/50 ring-1 ring-border`
     if (state === "absent") return `${TILE} bg-muted/40 text-muted-foreground/25 ring-1 ring-border`
-    return `${TILE} bg-card text-foreground ring-1 ring-border ${interactive ? "cursor-pointer hover:ring-sky-500" : ""}`
+    let hoverHint = ""
+    if (interactive) hoverHint = "cursor-pointer hover:ring-sky-500"
+    return `${TILE} bg-card text-foreground ring-1 ring-border ${hoverHint}`
 }
 
 export function playerHintTileClass(windowOpen: boolean): string {
-    return `${TILE} ring-1 ring-border ${windowOpen ? "bg-muted text-muted-foreground" : "bg-card text-foreground"}`
+    let windowTone = "bg-card text-foreground"
+    if (windowOpen) windowTone = "bg-muted text-muted-foreground"
+    return `${TILE} ring-1 ring-border ${windowTone}`
 }

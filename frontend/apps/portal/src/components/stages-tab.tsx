@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import { Button } from "@shared/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
@@ -18,6 +18,48 @@ export function StagesTab({
 
     const stages = tournament.stages ?? []
 
+    let stagesSlot: ReactNode = (
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    <TableHead className="w-16 pl-6">#</TableHead>
+                    <TableHead>Stage</TableHead>
+                    <TableHead className="font-mono text-xs">Id</TableHead>
+                    <TableHead>Rule</TableHead>
+                    <TableHead className="pr-6">Dates</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {stages.map((stage, index) => {
+                    let dateText = "—"
+                    if (stage.start) dateText = new Date(stage.start).toLocaleDateString()
+                    return (
+                        <TableRow key={stage.id}>
+                            <TableCell className="pl-6 tabular-nums">{index + 1}</TableCell>
+                            <TableCell className="font-medium">{stage.title}</TableCell>
+                            <TableCell className="font-mono text-xs text-muted-foreground">
+                                {stage.id}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                                {STAGE_ROLES.find((role) => role.value === stage.role)?.label ?? "—"}
+                            </TableCell>
+                            <TableCell className="pr-6 text-sm text-muted-foreground">
+                                {dateText}
+                            </TableCell>
+                        </TableRow>
+                    )
+                })}
+            </TableBody>
+        </Table>
+    )
+    if (stages.length === 0) {
+        stagesSlot = (
+            <p className="px-6 pb-6 text-sm text-muted-foreground">
+                No stages yet. A match has to name one, so add them before creating matches.
+            </p>
+        )
+    }
+
     return (
         <Card>
             <CardHeader>
@@ -34,42 +76,7 @@ export function StagesTab({
             </CardHeader>
 
             <CardContent className="p-0">
-                {stages.length === 0 ? (
-                    <p className="px-6 pb-6 text-sm text-muted-foreground">
-                        No stages yet. A match has to name one, so add them before creating matches.
-                    </p>
-                ) : (
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-16 pl-6">#</TableHead>
-                                <TableHead>Stage</TableHead>
-                                <TableHead className="font-mono text-xs">Id</TableHead>
-                                <TableHead>Rule</TableHead>
-                                <TableHead className="pr-6">Dates</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {stages.map((stage, index) => (
-                                <TableRow key={stage.id}>
-                                    <TableCell className="pl-6 tabular-nums">{index + 1}</TableCell>
-                                    <TableCell className="font-medium">{stage.title}</TableCell>
-                                    <TableCell className="font-mono text-xs text-muted-foreground">
-                                        {stage.id}
-                                    </TableCell>
-                                    <TableCell className="text-sm text-muted-foreground">
-                                        {STAGE_ROLES.find((role) => role.value === stage.role)?.label ?? "—"}
-                                    </TableCell>
-                                    <TableCell className="pr-6 text-sm text-muted-foreground">
-                                        {stage.start
-                                            ? new Date(stage.start).toLocaleDateString()
-                                            : "—"}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                )}
+                {stagesSlot}
             </CardContent>
 
             {editing && (

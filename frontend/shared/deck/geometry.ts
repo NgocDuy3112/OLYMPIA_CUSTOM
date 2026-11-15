@@ -25,9 +25,8 @@ const WAITING_STAGES = new Set(["pending", "ended", "unknown"])
 export const isWaitingStage = (stage: string): boolean => WAITING_STAGES.has(stage)
 
 export const toClock = (text: string): string => {
-    const seconds = /^\d+$/.test(text)
-        ? Number(text)
-        : text.split(":").reduce((total, part) => total * 60 + Number(part), 0)
+    let seconds = text.split(":").reduce((total, part) => total * 60 + Number(part), 0)
+    if (/^\d+$/.test(text)) seconds = Number(text)
     if (Number.isNaN(seconds)) return text
     return String(seconds).padStart(2, "0")
 }

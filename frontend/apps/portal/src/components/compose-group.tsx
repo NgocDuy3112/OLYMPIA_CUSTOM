@@ -79,10 +79,8 @@ export function ComposeDndProvider({
             if (active.role === "row") {
                 if (!active.groupId || over.groupId !== active.groupId) return
                 const from = active.index ?? 0
-                const to =
-                    over.role === "row"
-                        ? over.index ?? from
-                        : Math.max(0, (over.count ?? 1) - 1)
+                let to = Math.max(0, (over.count ?? 1) - 1)
+                if (over.role === "row") to = over.index ?? from
                 if (from !== to) onReorder(active.groupId, from, to)
             }
         },
@@ -156,18 +154,25 @@ export function ComposeGroup({
     })
 
     const complete = required === 0 || filled >= required
-    const coverage =
-        required > 0
-            ? `${filled}/${required} ${complete ? "✓" : "⚠"}`
-            : `${filled}`
+    let coverage = `${filled}`
+    if (required > 0) {
+        let mark = "⚠"
+        if (complete) mark = "✓"
+        coverage = `${filled}/${required} ${mark}`
+    }
+    let sectionBorder = "border-border"
+    if (isOver) {
+        if (editable) sectionBorder = "border-primary"
+    }
+    let coverageCls = "text-amber-600"
+    if (complete) coverageCls = "text-muted-foreground"
 
     return (
         <section
             ref={setNodeRef}
             aria-label={`Nhóm ${label}`}
             className={
-                "rounded-lg border bg-card transition-colors " +
-                (isOver && editable ? "border-primary" : "border-border")
+                "rounded-lg border bg-card transition-colors " + sectionBorder
             }
         >
             <header className="flex items-center gap-2 border-b border-border px-3 py-2">
@@ -175,8 +180,7 @@ export function ComposeGroup({
                 {typeLabel && <Badge variant="secondary">{typeLabel}</Badge>}
                 <span
                     className={
-                        "ml-auto text-xs font-medium " +
-                        (complete ? "text-muted-foreground" : "text-amber-600")
+                        "ml-auto text-xs font-medium " + coverageCls
                     }
                 >
                     {coverage}
@@ -248,6 +252,9 @@ function SortableGroupRow({
             disabled: !editable,
         })
 
+    let dragCls = ""
+    if (isDragging) dragCls = "opacity-60 shadow-sm"
+
     return (
         <li
             ref={setNodeRef}
@@ -256,8 +263,7 @@ function SortableGroupRow({
                 transition,
             }}
             className={
-                "flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-sm " +
-                (isDragging ? "opacity-60 shadow-sm" : "")
+                "flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-sm " + dragCls
             }
         >
             {editable && (
@@ -327,6 +333,10 @@ export function BankPickerItem({
         disabled,
     })
 
+    let itemCls = "cursor-grab hover:border-primary "
+    if (isDragging) itemCls = itemCls + "opacity-60"
+    if (disabled) itemCls = "opacity-50"
+
     return (
         <li
             ref={setNodeRef}
@@ -334,10 +344,7 @@ export function BankPickerItem({
             {...attributes}
             onClick={onClick}
             className={
-                "flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-sm " +
-                (disabled
-                    ? "opacity-50"
-                    : "cursor-grab hover:border-primary " + (isDragging ? "opacity-60" : ""))
+                "flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-sm " + itemCls
             }
         >
             <GripVertical className="size-4 shrink-0 text-muted-foreground" />

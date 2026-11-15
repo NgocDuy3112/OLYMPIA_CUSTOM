@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { useState } from "react"
 import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
@@ -23,8 +24,14 @@ export function StandardMatchControl({
     )
     const seated = match.players.map((seat) => ({ id: seat.userId, seed: seat.seed }))
 
-    const transitionError = transition.isError ? transition.error.message : null
-    const saveError = save.isError ? save.error.message : null
+    let transitionError: string | null = null
+    if (transition.isError) transitionError = transition.error.message
+    let saveError: string | null = null
+    if (save.isError) saveError = save.error.message
+    let startLabel = "Bắt đầu trận ▶"
+    if (transition.isPending) startLabel = "Đang bắt đầu…"
+    let saveLabel = "Lưu kết quả & kết thúc"
+    if (save.isPending) saveLabel = "Đang lưu…"
 
     const submitResults = () => {
         save.mutate({
@@ -39,6 +46,48 @@ export function StandardMatchControl({
     const when = new Date(match.scheduledAt).toLocaleString("en-GB", {
         day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
     })
+
+    let resultSlot: ReactNode = (
+        <>
+            <p className="text-sm font-semibold">Nhập kết quả</p>
+            <p className="mb-3 mt-1 text-sm text-muted-foreground">
+                Tổng điểm cuối cùng của từng thí sinh. Lưu sẽ kết thúc trận và cập nhật
+                bảng xếp hạng.
+            </p>
+            <div className="flex flex-col gap-3">
+                {seated.map((player) => (
+                    <label key={player.id} className="flex items-center gap-3 text-sm">
+                        <span className="w-40 truncate">{names.get(player.id) ?? player.id}</span>
+                        <Input
+                            type="number"
+                            inputMode="numeric"
+                            className="w-28"
+                            value={scores[player.id] ?? ""}
+                            placeholder="0"
+                            onChange={(event) =>
+                                setScores((state) => ({ ...state, [player.id]: event.target.value }))
+                            }
+                            aria-label={`Score for ${names.get(player.id) ?? player.id}`}
+                        />
+                    </label>
+                ))}
+            </div>
+            {saveError && <p role="alert" className="mt-3 text-sm text-destructive">{saveError}</p>}
+            <div className="mt-4 flex justify-end">
+                <Button onClick={submitResults} disabled={save.isPending || seated.length === 0}>
+                    {saveLabel}
+                </Button>
+            </div>
+        </>
+    )
+    if (match.status === "FINISHED") {
+        resultSlot = (
+            <p className="text-sm text-muted-foreground">
+                <Badge variant="secondary" className="mr-2">Đã kết thúc</Badge>
+                Kết quả đã được ghi nhận — bảng xếp hạng và bracket đọc từ đây.
+            </p>
+        )
+    }
 
     return (
         <section className="rounded-xl border bg-card p-5">
@@ -63,7 +112,7 @@ export function StandardMatchControl({
                         onClick={() => transition.mutate({ matchId: match.id, status: "LIVE" })}
                         disabled={transition.isPending}
                     >
-                        {transition.isPending ? "Đang bắt đầu…" : "Bắt đầu trận ▶"}
+                        {startLabel}
                     </Button>
                 </div>
             )}
@@ -81,44 +130,7 @@ export function StandardMatchControl({
 
             <hr className="my-4" />
 
-            {match.status === "FINISHED" ? (
-                <p className="text-sm text-muted-foreground">
-                    <Badge variant="secondary" className="mr-2">Đã kết thúc</Badge>
-                    Kết quả đã được ghi nhận — bảng xếp hạng và bracket đọc từ đây.
-                </p>
-            ) : (
-                <>
-                    <p className="text-sm font-semibold">Nhập kết quả</p>
-                    <p className="mb-3 mt-1 text-sm text-muted-foreground">
-                        Tổng điểm cuối cùng của từng thí sinh. Lưu sẽ kết thúc trận và cập nhật
-                        bảng xếp hạng.
-                    </p>
-                    <div className="flex flex-col gap-3">
-                        {seated.map((player) => (
-                            <label key={player.id} className="flex items-center gap-3 text-sm">
-                                <span className="w-40 truncate">{names.get(player.id) ?? player.id}</span>
-                                <Input
-                                    type="number"
-                                    inputMode="numeric"
-                                    className="w-28"
-                                    value={scores[player.id] ?? ""}
-                                    placeholder="0"
-                                    onChange={(event) =>
-                                        setScores((state) => ({ ...state, [player.id]: event.target.value }))
-                                    }
-                                    aria-label={`Score for ${names.get(player.id) ?? player.id}`}
-                                />
-                            </label>
-                        ))}
-                    </div>
-                    {saveError && <p role="alert" className="mt-3 text-sm text-destructive">{saveError}</p>}
-                    <div className="mt-4 flex justify-end">
-                        <Button onClick={submitResults} disabled={save.isPending || seated.length === 0}>
-                            {save.isPending ? "Đang lưu…" : "Lưu kết quả & kết thúc"}
-                        </Button>
-                    </div>
-                </>
-            )}
+            {resultSlot}
         </section>
     )
 }

@@ -62,10 +62,14 @@ export function startAction(
                 .map((q) => q._id)
             return { kind: "giai-ma.start", playerIds, hintIds }
         }
-        case "khoi-dong":
-            return phase === 2 ? { kind: "khoi-dong.start", phase: 2 } : { kind: "khoi-dong.start" }
-        case "ve-dich":
-            return phase === 2 ? { kind: "ve-dich.start", phase: 2 } : { kind: "ve-dich.start" }
+        case "khoi-dong": {
+            if (phase === 2) return { kind: "khoi-dong.start", phase: 2 }
+            return { kind: "khoi-dong.start" }
+        }
+        case "ve-dich": {
+            if (phase === 2) return { kind: "ve-dich.start", phase: 2 }
+            return { kind: "ve-dich.start" }
+        }
         case "but-pha":
             return { kind: "but-pha.start" }
         default:

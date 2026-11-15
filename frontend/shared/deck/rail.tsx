@@ -26,8 +26,11 @@ function SelfVideo({ track }: { track: LocalVideoTrack }) {
 const initialsOf = (name: string): string =>
     name.replace(/[^A-Za-zÀ-ỹ0-9]/g, "").slice(0, 2).toUpperCase() || "??"
 
-const cardRing = (mine: boolean, activeRun: boolean): string =>
-    mine ? "ring-2 ring-sky-500" : activeRun ? "ring-2 ring-amber-400" : ""
+const cardRing = (mine: boolean, activeRun: boolean): string => {
+    if (mine) return "ring-2 ring-sky-500"
+    if (activeRun) return "ring-2 ring-amber-400"
+    return ""
+}
 
 export function Rail({ variant, view, myId, currentQid }: {
     variant: "compact" | "answers"
@@ -36,17 +39,28 @@ export function Rail({ variant, view, myId, currentQid }: {
     currentQid?: string | null
 }) {
     const compact = variant === "compact"
+    let scoreFontSize = 44
+    if (compact) scoreFontSize = 34
     const selfCam = useSelfCam()
-    const publicFor = (userId: string, qid: string | null | undefined) =>
-        qid
-            ? view.publicVerdicts?.find((row) => row.questionId === qid && row.userId === userId)?.verdict
-            : undefined
+    const publicFor = (userId: string, qid: string | null | undefined) => {
+        if (!qid) return undefined
+        return view.publicVerdicts?.find((row) => row.questionId === qid && row.userId === userId)?.verdict
+    }
+    const myVerdictFor = (qid: string | null | undefined) => {
+        if (!qid) return undefined
+        return view.me.verdicts?.[qid]
+    }
+    const answerRowFor = (userId: string, qid: string | null | undefined) => {
+        if (!qid) return undefined
+        return view.publicVerdicts?.find((row) => row.questionId === qid && row.userId === userId)
+    }
     return (
         <>
             {view.table.slice(0, 4).map((row) => {
                 const mine = myId !== null && row.id === myId
-                const myVerdict = currentQid ? view.me.verdicts?.[currentQid] : undefined
-                const shownVerdict = mine ? myVerdict : publicFor(row.id, currentQid)
+                const myVerdict = myVerdictFor(currentQid)
+                let shownVerdict = publicFor(row.id, currentQid)
+                if (mine) shownVerdict = myVerdict
                 const state = railCardState({
                     verdict: shownVerdict ?? null,
                     buzzing: view.me.buzzer === row.id,
@@ -54,21 +68,24 @@ export function Rail({ variant, view, myId, currentQid }: {
                 const activeRun = view.oral?.playerId === row.id
                 const buzzed = view.me.buzzer === row.id
 
-                const answerRow = currentQid
-                    ? view.publicVerdicts?.find(
-                          (r) => r.questionId === currentQid && r.userId === row.id
-                      )
-                    : undefined
+                const answerRow = answerRowFor(row.id, currentQid)
                 const answeredMs = answerRow?.answeredMs ?? null
-                const buzzMs =
-                    buzzed && view.me.buzzerMs !== null && view.me.buzzerMs !== undefined
-                        ? view.me.buzzerMs
-                        : null
+                let buzzMs: number | null = null
+                if (buzzed) {
+                    const ms = view.me.buzzerMs
+                    if (ms !== null) {
+                        if (ms !== undefined) buzzMs = ms
+                    }
+                }
+                let rowTitle: string | undefined = undefined
+                if (mine) rowTitle = "Bạn"
+                let rowHeight = "h-[11.9cqw]"
+                if (compact) rowHeight = "h-[9.3cqw]"
                 return (
                     <div
                         key={row.id}
-                        title={mine ? "Bạn" : undefined}
-                        className={`flex ${compact ? "h-[9.3cqw]" : "h-[11.9cqw]"} shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl p-[0.9cqw] shadow-sm ${railCardClass(state)} ${cardRing(mine, activeRun)}`}
+                        title={rowTitle}
+                        className={`flex ${rowHeight} shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl p-[0.9cqw] shadow-sm ${railCardClass(state)} ${cardRing(mine, activeRun)}`}
                     >
                         <div className="flex min-h-0 flex-1 gap-[0.7cqw]">
                             <div
@@ -83,7 +100,7 @@ export function Rail({ variant, view, myId, currentQid }: {
                                 <span className="flex min-w-0 items-center justify-center gap-[0.3cqw] font-display font-semibold leading-none text-foreground" style={{ fontSize: pt(16) }}>
                                     <span className="truncate">{row.displayName}</span>
                                 </span>
-                                <span className={`font-display font-bold leading-none tabular-nums ${railScoreClass(state)}`} style={{ fontSize: pt(compact ? 34 : 44) }}>
+                                <span className={`font-display font-bold leading-none tabular-nums ${railScoreClass(state)}`} style={{ fontSize: pt(scoreFontSize) }}>
                                     {row.points}
                                 </span>
                                 {!compact && (answeredMs !== null || buzzed) && (

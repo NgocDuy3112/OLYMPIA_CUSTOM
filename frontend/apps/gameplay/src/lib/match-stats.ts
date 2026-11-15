@@ -49,7 +49,8 @@ export function statisticsFor(match: Match, rounds: TournamentRound[]): MatchSta
     const sorted = [...totals].sort((a, b) => b.score - a.score)
     const topScore = sorted[0]?.score ?? 0
     const totalPoints = totals.reduce((sum, p) => sum + p.score, 0)
-    const averageScore = players.length > 0 ? totalPoints / players.length : 0
+    let averageScore = 0
+    if (players.length > 0) averageScore = totalPoints / players.length
 
     const byGap = [...roundRows].sort((a, b) => a.gap - b.gap)
 

@@ -12,6 +12,8 @@ export function KhoiDongChungAOCPlayer({ ctx }: { ctx: KhoiDongChungPlayerCtx })
     const openQ = ctx.open[0]
     const windowOpen = v.me.windowOpen === true
     const locked = !windowOpen || remaining <= 0
+    let timerRemaining: number | null = null
+    if (windowOpen) timerRemaining = remaining
 
     return (
         <PlayerStage
@@ -27,14 +29,14 @@ export function KhoiDongChungAOCPlayer({ ctx }: { ctx: KhoiDongChungPlayerCtx })
                             done={v.me.questionIndex ?? 0}
                             active={v.me.questionIndex ?? 0}
                         />
-                        <Timer remaining={windowOpen ? remaining : null} fallback="10" />
+                        <Timer remaining={timerRemaining} fallback="10" />
                     </>
                 }
                 question={openQ?.question?.questionText ?? ""}
                 media={openQ?.question?.media ?? null}
                 answer={v.revealed?.answer}
             />
-            {!openQ ? null : (
+            {openQ && (
                 <AnswerBand
                     question={openQ.question}
                     answerState={v.me.answerState}

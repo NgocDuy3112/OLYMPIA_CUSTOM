@@ -58,16 +58,18 @@ export function PlayersDesk() {
         const address = editEmail.trim()
         const discord = discordValue(editDiscord)
         if (discord !== "" && !DISCORD_SHAPE.test(discord)) return
-        const discordChanged = (editing.discordId ?? "") !== (discord === "" ? "" : discord)
-        update.mutate(
-            {
-                userId: editing.userId,
-                displayName: trimmed,
-                email: address === "" ? null : address,
-                ...(discordChanged ? { discordId: discord === "" ? null : discord } : {}),
-            },
-            { onSuccess: () => setEditing(null) }
-        )
+        const discordChanged = (editing.discordId ?? "") !== discord
+        let email: string | null = address
+        if (address === "") email = null
+        let discordId: string | null = discord
+        if (discord === "") discordId = null
+        const input: { userId: string; displayName: string; email: string | null; discordId?: string | null } = {
+            userId: editing.userId,
+            displayName: trimmed,
+            email,
+        }
+        if (discordChanged) input.discordId = discordId
+        update.mutate(input, { onSuccess: () => setEditing(null) })
     }
 
     const closeDialogs = () => {
@@ -160,14 +162,110 @@ export function PlayersDesk() {
         )
     }
 
+    let rosterHint = `${rows.length} tài khoản · ${enrolledSomewhere} ghi danh ít nhất một giải — thí sinh tự xuất hiện ở đây khi đăng nhập Google.`
+    if (rows.length === 0) rosterHint = "Chưa có tài khoản nào."
+    let deskError: ReactNode = null
+    if (update.isError) {
+        if (!editing) {
+            deskError = (
+                <p role="alert" className="px-6 pb-4 text-sm text-destructive">{update.error.message}</p>
+            )
+        }
+    }
+    let saveLabel = "Lưu"
+    if (update.isPending) saveLabel = "Saving…"
+    let enrollLabel = "Ghi danh"
+    if (enroll.isPending) enrollLabel = "Đang ghi danh…"
+    let leaveLabel = "Bỏ"
+    if (leave.isPending) leaveLabel = "Đang bỏ…"
+
+    let enrollDialog: ReactNode = null
+    if (enrolling) {
+        let enrollSlot: ReactNode = (
+            <>
+                <Field>
+                    <FieldLabel htmlFor="enroll-tournament">Giải</FieldLabel>
+                    <select
+                        id="enroll-tournament"
+                        className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
+                        value={enrollTournament}
+                        onChange={(event) => setEnrollTournament(event.target.value)}
+                    >
+                        {openFor(enrolling).map((tournament) => {
+                            let currentTag = ""
+                            if (tournament.current) currentTag = " · current"
+                            return (
+                                <option key={tournament.id} value={tournament.id}>
+                                    {tournament.name}
+                                    {currentTag}
+                                </option>
+                            )
+                        })}
+                    </select>
+                    <FieldDescription>
+                        Thí sinh vào bảng của giải này — thi được ngay khi có
+                        trận.
+                    </FieldDescription>
+                </Field>
+
+                {enroll.isError && (
+                    <p role="alert" className="text-sm text-destructive">
+                        {enroll.error.message}
+                    </p>
+                )}
+
+                <DialogFooter>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={closeDialogs}
+                        disabled={enroll.isPending}
+                    >
+                        Huỷ
+                    </Button>
+                    <Button
+                        type="submit"
+                        disabled={enroll.isPending || enrollTournament === ""}
+                    >
+                        {enrollLabel}
+                    </Button>
+                </DialogFooter>
+            </>
+        )
+        if (openFor(enrolling).length === 0) {
+            enrollSlot = (
+                <p className="text-sm text-muted-foreground">
+                    Tài khoản này đã ghi danh vào tất cả giải.
+                </p>
+            )
+        }
+        if (tournaments.isPending) {
+            enrollSlot = (
+                <p className="text-sm text-muted-foreground">Đang tải danh sách giải…</p>
+            )
+        }
+        enrollDialog = (
+            <Dialog open onOpenChange={(next) => { if (!next) closeDialogs() }}>
+                <DialogContent>
+                    <form onSubmit={submitEnroll}>
+                        <FieldGroup>
+                            <DialogHeader>
+                                <DialogTitle>Ghi danh {enrolling.displayName}</DialogTitle>
+                            </DialogHeader>
+                            {enrollSlot}
+                        </FieldGroup>
+                    </form>
+                </DialogContent>
+            </Dialog>
+        )
+    }
+
     return (
         <Card>
             <CardHeader>
                 <CardTitle className="text-base">Thí sinh</CardTitle>
                 <CardDescription>
-                    {rows.length === 0
-                        ? "Chưa có tài khoản nào."
-                        : `${rows.length} tài khoản · ${enrolledSomewhere} ghi danh ít nhất một giải — thí sinh tự xuất hiện ở đây khi đăng nhập Google.`}
+                    {rosterHint}
                 </CardDescription>
                 <CardAction>
                     <span className="text-xs text-muted-foreground">
@@ -177,15 +275,14 @@ export function PlayersDesk() {
             </CardHeader>
 
             <CardContent className="p-0">
-                {update.isError && !editing ? (
-                    <p role="alert" className="px-6 pb-4 text-sm text-destructive">{update.error.message}</p>
-                ) : null}
+                {deskError}
 
-                {rows.length === 0 ? (
+                {rows.length === 0 && (
                     <p className="px-6 pb-6 text-sm text-muted-foreground">
                         Thí sinh vào danh sách này ngay khi họ đăng nhập Google — không cần tạo tài khoản ở đây.
                     </p>
-                ) : (
+                )}
+                {rows.length > 0 && (
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -197,7 +294,26 @@ export function PlayersDesk() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {rows.map((row) => (
+                            {rows.map((row) => {
+                                let discordCell: ReactNode = (
+                                    <span
+                                        className="text-sm text-muted-foreground"
+                                        title="Chưa có ID Discord — bấm Sửa để lưu (dán ID, mention hoặc link đều được)."
+                                    >
+                                        chưa liên kết
+                                    </span>
+                                )
+                                if (row.discordId) {
+                                    discordCell = (
+                                        <span
+                                            className="font-mono text-xs"
+                                            title={`Discord ID ${row.discordId}`}
+                                        >
+                                            {row.discordId}
+                                        </span>
+                                    )
+                                }
+                                return (
                                 <TableRow key={row.userId}>
                                     <TableCell className="pl-6 font-medium">{row.displayName}</TableCell>
                                     <TableCell>
@@ -218,35 +334,26 @@ export function PlayersDesk() {
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        {row.discordId ? (
-                                            <span
-                                                className="font-mono text-xs"
-                                                title={`Discord ID ${row.discordId}`}
-                                            >
-                                                {row.discordId}
-                                            </span>
-                                        ) : (
-                                            <span
-                                                className="text-sm text-muted-foreground"
-                                                title="Chưa có ID Discord — bấm Sửa để lưu (dán ID, mention hoặc link đều được)."
-                                            >
-                                                chưa liên kết
-                                            </span>
-                                        )}
+                                        {discordCell}
                                     </TableCell>
                                     <TableCell>
-                                        {row.enrollments.length === 0 ? (
+                                        {row.enrollments.length === 0 && (
                                             <span className="text-sm text-muted-foreground">
                                                 chưa ghi danh giải nào
                                             </span>
-                                        ) : (
+                                        )}
+                                        {row.enrollments.length > 0 && (
                                             <span className="flex flex-wrap gap-1">
-                                                {row.enrollments.map((entry) => (
-                                                    <Badge key={entry.tournamentId} variant="secondary">
-                                                        {entry.name}
-                                                        {entry.current ? " · current" : ""}
-                                                    </Badge>
-                                                ))}
+                                                {row.enrollments.map((entry) => {
+                                                    let currentTag = ""
+                                                    if (entry.current) currentTag = " · current"
+                                                    return (
+                                                        <Badge key={entry.tournamentId} variant="secondary">
+                                                            {entry.name}
+                                                            {currentTag}
+                                                        </Badge>
+                                                    )
+                                                })}
                                             </span>
                                         )}
                                     </TableCell>
@@ -256,13 +363,14 @@ export function PlayersDesk() {
                                         </span>
                                     </TableCell>
                                 </TableRow>
-                            ))}
+                                )
+                            })}
                         </TableBody>
                     </Table>
                 )}
             </CardContent>
 
-            {editing ? (
+            {editing && (
                 <Dialog open onOpenChange={(next) => { if (!next) setEditing(null) }}>
                     <DialogContent>
                         <form onSubmit={save}>
@@ -317,11 +425,11 @@ export function PlayersDesk() {
                                         )}
                                 </Field>
 
-                                {update.isError ? (
+                                {update.isError && (
                                     <p role="alert" className="text-sm text-destructive">
                                         {update.error.message}
                                     </p>
-                                ) : null}
+                                )}
 
                                 <DialogFooter>
                                     <Button
@@ -333,7 +441,7 @@ export function PlayersDesk() {
                                                 !/^[0-9]{15,30}$/.test(discordValue(editDiscord)))
                                         }
                                     >
-                                        {update.isPending ? "Saving…" : "Lưu"}
+                                        {saveLabel}
                                     </Button>
                                     <Button
                                         type="button"
@@ -348,77 +456,11 @@ export function PlayersDesk() {
                         </form>
                     </DialogContent>
                 </Dialog>
-            ) : null}
+            )}
 
-            {enrolling ? (
-                <Dialog open onOpenChange={(next) => { if (!next) closeDialogs() }}>
-                    <DialogContent>
-                        <form onSubmit={submitEnroll}>
-                            <FieldGroup>
-                                <DialogHeader>
-                                    <DialogTitle>Ghi danh {enrolling.displayName}</DialogTitle>
-                                </DialogHeader>
+            {enrollDialog}
 
-                                {tournaments.isPending ? (
-                                    <p className="text-sm text-muted-foreground">Đang tải danh sách giải…</p>
-                                ) : openFor(enrolling).length === 0 ? (
-                                    <p className="text-sm text-muted-foreground">
-                                        Tài khoản này đã ghi danh vào tất cả giải.
-                                    </p>
-                                ) : (
-                                    <>
-                                        <Field>
-                                            <FieldLabel htmlFor="enroll-tournament">Giải</FieldLabel>
-                                            <select
-                                                id="enroll-tournament"
-                                                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
-                                                value={enrollTournament}
-                                                onChange={(event) => setEnrollTournament(event.target.value)}
-                                            >
-                                                {openFor(enrolling).map((tournament) => (
-                                                    <option key={tournament.id} value={tournament.id}>
-                                                        {tournament.name}
-                                                        {tournament.current ? " · current" : ""}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <FieldDescription>
-                                                Thí sinh vào bảng của giải này — thi được ngay khi có
-                                                trận.
-                                            </FieldDescription>
-                                        </Field>
-
-                                        {enroll.isError ? (
-                                            <p role="alert" className="text-sm text-destructive">
-                                                {enroll.error.message}
-                                            </p>
-                                        ) : null}
-
-                                        <DialogFooter>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                onClick={closeDialogs}
-                                                disabled={enroll.isPending}
-                                            >
-                                                Huỷ
-                                            </Button>
-                                            <Button
-                                                type="submit"
-                                                disabled={enroll.isPending || enrollTournament === ""}
-                                            >
-                                                {enroll.isPending ? "Đang ghi danh…" : "Ghi danh"}
-                                            </Button>
-                                        </DialogFooter>
-                                    </>
-                                )}
-                            </FieldGroup>
-                        </form>
-                    </DialogContent>
-                </Dialog>
-            ) : null}
-
-            {leaving ? (
+            {leaving && (
                 <Dialog open onOpenChange={(next) => { if (!next) closeDialogs() }}>
                     <DialogContent>
                         <form onSubmit={submitLeave}>
@@ -446,11 +488,11 @@ export function PlayersDesk() {
                                     </FieldDescription>
                                 </Field>
 
-                                {leave.isError ? (
+                                {leave.isError && (
                                     <p role="alert" className="text-sm text-destructive">
                                         {leave.error.message}
                                     </p>
-                                ) : null}
+                                )}
 
                                 <DialogFooter>
                                     <Button
@@ -466,14 +508,14 @@ export function PlayersDesk() {
                                         variant="destructive"
                                         disabled={leave.isPending || leaveTournament === ""}
                                     >
-                                        {leave.isPending ? "Đang bỏ…" : "Bỏ"}
+                                        {leaveLabel}
                                     </Button>
                                 </DialogFooter>
                             </FieldGroup>
                         </form>
                     </DialogContent>
                 </Dialog>
-            ) : null}
+            )}
         </Card>
     )
 }

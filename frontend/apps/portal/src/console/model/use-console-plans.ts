@@ -26,8 +26,10 @@ interface ConsolePlansInput {
 }
 
 function refusalOf(error: unknown): string {
-    const message = error instanceof Error ? error.message : "Không bắt đầu được vòng"
-    const details = error instanceof ApiError ? error.details ?? [] : []
+    let message = "Không bắt đầu được vòng"
+    if (error instanceof Error) message = error.message
+    let details: string[] = []
+    if (error instanceof ApiError) details = error.details ?? []
     return [message, ...details].join(" — ")
 }
 
@@ -36,14 +38,18 @@ export function useConsolePlans(input: ConsolePlansInput): ConsolePlans {
     const { roundId, stage, open, questions, userSeats, byId, send, sendChain } = transport
     const openIds = open.map((q) => q.questionId)
 
-    const planInput = () => ({
-        stage,
-        hasOralRun: Boolean(transport.projection?.oral),
-        openIds,
-        openQuestionPosition: open.length > 0 ? byId(open[0].questionId)?.position ?? null : null,
-        rows: judging.rows,
-        overrides: judging.overrides,
-    })
+    const planInput = () => {
+        let openQuestionPosition: number | null = null
+        if (open.length > 0) openQuestionPosition = byId(open[0].questionId)?.position ?? null
+        return {
+            stage,
+            hasOralRun: Boolean(transport.projection?.oral),
+            openIds,
+            openQuestionPosition,
+            rows: judging.rows,
+            overrides: judging.overrides,
+        }
+    }
 
     const run = (plan: LiveAction[]) => {
         if (plan.length > 1) return void sendChain(plan)
@@ -54,11 +60,15 @@ export function useConsolePlans(input: ConsolePlansInput): ConsolePlans {
         const veDich = input.veDich
         if (!veDich || openIds.length === 0) return
         const qid = openIds[0]
+        let answererVerdict: "CORRECT" | "INCORRECT" | null = null
+        if (veDich.answererId) answererVerdict = judging.verdictOf(qid, veDich.answererId)
+        let buzzerVerdict: "CORRECT" | "INCORRECT" | null = null
+        if (veDich.buzzerId) buzzerVerdict = judging.verdictOf(qid, veDich.buzzerId)
         const action = roundModuleOf(roundId)?.hetLuotAction?.({
             phase: veDich.phase,
-            answererVerdict: veDich.answererId ? judging.verdictOf(qid, veDich.answererId) : null,
+            answererVerdict,
             buzzerId: veDich.buzzerId,
-            buzzerVerdict: veDich.buzzerId ? judging.verdictOf(qid, veDich.buzzerId) : null,
+            buzzerVerdict,
         }) ?? null
         if (action) send(action)
     }
@@ -87,7 +97,11 @@ export function useConsolePlans(input: ConsolePlansInput): ConsolePlans {
             let expectedVersion = transport.v!.version
             for (const action of plan) {
                 const res = await transport.writer.mutateAsync({ expectedVersion, action })
-                expectedVersion = typeof res?.version === "number" ? res.version : expectedVersion + 1
+                if (typeof res?.version === "number") {
+                    expectedVersion = res.version
+                } else {
+                    expectedVersion = expectedVersion + 1
+                }
             }
             input.nav.enterRound()
             input.onStartError(null)

@@ -15,7 +15,9 @@ function failureOf(error: unknown): ViewFailure | null {
     if (error instanceof ApiError) {
         return { status: error.status, code: error.code, message: error.message }
     }
-    return { status: 0, message: error instanceof Error ? error.message : "Không tải được trận." }
+    let message = "Không tải được trận."
+    if (error instanceof Error) message = error.message
+    return { status: 0, message }
 }
 
 
@@ -120,8 +122,12 @@ export function useLiveMatch(matchId: string, enabled: boolean): UseLiveMatch {
         refetchOnWindowFocus: false,
     })
 
+    let streamPath: string | null = null
+    if (enabled) {
+        if (matchId) streamPath = `/gameplay/matches/${matchId}/live/stream`
+    }
     useSocketStream(
-        enabled && matchId ? `/gameplay/matches/${matchId}/live/stream` : null,
+        streamPath,
         true,
         (message) => {
             const frame = message as StreamFrame | null

@@ -26,22 +26,27 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     try {
         return await apiInner<T>(path, init)
     } catch (error) {
-        logError(
-            "api",
-            `${method} ${path} → ${error instanceof Error ? error.message : String(error)}`
-        )
+        const detail = messageOf(error)
+        logError("api", `${method} ${path} → ${detail}`)
         throw error
     }
 }
 
+function messageOf(error: unknown): string {
+    if (error instanceof Error) return error.message
+    return String(error)
+}
+
 async function apiInner<T>(path: string, init: RequestInit): Promise<T> {
+    let jsonHeaders: Record<string, string> = {}
+    if (init.body) {
+        if (!(init.body instanceof FormData)) jsonHeaders = { "Content-Type": "application/json" }
+    }
     const res = await fetch(path, {
         ...init,
         credentials: "include",
         headers: {
-            ...(init.body && !(init.body instanceof FormData)
-                ? { "Content-Type": "application/json" }
-                : {}),
+            ...jsonHeaders,
             ...(init.headers ?? {}),
         },
     })
@@ -55,12 +60,14 @@ async function apiInner<T>(path: string, init: RequestInit): Promise<T> {
             (body && typeof body === "object" && "message" in body && String(body.message)) ||
             res.statusText ||
             `Request failed (${res.status})`
-        const code =
-            body && typeof body === "object" && "error" in body ? String(body.error) : undefined
-        const details =
-            body && typeof body === "object" && Array.isArray(body.details)
-                ? (body.details as string[])
-                : undefined
+        let code: string | undefined
+        let details: string[] | undefined
+        if (body) {
+            if (typeof body === "object") {
+                if ("error" in body) code = String(body.error)
+                if (Array.isArray(body.details)) details = body.details as string[]
+            }
+        }
 
         if (code === "PASSWORD_CHANGE_REQUIRED" && typeof window !== "undefined") {
             const at = window.location.pathname

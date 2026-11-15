@@ -40,7 +40,10 @@ function applyBuzz(card: CardData, input: RailCardsInput): void {
 
 function ringOf(id: string, input: RailCardsInput): CardData["ring"] {
     const ticked = input.judgingId !== null && input.selectedIds.has(id)
-    if (input.selectedIds.size > 0) return ticked ? "selected" : undefined
+    if (input.selectedIds.size > 0) {
+        if (ticked) return "selected"
+        return undefined
+    }
     if (input.roundId === "giai-ma") return undefined
     const targetIsLive = (input.judgingId ?? input.resolvingId) !== null
     if (input.target === id && targetIsLive) return "selected"
@@ -50,14 +53,22 @@ function ringOf(id: string, input: RailCardsInput): CardData["ring"] {
 
 function applyAnswer(card: CardData, row: QuestionAnswerRow | undefined, input: RailCardsInput): void {
     if (input.railVariant !== "answers" || !input.railQ) return
-    card.answer = row ? valueText(row, input.railQuestion) : "—"
-    card.value = row
-        ? row.pointsAwarded !== null
-            ? String(row.pointsAwarded)
-            : row.verdict === null
-              ? "…"
-              : valueText(row, input.railQuestion)
-        : "—"
+    let answer = "—"
+    if (row) answer = valueText(row, input.railQuestion)
+    card.answer = answer
+    let value = "—"
+    if (row) {
+        if (row.pointsAwarded !== null) {
+            value = String(row.pointsAwarded)
+        } else {
+            if (row.verdict === null) {
+                value = "…"
+            } else {
+                value = valueText(row, input.railQuestion)
+            }
+        }
+    }
+    card.value = value
     card.verdict = input.verdictOf(input.railQ, card.id)
 }
 
@@ -71,13 +82,19 @@ function applyGiaiMa(card: CardData, input: RailCardsInput): void {
 function applyStagedPower(card: CardData, input: RailCardsInput): void {
     const staged = input.veDich?.stagedPower
     if (!staged || input.veDich?.turnPlayerId !== card.id) return
-    card.badge = staged.power === "STAR"
-        ? { text: "Ngôi sao", tone: "amber" }
-        : { text: "Chỉ định", tone: "emerald" }
+    let badgeText = "Chỉ định"
+    let badgeTone: "emerald" | "amber" = "emerald"
+    if (staged.power === "STAR") {
+        badgeText = "Ngôi sao"
+        badgeTone = "amber"
+    }
+    card.badge = { text: badgeText, tone: badgeTone }
 }
 
 function applyPower(card: CardData, input: RailCardsInput): void {
-    const power = input.roundId === "ve-dich" ? input.veDich?.power : null
+    const veDichPower = input.veDich?.power
+    let power: typeof veDichPower = null
+    if (input.roundId === "ve-dich") power = veDichPower
     if (!power || !input.veDich) return
     if (power === "STAR" && input.veDich.answererId === card.id) {
         card.badge = { text: "Ngôi sao", tone: "amber" }
@@ -105,7 +122,13 @@ export function railCardsOf(input: RailCardsInput): CardData[] {
     })
 
     if (input.oralPlayerId !== null) {
-        for (const card of cards) card.ring = card.id === input.oralPlayerId ? "active" : undefined
+        for (const card of cards) {
+            if (card.id === input.oralPlayerId) {
+                card.ring = "active"
+            } else {
+                card.ring = undefined
+            }
+        }
     }
 
     return cards

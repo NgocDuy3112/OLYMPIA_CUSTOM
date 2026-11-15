@@ -11,7 +11,13 @@ export function ButPhaAOCPlayer({ ctx }: { ctx: ButPhaPlayerCtx }) {
     const { v, remaining, myId, flash, answerBusy, submitAnswer } = ctx
     const openQ = ctx.open[0] ?? null
     const pos = openQ?.question?.position ?? null
-    const done = ctx.stage === "ended" ? 4 : pos !== null ? pos : 0
+    let done = 0
+    if (pos !== null) done = pos
+    if (ctx.stage === "ended") done = 4
+    let timerRemaining: number | null = null
+    if (openQ) {
+        if (openQ.deadlineAt) timerRemaining = remaining
+    }
     return (
         <PlayerStage
             rail={<Rail variant="answers" view={v} myId={myId} currentQid={openQ?.questionId ?? null} />}
@@ -21,14 +27,14 @@ export function ButPhaAOCPlayer({ ctx }: { ctx: ButPhaPlayerCtx }) {
                 right={
                     <>
                         <Progress total={4} done={done} active={pos ?? done} />
-                        <Timer remaining={openQ?.deadlineAt ? remaining : null} />
+                        <Timer remaining={timerRemaining} />
                     </>
                 }
                 question={openQ?.question?.questionText ?? null}
                 media={openQ?.question?.media ?? null}
                 answer={v.revealed?.answer}
             />
-            {openQ ? (
+            {openQ && (
                 <AnswerBand
                     question={openQ.question}
                     answerState={v.me.answerState}
@@ -37,7 +43,7 @@ export function ButPhaAOCPlayer({ ctx }: { ctx: ButPhaPlayerCtx }) {
                     error={flash}
                     onSubmit={(value) => submitAnswer(openQ.questionId, value)}
                 />
-            ) : null}
+            )}
         </PlayerStage>
     )
 }

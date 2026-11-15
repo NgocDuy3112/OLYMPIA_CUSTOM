@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import { Link } from "react-router-dom"
 import { CalendarDays, SearchX } from "lucide-react"
 import { Badge } from "@shared/ui/badge"
@@ -45,10 +45,82 @@ export function TournamentsPage() {
 
     const total = data?.total ?? 0
     const items = data?.items ?? []
-    const first = total === 0 ? 0 : offset + 1
+    let first = offset + 1
+    if (total === 0) first = 0
     const last = Math.min(offset + SEASONS_PAGE_SIZE, total)
     const canGoBack = offset > 0
     const canGoForward = offset + SEASONS_PAGE_SIZE < total
+
+    let rangeText = `${first}–${last} of ${total}`
+    if (total === 0) rangeText = "Nothing yet"
+    let emptyIcon = CalendarDays
+    if (searchInput) emptyIcon = SearchX
+    let emptyTitle = "No tournaments yet"
+    if (searchInput) emptyTitle = "No tournament matches that search"
+    let emptyDescription = "Create the first tournament to start a run."
+    if (searchInput) emptyDescription = "Try a different name."
+    let errorMessage = "Could not load the tournaments."
+    if (error instanceof Error) errorMessage = error.message
+
+    let listSlot: ReactNode = (
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Stages</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead>Status</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {items.map((tournament) => (
+                    <TableRow key={tournament.id}>
+                        <TableCell className="font-medium">
+                            <Link
+                                className="underline-offset-2 hover:underline"
+                                to={`/tournaments/${tournament.id}`}
+                            >
+                                {tournament.name}
+                            </Link>
+                        </TableCell>
+                        <TableCell>{tournament.stages.length}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                            {dateFormat.format(new Date(tournament.createdAt))}
+                        </TableCell>
+                        <TableCell className="flex gap-2">
+                            {tournament.current && <Badge>Current</Badge>}
+                            {tournament.closedAt && (
+                                <Badge variant="secondary">Closed</Badge>
+                            )}
+                            {tournament.visibility === "PRIVATE" && (
+                                <Badge variant="outline">Private</Badge>
+                            )}
+                            {!tournament.current &&
+                                !tournament.closedAt &&
+                                tournament.visibility !== "PRIVATE" && (
+                                    <span className="text-muted-foreground">—</span>
+                                )}
+                        </TableCell>
+                    </TableRow>
+                ))}
+            </TableBody>
+        </Table>
+    )
+    if (items.length === 0) {
+        listSlot = (
+            <EmptyState
+                icon={emptyIcon}
+                title={emptyTitle}
+                description={emptyDescription}
+            />
+        )
+    }
+    if (isError) {
+        listSlot = <ErrorPanel message={errorMessage} />
+    }
+    if (isPending) {
+        listSlot = <ListSkeleton rows={3} />
+    }
 
     return (
         <Page>
@@ -81,69 +153,12 @@ export function TournamentsPage() {
                 </CardHeader>
 
                 <CardContent className="p-0 [&_th:first-child]:pl-(--card-spacing) [&_td:first-child]:pl-(--card-spacing) [&_th:last-child]:pr-(--card-spacing) [&_td:last-child]:pr-(--card-spacing)]">
-                    {isPending ? (
-                        <ListSkeleton rows={3} />
-                    ) : isError ? (
-                        <ErrorPanel message={error instanceof Error ? error.message : "Could not load the tournaments."} />
-                    ) : items.length === 0 ? (
-                        <EmptyState
-                            icon={searchInput ? SearchX : CalendarDays}
-                            title={searchInput ? "No tournament matches that search" : "No tournaments yet"}
-                            description={
-                                searchInput
-                                    ? "Try a different name."
-                                    : "Create the first tournament to start a run."
-                            }
-                        />
-                    ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Stages</TableHead>
-                                    <TableHead>Created</TableHead>
-                                    <TableHead>Status</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {items.map((tournament) => (
-                                    <TableRow key={tournament.id}>
-                                        <TableCell className="font-medium">
-                                            <Link
-                                                className="underline-offset-2 hover:underline"
-                                                to={`/tournaments/${tournament.id}`}
-                                            >
-                                                {tournament.name}
-                                            </Link>
-                                        </TableCell>
-                                        <TableCell>{tournament.stages.length}</TableCell>
-                                        <TableCell className="text-muted-foreground">
-                                            {dateFormat.format(new Date(tournament.createdAt))}
-                                        </TableCell>
-                                        <TableCell className="flex gap-2">
-                                            {tournament.current && <Badge>Current</Badge>}
-                                            {tournament.closedAt && (
-                                                <Badge variant="secondary">Closed</Badge>
-                                            )}
-                                            {tournament.visibility === "PRIVATE" && (
-                                                <Badge variant="outline">Private</Badge>
-                                            )}
-                                            {!tournament.current &&
-                                                !tournament.closedAt &&
-                                                tournament.visibility !== "PRIVATE" && (
-                                                    <span className="text-muted-foreground">—</span>
-                                                )}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    )}
+                    {listSlot}
                 </CardContent>
 
                 <CardFooter className="justify-between gap-4 border-t">
                     <p className="text-sm text-muted-foreground">
-                        {total === 0 ? "Nothing yet" : `${first}–${last} of ${total}`}
+                        {rangeText}
                     </p>
                     <div className="flex gap-2">
                         <Button

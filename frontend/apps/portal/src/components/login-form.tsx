@@ -1,4 +1,4 @@
-import { useState, type SubmitEvent } from "react"
+import { useState, type SubmitEvent, type ReactNode } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { cn } from "cn"
 
@@ -61,11 +61,12 @@ export function LoginForm({
         onSuccess: (result) => {
           setPassword("")
           setCode("")
-          setStep({
+          const codeStep: Step = {
             kind: "code",
             pendingToken: result.pendingToken,
-            ...(result.otpauthUri ? { otpauthUri: result.otpauthUri } : {}),
-          })
+          }
+          if (result.otpauthUri) codeStep.otpauthUri = result.otpauthUri
+          setStep(codeStep)
         },
       }
     )
@@ -92,25 +93,22 @@ export function LoginForm({
             return
           }
 
+          let notice = "That code didn't work. Check the app and try again."
+          if (failure === "rate-limited") notice = "Too many attempts. Try again in a minute."
+          if (failure === "reused") notice = "That code was already used. Wait for the next one."
           setStep({
             ...step,
-            notice:
-              failure === "reused"
-                ? "That code was already used. Wait for the next one."
-                : failure === "rate-limited"
-                  ? "Too many attempts. Try again in a minute."
-                  : "That code didn't work. Check the app and try again.",
+            notice,
           })
         },
       }
     )
   }
 
-  return (
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card className="overflow-hidden p-0">
-        <CardContent className="grid p-0 md:grid-cols-2">
-          {step.kind === "credentials" ? (
+  let loginLabel = "Continue"
+  if (login.isPending) loginLabel = "Signing in…"
+
+  let stepSlot: ReactNode = (
             <form className="p-6 md:p-8" onSubmit={submitCredentials}>
               <FieldGroup>
                 <div className="flex flex-col items-center gap-2 text-center">
@@ -148,7 +146,7 @@ export function LoginForm({
                 {step.notice && <FieldError>{step.notice}</FieldError>}
                 <Field>
                   <Button type="submit" disabled={login.isPending}>
-                    {login.isPending ? "Signing in…" : "Continue"}
+                    {loginLabel}
                   </Button>
                 </Field>
                 <FieldDescription className="text-center">
@@ -156,19 +154,23 @@ export function LoginForm({
                 </FieldDescription>
               </FieldGroup>
             </form>
-          ) : (
+  )
+  if (step.kind !== "credentials") {
+    let titleText = "Two-factor code"
+    if (step.otpauthUri) titleText = "Set up your authenticator"
+    let hintText = "Enter the 6-digit code from your authenticator app."
+    if (step.otpauthUri) hintText = "Scan this with your authenticator app, then enter the 6-digit code it shows."
+    let verifyLabel = "Confirm"
+    if (verify.isPending) verifyLabel = "Verifying…"
+    stepSlot = (
             <form className="p-6 md:p-8" onSubmit={submitCode}>
               <FieldGroup>
                 <div className="flex flex-col items-center gap-2 text-center">
                   <h1 className="text-2xl font-bold">
-                    {step.otpauthUri
-                      ? "Set up your authenticator"
-                      : "Two-factor code"}
+                    {titleText}
                   </h1>
                   <p className="text-balance text-muted-foreground">
-                    {step.otpauthUri
-                      ? "Scan this with your authenticator app, then enter the 6-digit code it shows."
-                      : "Enter the 6-digit code from your authenticator app."}
+                    {hintText}
                   </p>
                 </div>
 
@@ -217,7 +219,7 @@ export function LoginForm({
                     type="submit"
                     disabled={code.length !== CODE_LENGTH || verify.isPending}
                   >
-                    {verify.isPending ? "Verifying…" : "Confirm"}
+                    {verifyLabel}
                   </Button>
                   <Button
                     type="button"
@@ -229,7 +231,14 @@ export function LoginForm({
                 </Field>
               </FieldGroup>
             </form>
-          )}
+    )
+  }
+
+  return (
+    <div className={cn("flex flex-col gap-6", className)} {...props}>
+      <Card className="overflow-hidden p-0">
+        <CardContent className="grid p-0 md:grid-cols-2">
+          {stepSlot}
 
           <div className="relative hidden bg-muted md:block">
             <img

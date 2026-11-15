@@ -51,7 +51,8 @@ export function MatchPage() {
         )
     }
 
-    const defaultTab = match.status === "UPCOMING" ? "cau-hoi" : "ket-qua"
+    let defaultTab: "cau-hoi" | "ket-qua" = "ket-qua"
+    if (match.status === "UPCOMING") defaultTab = "cau-hoi"
 
     return (
         <Page>

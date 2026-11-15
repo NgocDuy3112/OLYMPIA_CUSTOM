@@ -52,14 +52,17 @@ function InviteOperatorDialog({ open, onClose }: { open: boolean; onClose: () =>
     }
 
     const create = useMutation({
-        mutationFn: () =>
-            api<{ inviteToken: string }>("/portal/operators", {
+        mutationFn: () => {
+            const patch: { displayName?: string } = {}
+            if (displayName.trim()) patch.displayName = displayName.trim()
+            return api<{ inviteToken: string }>("/portal/operators", {
                 method: "POST",
                 body: JSON.stringify({
                     username: username.trim(),
-                    ...(displayName.trim() ? { displayName: displayName.trim() } : {}),
+                    ...patch,
                 }),
-            }),
+            })
+        },
         onSuccess: (result) => {
             setInviteToken(result.inviteToken)
             void queryClient.invalidateQueries({ queryKey: ["operators"] })
@@ -68,32 +71,34 @@ function InviteOperatorDialog({ open, onClose }: { open: boolean; onClose: () =>
     })
 
     const usernameOk = USERNAME_PATTERN.test(username.trim())
-    const reason = !username.trim()
-        ? "A username is required"
-        : !usernameOk
-            ? "3–50 chars: letters, digits, dot, dash, underscore"
-            : null
+    let reason: string | null = null
+    if (!usernameOk) reason = "3–50 chars: letters, digits, dot, dash, underscore"
+    if (!username.trim()) reason = "A username is required"
 
-    const request = inviteToken
-        ? `POST /portal/invites/accept\n{"token": "${inviteToken}", "password": "<their chosen password>"}`
-        : null
+    let request: string | null = null
+    if (inviteToken) {
+        request = `POST /portal/invites/accept\n{"token": "${inviteToken}", "password": "<their chosen password>"}`
+    }
+    let copyLabel = "Copy"
+    if (copied) copyLabel = "Copied"
+    let createLabel = "Create operator"
+    if (create.isPending) createLabel = "Creating…"
 
-    return (
-        <Dialog
-            open={open}
-            onOpenChange={(next) => {
-                if (!next) {
-                    reset()
-                    onClose()
-                }
-            }}
-        >
-            <DialogContent className="sm:max-w-lg">
-                {inviteToken ? (
-                    <>
-                        <DialogHeader>
-                            <DialogTitle>Invite created — shown once</DialogTitle>
-                        </DialogHeader>
+    if (inviteToken) {
+        return (
+            <Dialog
+                open={open}
+                onOpenChange={(next) => {
+                    if (!next) {
+                        reset()
+                        onClose()
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Invite created — shown once</DialogTitle>
+                    </DialogHeader>
                         <div className="grid gap-2">
                             <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3">
                                 <code className="min-w-0 flex-1 break-all font-mono text-xs">{inviteToken}</code>
@@ -106,7 +111,7 @@ function InviteOperatorDialog({ open, onClose }: { open: boolean; onClose: () =>
                                     }}
                                 >
                                     <Copy className="size-3.5" aria-hidden />
-                                    {copied ? "Copied" : "Copy"}
+                                    {copyLabel}
                                 </Button>
                             </div>
                             <p className="text-xs text-muted-foreground">
@@ -126,8 +131,22 @@ function InviteOperatorDialog({ open, onClose }: { open: boolean; onClose: () =>
                                 Done
                             </Button>
                         </DialogFooter>
-                    </>
-                ) : (
+                </DialogContent>
+            </Dialog>
+        )
+    }
+
+    return (
+        <Dialog
+            open={open}
+            onOpenChange={(next) => {
+                if (!next) {
+                    reset()
+                    onClose()
+                }
+            }}
+        >
+            <DialogContent className="sm:max-w-lg">
                     <>
                         <DialogHeader>
                             <DialogTitle>New operator</DialogTitle>
@@ -161,11 +180,10 @@ function InviteOperatorDialog({ open, onClose }: { open: boolean; onClose: () =>
                             <span className="mr-auto text-xs text-muted-foreground">{reason}</span>
                             <Button variant="outline" onClick={() => { reset(); onClose() }}>Cancel</Button>
                             <Button disabled={reason !== null || create.isPending} onClick={() => create.mutate()}>
-                                {create.isPending ? "Creating…" : "Create operator"}
+                                {createLabel}
                             </Button>
                         </DialogFooter>
                     </>
-                )}
             </DialogContent>
         </Dialog>
     )
@@ -215,27 +233,33 @@ export function OperatorsPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {list.data.items.map((operator) => (
-                                <TableRow key={operator.id}>
-                                    <TableCell className="font-mono text-sm">{operator.username}</TableCell>
-                                    <TableCell className="font-medium">{operator.displayName}</TableCell>
-                                    <TableCell>
-                                        <Badge variant={operator.role === "ADMIN" ? "default" : "outline"}>
-                                            {operator.role}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-sm text-muted-foreground">
-                                        {dateFormat.format(new Date(operator.createdAt))}
-                                    </TableCell>
-                                    <TableCell>
-                                        {operator.disabledAt ? (
-                                            <span className="text-sm font-medium text-destructive">Disabled</span>
-                                        ) : (
-                                            <span className="text-sm text-muted-foreground">Active</span>
-                                        )}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
+                            {list.data.items.map((operator) => {
+                                let roleVariant: "default" | "outline" = "outline"
+                                if (operator.role === "ADMIN") roleVariant = "default"
+                                let statusText = "Active"
+                                let statusCls = "text-sm text-muted-foreground"
+                                if (operator.disabledAt) {
+                                    statusText = "Disabled"
+                                    statusCls = "text-sm font-medium text-destructive"
+                                }
+                                return (
+                                    <TableRow key={operator.id}>
+                                        <TableCell className="font-mono text-sm">{operator.username}</TableCell>
+                                        <TableCell className="font-medium">{operator.displayName}</TableCell>
+                                        <TableCell>
+                                            <Badge variant={roleVariant}>
+                                                {operator.role}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-sm text-muted-foreground">
+                                            {dateFormat.format(new Date(operator.createdAt))}
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className={statusCls}>{statusText}</span>
+                                        </TableCell>
+                                    </TableRow>
+                                )
+                            })}
                         </TableBody>
                     </Table>
                 </div>

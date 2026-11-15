@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { AudienceFace, PlayerStage, Progress, QuestionCard, Rail, Timer, type PlayerCore } from "../player-deck"
 
 type KhoiDongRiengPlayerCtx = PlayerCore
@@ -7,7 +8,14 @@ type KhoiDongRiengPlayerCtx = PlayerCore
 export function KhoiDongRiengAOCPlayer({ ctx }: { ctx: KhoiDongRiengPlayerCtx }) {
     const { v, myId, audience } = ctx
     const oral = v.oral
-    const budgetLeft = oral ? Math.max(0, Math.ceil(oral.budgetS - oral.elapsedS)) : null
+    let budgetLeft: number | null = null
+    if (oral) budgetLeft = Math.max(0, Math.ceil(oral.budgetS - oral.elapsedS))
+    let budgetText = "45"
+    if (budgetLeft !== null) budgetText = String(budgetLeft)
+    let faceSlot: ReactNode = undefined
+    if (audience) {
+        faceSlot = <AudienceFace options={oral?.question?.payload.options ?? []} />
+    }
     return (
         <PlayerStage
             rail={<Rail variant="compact" view={v} myId={myId} />}
@@ -18,16 +26,12 @@ export function KhoiDongRiengAOCPlayer({ ctx }: { ctx: KhoiDongRiengPlayerCtx })
                 right={
                     <>
                         <Progress total={oral?.total ?? 6} done={oral?.index ?? 0} active={oral?.index ?? 0} />
-                        <Timer remaining={null} fallback={budgetLeft !== null ? String(budgetLeft) : "45"} />
+                        <Timer remaining={null} fallback={budgetText} />
                     </>
                 }
                 question={oral?.question?.questionText ?? null}
                 media={oral?.question?.media ?? null}
-                face={
-                    audience ? (
-                        <AudienceFace options={oral?.question?.payload.options ?? []} />
-                    ) : undefined
-                }
+                face={faceSlot}
                 
             />
         </PlayerStage>

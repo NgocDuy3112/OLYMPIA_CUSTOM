@@ -14,12 +14,24 @@ export const ConsoleHostContext = createContext<ConsoleHost | null>(null)
 export function ConsoleControls({ host }: Pick<ConsoleHost, "host">) {
     const errorText = host.mediaError
 
-    const camBtnCls = (on: boolean) =>
-        `flex size-7 items-center justify-center rounded-lg ring-1 transition disabled:opacity-40 ${
-            on
-                ? "bg-background text-foreground ring-border hover:bg-muted"
-                : "bg-destructive/10 text-destructive ring-destructive/30 hover:bg-destructive/20"
-        }`
+    const camBtnCls = (on: boolean) => {
+        let tone = "bg-destructive/10 text-destructive ring-destructive/30 hover:bg-destructive/20"
+        if (on) tone = "bg-background text-foreground ring-border hover:bg-muted"
+        return `flex size-7 items-center justify-center rounded-lg ring-1 transition disabled:opacity-40 ${tone}`
+    }
+
+    let MicIcon = MicOff
+    let micLabel = "Bật mic"
+    if (host.micOn) {
+        MicIcon = Mic
+        micLabel = "Tắt mic"
+    }
+    let CamIcon = CameraOff
+    let camLabel = "Bật camera"
+    if (host.camOn) {
+        CamIcon = Camera
+        camLabel = "Tắt camera"
+    }
 
     return (
         <>
@@ -29,26 +41,22 @@ export function ConsoleControls({ host }: Pick<ConsoleHost, "host">) {
                     onClick={host.toggleMic}
                     disabled={!host.connected}
                     aria-pressed={host.micOn}
-                    aria-label={host.micOn ? "Tắt mic" : "Bật mic"}
-                    title={host.micOn ? "Tắt mic" : "Bật mic"}
+                    aria-label={micLabel}
+                    title={micLabel}
                     className={camBtnCls(host.micOn)}
                 >
-                    {host.micOn ? <Mic className="size-4" /> : <MicOff className="size-4" />}
+                    <MicIcon className="size-4" />
                 </button>
                 <button
                     type="button"
                     onClick={host.toggleCam}
                     disabled={!host.connected}
                     aria-pressed={host.camOn}
-                    aria-label={host.camOn ? "Tắt camera" : "Bật camera"}
-                    title={host.camOn ? "Tắt camera" : "Bật camera"}
+                    aria-label={camLabel}
+                    title={camLabel}
                     className={camBtnCls(host.camOn)}
                 >
-                    {host.camOn ? (
-                        <Camera className="size-4" />
-                    ) : (
-                        <CameraOff className="size-4" />
-                    )}
+                    <CamIcon className="size-4" />
                 </button>
             </div>
 

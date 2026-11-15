@@ -84,11 +84,62 @@ function IssueKeyDialog({ open, onClose }: { open: boolean; onClose: () => void 
     })
 
     const toggleScope = (scope: Scope) =>
-        setScopes((current) =>
-            current.includes(scope) ? current.filter((s) => s !== scope) : [...current, scope]
-        )
+        setScopes((current) => {
+            if (current.includes(scope)) return current.filter((s) => s !== scope)
+            return [...current, scope]
+        })
 
-    const reason = !label.trim() ? "A label says what this key is for" : scopes.length === 0 ? "Pick at least one scope" : null
+    let reason: string | null = null
+    if (scopes.length === 0) reason = "Pick at least one scope"
+    if (!label.trim()) reason = "A label says what this key is for"
+    let copyLabel = "Copy"
+    if (copied) copyLabel = "Copied"
+    let issueLabel = "Issue key"
+    if (issue.isPending) issueLabel = "Issuing…"
+
+    if (issued) {
+        return (
+            <Dialog
+                open={open}
+                onOpenChange={(next) => {
+                    if (!next) {
+                        reset()
+                        onClose()
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Key issued — shown once</DialogTitle>
+                    </DialogHeader>
+                    <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3">
+                        <code className="min-w-0 flex-1 break-all font-mono text-xs">{issued}</code>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                                void navigator.clipboard.writeText(issued)
+                                setCopied(true)
+                            }}
+                        >
+                            <Copy className="size-3.5" aria-hidden />
+                            {copyLabel}
+                        </Button>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            onClick={() => {
+                                reset()
+                                onClose()
+                            }}
+                        >
+                            Done
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        )
+    }
 
     return (
         <Dialog
@@ -101,37 +152,6 @@ function IssueKeyDialog({ open, onClose }: { open: boolean; onClose: () => void 
             }}
         >
             <DialogContent className="sm:max-w-lg">
-                {issued ? (
-                    <>
-                        <DialogHeader>
-                            <DialogTitle>Key issued — shown once</DialogTitle>
-                        </DialogHeader>
-                        <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3">
-                            <code className="min-w-0 flex-1 break-all font-mono text-xs">{issued}</code>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                    void navigator.clipboard.writeText(issued)
-                                    setCopied(true)
-                                }}
-                            >
-                                <Copy className="size-3.5" aria-hidden />
-                                {copied ? "Copied" : "Copy"}
-                            </Button>
-                        </div>
-                        <DialogFooter>
-                            <Button
-                                onClick={() => {
-                                    reset()
-                                    onClose()
-                                }}
-                            >
-                                Done
-                            </Button>
-                        </DialogFooter>
-                    </>
-                ) : (
                     <>
                         <DialogHeader>
                             <DialogTitle>New MCP key</DialogTitle>
@@ -183,11 +203,10 @@ function IssueKeyDialog({ open, onClose }: { open: boolean; onClose: () => void 
                             <span className="mr-auto text-xs text-muted-foreground">{reason}</span>
                             <Button variant="outline" onClick={() => { reset(); onClose() }}>Cancel</Button>
                             <Button disabled={reason !== null || issue.isPending} onClick={() => issue.mutate()}>
-                                {issue.isPending ? "Issuing…" : "Issue key"}
+                                {issueLabel}
                             </Button>
                         </DialogFooter>
                     </>
-                )}
             </DialogContent>
         </Dialog>
     )
@@ -206,6 +225,9 @@ function RevokeDialog({ keyRow, onClose }: { keyRow: McpKey | null; onClose: () 
         },
         onError: (cause) => setError(messageOf(cause)),
     })
+
+    let revokeLabel = "Revoke key"
+    if (revoke.isPending) revokeLabel = "Revoking…"
 
     return (
         <Dialog
@@ -226,7 +248,7 @@ function RevokeDialog({ keyRow, onClose }: { keyRow: McpKey | null; onClose: () 
                         disabled={revoke.isPending}
                         onClick={() => revoke.mutate()}
                     >
-                        {revoke.isPending ? "Revoking…" : "Revoke key"}
+                        {revokeLabel}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -283,6 +305,12 @@ export function McpKeysPage() {
                         <TableBody>
                             {list.data.items.map((key) => {
                                 const status = statusOf(key)
+                                let lastUsed = "never"
+                                if (key.lastUsedAt) lastUsed = dateFormat.format(new Date(key.lastUsedAt))
+                                let expires = "never"
+                                if (key.expiresAt) expires = dateFormat.format(new Date(key.expiresAt))
+                                let revokeTitle = "Stop this key from working"
+                                if (key.revokedAt) revokeTitle = "Already revoked"
                                 return (
                                     <TableRow key={key.id}>
                                         <TableCell className="font-mono text-sm">{key.prefix}…</TableCell>
@@ -298,17 +326,17 @@ export function McpKeysPage() {
                                             <span className={`text-sm font-medium ${status.className}`}>{status.label}</span>
                                         </TableCell>
                                         <TableCell className="text-sm text-muted-foreground">
-                                            {key.lastUsedAt ? dateFormat.format(new Date(key.lastUsedAt)) : "never"}
+                                            {lastUsed}
                                         </TableCell>
                                         <TableCell className="text-sm text-muted-foreground">
-                                            {key.expiresAt ? dateFormat.format(new Date(key.expiresAt)) : "never"}
+                                            {expires}
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <Button
                                                 variant="outline"
                                                 size="sm"
                                                 disabled={key.revokedAt !== null}
-                                                title={key.revokedAt ? "Already revoked" : "Stop this key from working"}
+                                                title={revokeTitle}
                                                 onClick={() => setRevoking(key)}
                                             >
                                                 <Trash2 className="size-3.5" aria-hidden /> Revoke

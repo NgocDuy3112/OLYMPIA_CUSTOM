@@ -43,21 +43,28 @@ export function useConsoleJudging(input: JudgingScopeInput): ConsoleJudging {
     const answers = useQuestionAnswers(input.tournamentId, input.matchId, ids.judgingId ?? ids.resolvingId)
     const rows = answers.data ?? []
 
-    const selectedIds = picked.qid === ids.judgingId ? picked.ids : EMPTY_PICKS
+    let selectedIds: ReadonlySet<string> = EMPTY_PICKS
+    if (picked.qid === ids.judgingId) selectedIds = picked.ids
     const target = targetOf(rows.map((r) => r.userId), selectedPlayer)
 
     const verdictOf = (questionId: string, userId: string): "CORRECT" | "INCORRECT" | null => {
         const key = `${questionId}:${userId}`
-        if (key in overrides) return overrides[key] ? "CORRECT" : "INCORRECT"
+        if (key in overrides) {
+            if (overrides[key]) return "CORRECT"
+            return "INCORRECT"
+        }
         return rows.find((r) => r.userId === userId)?.verdict ?? null
     }
 
     const setVerdict = (correct: boolean) => {
         const qid = ids.judgingId ?? ids.resolvingId
         if (!qid) return
-        const targets = selectedIds.size > 0
-            ? [...selectedIds]
-            : target !== null ? [target] : []
+        let targets: string[] = []
+        if (selectedIds.size > 0) {
+            targets = [...selectedIds]
+        } else {
+            if (target !== null) targets = [target]
+        }
         if (targets.length === 0) return
         setOverrides((o) => {
             const next = { ...o }
@@ -68,7 +75,9 @@ export function useConsoleJudging(input: JudgingScopeInput): ConsoleJudging {
 
     const toggleSelect = (userId: string) =>
         setPicked((prev) => {
-            const next = new Set(prev.qid === ids.judgingId ? prev.ids : EMPTY_PICKS)
+            let base: ReadonlySet<string> = EMPTY_PICKS
+            if (prev.qid === ids.judgingId) base = prev.ids
+            const next = new Set(base)
             if (next.has(userId)) next.delete(userId)
             else next.add(userId)
             return { qid: ids.judgingId, ids: next }

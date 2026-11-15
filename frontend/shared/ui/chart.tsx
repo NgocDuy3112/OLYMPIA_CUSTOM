@@ -100,7 +100,9 @@ ${colorConfig
     const color =
       itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ??
       itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
+    let rule = ""
+    if (color) rule = `  --color-${key}: ${color};`
+    return rule
   })
   .join("\n")}
 }
@@ -152,10 +154,10 @@ function ChartTooltipContent({
     const [item] = payload
     const key = `${labelKey ?? item?.dataKey ?? item?.name ?? "value"}`
     const itemConfig = getPayloadConfigFromPayload(config, item, key)
-    const value =
-      !labelKey && typeof label === "string"
-        ? (config[label]?.label ?? label)
-        : itemConfig?.label
+    let value = itemConfig?.label
+    if (!labelKey) {
+      if (typeof label === "string") value = config[label]?.label ?? label
+    }
 
     if (labelFormatter) {
       return (
@@ -186,6 +188,13 @@ function ChartTooltipContent({
 
   const nestLabel = payload.length === 1 && indicator !== "dot"
 
+  let leadLabel: React.ReactNode = null
+  if (!nestLabel) leadLabel = tooltipLabel
+  let innerLabel: React.ReactNode = null
+  if (nestLabel) innerLabel = tooltipLabel
+  let labelAlignClass = "items-center"
+  if (nestLabel) labelAlignClass = "items-end"
+
   return (
     <div
       className={cn(
@@ -193,7 +202,7 @@ function ChartTooltipContent({
         className
       )}
     >
-      {!nestLabel ? tooltipLabel : null}
+      {leadLabel}
       <div className="grid gap-1.5">
         {payload
           .filter((item) => item.type !== "none")
@@ -201,65 +210,78 @@ function ChartTooltipContent({
             const key = `${nameKey ?? item.name ?? item.dataKey ?? "value"}`
             const itemConfig = getPayloadConfigFromPayload(config, item, key)
             const indicatorColor = color ?? item.payload?.fill ?? item.color
+            const rowClass = cn(
+              "flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5 [&>svg]:text-muted-foreground",
+              indicator === "dot" && "items-center"
+            )
+
+            if (formatter) {
+              if (item?.value !== undefined) {
+                if (item.name) {
+                  return (
+                    <div key={index} className={rowClass}>
+                      {formatter(item.value, item.name, item, index, item.payload)}
+                    </div>
+                  )
+                }
+              }
+            }
+
+            let indicatorSlot: React.ReactNode = null
+            if (itemConfig?.icon) {
+              const IndicatorIcon = itemConfig.icon
+              indicatorSlot = <IndicatorIcon />
+            } else {
+              if (!hideIndicator) {
+                indicatorSlot = (
+                  <div
+                    className={cn(
+                      "shrink-0 rounded-[2px] border-(--color-border) bg-(--color-bg)",
+                      {
+                        "h-2.5 w-2.5": indicator === "dot",
+                        "w-1": indicator === "line",
+                        "w-0 border-[1.5px] border-dashed bg-transparent":
+                          indicator === "dashed",
+                        "my-0.5": nestLabel && indicator === "dashed",
+                      }
+                    )}
+                    style={
+                      {
+                        "--color-bg": indicatorColor,
+                        "--color-border": indicatorColor,
+                      } as React.CSSProperties
+                    }
+                  />
+                )
+              }
+            }
+
+            let displayValue = String(item.value)
+            if (typeof item.value === "number") {
+              displayValue = item.value.toLocaleString()
+            }
 
             return (
-              <div
-                key={index}
-                className={cn(
-                  "flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5 [&>svg]:text-muted-foreground",
-                  indicator === "dot" && "items-center"
-                )}
-              >
-                {formatter && item?.value !== undefined && item.name ? (
-                  formatter(item.value, item.name, item, index, item.payload)
-                ) : (
-                  <>
-                    {itemConfig?.icon ? (
-                      <itemConfig.icon />
-                    ) : (
-                      !hideIndicator && (
-                        <div
-                          className={cn(
-                            "shrink-0 rounded-[2px] border-(--color-border) bg-(--color-bg)",
-                            {
-                              "h-2.5 w-2.5": indicator === "dot",
-                              "w-1": indicator === "line",
-                              "w-0 border-[1.5px] border-dashed bg-transparent":
-                                indicator === "dashed",
-                              "my-0.5": nestLabel && indicator === "dashed",
-                            }
-                          )}
-                          style={
-                            {
-                              "--color-bg": indicatorColor,
-                              "--color-border": indicatorColor,
-                            } as React.CSSProperties
-                          }
-                        />
-                      )
-                    )}
-                    <div
-                      className={cn(
-                        "flex flex-1 justify-between leading-none",
-                        nestLabel ? "items-end" : "items-center"
-                      )}
-                    >
-                      <div className="grid gap-1.5">
-                        {nestLabel ? tooltipLabel : null}
-                        <span className="text-muted-foreground">
-                          {itemConfig?.label ?? item.name}
-                        </span>
-                      </div>
-                      {item.value != null && (
-                        <span className="font-mono font-medium text-foreground tabular-nums">
-                          {typeof item.value === "number"
-                            ? item.value.toLocaleString()
-                            : String(item.value)}
-                        </span>
-                      )}
-                    </div>
-                  </>
-                )}
+              <div key={index} className={rowClass}>
+                {indicatorSlot}
+                <div
+                  className={cn(
+                    "flex flex-1 justify-between leading-none",
+                    labelAlignClass
+                  )}
+                >
+                  <div className="grid gap-1.5">
+                    {innerLabel}
+                    <span className="text-muted-foreground">
+                      {itemConfig?.label ?? item.name}
+                    </span>
+                  </div>
+                  {item.value != null && (
+                    <span className="font-mono font-medium text-foreground tabular-nums">
+                      {displayValue}
+                    </span>
+                  )}
+                </div>
               </div>
             )
           })}
@@ -286,11 +308,14 @@ function ChartLegendContent({
     return null
   }
 
+  let verticalPadding = "pt-3"
+  if (verticalAlign === "top") verticalPadding = "pb-3"
+
   return (
     <div
       className={cn(
         "flex items-center justify-center gap-4",
-        verticalAlign === "top" ? "pb-3" : "pt-3",
+        verticalPadding,
         className
       )}
     >
@@ -300,6 +325,21 @@ function ChartLegendContent({
           const key = `${nameKey ?? item.dataKey ?? "value"}`
           const itemConfig = getPayloadConfigFromPayload(config, item, key)
 
+          let legendIcon: React.ReactNode = (
+            <div
+              className="h-2 w-2 shrink-0 rounded-[2px]"
+              style={{
+                backgroundColor: item.color,
+              }}
+            />
+          )
+          if (itemConfig?.icon) {
+            if (!hideIcon) {
+              const LegendIcon = itemConfig.icon
+              legendIcon = <LegendIcon />
+            }
+          }
+
           return (
             <div
               key={index}
@@ -307,16 +347,7 @@ function ChartLegendContent({
                 "flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground"
               )}
             >
-              {itemConfig?.icon && !hideIcon ? (
-                <itemConfig.icon />
-              ) : (
-                <div
-                  className="h-2 w-2 shrink-0 rounded-[2px]"
-                  style={{
-                    backgroundColor: item.color,
-                  }}
-                />
-              )}
+              {legendIcon}
               {itemConfig?.label}
             </div>
           )
@@ -334,12 +365,12 @@ function getPayloadConfigFromPayload(
     return undefined
   }
 
-  const payloadPayload =
-    "payload" in payload &&
-    typeof payload.payload === "object" &&
-    payload.payload !== null
-      ? payload.payload
-      : undefined
+  let payloadPayload: object | undefined = undefined
+  if ("payload" in payload) {
+    if (typeof payload.payload === "object") {
+      if (payload.payload !== null) payloadPayload = payload.payload
+    }
+  }
 
   let configLabelKey: string = key
 
@@ -358,7 +389,8 @@ function getPayloadConfigFromPayload(
     ] as string
   }
 
-  return configLabelKey in config ? config[configLabelKey] : config[key]
+  if (configLabelKey in config) return config[configLabelKey]
+  return config[key]
 }
 
 export {

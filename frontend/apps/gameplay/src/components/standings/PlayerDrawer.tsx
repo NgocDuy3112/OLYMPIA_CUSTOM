@@ -1,4 +1,5 @@
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
+import type { ReactNode } from "react"
 import { X } from "lucide-react"
 import { cn } from "cn"
 import { Badge } from "@shared/ui/badge"
@@ -28,6 +29,52 @@ export function PlayerDrawer({
             (b.date + b.startTime).localeCompare(a.date + a.startTime)
         )
 
+    let rankText = "—"
+    if (player.rank !== null) rankText = `#${player.rank}`
+
+    let historySlot: ReactNode = (
+        <ul className="flex flex-col gap-1.5">
+            {history.map((match) => {
+                const p = match.players.find(
+                    (x) => x.id === player.id
+                )
+                if (!p) return null
+                let resultText = `#${p.rank ?? "-"} · ${p.score ?? 0}`
+                if (match.status === "UPCOMING") resultText = "–"
+                return (
+                    <li
+                        key={match.id}
+                        className="flex flex-col gap-1 rounded-md border border-border px-3 py-2"
+                    >
+                        <div className="flex items-center justify-between gap-3">
+                            <span className="min-w-0 truncate font-medium">
+                                {match.round}
+                            </span>
+                            <Badge variant={STATUS_VARIANT[match.status]}>
+                                {STATUS_LABEL[match.status]}
+                            </Badge>
+                        </div>
+                        <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                            <span className="font-medium tabular-nums text-foreground">
+                                {resultText}
+                            </span>
+                            <span className="tabular-nums">
+                                {formatDay(match.date)} · {match.startTime}
+                            </span>
+                        </div>
+                    </li>
+                )
+            })}
+        </ul>
+    )
+    if (history.length === 0) {
+        historySlot = (
+            <p className="text-sm text-muted-foreground">
+                Chưa có trận nào.
+            </p>
+        )
+    }
+
     return (
         <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
             <DialogPrimitive.Portal>
@@ -55,7 +102,7 @@ export function PlayerDrawer({
                     <div className="flex flex-col gap-3">
                         <h3 className="text-xl font-semibold">Thành tích tại giải đấu</h3>
                         <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
-                            <Stat label="Hạng" value={player.rank !== null ? `#${player.rank}` : "—"} strong />
+                            <Stat label="Hạng" value={rankText} strong />
                             <Stat label="Vòng đã tới" value={player.stageTitle ?? "—"} />
                             <Stat label="Trận đã đấu" value={player.matchesPlayed} />
                         </div>
@@ -64,43 +111,7 @@ export function PlayerDrawer({
                     
                     <div className="flex flex-col gap-2">
                         <h2 className="text-xl font-semibold">Lịch sử thi đấu</h2>
-                        {history.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">
-                                Chưa có trận nào.
-                            </p>
-                        ) : (
-                            <ul className="flex flex-col gap-1.5">
-                                {history.map((match) => {
-                                    const p = match.players.find(
-                                        (x) => x.id === player.id
-                                    )
-                                    if (!p) return null
-                                    return (
-                                        <li
-                                            key={match.id}
-                                            className="flex flex-col gap-1 rounded-md border border-border px-3 py-2"
-                                        >
-                                            <div className="flex items-center justify-between gap-3">
-                                                <span className="min-w-0 truncate font-medium">
-                                                    {match.round}
-                                                </span>
-                                                <Badge variant={STATUS_VARIANT[match.status]}>
-                                                    {STATUS_LABEL[match.status]}
-                                                </Badge>
-                                            </div>
-                                            <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                                                <span className="font-medium tabular-nums text-foreground">
-                                                    {match.status === "UPCOMING" ? "–" : `#${p.rank ?? "-"} · ${p.score ?? 0}`}
-                                                </span>
-                                                <span className="tabular-nums">
-                                                    {formatDay(match.date)} · {match.startTime}
-                                                </span>
-                                            </div>
-                                        </li>
-                                    )
-                                })}
-                            </ul>
-                        )}
+                        {historySlot}
                     </div>
                 </DialogPrimitive.Popup>
             </DialogPrimitive.Portal>
@@ -117,12 +128,14 @@ function Stat({
     value: number | string
     strong?: boolean
 }) {
+    let strongCls = "text-muted-foreground"
+    if (strong) strongCls = "text-foreground"
     return (
         <div className="flex flex-col gap-1 rounded-xl border border-border px-3 py-3 text-center">
             <span
                 className={cn(
                     "font-heading text-3xl font-bold tabular-nums leading-none",
-                    strong ? "text-foreground" : "text-muted-foreground",
+                    strongCls,
                     typeof value === "string" && value.startsWith("#") === false && "text-lg"
                 )}
             >

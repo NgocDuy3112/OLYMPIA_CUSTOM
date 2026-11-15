@@ -14,7 +14,14 @@ interface MatchCardProps {
 export function MatchCard({ match, featured = false, onOpen }: MatchCardProps) {
     const players = match.players
     const isLive = (match.status === "LIVE")
-    const winnerId = (match.status === "FINISHED") ? match.players.find((p) => p.rank === 1)?.id : undefined
+    let winnerId: string | undefined = undefined
+    if (match.status === "FINISHED") winnerId = match.players.find((p) => p.rank === 1)?.id
+    let cardRole: "button" | undefined = undefined
+    let cardTabIndex: number | undefined = undefined
+    if (onOpen) {
+        cardRole = "button"
+        cardTabIndex = 0
+    }
 
     return (
         <Card
@@ -23,8 +30,8 @@ export function MatchCard({ match, featured = false, onOpen }: MatchCardProps) {
                 isLive && "ring-1 ring-destructive/40",
                 featured && "ring-2 ring-destructive"
             )}
-            role={onOpen ? "button" : undefined}
-            tabIndex={onOpen ? 0 : undefined}
+            role={cardRole}
+            tabIndex={cardTabIndex}
             onClick={onOpen}
         >
             <CardContent className="flex flex-col gap-1 sm:flex-row sm:gap-5">
@@ -50,6 +57,8 @@ export function MatchCard({ match, featured = false, onOpen }: MatchCardProps) {
                     <ul className="flex flex-col gap-1.5">
                         {players.map((player) => {
                             const isWinner = player.id === winnerId
+                            let scoreSlot: number | string = player.score ?? 0
+                            if (match.status === "UPCOMING") scoreSlot = "-"
 
                             return (
                                 <li
@@ -69,7 +78,7 @@ export function MatchCard({ match, featured = false, onOpen }: MatchCardProps) {
                                         </Badge>
                                     )}
                                     <span className="w-8 shrink-0 text-right tabular-nums text-muted-foreground">
-                                        {match.status === "UPCOMING" ? "-" : (player.score ?? 0)}
+                                        {scoreSlot}
                                     </span>
                                 </li>
                             )

@@ -55,7 +55,11 @@ export function useConsoleTransport(tournamentId: string, matchId: string): Cons
         for (const action of actions) {
             try {
                 const res = await writer.mutateAsync({ expectedVersion: ver, action })
-                ver = typeof res?.version === "number" ? res.version : ver + 1
+                if (typeof res?.version === "number") {
+                    ver = res.version
+                } else {
+                    ver = ver + 1
+                }
             } catch {
                 return 
             }
@@ -63,7 +67,16 @@ export function useConsoleTransport(tournamentId: string, matchId: string): Cons
     }
 
     const userSeats = (matches.data?.items.find((m) => m.id === matchId)?.players ?? [])
-        .flatMap((seat) => ("userId" in seat && seat.userId ? [seat.userId] : []))
+        .flatMap((seat) => {
+            if (!("userId" in seat)) return []
+            if (!seat.userId) return []
+            return [seat.userId]
+        })
+
+    let flash: string | null = null
+    if (writer.isError) {
+        flash = (writer.error as { message?: string } | null)?.message ?? "Trạng thái đã đổi — đã tải lại"
+    }
 
     return {
         clock,
@@ -83,8 +96,6 @@ export function useConsoleTransport(tournamentId: string, matchId: string): Cons
         host,
         send,
         sendChain,
-        flash: writer.isError
-            ? (writer.error as { message?: string } | null)?.message ?? "Trạng thái đã đổi — đã tải lại"
-            : null,
+        flash,
     }
 }

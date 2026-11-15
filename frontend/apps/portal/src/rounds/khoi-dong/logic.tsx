@@ -20,14 +20,18 @@ function chungCtx(f: ConsoleFacts): KhoiDongChungCtx {
 }
 
 export const khoiDongAOC: RoundModule = {
-    render: (f) =>
-        f.stage === "phase2"
-            ? <KhoiDongChungAOCController ctx={chungCtx(f)} />
-            : <KhoiDongRiengAOCController ctx={riengCtx(f)} />,
-    railVariant: ({ stage }) => (stage === "phase2" ? "answers" : "compact"),
+    render: (f) => {
+        if (f.stage === "phase2") return <KhoiDongChungAOCController ctx={chungCtx(f)} />
+        return <KhoiDongRiengAOCController ctx={riengCtx(f)} />
+    },
+    railVariant: ({ stage }) => {
+        if (stage === "phase2") return "answers"
+        return "compact"
+    },
     endRoundPlan: (input): RoundAction[] => {
         if (input.stage === "phase1") {
-            return input.hasOralRun ? [{ kind: "khoi-dong.timeOutRun" }] : []
+            if (input.hasOralRun) return [{ kind: "khoi-dong.timeOutRun" }]
+            return []
         }
         return [{ kind: "khoi-dong.endRound" }]
     },

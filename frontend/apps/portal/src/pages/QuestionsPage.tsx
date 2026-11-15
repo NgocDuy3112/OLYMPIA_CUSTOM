@@ -56,10 +56,12 @@ const STATUS_LABEL: Record<Status, string> = {
 }
 
 function StatusBadge({ status }: { status: Status }) {
+    let variant: "default" | "secondary" | "outline" = "outline"
+    if (status === "PENDING") variant = "secondary"
+    if (status === "PUBLISHED") variant = "default"
     if (status === "ARCHIVED") {
         return <Badge variant="outline" className="line-through opacity-60">Archived</Badge>
     }
-    const variant = status === "PUBLISHED" ? "default" : status === "PENDING" ? "secondary" : "outline"
     return <Badge variant={variant}>{STATUS_LABEL[status]}</Badge>
 }
 
@@ -159,7 +161,8 @@ function bucketOf(row: BankQuestion): string | null {
 function typeOf(row: BankQuestion): string {
     const declared = (row.payload as { type?: unknown }).type
     if (typeof declared === "string" && declared.length > 0) return declared
-    return row.kind === "HINT" ? "TEXT" : row.kind
+    if (row.kind === "HINT") return "TEXT"
+    return row.kind
 }
 
 function belongsToTab(bucket: string | null, tab: TabId): boolean {
@@ -182,12 +185,13 @@ function readUrlState(): UrlState {
     const tab = params.get("tab") ?? params.get("kind") ?? "khoi-dong"
     const status = params.get("status") ?? "ALL"
     const legacy: Record<string, TabId> = { KEYWORD: "giai-ma", TEXT: "khoi-dong", CHOICE: "khoi-dong" }
-    const mapped = (TABS as TabDef[]).some((entry) => entry.id === tab)
-        ? (tab as TabId)
-        : legacy[tab] ?? "khoi-dong"
+    let mapped: TabId = legacy[tab] ?? "khoi-dong"
+    if ((TABS as TabDef[]).some((entry) => entry.id === tab)) mapped = tab as TabId
+    let initialStatus: Status | "ALL" = "ALL"
+    if ((STATUSES as string[]).includes(status)) initialStatus = status as Status
     return {
         tab: mapped,
-        status: (STATUSES as string[]).includes(status) ? (status as Status) : "ALL",
+        status: initialStatus,
         search: params.get("search") ?? "",
     }
 }
@@ -214,16 +218,19 @@ function answerSummary(row: BankQuestion): string | null {
     }
     if (row.kind === "TEXT" || row.kind === "HINT") {
         const answers = payload.acceptedAnswers ?? []
-        return answers.length > 0 ? `→ ${answers.join(" · ")}` : null
+        if (answers.length > 0) return `→ ${answers.join(" · ")}`
+        return null
     }
     if (row.kind === "CHOICE") {
         const text = new Map((payload.options ?? []).map((option) => [option.id, option.text]))
         const correct = (payload.correctSet ?? [])
             .map((id) => text.get(id))
             .filter((value): value is string => Boolean(value))
-        return correct.length > 0 ? `→ ${correct.join(" · ")}` : "→ ⚠ no correct option ticked"
+        if (correct.length > 0) return `→ ${correct.join(" · ")}`
+        return "→ ⚠ no correct option ticked"
     }
-    return payload.code ? `→ ${payload.code}` : null
+    if (payload.code) return `→ ${payload.code}`
+    return null
 }
 
 
@@ -266,10 +273,12 @@ function RowActions({
             {TRANSITIONS[row.status].map((step) => {
                 const blocked = step.adminOnly && !isAdmin
                 const Icon = TRANSITION_ICON[step.label] ?? Pencil
+                let stepVariant: "ghost" | "outline" = "outline"
+                if (step.to === "ARCHIVED") stepVariant = "ghost"
                 return (
                     <Button
                         key={step.to}
-                        variant={step.to === "ARCHIVED" ? "ghost" : "outline"}
+                        variant={stepVariant}
                         size="sm"
                         aria-label={step.label}
                         title={step.label}
@@ -295,6 +304,8 @@ function AddToMatchDialog({ rows, onClose }: { rows: BankQuestion[] | null; onCl
     if (!rows || rows.length === 0) return null
 
     const ready = Boolean(tournamentId && matchId && rows.some((row) => bucketOf(row)))
+    let matchPlaceholder = "— chọn trận —"
+    if (matches.isPending) matchPlaceholder = "Đang tải…"
     const go = () => {
         if (!ready) return
         window.location.assign(
@@ -338,7 +349,7 @@ function AddToMatchDialog({ rows, onClose }: { rows: BankQuestion[] | null; onCl
                             className="h-8 rounded-lg border border-input bg-transparent px-2 text-sm"
                         >
                             <option value="">
-                                {matches.isPending ? "Đang tải…" : "— chọn trận —"}
+                                {matchPlaceholder}
                             </option>
                             {upcoming.map((match) => (
                                 <option key={match.id} value={match.id}>
@@ -493,6 +504,10 @@ function QuestionTable({
                 <TableBody>
                     {rows.map((row) => {
                         const answer = answerSummary(row)
+                        let answerCls = "text-muted-foreground"
+                        if (answer) {
+                            if (answer.includes("⚠")) answerCls = "text-destructive"
+                        }
                         return (
                             <TableRow key={row.id}>
                                 <TableCell>
@@ -511,7 +526,7 @@ function QuestionTable({
                                             title={answer}
                                             className={cn(
                                                 "block truncate text-xs",
-                                                answer.includes("⚠") ? "text-destructive" : "text-muted-foreground"
+                                                answerCls
                                             )}
                                         >
                                             {answer}
@@ -671,6 +686,8 @@ function KeywordSetCard({
     )
     const shown = hintRows.slice(0, HINT_MAX)
     const overLimit = hintRows.length > HINT_MAX
+    let hintVerb = "are"
+    if (hintRows.length - HINT_MAX === 1) hintVerb = "is"
     const published = hintRows.filter((hint) => hint.status === "PUBLISHED").length
 
     return (
@@ -728,6 +745,12 @@ function KeywordSetCard({
                     <ol className="grid gap-1.5">
                         {shown.map((hint, index) => {
                             const answer = answerSummary(hint)
+                            let limitText = "no limit"
+                            if (hint.timeLimit != null) limitText = `${hint.timeLimit}s`
+                            let hintAnswerCls = "text-muted-foreground"
+                            if (answer) {
+                                if (answer.includes("⚠")) hintAnswerCls = "text-destructive"
+                            }
                             return (
                                 <li key={hint.id} className="rounded-lg border bg-background/60 px-3 py-2">
                                     <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -736,7 +759,7 @@ function KeywordSetCard({
                                         <PreviewText row={hint} onPreview={onPreview} className="min-w-40 flex-1 truncate font-medium" />
                                         <StatusBadge status={hint.status} />
                                         <span className="w-16 shrink-0 text-right text-xs text-muted-foreground">
-                                            {hint.timeLimit != null ? `${hint.timeLimit}s` : "no limit"}
+                                            {limitText}
                                         </span>
                                         <RowActions
                                             row={hint}
@@ -751,7 +774,7 @@ function KeywordSetCard({
                                             title={answer}
                                             className={cn(
                                                 "mt-1 block truncate pl-7 text-xs",
-                                                answer.includes("⚠") ? "text-destructive" : "text-muted-foreground"
+                                                hintAnswerCls
                                             )}
                                         >
                                             {answer}
@@ -771,7 +794,7 @@ function KeywordSetCard({
                 {overLimit && (
                     <p className="text-xs text-destructive">
                         ⚠ {hintRows.length} hints — the maximum is {HINT_MAX}; the {hintRows.length - HINT_MAX}{" "}
-                        beyond it {hintRows.length - HINT_MAX === 1 ? "is" : "are"} not shown. Convert or archive the extras.
+                        beyond it {hintVerb} not shown. Convert or archive the extras.
                     </p>
                 )}
 
@@ -842,6 +865,12 @@ function InspectorDrawer({ row, onClose }: { row: BankQuestion | null; onClose: 
     const correct = new Set(payload.correctSet ?? [])
     const items = usage.data?.items ?? []
     const bucket = bucketLabel(bucketOf(row))
+    let timeLimitText = " · không giới hạn thời gian"
+    if (row.timeLimit != null) timeLimitText = ` · ${row.timeLimit}s`
+    let audienceLabel = ""
+    if (payload.acceptedAnswers) audienceLabel = " · mặt khán giả nhìn thấy"
+    let usageText = `${items.length} trận`
+    if (usage.isPending) usageText = "…"
 
     return (
         <>
@@ -865,7 +894,7 @@ function InspectorDrawer({ row, onClose }: { row: BankQuestion | null; onClose: 
                 <h3 className="mt-3 text-base font-semibold">{row.questionText}</h3>
                 <p className="mt-1 text-xs text-muted-foreground">
                     Cập nhật {dateFormat.format(new Date(row.updatedAt))}
-                    {row.timeLimit != null ? ` · ${row.timeLimit}s` : " · không giới hạn thời gian"}
+                    {timeLimitText}
                 </p>
 
                 <div className="mt-4 grid gap-4 text-sm">
@@ -873,9 +902,7 @@ function InspectorDrawer({ row, onClose }: { row: BankQuestion | null; onClose: 
                         <div className="grid gap-1.5">
                             <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                                 Lựa chọn
-                                {payload.acceptedAnswers
-                                    ? " · mặt khán giả nhìn thấy"
-                                    : ""}
+                                {audienceLabel}
                             </span>
                             <ul className="grid gap-1.5">
                                 {payload.options.map((option, index) => (
@@ -925,7 +952,7 @@ function InspectorDrawer({ row, onClose }: { row: BankQuestion | null; onClose: 
 
                     <div className="grid gap-1.5 border-t pt-3">
                         <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                            Đang dùng trong {usage.isPending ? "…" : `${items.length} trận`}
+                            Đang dùng trong {usageText}
                         </span>
                         {usage.isError && (
                             <p className="text-xs text-destructive">{messageOf(usage.error)}</p>
@@ -1030,14 +1057,10 @@ function QuestionDialog({
 
     const save = useMutation({
         mutationFn: (input: AuthorSave) => {
-            const kind: Kind =
-                input.type === "KEYWORD"
-                    ? "KEYWORD"
-                    : input.type === "CHOICE"
-                      ? "CHOICE"
-                      : input.keywordId
-                        ? "HINT"
-                        : "TEXT"
+            let kind: Kind = "TEXT"
+            if (input.keywordId) kind = "HINT"
+            if (input.type === "CHOICE") kind = "CHOICE"
+            if (input.type === "KEYWORD") kind = "KEYWORD"
             const body: Record<string, unknown> = {
                 questionText: input.questionText,
                 payload: input.payload,
@@ -1252,15 +1275,19 @@ function GroupList({
 
     return (
         <div className="grid gap-6">
-            {tab.groups.map((group) => (
-                <GroupSection
-                    key={group.bucket}
-                    group={group}
-                    count={group.bucket ? counts?.[group.bucket] : undefined}
-                    {...shared}
-                    rows={assigned.filter((row) => bucketOf(row) === group.bucket)}
-                />
-            ))}
+            {tab.groups.map((group) => {
+                let groupCount: number | undefined = undefined
+                if (group.bucket) groupCount = counts?.[group.bucket]
+                return (
+                    <GroupSection
+                        key={group.bucket}
+                        group={group}
+                        count={groupCount}
+                        {...shared}
+                        rows={assigned.filter((row) => bucketOf(row) === group.bucket)}
+                    />
+                )
+            })}
             {unassigned.length > 0 && (
                 <GroupSection group={UNASSIGNED} {...shared} rows={unassigned} />
             )}
@@ -1291,10 +1318,12 @@ export function QuestionsPage() {
         if (state.status !== "ALL") params.set("status", state.status)
         if (state.search) params.set("search", state.search)
         const query = params.toString()
+        let searchPart = ""
+        if (query) searchPart = `?${query}`
         window.history.replaceState(
             null,
             "",
-            window.location.pathname + (query ? `?${query}` : "") + window.location.hash
+            window.location.pathname + searchPart + window.location.hash
         )
     }, [state])
 
@@ -1311,7 +1340,9 @@ export function QuestionsPage() {
             if (state.status !== "ALL") params.set("status", state.status)
             if (state.search) params.set("search", state.search)
             const qs = params.toString()
-            return api<Record<string, number>>(`/portal/questions/bucket-counts${qs ? `?${qs}` : ""}`)
+            let qsSuffix = ""
+            if (qs) qsSuffix = `?${qs}`
+            return api<Record<string, number>>(`/portal/questions/bucket-counts${qsSuffix}`)
         },
         placeholderData: keepPreviousData,
         staleTime: 15_000,
@@ -1381,11 +1412,9 @@ export function QuestionsPage() {
         skipped: number
     ) => {
         if (jobs.length === 0) {
-            setBulkFlash(
-                skipped > 0
-                    ? `Không có câu nào đủ điều kiện (${skipped} bị bỏ qua).`
-                    : "Không có gì để làm."
-            )
+            let emptyFlash = "Không có gì để làm."
+            if (skipped > 0) emptyFlash = `Không có câu nào đủ điều kiện (${skipped} bị bỏ qua).`
+            setBulkFlash(emptyFlash)
             return
         }
         setBulkBusy(true)
@@ -1400,11 +1429,9 @@ export function QuestionsPage() {
             void queryClient.invalidateQueries({ queryKey: ["bucket-counts"] })
             void queryClient.invalidateQueries({ queryKey: ["keyword-hints"] })
             clearSelection()
-            setBulkFlash(
-                firstError
-                    ? `${what}: ${done}/${results.length} thành công — lỗi đầu: ${messageOf(firstError.reason)}`
-                    : `${what}: ${done} câu đã xử lý.`
-            )
+            let bulkResult = `${what}: ${done} câu đã xử lý.`
+            if (firstError) bulkResult = `${what}: ${done}/${results.length} thành công — lỗi đầu: ${messageOf(firstError.reason)}`
+            setBulkFlash(bulkResult)
         } finally {
             setBulkBusy(false)
         }
@@ -1462,6 +1489,11 @@ export function QuestionsPage() {
             return "Loosen the filters, or author the first one."
         }
         return `Chưa có câu nào ở tab ${activeTab(state.tab).label} — thêm câu đầu tiên.`
+    }
+
+    let confirmError: string | null = null
+    if (confirming) {
+        if (transition.isError) confirmError = messageOf(transition.error)
     }
 
     return (
@@ -1625,6 +1657,8 @@ export function QuestionsPage() {
                         (sum, group) => sum + (counts.data?.[group.bucket ?? ""] ?? 0),
                         0
                     )
+                    let tabCls = "bg-background hover:bg-muted"
+                    if (active) tabCls = "border-primary bg-primary text-primary-foreground"
                     return (
                         <button
                             key={tab.id}
@@ -1633,9 +1667,7 @@ export function QuestionsPage() {
                             onClick={() => update({ tab: tab.id })}
                             className={cn(
                                 "rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors",
-                                active
-                                    ? "border-primary bg-primary text-primary-foreground"
-                                    : "bg-background hover:bg-muted"
+                                tabCls
                             )}
                         >
                             {tab.label}
@@ -1696,7 +1728,7 @@ export function QuestionsPage() {
 
             <ArchiveConfirmDialog
                 row={confirming}
-                error={confirming && transition.isError ? messageOf(transition.error) : null}
+                error={confirmError}
                 pending={transition.isPending}
                 onCancel={() => setConfirming(null)}
                 onConfirm={() => {

@@ -152,13 +152,30 @@ export function ExcelImportDialog({
     })()
 
     const willStage = currentReport !== null && currentReport.errors.length > 0
-    const importLabel = commitTo
-        ? commit.isPending
-            ? "Đang ghi vào trận…"
-            : "Nhập vào trận"
-        : willStage
-          ? "Import & review"
-          : "Import"
+    let importLabel = "Import"
+    if (willStage) importLabel = "Import & review"
+    if (commitTo) {
+        importLabel = "Nhập vào trận"
+        if (commit.isPending) importLabel = "Đang ghi vào trận…"
+    }
+    let dialogTitle = "Import questions"
+    if (commitTo) dialogTitle = "Nhập câu hỏi vào trận"
+    let validSuffix = "s"
+    if (currentReport) {
+        if (currentReport.total === 1) validSuffix = ""
+    }
+    let skippedSuffix = "s"
+    if (excel) {
+        if (excel.skipped === 1) skippedSuffix = ""
+    }
+    let warningSuffix = "s"
+    if (excel) {
+        if (excel.warnings.length === 1) warningSuffix = ""
+    }
+    let rowSuffix = "s"
+    if (excel) {
+        if (excel.rows.length === 1) rowSuffix = ""
+    }
 
     return (
         <Dialog
@@ -170,7 +187,7 @@ export function ExcelImportDialog({
             <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>
-                        {commitTo ? "Nhập câu hỏi vào trận" : "Import questions"}
+                        {dialogTitle}
                     </DialogTitle>
                 </DialogHeader>
 
@@ -192,7 +209,7 @@ export function ExcelImportDialog({
 
                     {currentReport && currentReport.errors.length === 0 && (
                         <p className="rounded-lg border border-emerald-600/40 bg-emerald-500/10 px-3 py-2 text-sm">
-                            ✓ {currentReport.total} question{currentReport.total === 1 ? "" : "s"} valid — ready to import.
+                            ✓ {currentReport.total} question{validSuffix} valid — ready to import.
                         </p>
                     )}
 
@@ -202,31 +219,38 @@ export function ExcelImportDialog({
                                 {currentReport.errors.length} of {currentReport.total} rows failed:
                             </p>
                             <ul className="mt-1 grid gap-1 text-xs text-destructive">
-                                {currentReport.errors.map((failure) => (
-                                    <li key={failure.index}>
-                                        {excel
-                                            ? `${excel.rows[failure.index]?.sheet ?? "?"} ${
-                                                  excel.rows[failure.index]?.sourceId || `#${failure.index + 1}`
-                                              }`
-                                            : `Row ${failure.index + 1}`}
-                                        : [{failure.code}] {failure.message}
-                                        {failure.details.length > 0 ? ` — ${failure.details.join("; ")}` : ""}
-                                    </li>
-                                ))}
+                                {currentReport.errors.map((failure) => {
+                                    let rowRef = `Row ${failure.index + 1}`
+                                    if (excel) {
+                                        const row = excel.rows[failure.index]
+                                        let sourceRef = `#${failure.index + 1}`
+                                        if (row?.sourceId) sourceRef = row.sourceId
+                                        rowRef = `${row?.sheet ?? "?"} ${sourceRef}`
+                                    }
+                                    let detailText = ""
+                                    if (failure.details.length > 0) detailText = ` — ${failure.details.join("; ")}`
+                                    return (
+                                        <li key={failure.index}>
+                                            {rowRef}
+                                            : [{failure.code}] {failure.message}
+                                            {detailText}
+                                        </li>
+                                    )
+                                })}
                             </ul>
                         </div>
                     )}
 
                     {excel && excel.skipped > 0 && (
                         <p className="text-xs text-muted-foreground">
-                            {excel.skipped} pre-seeded row{excel.skipped === 1 ? "" : "s"} left empty — skipped.
+                            {excel.skipped} pre-seeded row{skippedSuffix} left empty — skipped.
                         </p>
                     )}
 
                     {excel && excel.warnings.length > 0 && (
                         <div className="rounded-lg border border-amber-600/40 bg-amber-500/10 px-3 py-2">
                             <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
-                                {excel.warnings.length} warning{excel.warnings.length === 1 ? "" : "s"} — these rows
+                                {excel.warnings.length} warning{warningSuffix} — these rows
                                 still import:
                             </p>
 
@@ -244,7 +268,7 @@ export function ExcelImportDialog({
                     {excel && excel.rows.length > 0 && (
                         <div className="rounded-lg border">
                             <p className="border-b px-3 py-1.5 text-xs font-medium text-muted-foreground">
-                                {excel.rows.length} row{excel.rows.length === 1 ? "" : "s"} →{" "}
+                                {excel.rows.length} row{rowSuffix} →{" "}
                                 {new Set(excel.rows.map((row) => row.bucket)).size} group(s)
                             </p>
                             <ul className="max-h-40 overflow-y-auto px-3 py-2 font-mono text-xs">

@@ -3,8 +3,8 @@ import { KhoiDongRiengAOCPlayer } from "@shared/deck/screens/KhoiDongRiengAOCPla
 import type { RoundModule } from "../types"
 
 export const khoiDongAOC: RoundModule = {
-    render: (ctx) =>
-        ctx.stage === "phase2"
-            ? <KhoiDongChungAOCPlayer ctx={ctx} />
-            : <KhoiDongRiengAOCPlayer ctx={ctx} />,
+    render: (ctx) => {
+        if (ctx.stage === "phase2") return <KhoiDongChungAOCPlayer ctx={ctx} />
+        return <KhoiDongRiengAOCPlayer ctx={ctx} />
+    },
 }

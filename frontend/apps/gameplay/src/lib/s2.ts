@@ -15,7 +15,8 @@ export interface S2Question {
 
 export function s2IndexOf(qid: string, open: Open): number {
     const found = open.findIndex((entry) => entry.questionId === qid)
-    return found >= 0 ? found : -1
+    if (found >= 0) return found
+    return -1
 }
 
 export function s2QuestionOf(input: {

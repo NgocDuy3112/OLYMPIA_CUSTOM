@@ -43,16 +43,16 @@ export function PortalShell() {
                         if ("adminOnly" in item && item.adminOnly && me?.role !== "ADMIN") return null
                         const active = item.match(pathname)
                         const Icon = item.icon
+                        let ariaCurrent: "page" | undefined = undefined
+                        if (active) ariaCurrent = "page"
+                        let navCls = "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        if (active) navCls = "bg-primary text-primary-foreground"
                         return (
                             <Link
                                 key={item.to}
                                 to={item.to}
-                                aria-current={active ? "page" : undefined}
-                                className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                                    active
-                                        ? "bg-primary text-primary-foreground"
-                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                }`}
+                                aria-current={ariaCurrent}
+                                className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${navCls}`}
                             >
                                 <Icon className="size-4 shrink-0" aria-hidden />
                                 {item.label}

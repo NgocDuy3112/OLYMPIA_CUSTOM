@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Database, Eye, EyeOff, Link2, Pencil, Plus, RotateCcw, Save, Trash2, X } from "lucide-react"
 import { cn } from "cn"
@@ -112,6 +112,11 @@ function StagedRowItem({
 
     const toggleDrop = () => patch.mutate({ dropped: !row.dropped })
 
+    let dropLabel = "Bỏ"
+    if (row.dropped) dropLabel = "Trở lại"
+    let DropIcon = Trash2
+    if (row.dropped) DropIcon = RotateCcw
+
     return (
         <li
             className={cn(
@@ -126,7 +131,7 @@ function StagedRowItem({
                 </span>
                 <span className="w-24 shrink-0 font-mono text-xs">{row.sourceId}</span>
 
-                {editing ? (
+                {editing && (
                     <div className="grid min-w-64 flex-1 gap-2">
                         {CELL_FIELDS.map((field) => (
                             <label key={field.key} className="grid gap-0.5 text-xs">
@@ -166,7 +171,8 @@ function StagedRowItem({
                         </div>
                         {error && <p className="text-xs text-destructive">{error}</p>}
                     </div>
-                ) : (
+                )}
+                {!editing && (
                     <>
                         <div className="min-w-0 flex-1">
                             <span className="block truncate font-medium" title={row.cells.question}>
@@ -219,15 +225,13 @@ function StagedRowItem({
                             <Button
                                 size="sm"
                                 variant="ghost"
-                                aria-label={row.dropped ? "Trở lại" : "Bỏ"}
-                                title={row.dropped ? "Trở lại" : "Bỏ"}
+                                aria-label={dropLabel}
+                                title={dropLabel}
                                 disabled={patch.isPending}
                                 onClick={toggleDrop}
                             >
-                                {row.dropped ? (
-                                    <RotateCcw className="size-3.5" aria-hidden />
-                                ) : (
-                                    <Trash2 className="size-3.5" aria-hidden />
+                                {(
+                                    <DropIcon className="size-3.5" aria-hidden />
                                 )}
                             </Button>
                         </div>
@@ -371,6 +375,8 @@ function CommitToMatchDialog({
     })
 
     const ready = Boolean(tournamentId && matchId)
+    let matchPlaceholder = "— chọn trận —"
+    if (matches.isPending) matchPlaceholder = "Đang tải…"
 
     return (
         <Dialog open onOpenChange={(next) => { if (!next) onClose() }}>
@@ -408,7 +414,7 @@ function CommitToMatchDialog({
                             className="h-8 rounded-lg border border-input bg-transparent px-2 text-sm"
                         >
                             <option value="">
-                                {matches.isPending ? "Đang tải…" : "— chọn trận —"}
+                                {matchPlaceholder}
                             </option>
                             {upcoming.map((match) => (
                                 <option key={match.id} value={match.id}>
@@ -575,6 +581,13 @@ export function StagedImportBanner() {
 
     const changed = () => void queryClient.invalidateQueries({ queryKey: ["question-imports"] })
 
+    let fixBadge: ReactNode = <Badge variant="secondary">{active.ready} sẵn sàng</Badge>
+    if (active.toFix > 0) fixBadge = <Badge variant="destructive">{active.toFix} cần sửa</Badge>
+    let reviewLabel = "Review"
+    if (open) reviewLabel = "Ẩn"
+    let ReviewIcon = Eye
+    if (open) ReviewIcon = EyeOff
+
     return (
         <div className="rounded-xl border border-amber-600/40 bg-amber-500/10 px-4 py-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -582,11 +595,7 @@ export function StagedImportBanner() {
                 <span className="text-sm text-muted-foreground">
                     {active.sourceName ?? "workbook"} · {active.rowCount} rows
                 </span>
-                {active.toFix > 0 ? (
-                    <Badge variant="destructive">{active.toFix} cần sửa</Badge>
-                ) : (
-                    <Badge variant="secondary">{active.ready} sẵn sàng</Badge>
-                )}
+                {fixBadge}
                 {active.dropped > 0 && (
                     <Badge variant="outline">{active.dropped} đã bỏ</Badge>
                 )}
@@ -595,14 +604,12 @@ export function StagedImportBanner() {
                     <Button
                         size="sm"
                         variant="outline"
-                        aria-label={open ? "Ẩn" : "Review"}
-                        title={open ? "Ẩn" : "Review"}
+                        aria-label={reviewLabel}
+                        title={reviewLabel}
                         onClick={() => setOpen((value) => !value)}
                     >
-                        {open ? (
-                            <EyeOff className="size-4" aria-hidden />
-                        ) : (
-                            <Eye className="size-4" aria-hidden />
+                        {(
+                            <ReviewIcon className="size-4" aria-hidden />
                         )}
                     </Button>
                     <Button

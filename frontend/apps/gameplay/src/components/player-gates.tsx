@@ -79,9 +79,9 @@ export function PlayerGateScreen({ gate, model }: { gate: PlayerGate; model: Pla
     return (
         <StageShell>
             <Gate title="Đang tải…" body={model.failureMessage ?? "Đọc trạng thái vòng thi"}>
-                {model.failureMessage ? (
+                {model.failureMessage && (
                     <button onClick={model.retry} className={actionClass}>Thử lại</button>
-                ) : null}
+                )}
             </Gate>
         </StageShell>
     )

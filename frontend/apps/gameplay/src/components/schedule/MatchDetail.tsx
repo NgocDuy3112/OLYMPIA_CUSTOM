@@ -22,7 +22,8 @@ export function MatchDetail({ match, rounds, onBack, variant = "page" }: MatchDe
     const players = match.players
     const isLive = (match.status === "LIVE")
     const hasResults = (match.status !== "UPCOMING")
-    const winnerId = (match.status === "FINISHED") ? match.players.find((p) => p.rank === 1)?.id : undefined
+    let winnerId: string | undefined = undefined
+    if (match.status === "FINISHED") winnerId = match.players.find((p) => p.rank === 1)?.id
     const stats = statisticsFor(match, rounds)
 
     const roundRowOf = (roundId: string) => {
@@ -69,6 +70,8 @@ export function MatchDetail({ match, rounds, onBack, variant = "page" }: MatchDe
                         <ul className="flex flex-col gap-2">
                             {players.map((player) => {
                                 const isWinner = player.id === winnerId
+                                let scoreSlot: number | string = "-"
+                                if (hasResults) scoreSlot = player.score ?? 0
                                 return (
                                     <li
                                         key={player.id}
@@ -87,7 +90,7 @@ export function MatchDetail({ match, rounds, onBack, variant = "page" }: MatchDe
                                             </Badge>
                                         )}
                                         <span className="w-8 shrink-0 text-right text-base tabular-nums text-muted-foreground">
-                                            {hasResults ? (player.score ?? 0) : "-"}
+                                            {scoreSlot}
                                         </span>
                                     </li>
                                 )
@@ -145,12 +148,14 @@ export function MatchDetail({ match, rounds, onBack, variant = "page" }: MatchDe
                                                 }
                                                 const cell = row.scores.find((s) => s.playerId === p.id)
                                                 const won = row.winnerIds.includes(p.id)
+                                                let scoreCls = "text-muted-foreground"
+                                                if (won) scoreCls = "font-semibold"
                                                 return (
                                                     <TableCell
                                                         key={round.id}
                                                         className={cn(
                                                             "text-right tabular-nums",
-                                                            won ? "font-semibold" : "text-muted-foreground"
+                                                            scoreCls
                                                         )}
                                                     >
                                                         {cell?.points ?? 0}

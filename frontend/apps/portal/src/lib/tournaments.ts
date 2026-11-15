@@ -16,7 +16,8 @@ export interface TournamentFormat {
 
 export function allowedSeatsOf(format: TournamentFormat): number[] {
     const counts = format.allowedCompetitorCounts ?? []
-    return counts.length > 0 ? counts : [format.competitorsPerMatch]
+    if (counts.length > 0) return counts
+    return [format.competitorsPerMatch]
 }
 
 export function seatsPhrase(counts: number[]): string {

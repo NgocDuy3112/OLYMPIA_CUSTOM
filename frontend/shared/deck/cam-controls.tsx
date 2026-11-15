@@ -16,6 +16,35 @@ export function SelfCamControls() {
     if (!self) return null
     const ready = self.status === "connected"
 
+    let MicIcon = MicOff
+    let micLabel = "Bật mic"
+    let micTone: keyof typeof TONE = "off"
+    if (self.micOn) {
+        MicIcon = Mic
+        micLabel = "Tắt mic"
+        micTone = "neutral"
+    }
+
+    let DeafenIcon = Volume2
+    let deafenLabel = "Tắt tiếng"
+    let deafenTitle = "Tắt tiếng nghe"
+    let deafenTone: keyof typeof TONE = "neutral"
+    if (self.deafen) {
+        DeafenIcon = VolumeX
+        deafenLabel = "Bật tiếng"
+        deafenTitle = "Bật lại tiếng nghe"
+        deafenTone = "off"
+    }
+
+    let CamIcon = CameraOff
+    let camLabel = "Bật camera"
+    let camTone: keyof typeof TONE = "off"
+    if (self.camOn) {
+        CamIcon = Camera
+        camLabel = "Tắt camera"
+        camTone = "neutral"
+    }
+
     return (
         <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-[0.4cqw] rounded-b-lg bg-gradient-to-t from-black/65 via-black/35 to-transparent px-[0.4cqw] pb-[0.45cqw] pt-[1.2cqw]">
             <button
@@ -23,32 +52,32 @@ export function SelfCamControls() {
                 onClick={self.toggleMic}
                 disabled={!ready}
                 aria-pressed={self.micOn}
-                aria-label={self.micOn ? "Tắt mic" : "Bật mic"}
-                title={self.micOn ? "Tắt mic" : "Bật mic"}
-                className={btnCls(self.micOn ? "neutral" : "off")}
+                aria-label={micLabel}
+                title={micLabel}
+                className={btnCls(micTone)}
             >
-                {self.micOn ? <Mic className={ICON} /> : <MicOff className={ICON} />}
+                <MicIcon className={ICON} />
             </button>
             <button
                 type="button"
                 onClick={self.toggleDeafen}
                 aria-pressed={self.deafen}
-                aria-label={self.deafen ? "Bật tiếng" : "Tắt tiếng"}
-                title={self.deafen ? "Bật lại tiếng nghe" : "Tắt tiếng nghe"}
-                className={btnCls(self.deafen ? "off" : "neutral")}
+                aria-label={deafenLabel}
+                title={deafenTitle}
+                className={btnCls(deafenTone)}
             >
-                {self.deafen ? <VolumeX className={ICON} /> : <Volume2 className={ICON} />}
+                <DeafenIcon className={ICON} />
             </button>
             <button
                 type="button"
                 onClick={self.toggleCam}
                 disabled={!ready}
                 aria-pressed={self.camOn}
-                aria-label={self.camOn ? "Tắt camera" : "Bật camera"}
-                title={self.camOn ? "Tắt camera" : "Bật camera"}
-                className={btnCls(self.camOn ? "neutral" : "off")}
+                aria-label={camLabel}
+                title={camLabel}
+                className={btnCls(camTone)}
             >
-                {self.camOn ? <Camera className={ICON} /> : <CameraOff className={ICON} />}
+                <CamIcon className={ICON} />
             </button>
         </div>
     )

@@ -39,21 +39,25 @@ export function hetLuotAction(facts: HetLuotFacts): RoundAction | null {
     if (facts.answererVerdict === null) return null
     if (facts.buzzerId !== null && facts.buzzerVerdict === null) return null
 
-    return {
-        kind: "ve-dich.resolve",
+    const action = {
+        kind: "ve-dich.resolve" as const,
         answerer: facts.answererVerdict === "CORRECT",
-        ...(facts.buzzerId !== null ? { buzzer: facts.buzzerVerdict === "CORRECT" } : {}),
     }
+    if (facts.buzzerId === null) return action
+    return { ...action, buzzer: facts.buzzerVerdict === "CORRECT" }
 }
 
 export const veDichAOC: RoundModule = {
     render: (f) => {
         if (f.v.projection.open.length === 0) return <VeDichPickAOCController ctx={pickCtx(f)} />
-        return (f.v.console as VeDichConsole | null)?.phase === 2
-            ? <VeDichRiengAOCController ctx={riengCtx(f)} />
-            : <VeDichChungAOCController ctx={chungCtx(f)} />
+        const consoleView = f.v.console as VeDichConsole | null
+        if (consoleView?.phase === 2) return <VeDichRiengAOCController ctx={riengCtx(f)} />
+        return <VeDichChungAOCController ctx={chungCtx(f)} />
     },
-    railVariant: ({ veDichPhase }) => (veDichPhase === 2 ? "compact" : "answers"),
+    railVariant: ({ veDichPhase }) => {
+        if (veDichPhase === 2) return "compact"
+        return "answers"
+    },
     endRoundPlan: (): RoundAction[] => [],
     hetLuotAction,
 }

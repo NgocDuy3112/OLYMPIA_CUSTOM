@@ -6,7 +6,10 @@ import { useAssignGroup, useGroups, type GroupRow } from "@/lib/tournament"
 
 const FRAME_SEATS = 4
 
-const other = (group: "A" | "B"): "A" | "B" => (group === "A" ? "B" : "A")
+const other = (group: "A" | "B"): "A" | "B" => {
+    if (group === "A") return "B"
+    return "A"
+}
 
 export function GroupsTab({ tournamentId }: { tournamentId: string }) {
     const groups = useGroups(tournamentId)
@@ -21,13 +24,18 @@ export function GroupsTab({ tournamentId }: { tournamentId: string }) {
     const busy = assign.isPending
     const place = (userId: string, group: "A" | "B" | null) => assign.mutate({ userId, group })
     const enrolled = drawn + unassigned.length
+    let plural = "s"
+    if (unassigned.length === 1) plural = ""
+    let notDrawnHint = `${unassigned.length} enrolled contestant${plural} waiting for the draw.`
+    if (unassigned.length === 0) notDrawnHint = `Every enrolled contestant has a group (${enrolled}).`
+    if (enrolled === 0) notDrawnHint = "No contestants yet — enroll them on the Thí sinh page, then draw them here."
 
     return (
         <div className="flex flex-col gap-4">
 
-            {assign.isError ? (
+            {assign.isError && (
                 <p role="alert" className="text-sm text-destructive">{assign.error.message}</p>
-            ) : null}
+            )}
 
             <div className="grid gap-4 md:grid-cols-2">
                 {blocks.map((block) => (
@@ -87,16 +95,12 @@ export function GroupsTab({ tournamentId }: { tournamentId: string }) {
                 <CardHeader>
                     <CardTitle className="text-base">Not drawn</CardTitle>
                     <CardDescription>
-                        {enrolled === 0
-                            ? "No contestants yet — enroll them on the Thí sinh page, then draw them here."
-                            : unassigned.length === 0
-                                ? `Every enrolled contestant has a group (${enrolled}).`
-                                : `${unassigned.length} enrolled contestant${unassigned.length === 1 ? "" : "s"} waiting for the draw.`}
+                        {notDrawnHint}
                     </CardDescription>
 
                 </CardHeader>
                 <CardContent>
-                    {unassigned.length === 0 ? null : (
+                    {unassigned.length > 0 && (
                         <ul className="flex flex-col divide-y">
                             {unassigned.map((row) => (
                                 <li key={row.userId} className="flex items-center justify-between gap-2 py-2">
@@ -126,13 +130,17 @@ function GroupMemberRow({ row, seat, group, disabled, onMove }: {
     disabled: boolean
     onMove: () => void
 }) {
+    let matchSuffix = "es"
+    if (row.matchesPlayed === 1) matchSuffix = ""
+    let averageText = "—"
+    if (row.averages.all !== null) averageText = row.averages.all.toFixed(1)
     return (
         <TableRow>
             <TableCell className="text-muted-foreground tabular-nums">{seat}</TableCell>
             <TableCell>
                 {row.displayName}
                 <span className="ml-2 text-xs text-muted-foreground tabular-nums">
-                    {row.matchesPlayed} match{row.matchesPlayed === 1 ? "" : "es"}
+                    {row.matchesPlayed} match{matchSuffix}
                 </span>
             </TableCell>
             <TableCell className="text-right tabular-nums">{row.bankedPoints}</TableCell>
@@ -140,7 +148,7 @@ function GroupMemberRow({ row, seat, group, disabled, onMove }: {
                 className="text-right tabular-nums"
                 title="Thành tích TB: điểm mỗi trận vòng bảng (phase 1 không xuống dưới 0)"
             >
-                {row.averages.all === null ? "—" : row.averages.all.toFixed(1)}
+                {averageText}
             </TableCell>
             <TableCell className="text-right">
                 <Button size="sm" variant="ghost" disabled={disabled} onClick={onMove} title={`Chuyển sang Nhóm ${other(group)}`}>

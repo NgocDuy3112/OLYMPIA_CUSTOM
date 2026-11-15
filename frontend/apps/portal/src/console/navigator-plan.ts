@@ -28,7 +28,12 @@ export function navigatorStartPlan(
     const target = lobby.rounds.find((r) => r.id === roundId)
     const isActive = lobby.roundId === roundId
 
-    if (target?.status === "new" && isActive) return start ? [start] : []
+    if (target?.status === "new") {
+        if (isActive) {
+            if (start) return [start]
+            return []
+        }
+    }
 
     const chain: LiveAction[] = [{ kind: "round.goTo", roundId }]
     if (start && (opts.force || (target?.status !== "ended" && target?.status !== "playing"))) {

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { Link, useSearchParams } from "react-router-dom"
 import { buttonVariants } from "@shared/ui/button"
 import {
@@ -40,6 +41,32 @@ export function LoginPage() {
     const notice = params.get("notice")
     const googleOff = notice === "google-off" || methods.data?.google === false
 
+    let authSlot: ReactNode = (
+        <div
+            role="status"
+            aria-label="Đang tải"
+            className="h-9 w-full animate-pulse rounded-lg bg-muted"
+        />
+    )
+    if (methods.data) {
+        authSlot = (
+            <a
+                href={googleLoginLink(next)}
+                className={cn(buttonVariants({ size: "lg" }), "h-9 w-full gap-2")}
+            >
+                <GoogleMark />
+                Đăng nhập bằng Google
+            </a>
+        )
+    }
+    if (googleOff) {
+        authSlot = (
+            <p role="alert" className="text-center font-sans text-sm text-amber-700">
+                Đăng nhập Google chưa được cấu hình — liên hệ ban điều hành để vào trận.
+            </p>
+        )
+    }
+
     return (
         <div className="mx-auto flex w-full max-w-96 flex-col gap-4 px-4 py-12">
             <Card>
@@ -54,25 +81,7 @@ export function LoginPage() {
                 </CardHeader>
 
                 <CardContent className="flex flex-col gap-3">
-                    {googleOff ? (
-                        <p role="alert" className="text-center font-sans text-sm text-amber-700">
-                            Đăng nhập Google chưa được cấu hình — liên hệ ban điều hành để vào trận.
-                        </p>
-                    ) : methods.data ? (
-                        <a
-                            href={googleLoginLink(next)}
-                            className={cn(buttonVariants({ size: "lg" }), "h-9 w-full gap-2")}
-                        >
-                            <GoogleMark />
-                            Đăng nhập bằng Google
-                        </a>
-                    ) : (
-                        <div
-                            role="status"
-                            aria-label="Đang tải"
-                            className="h-9 w-full animate-pulse rounded-lg bg-muted"
-                        />
-                    )}
+                    {authSlot}
                 </CardContent>
 
                 <CardFooter className="flex-col gap-1 text-center font-sans text-sm text-muted-foreground">

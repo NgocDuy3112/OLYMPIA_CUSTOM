@@ -36,6 +36,9 @@ export function NewTournamentDialog({
         )
     }
 
+    let createLabel = "Create tournament"
+    if (create.isPending) createLabel = "Creating…"
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
@@ -88,7 +91,7 @@ export function NewTournamentDialog({
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={create.isPending}>
-                                {create.isPending ? "Creating…" : "Create tournament"}
+                                {createLabel}
                             </Button>
                         </DialogFooter>
                     </FieldGroup>

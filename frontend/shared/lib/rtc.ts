@@ -72,7 +72,7 @@ export function useRtcRoom(opts: {
 
     const key = `${enabled}|${autoSubscribe}|${resetKey ?? ""}`;
     const [dial, setDial] = useState<Dial | null>(null);
-    const current = dial && dial.key === key ? dial : null;
+    const current = matchingDial(dial, key);
 
     useEffect(() => {
         if (!enabled) return;
@@ -82,14 +82,17 @@ export function useRtcRoom(opts: {
 
         const write = (patch: Partial<Omit<Dial, "key">>) => {
             if (cancelled) return;
-            setDial((prev) => ({
-                key,
-                room: null,
-                connection: null,
-                error: null,
-                ...(prev && prev.key === key ? prev : null),
-                ...patch,
-            }));
+            setDial((prev) => {
+                const carry = carriedDial(prev, key);
+                return {
+                    key,
+                    room: null,
+                    connection: null,
+                    error: null,
+                    ...carry,
+                    ...patch,
+                };
+            });
         };
 
         const onState = (state: ConnectionState) => write({ connection: state });
@@ -113,8 +116,8 @@ export function useRtcRoom(opts: {
                 if (cancelled) return;
                 write({
                     error: {
-                        message: e instanceof Error ? e.message : String(e),
-                        status: e instanceof ApiError ? e.status : undefined,
+                        message: messageOf(e),
+                        status: apiStatusOf(e),
                     },
                 });
                 if (active) await active.disconnect(true).catch(() => {});
@@ -158,6 +161,18 @@ function statusOf(enabled: boolean, dial: Dial | null): RtcStatus {
         default:
             return "connecting";
     }
+}
+
+function matchingDial(dial: Dial | null, key: string): Dial | null {
+    if (dial === null) return null;
+    if (dial.key !== key) return null;
+    return dial;
+}
+
+function carriedDial(prev: Dial | null, key: string): Partial<Dial> {
+    if (prev === null) return {};
+    if (prev.key !== key) return {};
+    return prev;
 }
 
 
@@ -208,13 +223,41 @@ function subscribePeers(room: Room, notify: () => void): () => void {
 
 export function useRtcPeerTracks(room: Room | null): RtcPeerTracksMap {
     const subscribe = useCallback(
-        (notify: () => void) => (room ? subscribePeers(room, notify) : noop),
+        (notify: () => void) => {
+            if (room === null) return noop;
+            return subscribePeers(room, notify);
+        },
         [room]
     );
-    const snapshot = useCallback(() => (room ? peersOf(room) : EMPTY_PEERS), [room]);
+    const snapshot = useCallback(() => {
+        if (room === null) return EMPTY_PEERS;
+        return peersOf(room);
+    }, [room]);
     return useSyncExternalStore(subscribe, snapshot);
 }
 
+
+function messageOf(e: unknown): string {
+    if (e instanceof Error) return e.message;
+    return String(e);
+}
+
+function apiStatusOf(e: unknown): number | undefined {
+    if (e instanceof ApiError) return e.status;
+    return undefined;
+}
+
+function allowedSetOf(gate: { allowed: string[] } | null | undefined): Set<string> | null {
+    if (gate === null) return null;
+    if (gate === undefined) return null;
+    return new Set(gate.allowed);
+}
+
+function volumeOf(allowed: Set<string> | null, identity: string): number {
+    if (allowed === null) return 1;
+    if (allowed.has(identity)) return 1;
+    return 0;
+}
 
 function mediaErrorOf(e: unknown): string {
     if (e instanceof DOMException) {
@@ -225,7 +268,7 @@ function mediaErrorOf(e: unknown): string {
         if (e.name === "NotReadableError") return "Camera đang được ứng dụng khác sử dụng.";
         return e.message;
     }
-    return e instanceof Error ? e.message : String(e);
+    return messageOf(e);
 }
 
 interface SelfBroadcast {
@@ -252,13 +295,12 @@ export function useSelfCam(): SelfBroadcast | null {
 export function useAudioGate(room: Room | null, gate: { allowed: string[] } | null | undefined): void {
     const apply = useCallback(() => {
         if (!room) return;
-        const allowed = gate ? new Set(gate.allowed) : null;
+        const allowed = allowedSetOf(gate);
         for (const participant of room.remoteParticipants.values()) {
             for (const publication of participant.trackPublications.values()) {
                 if (publication.track && publication.track.kind === "audio") {
-                    (publication.track as RemoteAudioTrack).setVolume(
-                        allowed === null || allowed.has(participant.identity) ? 1 : 0
-                    );
+                    const volume = volumeOf(allowed, participant.identity);
+                    (publication.track as RemoteAudioTrack).setVolume(volume);
                 }
             }
         }
@@ -315,7 +357,8 @@ export function useSelfBroadcast(matchId: string): SelfBroadcast {
     useEffect(() => {
         if (probed.current || !matchId) return;
         probed.current = true;
-        const devices = typeof navigator === "undefined" ? undefined : navigator.mediaDevices;
+        let devices: MediaDevices | undefined;
+        if (typeof navigator !== "undefined") devices = navigator.mediaDevices;
         if (!devices?.getUserMedia) return; 
         void probeMediaPermission(devices).then((refusal) => {
             if (refusal) setMediaError((prev) => prev ?? refusal);
@@ -334,10 +377,8 @@ export function useSelfBroadcast(matchId: string): SelfBroadcast {
                 setMediaError(mediaErrorOf(e));
             }
             try {
-                const on =
-                    speakGate.current === null
-                        ? micIntent.current
-                        : speakGate.current && micIntent.current;
+                let on = micIntent.current;
+                if (speakGate.current === false) on = false;
                 await room.localParticipant.setMicrophoneEnabled(on);
                 setMicOn(on);
             } catch (e) {
@@ -352,7 +393,7 @@ export function useSelfBroadcast(matchId: string): SelfBroadcast {
 
     useEffect(() => {
         if (!room) return;
-        const allowed = audioGate ? new Set(audioGate.allowed) : null;
+        const allowed = allowedSetOf(audioGate);
         const sync = () => {
             for (const participant of room.remoteParticipants.values()) {
                 for (const publication of participant.trackPublications.values()) {
@@ -362,7 +403,9 @@ export function useSelfBroadcast(matchId: string): SelfBroadcast {
                     const track = publication.track;
                     if (track) {
                         const audible = !deafen && allowed !== null && allowed.has(participant.identity);
-                        (track as RemoteAudioTrack).setVolume(audible ? 1 : 0);
+                        let volume = 0;
+                        if (audible) volume = 1;
+                        (track as RemoteAudioTrack).setVolume(volume);
                     }
                 }
             }
@@ -408,7 +451,8 @@ export function useSelfBroadcast(matchId: string): SelfBroadcast {
     const setSpeakGate = useCallback((allowed: boolean | null) => {
         if (speakGate.current === allowed) return;
         speakGate.current = allowed;
-        const on = allowed === null ? micIntent.current : allowed && micIntent.current;
+        let on = micIntent.current;
+        if (allowed === false) on = false;
         setMicOn(on); 
         const active = enabledFor.current;
         if (active) {
@@ -421,7 +465,10 @@ export function useSelfBroadcast(matchId: string): SelfBroadcast {
     const toggleDeafen = () => setDeafen((prev) => !prev);
 
     const setAudioGate = useCallback((gate: { allowed: string[] } | null) => {
-        setAudioGateState((prev) => (prev === gate ? prev : gate));
+        setAudioGateState((prev) => {
+            if (prev === gate) return prev;
+            return gate;
+        });
     }, []);
 
     return { status, error, mediaError, video, camOn, micOn, deafen, toggleCam, toggleMic, toggleDeafen, setSpeakGate, setAudioGate };

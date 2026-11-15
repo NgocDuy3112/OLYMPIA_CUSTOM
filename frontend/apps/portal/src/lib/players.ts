@@ -33,18 +33,19 @@ export function useUpdatePlayer() {
             displayName?: string
             email?: string | null
             discordId?: string | null
-        }) =>
-            api<{ userId: string; displayName: string; email: string | null }>(
+        }) => {
+            const patch: { displayName?: string; email?: string | null; discordId?: string | null } = {}
+            if (edit.displayName !== undefined) patch.displayName = edit.displayName
+            if (edit.email !== undefined) patch.email = edit.email
+            if (edit.discordId !== undefined) patch.discordId = edit.discordId
+            return api<{ userId: string; displayName: string; email: string | null }>(
                 `/portal/players/${edit.userId}`,
                 {
                     method: "PATCH",
-                    body: JSON.stringify({
-                        ...(edit.displayName !== undefined ? { displayName: edit.displayName } : {}),
-                        ...(edit.email !== undefined ? { email: edit.email } : {}),
-                        ...(edit.discordId !== undefined ? { discordId: edit.discordId } : {}),
-                    }),
+                    body: JSON.stringify(patch),
                 }
-            ),
+            )
+        },
         onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: ["players"] })
             void queryClient.invalidateQueries({ queryKey: ["enrolled"] })

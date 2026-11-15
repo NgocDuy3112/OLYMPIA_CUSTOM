@@ -56,11 +56,18 @@ export function Lobby({
             <div className="mt-[3.2cqw] flex flex-wrap items-stretch justify-center gap-[1.2cqw]">
                 {data.table.map((row) => {
                     const mine = Boolean(meId) && row.id === meId
-                    const video = row.video ?? (mine && selfCam?.camOn ? selfCam.video : null)
+                    let video: LocalVideoTrack | RemoteVideoTrack | null = row.video ?? null
+                    if (video === null) {
+                        if (mine) {
+                            if (selfCam && selfCam.camOn) video = selfCam.video
+                        }
+                    }
+                    let rowRing = ""
+                    if (mine) rowRing = "ring-2 ring-sky-500"
                     return (
                         <div
                             key={row.id}
-                            className={`flex h-[9.3cqw] w-[21cqw] shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl bg-card p-[0.9cqw] shadow-sm ring-1 ring-border ${mine ? "ring-2 ring-sky-500" : ""}`}
+                            className={`flex h-[9.3cqw] w-[21cqw] shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl bg-card p-[0.9cqw] shadow-sm ring-1 ring-border ${rowRing}`}
                         >
                             <div className="flex min-h-0 flex-1 gap-[0.7cqw]">
                                 <div
@@ -109,31 +116,38 @@ export function Lobby({
                                 data.currentPhase === round.phase ||
                                 data.currentPhase === null ||
                                 data.currentPhase === undefined)
+                        let roundTitle = `Bắt đầu vòng ${round.name} (nhảy tới)`
+                        if (isCurrent) {
+                            roundTitle = `Bắt đầu vòng ${round.name}`
+                            if (data.status !== "LIVE") {
+                                if (mc.opensMatch) {
+                                    roundTitle = `Bắt đầu vòng ${round.name} (mở trận cùng lúc)`
+                                } else {
+                                    roundTitle = "Trận chưa mở — bắt đầu ở trang trận"
+                                }
+                            }
+                        }
+                        if (round.status === "playing") {
+                            roundTitle = `Mở lại vòng ${round.name} — trạng thái đã lưu`
+                            if (isCurrent) roundTitle = `Quay lại vòng ${round.name} — đang dở`
+                        }
+                        if (round.status === "ended") {
+                            roundTitle = `Mở lại vòng ${round.name} — trạng thái đã lưu`
+                        }
+                        let roundCls = "cursor-default bg-card text-muted-foreground"
+                        if (live) roundCls = "cursor-pointer bg-card text-foreground hover:ring-primary"
+                        let roundExtra = ""
+                        if (live) {
+                            if (mc.busy) roundExtra = "opacity-60"
+                        }
                         return (
                             <button
                                 key={`${round.id}:${round.name}:${i}`}
                                 type="button"
                                 disabled={!live}
                                 onClick={() => mc.onStart(round.id, round.phase)}
-                                title={
-                                    round.status === "ended"
-                                        ? `Mở lại vòng ${round.name} — trạng thái đã lưu`
-                                        : round.status === "playing"
-                                            ? isCurrent
-                                                ? `Quay lại vòng ${round.name} — đang dở`
-                                                : `Mở lại vòng ${round.name} — trạng thái đã lưu`
-                                            : isCurrent
-                                                ? data.status === "LIVE"
-                                                    ? `Bắt đầu vòng ${round.name}`
-                                                    : mc.opensMatch
-                                                        ? `Bắt đầu vòng ${round.name} (mở trận cùng lúc)`
-                                                        : "Trận chưa mở — bắt đầu ở trang trận"
-                                                : `Bắt đầu vòng ${round.name} (nhảy tới)`
-                                }
-                                className={`rounded-[0.5cqw] px-[1.8cqw] py-[0.8cqw] font-sans font-semibold uppercase leading-none tracking-wide ring-1 ring-border transition ${live
-                                    ? "cursor-pointer bg-card text-foreground hover:ring-primary"
-                                    : "cursor-default bg-card text-muted-foreground"
-                                } ${live && mc.busy ? "opacity-60" : ""}`}
+                                title={roundTitle}
+                                className={`rounded-[0.5cqw] px-[1.8cqw] py-[0.8cqw] font-sans font-semibold uppercase leading-none tracking-wide ring-1 ring-border transition ${roundCls} ${roundExtra}`}
                                 style={{ fontSize: "1.2cqw" }}
                             >
                                 {round.name}

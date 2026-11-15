@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { arrayMove } from "@dnd-kit/sortable"
 import { Pencil, RefreshCw, Upload, X } from "lucide-react"
@@ -113,10 +113,8 @@ function requiredFor(
 ): number {
     if (group.points !== undefined) return BOARD_COMPOSITION[group.points] ?? 0
     const fromRules = rules?.[group.roundId]?.turns.find((turn) => turn.id === group.turnId)?.questionCount
-    const base =
-        typeof fromRules === "number"
-            ? fromRules
-            : DEFAULT_QUESTION_COUNTS[group.roundId]?.[group.turnId] ?? 0
+    let base = DEFAULT_QUESTION_COUNTS[group.roundId]?.[group.turnId] ?? 0
+    if (typeof fromRules === "number") base = fromRules
     if (group.bucket === "khoi-dong:rieng") return base * Math.max(1, playerCount)
     return base
 }
@@ -133,9 +131,10 @@ function bucketOfEntry(question: { roundId: string; turnId?: string; points?: nu
         case "but-pha":
             return "but-pha"
         case "ve-dich":
-            return question.points !== undefined && VE_DICH_POINTS.has(question.points)
-                ? `ve-dich:${question.points}`
-                : null
+            if (question.points !== undefined) {
+                if (VE_DICH_POINTS.has(question.points)) return `ve-dich:${question.points}`
+            }
+            return null
         default:
             return null
     }
@@ -153,7 +152,8 @@ function bucketOfRow(row: BankRow): string | null {
 function badgeOfRow(row: Pick<BankRow, "kind" | "payload">): string {
     const declared = row.payload?.type
     if (typeof declared === "string" && declared.length > 0) return declared
-    return row.kind === "HINT" ? "TEXT" : row.kind
+    if (row.kind === "HINT") return "TEXT"
+    return row.kind
 }
 
 function badgeOfFrozen(question: FrozenQuestion): string {
@@ -199,12 +199,13 @@ function toComposeRows(entries: Entry[]): ComposeRow[] {
         const bits: string[] = []
         if (entry.position !== undefined) bits.push(`#${entry.position + 1}`)
         if (entry.points !== undefined) bits.push(`${entry.points}đ`)
-        return {
+        const row: ComposeRow = {
             id: `${entry.sourceId}~${nth}`,
             primary: entry.questionText || entry.sourceId,
-            ...(bits.length > 0 ? { secondary: bits.join(" · ") } : {}),
-            ...(entry.badge ? { badge: entry.badge } : {}),
-        } satisfies ComposeRow
+        }
+        if (bits.length > 0) row.secondary = bits.join(" · ")
+        if (entry.badge) row.badge = entry.badge
+        return row
     })
 }
 
@@ -263,11 +264,10 @@ export function MatchQuestionSurface({
     const [conflict, setConflict] = useState<string | null>(null)
     const [notice, setNotice] = useState<string | null>(null)
     const [importOpen, setImportOpen] = useState(false)
-    const [pendingAdd] = useState(() =>
-        typeof window === "undefined"
-            ? null
-            : new URLSearchParams(window.location.search).get("add")
-    )
+    const [pendingAdd] = useState<string | null>(() => {
+        if (typeof window === "undefined") return null
+        return new URLSearchParams(window.location.search).get("add")
+    })
     const addStartedRef = useRef(false)
 
     useEffect(() => {
@@ -288,7 +288,8 @@ export function MatchQuestionSurface({
     const tab = TABS.find((candidate) => candidate.id === tabId) ?? TABS[0]
     const rules = tournament?.roundRules
 
-    const pickerKind = tab.id === "giai-ma" ? "KEYWORD" : "TEXT"
+    let pickerKind = "TEXT"
+    if (tab.id === "giai-ma") pickerKind = "KEYWORD"
     const eligible = useQuery({
         queryKey: ["eligible", tournamentId, tab.id, pickerKind, debounced],
         queryFn: () => {
@@ -329,8 +330,8 @@ export function MatchQuestionSurface({
                 questionText: row.questionText,
                 kind: row.kind,
                 badge: badgeOfRow(row),
-                ...(group.points !== undefined ? { points: group.points } : {}),
             }
+            if (group.points !== undefined) base.points = group.points
 
             let entries: Entry[] = [base]
             if (targetBucket === "giai-ma" && row.kind === "KEYWORD") {
@@ -355,14 +356,13 @@ export function MatchQuestionSurface({
                 ]
             }
 
-            setDraft((current) =>
-                current
-                    ? {
-                          ...current,
-                          [targetBucket]: spliceInto(current[targetBucket] ?? [], index, entries),
-                      }
-                    : current
-            )
+            setDraft((current) => {
+                if (!current) return current
+                return {
+                    ...current,
+                    [targetBucket]: spliceInto(current[targetBucket] ?? [], index, entries),
+                }
+            })
         },
         []
     )
@@ -423,11 +423,9 @@ export function MatchQuestionSurface({
                     else skipped.push(row.questionText || row.id)
                 }
                 if (placed.length === 0) {
-                    setFlash(
-                        skipped.length > 0
-                            ? "Câu chưa gán nhóm — gán nhóm trước khi thêm vào trận."
-                            : "Không tìm thấy câu cần thêm."
-                    )
+                    let skipFlash = "Không tìm thấy câu cần thêm."
+                    if (skipped.length > 0) skipFlash = "Câu chưa gán nhóm — gán nhóm trước khi thêm vào trận."
+                    setFlash(skipFlash)
                     return
                 }
 
@@ -453,11 +451,10 @@ export function MatchQuestionSurface({
     }, [pendingAdd])
 
     const handleReorder = (bucket: string, from: number, to: number) => {
-        setDraft((current) =>
-            current
-                ? { ...current, [bucket]: arrayMove(current[bucket] ?? [], from, to) }
-                : current
-        )
+        setDraft((current) => {
+            if (!current) return current
+            return { ...current, [bucket]: arrayMove(current[bucket] ?? [], from, to) }
+        })
     }
 
     const handleRemove = (bucket: string, rowId: string) => {
@@ -477,29 +474,33 @@ export function MatchQuestionSurface({
             if (index < 0) return current
 
             const removed = entries[index]
-            const next =
-                removed.kind === "KEYWORD"
-                    ? entries.filter((entry) => entry.kind !== "HINT")
-                    : entries.filter((_, i) => i !== index)
+            let next = entries.filter((_, i) => i !== index)
+            if (removed.kind === "KEYWORD") next = entries.filter((entry) => entry.kind !== "HINT")
             return { ...current, [bucket]: next }
         })
     }
 
     const buildPatchEntries = (): Array<Omit<Entry, "questionText" | "kind" | "badge" | "position"> & { position?: number }> => {
         const source = draft ?? original.groups
-        const grouped = flatten(source).map((entry) => ({
-            roundId: entry.roundId,
-            turnId: entry.turnId,
-            sourceId: entry.sourceId,
-            ...(entry.points !== undefined ? { points: entry.points } : {}),
-        }))
-        const rest = original.unplaced.map((entry) => ({
-            roundId: entry.roundId,
-            turnId: entry.turnId,
-            sourceId: entry.sourceId,
-            ...(entry.points !== undefined ? { points: entry.points } : {}),
-            ...(entry.position !== undefined ? { position: entry.position } : {}),
-        }))
+        const grouped = flatten(source).map((entry) => {
+            const item: { roundId: string; turnId: string; sourceId: string; points?: number } = {
+                roundId: entry.roundId,
+                turnId: entry.turnId,
+                sourceId: entry.sourceId,
+            }
+            if (entry.points !== undefined) item.points = entry.points
+            return item
+        })
+        const rest = original.unplaced.map((entry) => {
+            const item: { roundId: string; turnId: string; sourceId: string; points?: number; position?: number } = {
+                roundId: entry.roundId,
+                turnId: entry.turnId,
+                sourceId: entry.sourceId,
+            }
+            if (entry.points !== undefined) item.points = entry.points
+            if (entry.position !== undefined) item.position = entry.position
+            return item
+        })
         return [...grouped, ...rest]
     }
 
@@ -549,11 +550,9 @@ export function MatchQuestionSurface({
             },
         })
 
-    const saveReason = duplicateInGroup
-        ? "Trùng một câu trong cùng nhóm — gỡ trước khi lưu."
-        : changes === 0
-          ? "Chưa có thay đổi."
-          : null
+    let saveReason: string | null = null
+    if (changes === 0) saveReason = "Chưa có thay đổi."
+    if (duplicateInGroup) saveReason = "Trùng một câu trong cùng nhóm — gỡ trước khi lưu."
 
 
     const saveRef = useRef(save)
@@ -587,26 +586,24 @@ export function MatchQuestionSurface({
             {tab.groups.map((group) => {
                 const entries = shown[group.bucket] ?? []
                 const required = requiredFor(group, rules, match.players.length)
-                const filled =
-                    group.bucket === "giai-ma"
-                        ? entries.filter((entry) => entry.kind === "HINT").length
-                        : entries.length
+                let filled = entries.length
+                if (group.bucket === "giai-ma") filled = entries.filter((entry) => entry.kind === "HINT").length
+                let typeLabel: string | undefined = undefined
+                if (group.typeLabel) typeLabel = group.typeLabel
+                let emptyHint = "Chưa có câu hỏi trong nhóm này"
+                if (editable) emptyHint = "Kéo câu từ ngân hàng bên phải, hoặc bấm vào một câu để thêm"
                 return (
                     <ComposeGroup
                         key={group.bucket}
                         groupId={group.bucket}
                         label={group.label}
-                        {...(group.typeLabel ? { typeLabel: group.typeLabel } : {})}
+                        typeLabel={typeLabel}
                         filled={filled}
                         required={required}
                         rows={toComposeRows(entries)}
                         editable={editable}
                         onRemove={(rowId) => handleRemove(group.bucket, rowId)}
-                        emptyHint={
-                            editable
-                                ? "Kéo câu từ ngân hàng bên phải, hoặc bấm vào một câu để thêm"
-                                : "Chưa có câu hỏi trong nhóm này"
-                        }
+                        emptyHint={emptyHint}
                     />
                 )
             })}
@@ -640,28 +637,39 @@ export function MatchQuestionSurface({
                     aria-label="Tìm trong ngân hàng"
                 />
                 <span className="text-xs text-muted-foreground">
-                    {eligible.isPending
-                        ? "Đang tải…"
-                        : `${eligible.data?.total ?? pickerRows.length} câu PUBLISHED${(eligible.data?.total ?? 0) > 200 ? " (trang đầu)" : ""}`}
+                    {(() => {
+                        let pageNote = ""
+                        const total = eligible.data?.total ?? 0
+                        if (total > 200) pageNote = " (trang đầu)"
+                        let pickerCount = `${eligible.data?.total ?? pickerRows.length} câu PUBLISHED${pageNote}`
+                        if (eligible.isPending) pickerCount = "Đang tải…"
+                        return pickerCount
+                    })()}
                 </span>
             </div>
             <ul className="grid max-h-[26rem] gap-1 overflow-y-auto">
-                {pickerRows.map((row) => (
-                    <BankPickerItem
-                        key={row.id}
-                        sourceId={row.id}
-                        primary={row.questionText}
-                        typeBadge={badgeOfRow(row)}
-                        {...(bucketOfRow(row) ? { secondary: bucketOfRow(row) as string } : {})}
-                        onClick={() => {
-                            const target =
-                                bucketOfRow(row) && tab.groups.some((g) => g.bucket === bucketOfRow(row))
-                                    ? (bucketOfRow(row) as string)
-                                    : tab.groups[0]?.bucket
-                            if (target) handleAdd(row.id, target, (shown[target] ?? []).length)
-                        }}
-                    />
-                ))}
+                {pickerRows.map((row) => {
+                    const rowBucket = bucketOfRow(row)
+                    let secondary: string | undefined = undefined
+                    if (rowBucket) secondary = rowBucket
+                    let target: string | undefined = undefined
+                    if (rowBucket) {
+                        if (tab.groups.some((g) => g.bucket === rowBucket)) target = rowBucket
+                    }
+                    if (!target) target = tab.groups[0]?.bucket
+                    return (
+                        <BankPickerItem
+                            key={row.id}
+                            sourceId={row.id}
+                            primary={row.questionText}
+                            typeBadge={badgeOfRow(row)}
+                            secondary={secondary}
+                            onClick={() => {
+                                if (target) handleAdd(row.id, target, (shown[target] ?? []).length)
+                            }}
+                        />
+                    )
+                })}
                 {eligible.isError && (
                     <li className="text-xs text-destructive">{messageOf(eligible.error)}</li>
                 )}
@@ -673,6 +681,44 @@ export function MatchQuestionSurface({
             </ul>
         </aside>
     )
+
+    let statusText = saveReason ?? "Đang chờ tự lưu…"
+    if (changes === 0) statusText = "✓ đã đồng bộ"
+    if (conflict) statusText = "Bản nháp chờ bạn ghi đè"
+    if (save.isPending) statusText = "Đang tự lưu…"
+
+    let headerActions: ReactNode = (
+        <span className="text-xs text-muted-foreground">
+            Chỉ sửa được khi trận còn UPCOMING
+        </span>
+    )
+    if (match.status === "UPCOMING") {
+        headerActions = (
+            <>
+                <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+                    <Upload className="size-3.5" /> Nhập Excel
+                </Button>
+                <Button variant="outline" size="sm" onClick={enterCompose}>
+                    <Pencil className="size-3.5" /> Sửa câu hỏi
+                </Button>
+            </>
+        )
+    }
+    if (editable) {
+        headerActions = (
+            <>
+                <span aria-live="polite" className="text-xs text-muted-foreground">
+                    {statusText}
+                </span>
+                <Button variant="ghost" size="sm" onClick={leaveCompose} disabled={save.isPending}>
+                    <X className="size-4" /> Xong
+                </Button>
+            </>
+        )
+    }
+
+    let boardCls = "grid gap-4"
+    if (editable) boardCls = "grid gap-4 lg:grid-cols-[1fr_22rem]"
 
     return (
         <ComposeDndProvider onAdd={handleAdd} onReorder={handleReorder}>
@@ -687,35 +733,7 @@ export function MatchQuestionSurface({
                         </span>
                     )}
                     <div className="ml-auto flex items-center gap-2">
-                        {editable ? (
-                            <>
-                                <span aria-live="polite" className="text-xs text-muted-foreground">
-                                    {save.isPending
-                                        ? "Đang tự lưu…"
-                                        : conflict
-                                          ? "Bản nháp chờ bạn ghi đè"
-                                          : changes === 0
-                                            ? "✓ đã đồng bộ"
-                                            : saveReason ?? "Đang chờ tự lưu…"}
-                                </span>
-                                <Button variant="ghost" size="sm" onClick={leaveCompose} disabled={save.isPending}>
-                                    <X className="size-4" /> Xong
-                                </Button>
-                            </>
-                        ) : match.status === "UPCOMING" ? (
-                            <>
-                                <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
-                                    <Upload className="size-3.5" /> Nhập Excel
-                                </Button>
-                                <Button variant="outline" size="sm" onClick={enterCompose}>
-                                    <Pencil className="size-3.5" /> Sửa câu hỏi
-                                </Button>
-                            </>
-                        ) : (
-                            <span className="text-xs text-muted-foreground">
-                                Chỉ sửa được khi trận còn UPCOMING
-                            </span>
-                        )}
+                        {headerActions}
                     </div>
                 </header>
 
@@ -753,8 +771,10 @@ export function MatchQuestionSurface({
                             tournamentId,
                             matchId: match.id,
                             onDone: (created, revision) => {
+                                let revisionNote = ""
+                                if (revision !== null) revisionNote = ` · rev ${revision}`
                                 setNotice(
-                                    `Đã nhập ${created} câu vào trận${revision !== null ? ` · rev ${revision}` : ""}.`
+                                    `Đã nhập ${created} câu vào trận${revisionNote}.`
                                 )
                             },
                         }}
@@ -768,6 +788,8 @@ export function MatchQuestionSurface({
                             (sum, group) => sum + (shown[group.bucket]?.length ?? 0),
                             0
                         )
+                        let tabCls = "bg-background hover:bg-muted"
+                        if (active) tabCls = "border-primary bg-primary text-primary-foreground"
                         return (
                             <button
                                 key={candidate.id}
@@ -776,10 +798,7 @@ export function MatchQuestionSurface({
                                 aria-pressed={active}
                                 onClick={() => setTabId(candidate.id)}
                                 className={
-                                    "rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors " +
-                                    (active
-                                        ? "border-primary bg-primary text-primary-foreground"
-                                        : "bg-background hover:bg-muted")
+                                    "rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors " + tabCls
                                 }
                             >
                                 {candidate.label}
@@ -789,7 +808,7 @@ export function MatchQuestionSurface({
                     })}
                 </div>
 
-                <div className={editable ? "grid gap-4 lg:grid-cols-[1fr_22rem]" : "grid gap-4"}>
+                <div className={boardCls}>
                     {groupPanes}
                     {pickerPane}
                 </div>

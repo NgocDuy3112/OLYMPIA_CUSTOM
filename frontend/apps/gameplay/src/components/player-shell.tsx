@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, type ReactNode } from "react"
 import { useSelfCam } from "@shared/lib/rtc"
 import { StageShell } from "@shared/deck/stage-shell"
 import { Lobby } from "@shared/deck/lobby"
@@ -14,9 +14,14 @@ export function PlayerShell({ matchId }: { matchId: string }) {
     const setSpeakGate = useSelfCam()?.setSpeakGate
     const setAudioGate = useSelfCam()?.setAudioGate
     const audioGate = model.v?.audioGate
-    const speak = audioGate
-        ? Boolean(model.myId) && audioGate.allowed.includes(model.myId ?? "")
-        : null
+    let speak: boolean | null = null
+    if (audioGate) {
+        if (model.myId) {
+            speak = audioGate.allowed.includes(model.myId)
+        } else {
+            speak = false
+        }
+    }
     useEffect(() => {
         setSpeakGate?.(speak)
     }, [setSpeakGate, speak])
@@ -57,7 +62,10 @@ export function PlayerShell({ matchId }: { matchId: string }) {
         )
     }
 
-    const body = model.render && model.ctx ? model.render(model.ctx) : null
+    let body: ReactNode = null
+    if (model.render) {
+        if (model.ctx) body = model.render(model.ctx)
+    }
     return <StageShell>{body}</StageShell>
 }
 

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { Button } from "@shared/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
@@ -17,6 +18,50 @@ export function StandingsTab({ tournamentId }: { tournamentId: string }) {
 
     const rows = standings.data.rows
 
+    let recomputeLabel = "Recompute"
+    if (recompute.isPending) recomputeLabel = "Recomputing…"
+
+    let standingsSlot: ReactNode = (
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    <TableHead className="w-16 pl-6">Place</TableHead>
+                    <TableHead>Player</TableHead>
+                    <TableHead>Got to</TableHead>
+                    <TableHead className="w-24 pr-6 text-right">Matches</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {rows.map((row) => {
+                    let stageText = "—"
+                    if (row.stageTitle) {
+                        stageText = `${row.stageTitle}`
+                        if (row.slot !== null) stageText = `${row.stageTitle} · match ${row.slot}`
+                    }
+                    return (
+                        <TableRow key={row.userId}>
+                            <TableCell className="pl-6 tabular-nums">
+                                {row.place ?? <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell className="font-medium">{row.displayName}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                                {stageText}
+                            </TableCell>
+                            <TableCell className="pr-6 text-right tabular-nums">{row.matchesPlayed}</TableCell>
+                        </TableRow>
+                    )
+                })}
+            </TableBody>
+        </Table>
+    )
+    if (rows.length === 0) {
+        standingsSlot = (
+            <p className="px-6 pb-6 text-sm text-muted-foreground">
+                No players are enrolled in this tournament yet.
+            </p>
+        )
+    }
+
     return (
         <Card>
             <CardHeader>
@@ -32,44 +77,13 @@ export function StandingsTab({ tournamentId }: { tournamentId: string }) {
                         disabled={recompute.isPending}
                         onClick={() => recompute.mutate()}
                     >
-                        {recompute.isPending ? "Recomputing…" : "Recompute"}
+                        {recomputeLabel}
                     </Button>
                 </CardAction>
             </CardHeader>
 
             <CardContent className="p-0">
-                {rows.length === 0 ? (
-                    <p className="px-6 pb-6 text-sm text-muted-foreground">
-                        No players are enrolled in this tournament yet.
-                    </p>
-                ) : (
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-16 pl-6">Place</TableHead>
-                                <TableHead>Player</TableHead>
-                                <TableHead>Got to</TableHead>
-                                <TableHead className="w-24 pr-6 text-right">Matches</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {rows.map((row) => (
-                                <TableRow key={row.userId}>
-                                    <TableCell className="pl-6 tabular-nums">
-                                        {row.place ?? <span className="text-muted-foreground">—</span>}
-                                    </TableCell>
-                                    <TableCell className="font-medium">{row.displayName}</TableCell>
-                                    <TableCell className="text-sm text-muted-foreground">
-                                        {row.stageTitle
-                                            ? `${row.stageTitle}${row.slot !== null ? ` · match ${row.slot}` : ""}`
-                                            : "—"}
-                                    </TableCell>
-                                    <TableCell className="pr-6 text-right tabular-nums">{row.matchesPlayed}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                )}
+                {standingsSlot}
             </CardContent>
         </Card>
     )

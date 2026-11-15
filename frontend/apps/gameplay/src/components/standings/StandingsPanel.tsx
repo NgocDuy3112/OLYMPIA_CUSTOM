@@ -52,27 +52,31 @@ export function StandingsPanel({
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {rows.map((row) => (
-                            <TableRow
-                                key={row.id}
-                                tabIndex={onSelectRow ? 0 : undefined}
-                                className={cn(onSelectRow && "cursor-pointer")}
-                                onClick={() => onSelectRow?.(row)}
-                            >
-                                <TableCell className="tabular-nums text-muted-foreground">
-                                    {row.rank ?? "—"}
-                                </TableCell>
-                                <TableCell className="font-medium">
-                                    {row.name}
-                                </TableCell>
-                                <TableCell className="text-sm text-muted-foreground">
-                                    {row.stageTitle ?? "—"}
-                                </TableCell>
-                                <TableCell className="text-center tabular-nums">
-                                    {row.matchesPlayed}
-                                </TableCell>
-                            </TableRow>
-                        ))}
+                        {rows.map((row) => {
+                            let tabIndex: number | undefined = undefined
+                            if (onSelectRow) tabIndex = 0
+                            return (
+                                <TableRow
+                                    key={row.id}
+                                    tabIndex={tabIndex}
+                                    className={cn(onSelectRow && "cursor-pointer")}
+                                    onClick={() => onSelectRow?.(row)}
+                                >
+                                    <TableCell className="tabular-nums text-muted-foreground">
+                                        {row.rank ?? "—"}
+                                    </TableCell>
+                                    <TableCell className="font-medium">
+                                        {row.name}
+                                    </TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">
+                                        {row.stageTitle ?? "—"}
+                                    </TableCell>
+                                    <TableCell className="text-center tabular-nums">
+                                        {row.matchesPlayed}
+                                    </TableCell>
+                                </TableRow>
+                            )
+                        })}
                     </TableBody>
                 </Table>
                 {viewAllTo && (

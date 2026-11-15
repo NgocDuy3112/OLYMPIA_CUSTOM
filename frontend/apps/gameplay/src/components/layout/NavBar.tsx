@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react"
+import { useState, type FormEvent, type ReactNode } from "react"
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom"
 import { ChevronDown, LogOut } from "lucide-react"
 import { cn } from "cn"
@@ -54,6 +54,53 @@ export function NavBar() {
         navigate(`/s/${match.slug}/matches/${match.matchId}`)
     }
 
+    let accountSlot: ReactNode = <span className="ml-auto h-9 w-24 animate-pulse rounded-md bg-muted" />
+    if (me.data) {
+        accountSlot = (
+            <div className="ml-auto flex items-center gap-2">
+                <span className="max-w-40 truncate text-sm text-muted-foreground">
+                    {me.data.displayName}
+                </span>
+                <Button
+                    variant="default"
+                    size="lg"
+                    onClick={() => {
+                        void myMatches.refetch()
+                        setEnterOpen(true)
+                    }}
+                >
+                    Vào trận
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label="Đăng xuất"
+                    onClick={() => logout.mutate()}
+                >
+                    <LogOut className="size-4" aria-hidden />
+                </Button>
+                <EnterMatchDialog
+                    open={enterOpen}
+                    onClose={() => setEnterOpen(false)}
+                    myMatches={myMatches}
+                    goToMatch={goToMatch}
+                />
+            </div>
+        )
+    }
+    if (signedOut) {
+        accountSlot = (
+            <div className="ml-auto flex items-center gap-2">
+                <Link
+                    to={loginLink(pathname)}
+                    className={cn(buttonVariants({ variant: "default", size: "lg" }))}
+                >
+                    Đăng nhập
+                </Link>
+            </div>
+        )
+    }
+
     return (
         <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
             <div className="mx-auto flex h-14 w-full items-center gap-4 px-4">
@@ -70,8 +117,10 @@ export function NavBar() {
                             to={to}
                             end={end}
                             className={({ isActive }) => {
-                                const active =
-                                    to === "/" ? isActive || pathname.startsWith("/matches") : isActive
+                                let active = isActive
+                                if (to === "/") {
+                                    if (pathname.startsWith("/matches")) active = true
+                                }
                                 return cn(
                                     buttonVariants({ variant: "ghost", size: "sm" }),
                                     active && "bg-secondary font-medium text-secondary-foreground"
@@ -93,26 +142,27 @@ export function NavBar() {
                             <ChevronDown className="size-3.5" aria-hidden />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start">
-                            {tournaments.map((tournament) => (
-                                <DropdownMenuItem
-                                    key={tournament.id}
-                                    onClick={() => navigate(`/s/${tournament.slug}`)}
-                                >
-                                    <span
-                                        className={cn(
-                                            "size-1.5 rounded-full",
-                                            tournament.current ? "bg-destructive" : "bg-transparent"
+                            {tournaments.map((tournament) => {
+                                let dotCls = "bg-transparent"
+                                if (tournament.current) dotCls = "bg-destructive"
+                                return (
+                                    <DropdownMenuItem
+                                        key={tournament.id}
+                                        onClick={() => navigate(`/s/${tournament.slug}`)}
+                                    >
+                                        <span
+                                            className={cn("size-1.5 rounded-full", dotCls)}
+                                            aria-hidden
+                                        />
+                                        {tournament.name}
+                                        {tournament.current && (
+                                            <span className="ml-auto text-xs text-muted-foreground">
+                                                Hiện tại
+                                            </span>
                                         )}
-                                        aria-hidden
-                                    />
-                                    {tournament.name}
-                                    {tournament.current && (
-                                        <span className="ml-auto text-xs text-muted-foreground">
-                                            Hiện tại
-                                        </span>
-                                    )}
-                                </DropdownMenuItem>
-                            ))}
+                                    </DropdownMenuItem>
+                                )
+                            })}
                         </DropdownMenuContent>
                     </DropdownMenu>
                     <Link
@@ -122,48 +172,7 @@ export function NavBar() {
                         Quyền riêng tư
                     </Link>
                 </nav>
-                {signedOut ? (
-                    <div className="ml-auto flex items-center gap-2">
-                        <Link
-                            to={loginLink(pathname)}
-                            className={cn(buttonVariants({ variant: "default", size: "lg" }))}
-                        >
-                            Đăng nhập
-                        </Link>
-                    </div>
-                ) : me.data ? (
-                    <div className="ml-auto flex items-center gap-2">
-                        <span className="max-w-40 truncate text-sm text-muted-foreground">
-                            {me.data.displayName}
-                        </span>
-                        <Button
-                            variant="default"
-                            size="lg"
-                            onClick={() => {
-                                void myMatches.refetch()
-                                setEnterOpen(true)
-                            }}
-                        >
-                            Vào trận
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            aria-label="Đăng xuất"
-                            onClick={() => logout.mutate()}
-                        >
-                            <LogOut className="size-4" aria-hidden />
-                        </Button>
-                        <EnterMatchDialog
-                            open={enterOpen}
-                            onClose={() => setEnterOpen(false)}
-                            myMatches={myMatches}
-                            goToMatch={goToMatch}
-                        />
-                    </div>
-                ) : (
-                    <span className="ml-auto h-9 w-24 animate-pulse rounded-md bg-muted" />
-                )}
+                {accountSlot}
             </div>
         </header>
     )
@@ -197,6 +206,47 @@ function EnterMatchDialog({ open, onClose, myMatches, goToMatch }: EnterMatchDia
         })
     }
 
+    let seatsSlot: ReactNode = null
+    if (seats.length > 0) {
+        seatsSlot = (
+            <div className="grid gap-1.5">
+                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Ghế của bạn
+                </span>
+                {seats.map((match) => {
+                    let statusText = "sắp diễn ra"
+                    if (match.status === "LIVE") statusText = "đang diễn ra"
+                    return (
+                        <button
+                            key={match.matchId}
+                            type="button"
+                            onClick={() => goToMatch(match)}
+                            className="flex w-full flex-col rounded-lg border px-3 py-2 text-left hover:bg-accent"
+                        >
+                            <span className="text-sm font-medium">{match.tournamentName}</span>
+                            <span className="text-xs text-muted-foreground">
+                                {match.label} ·{" "}
+                                {statusText}
+                            </span>
+                        </button>
+                    )
+                })}
+                <p className="pt-1 text-center text-xs text-muted-foreground">
+                    hoặc nhập mã phòng
+                </p>
+            </div>
+        )
+    }
+    if (myMatches.isError) {
+        seatsSlot = (
+            <p role="status" className="text-sm text-muted-foreground">
+                Không đọc được danh sách trận — thử lại.
+            </p>
+        )
+    }
+    let claimLabel = "Vào trận"
+    if (claim.isPending) claimLabel = "Đang kiểm tra…"
+
     return (
         <Dialog
             open={open}
@@ -213,34 +263,7 @@ function EnterMatchDialog({ open, onClose, myMatches, goToMatch }: EnterMatchDia
                 </DialogHeader>
 
                 <div className="grid gap-3">
-                    {myMatches.isError ? (
-                        <p role="status" className="text-sm text-muted-foreground">
-                            Không đọc được danh sách trận — thử lại.
-                        </p>
-                    ) : seats.length > 0 ? (
-                        <div className="grid gap-1.5">
-                            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                Ghế của bạn
-                            </span>
-                            {seats.map((match) => (
-                                <button
-                                    key={match.matchId}
-                                    type="button"
-                                    onClick={() => goToMatch(match)}
-                                    className="flex w-full flex-col rounded-lg border px-3 py-2 text-left hover:bg-accent"
-                                >
-                                    <span className="text-sm font-medium">{match.tournamentName}</span>
-                                    <span className="text-xs text-muted-foreground">
-                                        {match.label} ·{" "}
-                                        {match.status === "LIVE" ? "đang diễn ra" : "sắp diễn ra"}
-                                    </span>
-                                </button>
-                            ))}
-                            <p className="pt-1 text-center text-xs text-muted-foreground">
-                                hoặc nhập mã phòng
-                            </p>
-                        </div>
-                    ) : null}
+                    {seatsSlot}
 
                     <form onSubmit={submit} className="grid gap-2">
                         <label htmlFor="room-code" className="text-sm font-medium">
@@ -266,7 +289,7 @@ function EnterMatchDialog({ open, onClose, myMatches, goToMatch }: EnterMatchDia
                             type="submit"
                             disabled={claim.isPending || code.trim().length === 0}
                         >
-                            {claim.isPending ? "Đang kiểm tra…" : "Vào trận"}
+                            {claimLabel}
                         </Button>
                     </form>
                 </div>

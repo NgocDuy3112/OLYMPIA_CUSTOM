@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { Link } from "react-router-dom"
 import { buttonVariants } from "@shared/ui/button"
 import { cn } from "cn"
@@ -13,15 +14,23 @@ export function PlayersTab({ tournamentId }: { tournamentId: string }) {
     if (roster.isError) return <p role="alert" className="text-sm text-destructive">{roster.error.message}</p>
 
     const rows = roster.data.items
+    let rosterHint = `${rosterSummary(rows)} — xem và sửa ở trang Thí sinh.`
+    if (rows.length === 0) rosterHint = "No contestants yet."
+    let rosterSlot: ReactNode = <RosterTable rows={rows} />
+    if (rows.length === 0) {
+        rosterSlot = (
+            <p className="px-6 pb-6 text-sm text-muted-foreground">
+                A match seats players from this roster — ghi danh họ ở trang Thí sinh trước.
+            </p>
+        )
+    }
 
     return (
         <Card>
             <CardHeader>
                 <CardTitle className="text-base">Thí sinh</CardTitle>
                 <CardDescription>
-                    {rows.length === 0
-                        ? "No contestants yet."
-                        : `${rosterSummary(rows)} — xem và sửa ở trang Thí sinh.`}
+                    {rosterHint}
                 </CardDescription>
                 <CardAction>
                     <Link
@@ -34,13 +43,7 @@ export function PlayersTab({ tournamentId }: { tournamentId: string }) {
             </CardHeader>
 
             <CardContent className="p-0">
-                {rows.length === 0 ? (
-                    <p className="px-6 pb-6 text-sm text-muted-foreground">
-                        A match seats players from this roster — ghi danh họ ở trang Thí sinh trước.
-                    </p>
-                ) : (
-                    <RosterTable rows={rows} />
-                )}
+                {rosterSlot}
             </CardContent>
         </Card>
     )

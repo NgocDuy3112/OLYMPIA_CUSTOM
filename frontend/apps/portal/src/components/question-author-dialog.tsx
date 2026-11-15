@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { Link2, Plus, Save, Upload, X } from "lucide-react"
 import { api, ApiError } from "@shared/lib/api"
@@ -120,10 +120,12 @@ function nextOptionId(existing: string[]): string {
 }
 
 function draftFrom(row: AuthorRow | null | undefined, bucket?: string, presetKeywordId?: string): AuthorDraft {
+    let timeLimit = ""
+    if (row?.timeLimit != null) timeLimit = String(row.timeLimit)
     const base: AuthorDraft = {
         bucket: bucket ?? "",
         questionText: row?.questionText ?? "",
-        timeLimit: row?.timeLimit != null ? String(row.timeLimit) : "",
+        timeLimit,
         accepted: "",
         options: [
             { id: "a", text: "" },
@@ -136,11 +138,13 @@ function draftFrom(row: AuthorRow | null | undefined, bucket?: string, presetKey
     }
     if (!base.bucket && (presetKeywordId || row?.kind === "HINT")) base.bucket = "giai-ma"
     if (!base.bucket && row) {
-        const carried =
-            (row.tags ?? []).find((tag) => BUCKET_VALUES.has(tag)) ??
-            (typeof row.payload?.bucket === "string" && BUCKET_VALUES.has(row.payload.bucket)
-                ? row.payload.bucket
-                : undefined)
+        let carried = (row.tags ?? []).find((tag) => BUCKET_VALUES.has(tag))
+        if (carried === undefined) {
+            const carrier = row.payload?.bucket
+            if (typeof carrier === "string") {
+                if (BUCKET_VALUES.has(carrier)) carried = carrier
+            }
+        }
         if (carried) base.bucket = carried
     }
     if (!row?.payload) return base
@@ -150,7 +154,8 @@ function draftFrom(row: AuthorRow | null | undefined, bucket?: string, presetKey
             id: o.id,
             text: o.text,
         }))
-        base.correct = Array.isArray(payload.correctSet) ? [...(payload.correctSet as string[])] : []
+        base.correct = []
+        if (Array.isArray(payload.correctSet)) base.correct = [...(payload.correctSet as string[])]
     }
     if (Array.isArray(payload.acceptedAnswers)) {
         base.accepted = (payload.acceptedAnswers as string[]).join("\n")
@@ -210,28 +215,34 @@ function reasonFor(type: QuestionType): string {
 function AudiencePreview({ type, draft }: { type: QuestionType; draft: AuthorDraft }) {
     const options = draft.options.filter((o) => o.text.trim())
     const showsChoice = options.length > 0 && (type === "ORAL" || type === "CHOICE")
+    let audienceNote = " — ô nhập như thí sinh"
+    if (showsChoice) audienceNote = " — CHOICE"
+    let previewSlot: ReactNode = (
+        <div className="rounded-md border border-input bg-background px-2 py-1 text-xs text-muted-foreground">
+            Câu trả lời của bạn
+        </div>
+    )
+    if (showsChoice) {
+        previewSlot = (
+            <div className="flex flex-wrap gap-1.5">
+                {options.map((option, index) => (
+                    <span
+                        key={option.id}
+                        className="rounded-md border border-input bg-background px-2 py-1 text-xs"
+                    >
+                        <b>{String.fromCharCode(65 + index)}.</b> {option.text}
+                    </span>
+                ))}
+            </div>
+        )
+    }
     return (
         <div className="grid gap-2 rounded-lg border border-border bg-muted/40 p-3">
             <span className="text-xs font-medium text-muted-foreground">
                 Khán giả thấy
-                {showsChoice ? " — CHOICE" : " — ô nhập như thí sinh"}
+                {audienceNote}
             </span>
-            {showsChoice ? (
-                <div className="flex flex-wrap gap-1.5">
-                    {options.map((option, index) => (
-                        <span
-                            key={option.id}
-                            className="rounded-md border border-input bg-background px-2 py-1 text-xs"
-                        >
-                            <b>{String.fromCharCode(65 + index)}.</b> {option.text}
-                        </span>
-                    ))}
-                </div>
-            ) : (
-                <div className="rounded-md border border-input bg-background px-2 py-1 text-xs text-muted-foreground">
-                    Câu trả lời của bạn
-                </div>
-            )}
+            {previewSlot}
         </div>
     )
 }
@@ -296,7 +307,9 @@ export function QuestionAuthorDialog({
         staleTime: 15_000,
     })
     const selfIsHint = row !== null && row.kind === "HINT" && row.keywordId === draft.keywordId
-    const otherHints = Math.max(0, (hintPool.data?.items ?? []).length - (selfIsHint ? 1 : 0))
+    let hintOffset = 0
+    if (selfIsHint) hintOffset = 1
+    const otherHints = Math.max(0, (hintPool.data?.items ?? []).length - hintOffset)
     const hintCapFull = draft.keywordId.length > 0 && otherHints >= HINT_MAX
 
     const keywordOptions = (keywordList.data?.items ?? []).filter(
@@ -313,7 +326,12 @@ export function QuestionAuthorDialog({
     }
 
     const setOptionText = (id: string, text: string) =>
-        patch({ options: draft.options.map((o) => (o.id === id ? { ...o, text } : o)) })
+        patch({
+            options: draft.options.map((o) => {
+                if (o.id === id) return { ...o, text }
+                return o
+            }),
+        })
 
     const addOption = () =>
         patch({ options: [...draft.options, { id: nextOptionId(draft.options.map((o) => o.id)), text: "" }] })
@@ -325,13 +343,20 @@ export function QuestionAuthorDialog({
         })
 
     const toggleCorrect = (id: string) => {
-        if (type === "ORAL") patch({ correct: draft.correct.includes(id) ? [] : [id] })
-        else
-            patch({
-                correct: draft.correct.includes(id)
-                    ? draft.correct.filter((cid) => cid !== id)
-                    : [...draft.correct, id],
-            })
+        const included = draft.correct.includes(id)
+        if (type === "ORAL") {
+            if (included) {
+                patch({ correct: [] })
+            } else {
+                patch({ correct: [id] })
+            }
+            return
+        }
+        if (included) {
+            patch({ correct: draft.correct.filter((cid) => cid !== id) })
+        } else {
+            patch({ correct: [...draft.correct, id] })
+        }
     }
 
     const builtPayload = buildPayload(type, draft)
@@ -351,9 +376,11 @@ export function QuestionAuthorDialog({
             }
         }
         if (row) {
+            let draftLimit: number | null = null
+            if (draft.timeLimit) draftLimit = Number(draft.timeLimit)
             const changed =
                 draft.questionText.trim() !== row.questionText ||
-                (draft.timeLimit ? Number(draft.timeLimit) : null) !== (row.timeLimit ?? null) ||
+                draftLimit !== (row.timeLimit ?? null) ||
                 (draft.keywordId || null) !== (row.keywordId ?? null) ||
                 JSON.stringify(stripBridge(builtPayload)) !==
                     JSON.stringify(stripBridge(row.payload ?? {})) ||
@@ -366,10 +393,12 @@ export function QuestionAuthorDialog({
 
     const save = () => {
         if (problem !== null || busy || builtPayload === null) return
+        let timeLimit: number | null = null
+        if (draft.timeLimit) timeLimit = Number(draft.timeLimit)
         void onSave({
             type,
             questionText: draft.questionText.trim(),
-            timeLimit: draft.timeLimit ? Number(draft.timeLimit) : null,
+            timeLimit,
             keywordId: draft.keywordId || null,
             payload: builtPayload,
             tags: [...(row?.tags ?? []).filter((tag) => !BUCKET_VALUES.has(tag)), draft.bucket],
@@ -377,11 +406,82 @@ export function QuestionAuthorDialog({
         })
     }
 
+    let dialogTitle = "New question"
+    if (hintBorn) dialogTitle = "New hint"
+    if (row) dialogTitle = "Edit question"
+
+    let typeHint = " — gõ câu trả lời"
+    if (type === "KEYWORD") typeHint = " — ô nhập bí mật cho Giải mã"
+    if (type === "ORAL") typeHint = " — thí sinh trả lời miệng, khán giả chọn ô trả lời"
+    let acceptedLabel = "Accepted answers (one per line)"
+    if (type === "ORAL") acceptedLabel = "Accepted answers — the judge's reference (one per line)"
+    let optionsLabel = "Options · tick the correct one(s)"
+    if (type === "ORAL") optionsLabel = "Options — the audience face, pick exactly one correct"
+    let hintCapCls = "text-muted-foreground"
+    if (hintCapFull) hintCapCls = "text-destructive"
+    let capNote = ""
+    if (hintCapFull) capNote = " — convert or archive one first."
+    let uploadLabel = "Tải ảnh / video / âm thanh"
+    if (upload.isPending) uploadLabel = "Đang tải lên…"
+
+    let mediaSlot: ReactNode = (
+        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-5 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground">
+            <Upload className="size-4" aria-hidden />
+            <span>
+                {uploadLabel}
+            </span>
+            <input
+                type="file"
+                accept="image/*,audio/*,video/*"
+                className="sr-only"
+                disabled={upload.isPending}
+                onChange={(event) => {
+                    const file = event.target.files?.[0]
+                    if (file) upload.mutate(file)
+                    event.target.value = ""
+                }}
+            />
+        </label>
+    )
+    if (draft.media) {
+        let mediaPreview: ReactNode = (
+            <span className="flex size-14 shrink-0 items-center justify-center rounded-md border bg-muted text-xs text-muted-foreground">
+                {draft.media.type}
+            </span>
+        )
+        if (draft.media.type === "image") {
+            mediaPreview = (
+                <img
+                    src={draft.media.url}
+                    alt=""
+                    className="size-14 shrink-0 rounded-md border object-cover"
+                />
+            )
+        }
+        mediaSlot = (
+            <div className="flex items-center gap-3 rounded-lg border p-2">
+                {mediaPreview}
+                <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                    {draft.media.url}
+                </span>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label="Gỡ media"
+                    title="Gỡ media"
+                    onClick={() => patch({ media: null })}
+                >
+                    <X className="size-4" aria-hidden />
+                </Button>
+            </div>
+        )
+    }
+
     return (
         <Dialog open={open} onOpenChange={(next) => { if (!next) onCancel() }}>
             <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
                 <DialogHeader>
-                    <DialogTitle>{row ? "Edit question" : hintBorn ? "New hint" : "New question"}</DialogTitle>
+                    <DialogTitle>{dialogTitle}</DialogTitle>
                 </DialogHeader>
 
                 <div className="grid gap-4">
@@ -411,11 +511,7 @@ export function QuestionAuthorDialog({
                                 <p className="text-xs text-muted-foreground">
                                     Dạng trả lời:{" "}
                                     <Badge variant="outline">{type}</Badge>
-                                    {type === "ORAL"
-                                        ? " — thí sinh trả lời miệng, khán giả chọn ô trả lời"
-                                        : type === "KEYWORD"
-                                          ? " — ô nhập bí mật cho Giải mã"
-                                          : " — gõ câu trả lời"}
+                                    {typeHint}
                                 </p>
                             )}
                         </div>
@@ -448,9 +544,7 @@ export function QuestionAuthorDialog({
                     {(type === "TEXT" || type === "ORAL") && (
                         <div className="grid gap-2">
                             <label className="text-sm font-medium" htmlFor="q-accepted">
-                                {type === "ORAL"
-                                    ? "Accepted answers — the judge's reference (one per line)"
-                                    : "Accepted answers (one per line)"}
+                                {acceptedLabel}
                             </label>
                             <textarea
                                 id="q-accepted"
@@ -466,39 +560,43 @@ export function QuestionAuthorDialog({
                     {(type === "ORAL" || type === "CHOICE") && (
                         <div className="grid gap-2">
                             <span className="text-sm font-medium">
-                                {type === "ORAL"
-                                    ? "Options — the audience face, pick exactly one correct"
-                                    : "Options · tick the correct one(s)"}
+                                {optionsLabel}
                             </span>
-                            {draft.options.map((option, index) => (
-                                <div key={option.id} className="flex items-center gap-2">
-                                    <input
-                                        type={type === "ORAL" ? "radio" : "checkbox"}
-                                        name={type === "ORAL" ? "oral-correct" : undefined}
-                                        checked={draft.correct.includes(option.id)}
-                                        onChange={() => toggleCorrect(option.id)}
-                                        aria-label={`Option ${String.fromCharCode(65 + index)} correct`}
-                                        className="size-4 shrink-0"
-                                    />
-                                    <span className="w-4 shrink-0 text-sm font-semibold text-muted-foreground">
-                                        {String.fromCharCode(65 + index)}
-                                    </span>
-                                    <Input
-                                        value={option.text}
-                                        onChange={(event) => setOptionText(option.id, event.target.value)}
-                                        placeholder={`Option ${String.fromCharCode(65 + index)}`}
-                                    />
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        disabled={type === "ORAL" && draft.options.length <= 2}
-                                        aria-label={`Remove option ${String.fromCharCode(65 + index)}`}
-                                        onClick={() => removeOption(option.id)}
-                                    >
-                                        <X className="size-4" />
-                                    </Button>
-                                </div>
-                            ))}
+                            {draft.options.map((option, index) => {
+                                let inputType: "radio" | "checkbox" = "checkbox"
+                                if (type === "ORAL") inputType = "radio"
+                                let inputName: string | undefined = undefined
+                                if (type === "ORAL") inputName = "oral-correct"
+                                return (
+                                    <div key={option.id} className="flex items-center gap-2">
+                                        <input
+                                            type={inputType}
+                                            name={inputName}
+                                            checked={draft.correct.includes(option.id)}
+                                            onChange={() => toggleCorrect(option.id)}
+                                            aria-label={`Option ${String.fromCharCode(65 + index)} correct`}
+                                            className="size-4 shrink-0"
+                                        />
+                                        <span className="w-4 shrink-0 text-sm font-semibold text-muted-foreground">
+                                            {String.fromCharCode(65 + index)}
+                                        </span>
+                                        <Input
+                                            value={option.text}
+                                            onChange={(event) => setOptionText(option.id, event.target.value)}
+                                            placeholder={`Option ${String.fromCharCode(65 + index)}`}
+                                        />
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            disabled={type === "ORAL" && draft.options.length <= 2}
+                                            aria-label={`Remove option ${String.fromCharCode(65 + index)}`}
+                                            onClick={() => removeOption(option.id)}
+                                        >
+                                            <X className="size-4" />
+                                        </Button>
+                                    </div>
+                                )
+                            })}
                             <Button
                                 variant="outline"
                                 size="sm"
@@ -560,9 +658,9 @@ export function QuestionAuthorDialog({
                                 </span>
                             )}
                             {hintPool.data && draft.keywordId && (
-                                <span className={"text-xs " + (hintCapFull ? "text-destructive" : "text-muted-foreground")}>
+                                <span className={"text-xs " + hintCapCls}>
                                     {otherHints}/{HINT_MAX} hints in this set
-                                    {hintCapFull ? " — convert or archive one first." : ""}
+                                    {capNote}
                                 </span>
                             )}
                         </div>
@@ -582,51 +680,7 @@ export function QuestionAuthorDialog({
 
                     <div className="grid gap-2">
                         <span className="text-sm font-medium">Media (optional)</span>
-                        {draft.media ? (
-                            <div className="flex items-center gap-3 rounded-lg border p-2">
-                                {draft.media.type === "image" ? (
-                                    <img
-                                        src={draft.media.url}
-                                        alt=""
-                                        className="size-14 shrink-0 rounded-md border object-cover"
-                                    />
-                                ) : (
-                                    <span className="flex size-14 shrink-0 items-center justify-center rounded-md border bg-muted text-xs text-muted-foreground">
-                                        {draft.media.type}
-                                    </span>
-                                )}
-                                <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-                                    {draft.media.url}
-                                </span>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    aria-label="Gỡ media"
-                                    title="Gỡ media"
-                                    onClick={() => patch({ media: null })}
-                                >
-                                    <X className="size-4" aria-hidden />
-                                </Button>
-                            </div>
-                        ) : (
-                            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-5 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground">
-                                <Upload className="size-4" aria-hidden />
-                                <span>
-                                    {upload.isPending ? "Đang tải lên…" : "Tải ảnh / video / âm thanh"}
-                                </span>
-                                <input
-                                    type="file"
-                                    accept="image/*,audio/*,video/*"
-                                    className="sr-only"
-                                    disabled={upload.isPending}
-                                    onChange={(event) => {
-                                        const file = event.target.files?.[0]
-                                        if (file) upload.mutate(file)
-                                        event.target.value = ""
-                                    }}
-                                />
-                            </label>
-                        )}
+                        {mediaSlot}
                         {uploadError && (
                             <p role="alert" className="text-xs text-destructive">
                                 {uploadError}

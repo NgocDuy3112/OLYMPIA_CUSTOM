@@ -44,12 +44,11 @@ export function ChangePasswordPage() {
     }
 
     const mismatch = confirm.length > 0 && next1 !== confirm
-    const clientError =
-        next1.length > 0 && next1.length < PASSWORD_MIN
-            ? `Mật khẩu cần ít nhất ${PASSWORD_MIN} ký tự.`
-            : mismatch
-              ? "Hai ô mật khẩu mới chưa giống nhau."
-              : null
+    let clientError: string | null = null
+    if (mismatch) clientError = "Hai ô mật khẩu mới chưa giống nhau."
+    if (next1.length > 0) {
+        if (next1.length < PASSWORD_MIN) clientError = `Mật khẩu cần ít nhất ${PASSWORD_MIN} ký tự.`
+    }
 
     if (signedOut) {
         return (
@@ -73,10 +72,18 @@ export function ChangePasswordPage() {
         )
     }
 
-    const serverError = change.isError ? change.error : null
-    const wrongCurrent =
-        serverError instanceof ApiError && serverError.status === 401 ? serverError.message : null
-    const otherError = serverError && !wrongCurrent ? serverError.message : null
+    let serverError: typeof change.error = null
+    if (change.isError) serverError = change.error
+    let wrongCurrent: string | null = null
+    if (serverError instanceof ApiError) {
+        if (serverError.status === 401) wrongCurrent = serverError.message
+    }
+    let otherError: string | null = null
+    if (serverError) {
+        if (!wrongCurrent) otherError = serverError.message
+    }
+    let submitLabel = "Đặt mật khẩu"
+    if (change.isPending) submitLabel = "Đang lưu…"
 
     return (
         <div className="mx-auto flex w-full max-w-96 flex-col gap-4 px-4 py-10">
@@ -135,15 +142,15 @@ export function ChangePasswordPage() {
                                 />
                             </Field>
 
-                            {clientError ? <FieldError>{clientError}</FieldError> : null}
-                            {wrongCurrent ? <FieldError>{wrongCurrent}</FieldError> : null}
-                            {otherError ? <FieldError>{otherError}</FieldError> : null}
+                            {clientError && <FieldError>{clientError}</FieldError>}
+                            {wrongCurrent && <FieldError>{wrongCurrent}</FieldError>}
+                            {otherError && <FieldError>{otherError}</FieldError>}
 
                             <Button
                                 type="submit"
                                 disabled={change.isPending || Boolean(clientError) || next1.length < PASSWORD_MIN}
                             >
-                                {change.isPending ? "Đang lưu…" : "Đặt mật khẩu"}
+                                {submitLabel}
                             </Button>
                         </FieldGroup>
                     </form>

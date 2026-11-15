@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react"
+import { useState, type FormEvent, type ReactNode } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { Button } from "@shared/ui/button"
 import { Card, CardContent } from "@shared/ui/card"
@@ -61,6 +61,26 @@ export function CodePage() {
 
     const sessionGone = isGone(claim.error)
 
+    let codeStatus: ReactNode = null
+    if (claim.isError) {
+        codeStatus = <FieldError>{claim.error.message}</FieldError>
+    }
+    if (sessionGone) {
+        codeStatus = (
+            <p role="status" className="font-sans text-sm text-muted-foreground">
+                Phiên đã hết hạn — đăng nhập lại để dùng mã.{" "}
+                <Link
+                    to={loginLink("/code")}
+                    className="underline underline-offset-4 hover:text-foreground"
+                >
+                    Đăng nhập
+                </Link>
+            </p>
+        )
+    }
+    let claimLabel = "Vào trận"
+    if (claim.isPending) claimLabel = "Đang kiểm tra…"
+
     return (
         <div className="mx-auto flex w-full max-w-96 flex-col gap-4 px-4 py-10">
             <Card>
@@ -92,22 +112,10 @@ export function CodePage() {
                                 </p>
                             </Field>
 
-                            {sessionGone ? (
-                                <p role="status" className="font-sans text-sm text-muted-foreground">
-                                    Phiên đã hết hạn — đăng nhập lại để dùng mã.{" "}
-                                    <Link
-                                        to={loginLink("/code")}
-                                        className="underline underline-offset-4 hover:text-foreground"
-                                    >
-                                        Đăng nhập
-                                    </Link>
-                                </p>
-                            ) : claim.isError ? (
-                                <FieldError>{claim.error.message}</FieldError>
-                            ) : null}
+                            {codeStatus}
 
                             <Button type="submit" disabled={claim.isPending || code.trim().length === 0}>
-                                {claim.isPending ? "Đang kiểm tra…" : "Vào trận"}
+                                {claimLabel}
                             </Button>
                         </FieldGroup>
                     </form>

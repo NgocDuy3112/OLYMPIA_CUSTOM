@@ -13,14 +13,15 @@ export function playerScreenOf(view: Pick<PlayerView, "roundId" | "stage" | "ope
 
     switch (roundId) {
         case "khoi-dong":
-            return stage === "phase2" ? "khoi-dong-chung" : "khoi-dong-rieng"
+            if (stage === "phase2") return "khoi-dong-chung"
+            return "khoi-dong-rieng"
         case "giai-ma":
             return "giai-ma"
         case "but-pha":
             return "but-pha"
         default: // ve-dich
-            return open.length === 0
-                ? "ve-dich-pick"
-                : stage === "phase2" ? "ve-dich-rieng" : "ve-dich-chung"
+            if (open.length === 0) return "ve-dich-pick"
+            if (stage === "phase2") return "ve-dich-rieng"
+            return "ve-dich-chung"
     }
 }

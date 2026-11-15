@@ -8,15 +8,17 @@ const INPUT =
 const SUBMIT =
     "flex h-[3.3cqw] w-[9.08cqw] shrink-0 items-center justify-center rounded-lg bg-primary font-sans font-semibold uppercase text-primary-foreground shadow-sm transition hover:brightness-110 disabled:opacity-50"
 
-const optionClass = (selected: boolean): string =>
-    `flex h-[3.3cqw] w-[9.08cqw] shrink-0 items-center justify-center px-[0.4cqw] text-center font-sans font-semibold leading-tight shadow-sm transition ${
-        selected
-            ? "bg-primary text-primary-foreground ring-2 ring-ring"
-            : "bg-muted text-foreground ring-1 ring-border hover:bg-accent"
-    }`
+const optionClass = (selected: boolean): string => {
+    let tone = "bg-muted text-foreground ring-1 ring-border hover:bg-accent"
+    if (selected) tone = "bg-primary text-primary-foreground ring-2 ring-ring"
+    return `flex h-[3.3cqw] w-[9.08cqw] shrink-0 items-center justify-center px-[0.4cqw] text-center font-sans font-semibold leading-tight shadow-sm transition ${tone}`
+}
 
-const submitClass = (ready: boolean): string =>
-    `${SUBMIT} ${ready ? "cursor-pointer" : "cursor-default opacity-50"}`
+const submitClass = (ready: boolean): string => {
+    let cursor = "cursor-default opacity-50"
+    if (ready) cursor = "cursor-pointer"
+    return `${SUBMIT} ${cursor}`
+}
 
 export function AnswerBand({ question, disabled, busy, error, onSubmit }: {
     question: PlayerQuestion | null
@@ -28,7 +30,10 @@ export function AnswerBand({ question, disabled, busy, error, onSubmit }: {
 }) {
     const [draft, setDraft] = useState({ qid: "", picked: "", text: "" })
     const qid = question?.questionId ?? ""
-    const state = draft.qid === qid ? draft : { qid, picked: "", text: "" }
+    let state = { qid, picked: "", text: "" }
+    if (draft.qid === qid) state = draft
+    let sendLabel: string = COPY.send
+    if (busy) sendLabel = "…"
 
     if (!question) {
         return <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}></span>
@@ -61,11 +66,14 @@ export function AnswerBand({ question, disabled, busy, error, onSubmit }: {
                     className={submitClass(Boolean(state.picked) && !disabled && !busy)}
                     style={{ fontSize: pt(11), borderRadius: STRIP_R }}
                 >
-                    {busy ? "…" : COPY.send}
+                    {sendLabel}
                 </button>
             </div>
         )
     }
+
+    let textPlaceholder = "Câu trả lời của bạn"
+    if (error) textPlaceholder = "Bấm nút Gửi để thử lại"
 
     return (
         <div className="flex w-full items-center gap-[1cqw]">
@@ -79,7 +87,7 @@ export function AnswerBand({ question, disabled, busy, error, onSubmit }: {
                         onSubmit({ text: state.text.trim() })
                     }
                 }}
-                placeholder={error ? "Bấm nút Gửi để thử lại" : "Câu trả lời của bạn"}
+                placeholder={textPlaceholder}
                 className={INPUT}
                 style={{ fontSize: pt(13) }}
                 aria-label="Câu trả lời của bạn"
@@ -91,7 +99,7 @@ export function AnswerBand({ question, disabled, busy, error, onSubmit }: {
                 className={submitClass(Boolean(state.text.trim()) && !disabled && !busy)}
                 style={{ fontSize: pt(11), borderRadius: STRIP_R }}
             >
-                {busy ? "…" : COPY.send}
+                {sendLabel}
             </button>
         </div>
     )
@@ -131,6 +139,8 @@ export function KeywordBox({ busy, onSubmit }: { busy: boolean; onSubmit: (text:
         onSubmit(draft.text.trim())
         setDraft({ locked: true, text: draft.text })
     }
+    let submitLabel: string = COPY.submit
+    if (busy) submitLabel = "…"
     return (
         <div className="flex w-full items-center gap-[1cqw]">
             <input
@@ -153,7 +163,7 @@ export function KeywordBox({ busy, onSubmit }: { busy: boolean; onSubmit: (text:
                 className={submitClass(!busy && Boolean(draft.text.trim()))}
                 style={{ fontSize: pt(11), borderRadius: STRIP_R }}
             >
-                {busy ? "…" : COPY.submit}
+                {submitLabel}
             </button>
         </div>
     )

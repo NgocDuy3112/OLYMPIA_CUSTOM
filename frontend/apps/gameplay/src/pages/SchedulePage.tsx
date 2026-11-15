@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useMemo, useState, type ReactNode } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import type { TournamentDetail } from "@/lib/api"
 import type { Match } from "@/lib/types"
@@ -28,7 +28,10 @@ export function SchedulePage({
     )
 
     const [pickedDay, setDay] = useState<string | null>(null)
-    const day = pickedDay !== null && days.includes(pickedDay) ? pickedDay : (days[0] ?? "")
+    let day = days[0] ?? ""
+    if (pickedDay !== null) {
+        if (days.includes(pickedDay)) day = pickedDay
+    }
     const navigate = useNavigate()
 
     const goPrev = () => {
@@ -51,7 +54,8 @@ export function SchedulePage({
 
     const [searchParams, setSearchParams] = useSearchParams()
     const openId = searchParams.get("match")
-    const openMatch = openId ? matches.find((m) => m.id === openId) ?? null : null
+    let openMatch: Match | null = null
+    if (openId) openMatch = matches.find((m) => m.id === openId) ?? null
 
     const openMatchById = (id: string) => {
         const found = matches.find((m) => m.id === id)
@@ -87,49 +91,53 @@ export function SchedulePage({
     }, [rest])
 
 
+    let dayLabel = "—"
+    if (days.length > 0) dayLabel = formatDay(day)
+
+    let scheduleSlot: ReactNode = (
+        <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
+            <aside className="hidden lg:sticky lg:top-20 lg:block lg:self-start">
+                <StageTimeline stages={tournament.stages} />
+            </aside>
+
+            <div className="flex min-w-0 flex-col gap-6">
+                {liveMatch && (
+                    <div className="flex flex-col gap-3">
+                        <MatchCard
+                            match={liveMatch}
+                            featured
+                            onOpen={() => navigate(`/s/${tournament.slug}/matches/${liveMatch.id}`)}
+                        />
+                    </div>
+                )}
+
+                {groups.map(([date, list]) => (
+                    <DaySection
+                        key={date}
+                        date={date}
+                        matches={list}
+                        onOpenMatch={openMatchById}
+                    />
+                ))}
+
+                {groups.length === 0 && !liveMatch && <EmptyState />}
+            </div>
+
+        </div>
+    )
+    if (loading) scheduleSlot = <ScheduleSkeleton />
+
     return (
         <div className="mx-auto flex w-full flex-col max-w-360 gap-6 px-4 py-6 md:py-10">
             <ScheduleHeader
                 title={tournament.name}
-                dayLabel={days.length > 0 ? formatDay(day) : "—"}
+                dayLabel={dayLabel}
                 onPrevDay={goPrev}
                 onNextDay={goNext}
                 onToday={goToday}
             />
 
-            {loading ? (
-                <ScheduleSkeleton />
-            ) : (
-                <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
-                    <aside className="hidden lg:sticky lg:top-20 lg:block lg:self-start">
-                        <StageTimeline stages={tournament.stages} />
-                    </aside>
-
-                    <div className="flex min-w-0 flex-col gap-6">
-                        {liveMatch && (
-                            <div className="flex flex-col gap-3">
-                                <MatchCard
-                                    match={liveMatch}
-                                    featured
-                                    onOpen={() => navigate(`/s/${tournament.slug}/matches/${liveMatch.id}`)}
-                                />
-                            </div>
-                        )}
-
-                        {groups.map(([date, list]) => (
-                            <DaySection
-                                key={date}
-                                date={date}
-                                matches={list}
-                                onOpenMatch={openMatchById}
-                            />
-                        ))}
-
-                        {groups.length === 0 && !liveMatch && <EmptyState />}
-                    </div>
-
-                </div>
-            )}
+            {scheduleSlot}
 
             <MatchDrawer
                 match={openMatch}

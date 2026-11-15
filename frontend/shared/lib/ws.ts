@@ -12,7 +12,8 @@ const HANDSHAKE = `{"protocol":"json","version":1}${RS}`
 const PING = `{"type":6}${RS}`
 
 function wsBase(): string {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
+    let protocol = "ws:"
+    if (window.location.protocol === "https:") protocol = "wss:"
     return `${protocol}//${window.location.host}`
 }
 

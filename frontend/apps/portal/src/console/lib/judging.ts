@@ -13,7 +13,10 @@ export interface JudgingInput {
     selectedQ: string | null
 }
 
-const firstOrNull = (ids: readonly string[]): string | null => (ids.length > 0 ? ids[0] : null)
+const firstOrNull = (ids: readonly string[]): string | null => {
+    if (ids.length > 0) return ids[0]
+    return null
+}
 
 function keywordQuestionIdOf(input: JudgingInput): string | null {
     if (input.roundId !== "giai-ma") return null
@@ -23,7 +26,10 @@ function keywordQuestionIdOf(input: JudgingInput): string | null {
 
 export function judgingIdsOf(input: JudgingInput): JudgingIds {
     const keywordQuestionId = keywordQuestionIdOf(input)
-    const clicked = input.selectedQ !== null && input.openIds.includes(input.selectedQ) ? input.selectedQ : null
+    let clicked: string | null = null
+    if (input.selectedQ !== null) {
+        if (input.openIds.includes(input.selectedQ)) clicked = input.selectedQ
+    }
 
     switch (input.roundId) {
         case "khoi-dong":

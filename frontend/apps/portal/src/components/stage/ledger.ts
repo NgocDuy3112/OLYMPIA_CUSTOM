@@ -11,7 +11,8 @@ export function valueText(row: QuestionAnswerRow, question?: ConsoleQuestion | n
         return value.picked
             .map((id) => {
                 const index = question.payload.options!.findIndex((o) => o.id === id)
-                return index >= 0 ? String.fromCharCode(65 + index) : id
+                if (index >= 0) return String.fromCharCode(65 + index)
+                return id
             })
             .join(", ")
     }

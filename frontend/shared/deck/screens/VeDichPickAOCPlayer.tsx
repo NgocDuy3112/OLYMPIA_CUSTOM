@@ -27,15 +27,20 @@ export function VeDichPickAOCPlayer({ ctx }: { ctx: VeDichPickPlayerCtx }) {
     const phase2 = ctx.stage === "phase2"
     const board = v.board ?? []
     const rows = boardRows(board, (cell) => cell.value)
-    const need = phase2 ? 3 : Math.max(1, v.table.length)
+    let need = Math.max(1, v.table.length)
+    if (phase2) need = 3
+    let railVariant: "compact" | "answers" = "answers"
+    if (phase2) railVariant = "compact"
+    let mode = "Lượt chung"
+    if (phase2) mode = "Lượt cá nhân"
 
     return (
         <PlayerStage
-            rail={<Rail variant={phase2 ? "compact" : "answers"} view={v} myId={myId} />}
+            rail={<Rail variant={railVariant} view={v} myId={myId} />}
         >
             <QuestionCard
                 round="Về đích"
-                mode={phase2 ? "Lượt cá nhân" : "Lượt chung"}
+                mode={mode}
             >
                 <div className="flex min-h-0 flex-1 flex-col justify-start gap-[0.9cqw]">
                     {rows.map((row) => (
@@ -47,7 +52,8 @@ export function VeDichPickAOCPlayer({ ctx }: { ctx: VeDichPickPlayerCtx }) {
                             {row.cells.map((cell) => {
                                 const where = cell.where
                                 const faded = where === "deferred"
-                                const title = where === "free" ? "còn trống" : CELL_TITLE[where]
+                                let title = "còn trống"
+                                if (where !== "free") title = CELL_TITLE[where]
                                 return (
                                     <div
                                         key={cell.questionId}

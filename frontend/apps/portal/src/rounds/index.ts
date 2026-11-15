@@ -16,8 +16,10 @@ const ROUNDS: Record<string, RoundModule> = {
 export const roundModuleOf = (roundId: string): RoundModule | null => ROUNDS[roundId] ?? null
 
 export function railVariantOf(facts: { roundId: string; stage: string; veDichPhase: 1 | 2 | null }): "compact" | "answers" {
-    return ROUNDS[facts.roundId]?.railVariant(facts)
-        ?? (facts.stage === "phase2" ? "answers" : "compact")
+    const variant = ROUNDS[facts.roundId]?.railVariant(facts)
+    if (variant) return variant
+    if (facts.stage === "phase2") return "answers"
+    return "compact"
 }
 
 export function endRoundPlanOf(roundId: string, input: RoundPlanInput): RoundAction[] {

@@ -21,8 +21,8 @@ function giaiMaCtx(f: ConsoleFacts): GiaiMaCtx {
 export const giaiMaAOC: RoundModule = {
     render: (f) => <GiaiMaAOCController ctx={giaiMaCtx(f)} />,
     railVariant: () => "answers",
-    endRoundPlan: (input): RoundAction[] =>
-        input.openIds.length > 0
-            ? [{ kind: "giai-ma.closeHintWindow" }]
-            : [{ kind: "giai-ma.endRound" }],
+    endRoundPlan: (input): RoundAction[] => {
+        if (input.openIds.length > 0) return [{ kind: "giai-ma.closeHintWindow" }]
+        return [{ kind: "giai-ma.endRound" }]
+    },
 }

@@ -27,7 +27,8 @@ export function isUnauthorized(error: unknown): boolean {
 }
 
 export function loginLink(next?: string): string {
-    const suffix = next ? `?next=${encodeURIComponent(next)}` : ""
+    let suffix = ""
+    if (next) suffix = `?next=${encodeURIComponent(next)}`
     return `/login${suffix}`
 }
 
