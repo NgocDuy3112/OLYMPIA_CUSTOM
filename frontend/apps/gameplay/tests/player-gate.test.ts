@@ -39,8 +39,15 @@ describe("lobbyHintOf — why the lobby is showing", () => {
         expect(lobbyHintOf("khoi-dong", "unknown")).toBe("Vòng thi không tồn tại.")
     })
 
-    it("says the round ended", () => {
-        expect(lobbyHintOf("ve-dich", "ended")).toBe("Trận đấu đã kết thúc.")
+    it("a round end never claims the match ended", () => {
+        expect(lobbyHintOf("ve-dich", "ended")).toBe("Trận đấu sẽ tiếp tục sau một ít thời gian")
+        expect(lobbyHintOf("ve-dich", "ended", "LIVE")).toBe("Trận đấu sẽ tiếp tục sau một ít thời gian")
+        expect(lobbyHintOf("ve-dich", "ended", "UPCOMING")).toBe("Trận đấu sẽ tiếp tục sau một ít thời gian")
+    })
+
+    it("says the MATCH ended only when the lobby says FINISHED", () => {
+        expect(lobbyHintOf("ve-dich", "ended", "FINISHED")).toBe("Trận đấu đã kết thúc.")
+        expect(lobbyHintOf("khoi-dong", "phase1", "FINISHED")).toBe("Trận đấu đã kết thúc.")
     })
 
     it("says the round is coming on any running stage", () => {

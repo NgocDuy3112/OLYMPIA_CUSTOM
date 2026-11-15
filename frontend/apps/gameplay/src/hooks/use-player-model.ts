@@ -95,7 +95,7 @@ export function usePlayerModel(matchId: string): PlayerModel {
         ...base,
         screen: playerScreenOf(v),
         roundId,
-        lobbyHint: lobbyHintOf(roundId, stage),
+        lobbyHint: lobbyHintOf(roundId, stage, lobby.data?.status),
         ctx,
         render: roundModuleOf(roundId)?.render ?? null,
     }
