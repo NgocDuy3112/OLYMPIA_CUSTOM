@@ -75,34 +75,3 @@ export function useCountdown(deadlineAt: string | null, clock: ServerClock): num
 
     return remaining;
 }
-
-/**
- * Counts down a duration (ms) that has no wall-clock deadline — e.g. the
- * oral run's remaining budget. Pass a resetKey (the question id) so a new
- * question restarts from the fresh duration even when the value repeats.
- */
-export function useCountdownMs(durationMs: number | null, resetKey?: unknown): number | null {
-    const [left, setLeft] = useState<number | null>(durationMs);
-    const [prev, setPrev] = useState<{ durationMs: number | null; resetKey: unknown }>({
-        durationMs,
-        resetKey,
-    });
-
-    if (prev.durationMs !== durationMs || prev.resetKey !== resetKey) {
-        setPrev({ durationMs, resetKey });
-        setLeft(durationMs);
-    }
-
-    useEffect(() => {
-        if (durationMs === null) return;
-        const interval = setInterval(() => {
-            setLeft((value) => {
-                if (value === null) return value;
-                return Math.max(0, value - 1000);
-            });
-        }, 1000);
-        return () => clearInterval(interval);
-    }, [durationMs, resetKey]);
-
-    return left;
-}

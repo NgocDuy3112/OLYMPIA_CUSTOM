@@ -1,11 +1,10 @@
-import { act, render } from "@testing-library/react"
+import { render } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 import type { PlayerCtx, PlayerView } from "@shared/deck/types"
 import { GiaiMaAOCPlayer } from "@shared/deck/screens/GiaiMaAOCPlayer"
 import { ButPhaAOCPlayer } from "@shared/deck/screens/ButPhaAOCPlayer"
 import { KhoiDongChungAOCPlayer } from "@shared/deck/screens/KhoiDongChungAOCPlayer"
-import { KhoiDongRiengAOCPlayer } from "@shared/deck/screens/KhoiDongRiengAOCPlayer"
 import { VeDichChungAOCPlayer } from "@shared/deck/screens/VeDichChungAOCPlayer"
 import { VeDichPickAOCPlayer } from "@shared/deck/screens/VeDichPickAOCPlayer"
 import { VeDichRiengAOCPlayer } from "@shared/deck/screens/VeDichRiengAOCPlayer"
@@ -261,29 +260,3 @@ describe("player screens render from a plain fixture", () => {
     })
 })
 
-describe("khởi động · lượt cá nhân — the oral budget", () => {
-    it("counts down on the card once the question shows", () => {
-        vi.useFakeTimers()
-        try {
-            const v = view({
-                roundId: "khoi-dong",
-                oral: {
-                    questionId: "q1",
-                    question: question("q1"),
-                    playerId: "u1",
-                    index: 0,
-                    total: 6,
-                    elapsedS: 0,
-                    budgetS: 40,
-                },
-            })
-            const { getByText } = render(<KhoiDongRiengAOCPlayer ctx={ctx({ v })} />)
-
-            expect(getByText("40")).toBeInTheDocument()
-            act(() => vi.advanceTimersByTime(2_000))
-            expect(getByText("38")).toBeInTheDocument()
-        } finally {
-            vi.useRealTimers()
-        }
-    })
-})
