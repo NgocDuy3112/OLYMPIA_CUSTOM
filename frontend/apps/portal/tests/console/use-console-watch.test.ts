@@ -6,6 +6,18 @@ beforeEach(() => vi.useFakeTimers())
 afterEach(() => vi.useRealTimers())
 
 describe("the stage stopwatch (TÍNH GIỜ)", () => {
+    it("reset blanks the watch — a round entry starts with no question showing", () => {
+        const { result } = renderHook(() => useConsoleWatch("q1"))
+        act(() => result.current.toggle())
+        act(() => vi.advanceTimersByTime(1_000))
+        expect(result.current.running).toBe(true)
+        expect(result.current.ms).toBeGreaterThan(0)
+
+        act(() => result.current.reset())
+        expect(result.current.running).toBe(false)
+        expect(result.current.ms).toBe(0)
+    })
+
     it("counts down live once pressed: 40 → 39 → 38 in whole seconds", () => {
         const { result } = renderHook(() => useConsoleWatch("q1"))
         expect(result.current.running).toBe(false)

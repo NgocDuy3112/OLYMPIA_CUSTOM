@@ -4,6 +4,7 @@ export interface ConsoleWatch {
     running: boolean
     ms: number
     toggle: () => void
+    reset: () => void
 }
 
 interface WatchState {
@@ -58,5 +59,7 @@ export function useConsoleWatch(oralQuestionId: string | null): ConsoleWatch {
             return { ...cur, running: false, startedAt: 0, base: shown, shown }
         })
 
-    return { running: effective.running, ms: effective.shown, toggle }
+    const reset = () => setWatch(freshWatch(oralQuestionId))
+
+    return { running: effective.running, ms: effective.shown, toggle, reset }
 }

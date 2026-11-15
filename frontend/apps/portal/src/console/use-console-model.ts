@@ -102,6 +102,12 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     })
     const lobby = useLobby(tournamentId, matchId, readiness.waiting)
 
+    useEffect(() => {
+        if (!nav.entered) return
+        watch.reset()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [nav.entered])
+
     let stagePhase: 1 | 2 | null = null
     if (stage === "phase1") stagePhase = 1
     if (stage === "phase2") stagePhase = 2
