@@ -224,6 +224,8 @@ public class MatchEntity
 
     public int AssemblyRevision { get; set; }
     public DateTime? AssembledAt { get; set; }
+    public Guid? ControllerId { get; set; }
+    public DateTime? ControllerHeartbeatAt { get; set; }
     public JsonElement? Live { get; set; }
     public JsonElement? Discord { get; set; }
     public DateTime CreatedAt { get; set; }

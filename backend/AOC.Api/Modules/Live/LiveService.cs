@@ -49,7 +49,8 @@ public sealed class LiveService(
         Dictionary<string, object?> Projection,
         bool RoundEnded,
         List<string> Connected,
-        Dictionary<string, object?>? Console);
+        Dictionary<string, object?>? Console,
+        MatchController? Controller);
 
     public async Task<ConsoleView?> ConsoleViewOfAsync(Guid matchId, bool revealAll = true)
     {
@@ -102,7 +103,48 @@ public sealed class LiveService(
             LiveFacts.IsRoundEnded(live.RoundId, live.State),
             hub.ConnectedUsers(matchId.ToString()),
             LiveFacts.ConsoleFacts(live.RoundId, live.State,
-                DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")));
+                DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")),
+            await ControllerOfAsync(matchId));
+    }
+
+    public async Task<MatchController?> ControllerOfAsync(Guid matchId)
+    {
+        var now = DateTime.UtcNow;
+        var row = await db.Matches.AsNoTracking()
+            .Where(m => m.Id == matchId)
+            .Select(m => new { m.ControllerId, m.ControllerHeartbeatAt })
+            .FirstOrDefaultAsync();
+        if (row?.ControllerId is not { } holderId) return null;
+        var name = await db.Users.AsNoTracking()
+            .Where(u => u.Id == holderId)
+            .Select(u => u.DisplayName)
+            .FirstOrDefaultAsync() ?? "unknown";
+        return new MatchController(holderId, name, MatchControl.IsFresh(row.ControllerHeartbeatAt, now));
+    }
+
+    public async Task<MatchController> ClaimControlAsync(Guid matchId, Guid actorId, bool takeover)
+    {
+        var now = DateTime.UtcNow;
+        var cutoff = now - MatchControl.StaleAfter;
+        var claimed = await db.Matches
+            .Where(m => m.Id == matchId &&
+                (takeover || m.ControllerId == null || m.ControllerId == actorId ||
+                 m.ControllerHeartbeatAt == null || m.ControllerHeartbeatAt < cutoff))
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(m => m.ControllerId, actorId)
+                .SetProperty(m => m.ControllerHeartbeatAt, now));
+        if (claimed == 0)
+        {
+            var holder = await ControllerOfAsync(matchId);
+            throw ApiException.Conflict(
+                $"match is controlled by {holder?.Name ?? "another operator"}");
+        }
+        return (await ControllerOfAsync(matchId))!;
+    }
+
+    public async Task RequireControllerAsync(Guid matchId, Guid actorId)
+    {
+        await ClaimControlAsync(matchId, actorId, takeover: false);
     }
 
     public async Task<ConsoleView?> AudienceViewOfAsync(Guid matchId)

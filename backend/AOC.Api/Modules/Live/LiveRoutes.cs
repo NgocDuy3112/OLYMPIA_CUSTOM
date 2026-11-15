@@ -42,6 +42,7 @@ public static class LiveRoutes
                 throw ApiException.Forbidden("Only the owner or an admin may drive a live match");
 
             var service = http.RequestServices.GetRequiredService<LiveService>();
+            await service.RequireControllerAsync(Guid.Parse(matchId), user.Id);
             var next = await service.ApplyLiveActionAsync(
                 Guid.Parse(tournamentId), Guid.Parse(matchId), expectedVersion, action, user.Id);
 
@@ -107,6 +108,32 @@ public static class LiveRoutes
                 state = next.State,
                 archive = next.Archive
             }, JsonApi.Options);
+        });
+
+        app.MapPost("/portal/tournaments/{tournamentId}/matches/{matchId}/live/control", async (HttpContext http) =>
+        {
+            var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
+            var tournamentId = Validate.RouteUuid(http, "tournamentId");
+            var matchId = Validate.RouteUuid(http, "matchId");
+            var body = Validate.Object(await Validate.ReadJsonBodyAsync(http));
+            var takeover = body.TryGetProperty("takeover", out var takeoverEl) &&
+                takeoverEl.ValueKind == JsonValueKind.True;
+
+            var scope = http.RequestServices.GetRequiredService<MatchesService>();
+            var tournament = await scope.RequireMatchScopeAsync(tournamentId);
+            if (!Shared.TournamentAccess.CanWrite(tournament.Tournament, user))
+                throw ApiException.Forbidden("Only the owner or an admin may drive a live match");
+
+            var service = http.RequestServices.GetRequiredService<LiveService>();
+            var before = await service.ControllerOfAsync(Guid.Parse(matchId));
+            var controller = await service.ClaimControlAsync(Guid.Parse(matchId), user.Id, takeover);
+
+            if (before?.Id != controller.Id)
+            {
+                var hubRegistry = http.RequestServices.GetRequiredService<MatchHubRegistry>();
+                await hubRegistry.PublishAsync(matchId);
+            }
+            return Results.Json(controller, JsonApi.Options);
         });
 
         app.MapGet("/portal/tournaments/{tournamentId}/matches/{matchId}/live/answers", async (HttpContext http) =>
