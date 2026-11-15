@@ -9,7 +9,7 @@ export {
     VerdictIcon,
 } from "./primitives"
 
-export { AnswerReveal, AudienceFace, KeywordLengthBanner, QuestionCard } from "./question"
+export { AudienceFace, KeywordLengthBanner, QuestionCard } from "./question"
 
 export { VeDichStripCells } from "./strip"
 

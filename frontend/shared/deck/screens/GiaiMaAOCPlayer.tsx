@@ -93,7 +93,6 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
                 size={28}
                 right={<Timer remaining={timerRemaining} size={32} />}
                 question={questionText}
-                answer={v.revealed?.answer}
                 className="min-h-[16cqw] flex-none"
             />
             <div className="flex w-full flex-col gap-[0.7cqw]">

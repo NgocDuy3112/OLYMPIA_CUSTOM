@@ -51,7 +51,7 @@ export function ButPhaAOCController({ ctx }: { ctx: ButPhaCtx }) {
                     onVerdict: ctx.setVerdict,
                 }),
                 {
-                    label: "Hiện đáp án",
+                    label: "Đáp án thí sinh",
                     onClick: revealAnswer,
                 },
                 backToLobbyAction(ctx.backToLobby),

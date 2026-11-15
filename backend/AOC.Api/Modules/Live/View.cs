@@ -15,6 +15,8 @@ public sealed record SubmittedAnswerRow(string QuestionId, bool Judged, Verdict?
 
 public sealed record JudgedRow(string QuestionId, string UserId, Verdict? Verdict, int? AnsweredMs = null);
 
+public sealed record RevealedAnswerRow(string UserId, AnswerValue Value, Verdict? Verdict);
+
 public static class LiveView
 {
     private static readonly string[] PublishesVerdicts = ["khoi-dong", "but-pha", "ve-dich"];
@@ -30,7 +32,8 @@ public static class LiveView
         List<JudgedRow>? Judged = null,
         List<MatchQuestion>? Questions = null,
         List<ScoreRow>? Table = null,
-        bool RevealAll = false);
+        bool RevealAll = false,
+        List<RevealedAnswerRow>? RevealedAnswers = null);
 
     private static string PlusSeconds(string iso, double seconds)
     {
@@ -400,16 +403,18 @@ public static class LiveView
             RankTable(input.Table), [])
     };
 
+    public static string? RevealedIdOf(object state) => state switch
+    {
+        GiaiMaState g => g.RevealedAnswer,
+        ButPhaState b => b.RevealedAnswer,
+        KhoiDongState k => k.RevealedAnswer,
+        VeDichState v => v.RevealedAnswer,
+        _ => null
+    };
+
     private static Dictionary<string, object?> WithReveal(ViewInput input, Dictionary<string, object?> view)
     {
-        var questionId = input.State switch
-        {
-            GiaiMaState g => g.RevealedAnswer,
-            ButPhaState b => b.RevealedAnswer,
-            KhoiDongState k => k.RevealedAnswer,
-            VeDichState v => v.RevealedAnswer,
-            _ => null
-        };
+        var questionId = RevealedIdOf(input.State);
         if (questionId is null) return view;
 
         bool KhoiDongStillShowing(KhoiDongState state)
@@ -442,13 +447,23 @@ public static class LiveView
         if (!stillShowing) return view;
 
         var question = (input.Questions ?? []).FirstOrDefault(q => q.Id == questionId);
-        var answer = question is null ? null : QuestionView.AnswerDisplay(question);
-        if (answer is null) return view;
+        var contestants = new List<object?>();
+        foreach (var row in input.RevealedAnswers ?? [])
+        {
+            var name = input.Table?.FirstOrDefault(t => t.Id == row.UserId)?.DisplayName ?? row.UserId;
+            contestants.Add(new Dictionary<string, object?>
+            {
+                ["userId"] = row.UserId,
+                ["name"] = name,
+                ["answer"] = QuestionView.AnswerRowDisplay(row.Value, question),
+                ["verdict"] = row.Verdict?.ToString()
+            });
+        }
+        if (contestants.Count == 0) return view;
 
         view["revealed"] = new Dictionary<string, object?>
         {
-            ["questionId"] = questionId,
-            ["answer"] = answer
+            ["contestants"] = contestants
         };
         return view;
     }

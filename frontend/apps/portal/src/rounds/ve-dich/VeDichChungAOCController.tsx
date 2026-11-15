@@ -67,7 +67,7 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
                 },
                 ...verdictActions({ canVerdict: canMark, onVerdict: mark }),
                 {
-                    label: "Hiện đáp án",
+                    label: "Đáp án thí sinh",
                     onClick: revealAnswer,
                 },
                 { label: COPY.endTurn, onClick: endTurn },

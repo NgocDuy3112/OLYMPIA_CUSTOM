@@ -34,7 +34,6 @@ export function KhoiDongChungAOCPlayer({ ctx }: { ctx: KhoiDongChungPlayerCtx })
                 }
                 question={openQ?.question?.questionText ?? ""}
                 media={openQ?.question?.media ?? null}
-                answer={v.revealed?.answer}
             />
             {openQ && (
                 <AnswerBand

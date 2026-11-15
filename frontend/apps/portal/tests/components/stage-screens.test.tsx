@@ -294,17 +294,17 @@ describe("KhoiDongChung — S2, the timed batch", () => {
         expect(f.send).toHaveBeenCalledTimes(1)
     })
 
-    it("Hiện đáp án reveals the question in play — inert with nothing on screen", async () => {
+    it("Đáp án thí sinh reveals the question in play — inert with nothing on screen", async () => {
         const user = userEvent.setup()
         const mod = roundModuleOf("khoi-dong")!
         const f = facts({ stage: "phase2" }, { open: [q1] }, batch())
         const { rerender } = render(mod.render(f))
 
-        await user.click(screen.getByRole("button", { name: "Hiện đáp án" }))
+        await user.click(screen.getByRole("button", { name: "Đáp án thí sinh" }))
         expect(f.send).toHaveBeenCalledWith({ kind: "reveal.answer", questionId: "q1" })
 
         rerender(mod.render(facts({ stage: "phase2" }, { open: [] }, batch())))
-        expect(screen.queryByRole("button", { name: "Hiện đáp án" })).toBeNull()
+        expect(screen.queryByRole("button", { name: "Đáp án thí sinh" })).toBeNull()
     })
 })
 
@@ -593,17 +593,17 @@ describe("ButPha — S4", () => {
         expect(f.pickQuestion).toHaveBeenCalledOnce()
     })
 
-    it("Hiện đáp án reveals the cursor's question once it has been asked", async () => {
+    it("Đáp án thí sinh reveals the cursor's question once it has been asked", async () => {
         const user = userEvent.setup()
         const f = renderRound("but-pha", { send: vi.fn() }, {}, { questionId: "q1", opened: true })
 
-        await user.click(screen.getByRole("button", { name: "Hiện đáp án" }))
+        await user.click(screen.getByRole("button", { name: "Đáp án thí sinh" }))
         expect(f.send).toHaveBeenCalledWith({ kind: "reveal.answer", questionId: "q1" })
     })
 
     it("…and stays inert before the clock ever starts", () => {
         renderRound("but-pha", {}, {}, { questionId: "q1", opened: false })
-        expect(screen.queryByRole("button", { name: "Hiện đáp án" })).toBeNull()
+        expect(screen.queryByRole("button", { name: "Đáp án thí sinh" })).toBeNull()
     })
 })
 
@@ -835,11 +835,11 @@ it("unlocks Hết lượt once every answer is judged — and strip buttons carr
         ])
     })
 
-    it("Hiện đáp án reveals the open question's answer", async () => {
+    it("Đáp án thí sinh reveals the open question's answer", async () => {
         const user = userEvent.setup()
         const f = renderRound("ve-dich", {}, { open: [openQ] }, veDichMc({ phase: 1 }))
 
-        await user.click(screen.getByRole("button", { name: "Hiện đáp án" }))
+        await user.click(screen.getByRole("button", { name: "Đáp án thí sinh" }))
         expect(f.send).toHaveBeenCalledWith({ kind: "reveal.answer", questionId: "q1" })
     })
 })

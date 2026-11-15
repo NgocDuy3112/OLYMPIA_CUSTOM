@@ -300,6 +300,16 @@ public sealed class LiveReader(AOCDbContext db)
         }).ToList();
     }
 
+    public async Task<List<RevealedAnswerRow>> ReadRevealedAnswersAsync(Guid matchId, Guid questionId)
+    {
+        var rows = await db.Answers.AsNoTracking()
+            .Where(a => a.MatchId == matchId && a.QuestionId == questionId)
+            .ToListAsync();
+        return rows
+            .Select(a => new RevealedAnswerRow(a.UserId.ToString(), a.ValueObject, a.Verdict))
+            .ToList();
+    }
+
     public async Task<List<JudgedAnswer>> ReadJudgedAnswersAsync(Guid matchId)
     {
         var rows = await db.Answers.AsNoTracking()

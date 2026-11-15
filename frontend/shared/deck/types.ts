@@ -78,7 +78,14 @@ export interface PlayerView {
         answeredMs?: number | null
     }>
     audioGate?: { allowed: string[] }
-    revealed?: { questionId: string; answer: string }
+    revealed?: {
+        contestants: Array<{
+            userId: string
+            name: string
+            answer: string | null
+            verdict: "CORRECT" | "INCORRECT" | null
+        }>
+    }
 }
 
 export type AnswerValue = { picked?: string[]; text?: string }

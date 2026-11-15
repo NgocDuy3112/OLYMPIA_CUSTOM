@@ -111,21 +111,22 @@ describe("player screens render from a plain fixture", () => {
         expect(getByLabelText("Câu trả lời của bạn")).toBeDisabled()
     })
 
-    it("Hiện đáp án — the revealed answer rides under the question", () => {
+    it("Đáp án thí sinh — the revealed contestant answer rides on the player card", () => {
         const v = view({
             roundId: "khoi-dong",
             open: [openQ],
-            revealed: { questionId: "q1", answer: "Hà Nội" },
+            revealed: { contestants: [{ userId: "u1", name: "An", answer: "Hà Nội", verdict: "CORRECT" }] },
         })
-        const { getByText } = render(<KhoiDongChungAOCPlayer ctx={ctx({ v, remaining: 0 })} />)
-        expect(getByText("Đáp án")).toBeTruthy()
+        const { getByText, queryByText } = render(<KhoiDongChungAOCPlayer ctx={ctx({ v, remaining: 0 })} />)
         expect(getByText("Hà Nội")).toBeTruthy()
+        expect(queryByText("Đáp án")).toBeNull()
     })
 
-    it("Hiện đáp án — nothing revealed means no banner", () => {
+    it("nothing revealed → no contestant answer shows on the cards", () => {
         const v = view({ roundId: "khoi-dong", open: [openQ] })
         const { queryByText } = render(<KhoiDongChungAOCPlayer ctx={ctx({ v, remaining: 0 })} />)
         expect(queryByText("Đáp án")).toBeNull()
+        expect(queryByText("Hà Nội")).toBeNull()
     })
 
     it("bứt phá — no open question still renders the card", () => {
@@ -143,14 +144,13 @@ describe("player screens render from a plain fixture", () => {
         expect(getByText("Giải mã")).toBeTruthy()
     })
 
-    it("giải mã — Hiện đáp án puts the revealed answer on the card", () => {
+    it("Đáp án thí sinh — the giai mã reveal lights the answering card", () => {
         const v = view({
             roundId: "giai-ma",
             keyword: { questionId: "kw", question: null },
-            revealed: { questionId: "kw", answer: "CHUNGKET" },
+            revealed: { contestants: [{ userId: "u1", name: "An", answer: "CHUNGKET", verdict: null }] },
         })
         const { getByText } = render(<GiaiMaAOCPlayer ctx={ctx({ v })} />)
-        expect(getByText("Đáp án")).toBeTruthy()
         expect(getByText("CHUNGKET")).toBeTruthy()
     })
 

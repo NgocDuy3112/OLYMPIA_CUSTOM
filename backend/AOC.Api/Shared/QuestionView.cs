@@ -43,26 +43,26 @@ public static class QuestionView
             question.Media, question.TimeLimit, face);
     }
 
-    public static string? AnswerDisplay(MatchQuestion question)
+    public static string? AnswerRowDisplay(AnswerValue value, MatchQuestion? question)
     {
-        var payload = question.Payload;
-        switch (question.Kind)
+        switch (value)
         {
-            case QuestionKind.CHOICE:
-            {
-                if (payload is not QuestionPayload.Choice choice) return null;
-                var correct = choice.CorrectSet.ToHashSet();
-                var texts = choice.Options.Where(o => correct.Contains(o.Id)).Select(o => o.Text).ToList();
-                return texts.Count > 0 ? string.Join(", ", texts) : null;
-            }
-            case QuestionKind.TEXT:
-            case QuestionKind.HINT:
-            {
-                if (payload is not QuestionPayload.Text text) return null;
-                return text.AcceptedAnswers.Count > 0 ? string.Join(" / ", text.AcceptedAnswers) : null;
-            }
+            case AnswerValue.Text text:
+                if (string.IsNullOrWhiteSpace(text.Value)) return null;
+                return text.Value;
+            case AnswerValue.Picked picked:
+                if (picked.Items.Count == 0) return null;
+                if (question?.Payload is QuestionPayload.Choice choice)
+                {
+                    var texts = choice.Options
+                        .Where(o => picked.Items.Contains(o.Id))
+                        .Select(o => o.Text)
+                        .ToList();
+                    if (texts.Count > 0) return string.Join(", ", texts);
+                }
+                return string.Join(", ", picked.Items);
             default:
-                return payload is QuestionPayload.Keyword kw && kw.Code.Length > 0 ? kw.Code : null;
+                return null;
         }
     }
 }

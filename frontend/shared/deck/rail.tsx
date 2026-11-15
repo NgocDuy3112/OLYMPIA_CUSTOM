@@ -67,6 +67,11 @@ export function Rail({ variant, view, myId, currentQid }: {
                 })
                 const activeRun = view.oral?.playerId === row.id
                 const buzzed = view.me.buzzer === row.id
+                let revealedAnswer: string | null = null
+                if (view.revealed) {
+                    const entry = view.revealed.contestants.find((c) => c.userId === row.id)
+                    if (entry) revealedAnswer = entry.answer
+                }
 
                 const answerRow = answerRowFor(row.id, currentQid)
                 const answeredMs = answerRow?.answeredMs ?? null
@@ -103,6 +108,15 @@ export function Rail({ variant, view, myId, currentQid }: {
                                 <span className={`font-display font-bold leading-none tabular-nums ${railScoreClass(state)}`} style={{ fontSize: pt(scoreFontSize) }}>
                                     {row.points}
                                 </span>
+                                {revealedAnswer && (
+                                    <span
+                                        className="w-full truncate text-center font-sans leading-none text-foreground"
+                                        style={{ fontSize: pt(11) }}
+                                        title={revealedAnswer}
+                                    >
+                                        {revealedAnswer}
+                                    </span>
+                                )}
                                 {!compact && (answeredMs !== null || buzzed) && (
                                     <span
                                         className="flex min-w-0 flex-wrap items-center justify-center gap-[0.3cqw] font-sans leading-none text-foreground/85"

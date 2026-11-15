@@ -52,7 +52,7 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
                 },
                 ...verdictActions({ canVerdict: gradeable().length > 0 && openNow !== null, onVerdict: judge }),
                 {
-                    label: "Hiện đáp án",
+                    label: "Đáp án thí sinh",
                     onClick: revealAnswer,
                 },
                 backToLobbyAction(ctx.backToLobby),

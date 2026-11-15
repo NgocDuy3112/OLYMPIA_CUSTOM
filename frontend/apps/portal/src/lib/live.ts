@@ -46,7 +46,14 @@ export interface Projection {
         budgetS: number
     } | null
     board?: Array<{ questionId: string; value: number; where: "free" | "pending" | "open" | "taken" | "deferred" }>
-    revealed?: { questionId: string; answer: string }
+    revealed?: {
+        contestants: Array<{
+            userId: string
+            name: string
+            answer: string | null
+            verdict: "CORRECT" | "INCORRECT" | null
+        }>
+    }
     audioGate?: { allowed: string[] }
 }
 

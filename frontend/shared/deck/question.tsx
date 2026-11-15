@@ -101,21 +101,7 @@ export function KeywordLengthBanner({ length }: { length: number | null }) {
     )
 }
 
-export function AnswerReveal({ answer }: { answer?: string | null }) {
-    if (!answer) return null
-    return (
-        <div className="flex shrink-0 flex-wrap items-baseline gap-x-[1cqw] gap-y-[0.3cqw] rounded-xl bg-emerald-50 px-[1.4cqw] py-[0.8cqw] ring-1 ring-emerald-200">
-            <span className="font-sans font-bold uppercase tracking-wide text-emerald-700" style={{ fontSize: pt(12) }}>
-                Đáp án
-            </span>
-            <span className="min-w-0 font-sans font-semibold text-foreground" style={{ fontSize: pt(14) }}>
-                {answer}
-            </span>
-        </div>
-    )
-}
-
-export function QuestionCard({ round, mode, size, mid, right, question, media, answer, face, onReveal, className, children }: {
+export function QuestionCard({ round, mode, size, mid, right, question, media, face, onReveal, className, children }: {
     round: string
     mode?: string
     size?: number
@@ -123,7 +109,6 @@ export function QuestionCard({ round, mode, size, mid, right, question, media, a
     right?: ReactNode
     question?: string | null
     media?: { url: string; type: string } | null
-    answer?: string | null
     face?: ReactNode
     onReveal?: () => void
     className?: string
@@ -138,7 +123,6 @@ export function QuestionCard({ round, mode, size, mid, right, question, media, a
             />
             {children ?? <QuestionBlock question={question ?? null} media={media} onReveal={onReveal} />}
             {face}
-            <AnswerReveal answer={answer} />
         </MainCard>
     )
 }

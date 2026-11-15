@@ -25,7 +25,6 @@ export function VeDichChungAOCPlayer({ ctx }: { ctx: VeDichChungPlayerCtx }) {
                 right={<Timer remaining={timerRemaining} />}
                 question={openQ.question?.questionText ?? null}
                 media={openQ.question?.media ?? null}
-                answer={v.revealed?.answer}
             />
             <>
                 {openQ.question && (

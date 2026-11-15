@@ -52,6 +52,14 @@ public sealed class LiveService(
         Dictionary<string, object?>? Console,
         MatchController? Controller);
 
+    private async Task<List<RevealedAnswerRow>?> RevealedAnswersAsync(Guid matchId, object state)
+    {
+        var questionIdText = LiveView.RevealedIdOf(state);
+        if (questionIdText is null) return null;
+        if (!Guid.TryParse(questionIdText, out var questionId)) return null;
+        return await reader.ReadRevealedAnswersAsync(matchId, questionId);
+    }
+
     public async Task<ConsoleView?> ConsoleViewOfAsync(Guid matchId, bool revealAll = true)
     {
         var live = await reader.ReadLiveAsync(matchId);
@@ -76,7 +84,8 @@ public sealed class LiveService(
                 null,
                 match.QuestionsList,
                 table,
-                revealAll));
+                revealAll,
+                await RevealedAnswersAsync(matchId, state)));
             view.Remove("me");
             projection = view;
         }
@@ -261,7 +270,8 @@ public sealed class LiveService(
             (await reader.ReadJudgedAnswersAsync(matchId))
                 .Select(a => new JudgedRow(a.QuestionId, a.UserId, a.Verdict, a.AnsweredMs)).ToList(),
             match.QuestionsList,
-            table));
+            table,
+            RevealedAnswers: await RevealedAnswersAsync(matchId, state)));
     }
 
 
