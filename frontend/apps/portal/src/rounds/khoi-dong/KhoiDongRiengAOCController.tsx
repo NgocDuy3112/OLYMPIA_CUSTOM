@@ -60,10 +60,7 @@ export function KhoiDongRiengAOCController({ ctx }: { ctx: KhoiDongRiengCtx }) {
         rightSlot = (
             <>
                 <Progress total={oral.total} done={oral.index} active={oral.index} />
-                <Timer
-                    remaining={oralTimerRemaining}
-                    fallback={String(Math.ceil(remainingMs / 1000))}
-                />
+                <Timer remaining={oralTimerRemaining} />
             </>
         )
     }

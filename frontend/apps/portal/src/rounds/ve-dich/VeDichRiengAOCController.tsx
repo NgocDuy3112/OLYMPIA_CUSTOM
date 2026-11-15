@@ -47,6 +47,8 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
     if (openNow) {
         if (!revealed) reveal = () => ctx.send({ kind: "ve-dich.reveal" })
     }
+    let timerRemaining: number | null = null
+    if (openNow?.deadlineAt) timerRemaining = remaining
 
     return (
         <ConsoleStage
@@ -78,7 +80,7 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
                 round="Về đích"
                 mode="Lượt cá nhân"
                 mid={<VeDichStripCells cells={stripCells} phase2 />}
-                right={<Timer remaining={remaining} />}
+                right={<Timer remaining={timerRemaining} />}
                 question={openNow.question?.questionText ?? ""}
                 media={openNow.question?.media ?? null}
                 onReveal={reveal}

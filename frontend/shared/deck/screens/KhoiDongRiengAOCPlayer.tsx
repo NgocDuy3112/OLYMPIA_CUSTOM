@@ -1,4 +1,5 @@
 import type { ReactNode } from "react"
+import { useCountdownMs } from "@shared/lib/clock"
 import { AudienceFace, PlayerStage, Progress, QuestionCard, Rail, Timer, type PlayerCore } from "../player-deck"
 
 type KhoiDongRiengPlayerCtx = PlayerCore
@@ -10,8 +11,15 @@ export function KhoiDongRiengAOCPlayer({ ctx }: { ctx: KhoiDongRiengPlayerCtx })
     const oral = v.oral
     let budgetLeft: number | null = null
     if (oral) budgetLeft = Math.max(0, Math.ceil(oral.budgetS - oral.elapsedS))
-    let budgetText = "45"
-    if (budgetLeft !== null) budgetText = String(budgetLeft)
+    const qid = oral?.questionId ?? null
+    const questionShown = oral?.question != null
+    let startMs: number | null = null
+    if (qid !== null) {
+        if (questionShown) {
+            if (budgetLeft !== null) startMs = budgetLeft * 1000
+        }
+    }
+    const left = useCountdownMs(startMs, qid)
     let faceSlot: ReactNode = undefined
     if (audience) {
         faceSlot = <AudienceFace options={oral?.question?.payload.options ?? []} />
@@ -26,7 +34,7 @@ export function KhoiDongRiengAOCPlayer({ ctx }: { ctx: KhoiDongRiengPlayerCtx })
                 right={
                     <>
                         <Progress total={oral?.total ?? 6} done={oral?.index ?? 0} active={oral?.index ?? 0} />
-                        <Timer remaining={null} fallback={budgetText} />
+                        <Timer remaining={left} />
                     </>
                 }
                 question={oral?.question?.questionText ?? null}

@@ -80,15 +80,12 @@ export function Progress({ total, done, active, onPick }: { total: number; done:
 }
 
 
-export function Timer({ remaining, fallback, size = 40 }: {
+export function Timer({ remaining, size = 40 }: {
     remaining: number | null
-    fallback?: string
     size?: number
 }) {
-    if (remaining === null && fallback === undefined) return null
-    let clockInput = fallback as string
-    if (remaining !== null) clockInput = formatRemaining(remaining)
-    const text = toClock(clockInput)
+    if (remaining === null) return null
+    const text = toClock(formatRemaining(remaining))
     return (
         <span className="shrink-0 text-right font-display font-bold leading-none tabular-nums text-foreground" style={{ fontSize: pt(size) }}>
             {text}

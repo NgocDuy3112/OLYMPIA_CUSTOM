@@ -29,7 +29,7 @@ export function KhoiDongChungAOCPlayer({ ctx }: { ctx: KhoiDongChungPlayerCtx })
                             done={v.me.questionIndex ?? 0}
                             active={v.me.questionIndex ?? 0}
                         />
-                        <Timer remaining={timerRemaining} fallback="10" />
+                        <Timer remaining={timerRemaining} />
                     </>
                 }
                 question={openQ?.question?.questionText ?? ""}

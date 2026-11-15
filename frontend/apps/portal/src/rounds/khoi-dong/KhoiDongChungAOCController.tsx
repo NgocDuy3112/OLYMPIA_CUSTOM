@@ -16,6 +16,8 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
     const index = consoleKhoiDong?.questionIndex ?? 0
     const total = consoleKhoiDong?.questionCount || 6
     const windowOpen = consoleKhoiDong?.windowOpen ?? false
+    let timerRemaining: number | null = null
+    if (windowOpen) timerRemaining = remaining
 
     const gradeable = () => {
         if (selectedIds.size > 0) return [...selectedIds]
@@ -72,7 +74,7 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
                                 if (i === index + 1) ctx.send({ kind: "khoi-dong.nextQuestion" })
                             }}
                         />
-                        <Timer remaining={remaining} fallback="10" />
+                        <Timer remaining={timerRemaining} />
                     </>
                 }
                 question={questionText}

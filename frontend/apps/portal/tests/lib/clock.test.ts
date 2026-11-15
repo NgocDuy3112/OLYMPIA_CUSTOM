@@ -1,10 +1,12 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
+import { act, renderHook } from "@testing-library/react"
 import {
     URGENT_BELOW_MS,
     formatRemaining,
     isUrgent,
     remainingOf,
     skewOf,
+    useCountdownMs,
 } from "@shared/lib/clock"
 
 
@@ -57,5 +59,45 @@ describe("isUrgent", () => {
         expect(isUrgent(URGENT_BELOW_MS + 1)).toBe(false)
         expect(isUrgent(1)).toBe(true)
         expect(isUrgent(0)).toBe(false)   
+    })
+})
+
+describe("useCountdownMs — a duration with no deadline", () => {
+    it("ticks down each second and floors at zero", () => {
+        vi.useFakeTimers()
+        try {
+            const { result } = renderHook(() => useCountdownMs(40_000, "q1"))
+            expect(result.current).toBe(40_000)
+
+            act(() => vi.advanceTimersByTime(2_000))
+            expect(result.current).toBe(38_000)
+
+            act(() => vi.advanceTimersByTime(60_000))
+            expect(result.current).toBe(0)
+        } finally {
+            vi.useRealTimers()
+        }
+    })
+
+    it("stays null while there is no duration to count", () => {
+        const { result } = renderHook(() => useCountdownMs(null, "q1"))
+        expect(result.current).toBeNull()
+    })
+
+    it("restarts from the fresh duration when the key changes", () => {
+        vi.useFakeTimers()
+        try {
+            const { result, rerender } = renderHook(
+                ({ ms, key }) => useCountdownMs(ms, key),
+                { initialProps: { ms: 40_000 as number | null, key: "q1" as unknown } }
+            )
+            act(() => vi.advanceTimersByTime(3_000))
+            expect(result.current).toBe(37_000)
+
+            rerender({ ms: 30_000, key: "q2" })
+            expect(result.current).toBe(30_000)
+        } finally {
+            vi.useRealTimers()
+        }
     })
 })
