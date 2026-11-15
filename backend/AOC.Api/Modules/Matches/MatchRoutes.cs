@@ -81,7 +81,7 @@ public static class MatchRoutes
             var input = MatchSchemas.ParseSetResults(body);
             var match = await service.SetMatchResultsAsync(tournamentId, matchId, input.Totals);
 
-            await AuditAsync(http, "match_ended", matchId, new Dictionary<string, object?>
+            await AuditAsync(http, "match_results_saved", matchId, new Dictionary<string, object?>
             {
                 ["tournamentId"] = tournamentId,
                 ["manual"] = true,

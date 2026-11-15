@@ -36,11 +36,19 @@ export function Lobby({
         busy?: boolean
         onStart: (roundId: string, phase?: 1 | 2) => void
         opensMatch?: boolean
+        onEndMatch?: () => void
+        endingMatch?: boolean
     }
     hint?: ReactNode
     belowHint?: ReactNode
 }) {
     const selfCam = useSelfCam()
+
+    let endable: (() => void) | undefined = undefined
+    if (mc) endable = mc.onEndMatch
+    if (data.status === "FINISHED") endable = undefined
+    let endLabel = "Kết thúc trận đấu"
+    if (mc?.endingMatch === true) endLabel = "Đang kết thúc…"
 
 
     return (
@@ -154,6 +162,20 @@ export function Lobby({
                             </button>
                         )
                     })}
+                </div>
+            )}
+            {endable && (
+                <div className="mt-[3cqw] flex justify-center">
+                    <button
+                        type="button"
+                        onClick={endable}
+                        disabled={mc?.endingMatch === true}
+                        title="Chốt điểm và kết thúc trận — bảng xếp hạng cập nhật ngay"
+                        className="rounded-[0.5cqw] border border-destructive/40 bg-destructive/10 px-[1.8cqw] py-[0.8cqw] font-sans font-semibold uppercase leading-none tracking-wide text-destructive transition hover:brightness-110 disabled:opacity-50"
+                        style={{ fontSize: "1.2cqw" }}
+                    >
+                        {endLabel}
+                    </button>
                 </div>
             )}
         </div>

@@ -316,3 +316,24 @@ describe("useConsoleModel — single controller", () => {
         expect(phaseOf(result.current)).toBe("lobby")
     })
 })
+
+describe("useConsoleModel — ending the match", () => {
+    it("Kết thúc trận đấu from the waiting room PATCHes status FINISHED", async () => {
+        const { result, fetchMock } = renderModel()
+        await waitFor(() => expect(phaseOf(result.current)).toBe("deck"))
+
+        deckOf(result.current).backToLobby()
+        await waitFor(() => expect(phaseOf(result.current)).toBe("lobby"))
+
+        lobbyOf(result.current).endMatch()
+        await waitFor(() => {
+            const call = fetchMock.mock.calls.find(
+                ([url, init]) =>
+                    init?.method === "PATCH" &&
+                    String(url) === `/portal/tournaments/${T}/matches/${M}/status`
+            )
+            expect(call).toBeTruthy()
+            expect(String(call?.[1]?.body)).toBe(JSON.stringify({ status: "FINISHED" }))
+        })
+    })
+})

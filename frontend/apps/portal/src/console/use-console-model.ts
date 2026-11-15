@@ -56,6 +56,8 @@ type ConsoleModel = {
         busy: boolean
         startError: string | null
         host: HostBroadcast
+        endMatch: () => void
+        endingMatch: boolean
     }
     | { phase: "deck"; facts: ConsoleFacts; roundModule: RoundModule | null; host: HostBroadcast }
 )
@@ -150,6 +152,19 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         return () => clearInterval(timer)
     }, [tournamentId, matchId])
 
+    const endMatch = async () => {
+        if (transition.isPending) return
+        try {
+            await transition.mutateAsync({ matchId, status: "FINISHED" })
+            setStartError(null)
+            void live.refetch()
+        } catch (error) {
+            let cause = new Error("Không kết thúc được trận")
+            if (error instanceof Error) cause = error
+            setStartError(startRefusal(cause))
+        }
+    }
+
     const prepareLobby = (l: LobbyData): LobbyData =>
         lobbyViewOf({ lobby: l, stagePhase, videoOf: (id) => peers.get(id)?.video ?? null })
 
@@ -217,6 +232,8 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
             control,
             phase: "lobby",
             lobby: prepareLobby(lobby.data),
+            endMatch,
+            endingMatch: transition.isPending,
             onStart: (roundId: string, phase?: 1 | 2) => {
                 if (control.blocked) return
                 plans.onStart(roundId, phase)

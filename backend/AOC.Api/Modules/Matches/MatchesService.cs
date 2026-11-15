@@ -111,12 +111,17 @@ public sealed class MatchesService(
 
     private async Task ScoreMatchAsync(Guid matchId, MatchEntity match)
     {
+        var already = await db.MatchResults.AnyAsync(m => m.MatchId == matchId);
+
         var rows = await db.Answers.AsNoTracking().Where(a => a.MatchId == matchId).ToListAsync();
 
-        var unjudged = rows.Where(r => !r.Judged).ToList();
-        if (unjudged.Count > 0)
-            throw new MatchError(MatchErrorCode.NOT_READY,
-                $"match {matchId} has {unjudged.Count} answer(s) without a final verdict");
+        if (!already)
+        {
+            var unjudged = rows.Where(r => !r.Judged).ToList();
+            if (unjudged.Count > 0)
+                throw new MatchError(MatchErrorCode.NOT_READY,
+                    $"match {matchId} has {unjudged.Count} answer(s) without a final verdict");
+        }
 
         var questionById = match.QuestionsList.ToDictionary(q => q.Id);
         var competitors = match.PlayersList
@@ -140,7 +145,6 @@ public sealed class MatchesService(
                 r.PointsAwarded ?? 0)).ToList(),
             adjustments.ToDictionary(kv => kv.Key.ToString(), kv => kv.Value)));
 
-        var already = await db.MatchResults.AnyAsync(m => m.MatchId == matchId);
         if (!already)
         {
             db.MatchResults.Add(new MatchResultEntity
@@ -406,14 +410,9 @@ public sealed class MatchesService(
             existingResult.ComputedAt = DateTime.UtcNow;
         }
 
-        var tracked = await db.Matches.FirstAsync(m => m.Id == mid);
-        tracked.Status = MatchStatus.FINISHED;
-        tracked.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 
-        await standings.RecomputeStandingsAsync(tournamentId);
-
-        return tracked;
+        return match;
     }
 
     public async Task<MatchEntity> TransitionMatchAsync(string tournamentId, string matchId, string nextRaw)

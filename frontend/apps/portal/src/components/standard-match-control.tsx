@@ -30,8 +30,9 @@ export function StandardMatchControl({
     if (save.isError) saveError = save.error.message
     let startLabel = "Bắt đầu trận ▶"
     if (transition.isPending) startLabel = "Đang bắt đầu…"
-    let saveLabel = "Lưu kết quả & kết thúc"
+    let saveLabel = "Lưu kết quả"
     if (save.isPending) saveLabel = "Đang lưu…"
+    if (save.isSuccess) saveLabel = "Đã lưu"
 
     const submitResults = () => {
         save.mutate({
@@ -51,8 +52,8 @@ export function StandardMatchControl({
         <>
             <p className="text-sm font-semibold">Nhập kết quả</p>
             <p className="mb-3 mt-1 text-sm text-muted-foreground">
-                Tổng điểm cuối cùng của từng thí sinh. Lưu sẽ kết thúc trận và cập nhật
-                bảng xếp hạng.
+                Tổng điểm cuối cùng của từng thí sinh. Lưu để chốt điểm — rồi về sảnh
+                bấm Kết thúc trận đấu để cập nhật bảng xếp hạng.
             </p>
             <div className="flex flex-col gap-3">
                 {seated.map((player) => (
@@ -105,7 +106,7 @@ export function StandardMatchControl({
                         <p className="text-sm font-semibold">Sẵn sàng bắt đầu?</p>
                         <p className="text-sm text-muted-foreground">
                             Bắt đầu chuyển trận sang LIVE — socket live mở cho thí sinh của trận.
-                            Nhập kết quả bên dưới sẽ kết thúc trận.
+                            Sau khi trận xong, nhập kết quả bên dưới để chốt điểm.
                         </p>
                     </div>
                     <Button

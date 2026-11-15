@@ -117,6 +117,25 @@ describe("the console's phase machine — which screen a phase draws", () => {
         expect(await screen.findByRole("button", { name: /Khởi động · Riêng/ })).toBeInTheDocument()
     })
 
+    it("offers Kết thúc trận đấu in the waiting room", async () => {
+        draw()
+        const user = userEvent.setup()
+
+        await user.click(await screen.findByRole("button", { name: "Về sảnh" }))
+
+        expect(await screen.findByRole("button", { name: "Kết thúc trận đấu" })).toBeInTheDocument()
+    })
+
+    it("hides the end button once the match is FINISHED", async () => {
+        draw({ [LOBBY]: { body: { ...lobbyData(), status: "FINISHED" } } })
+        const user = userEvent.setup()
+
+        await user.click(await screen.findByRole("button", { name: "Về sảnh" }))
+        await screen.findByRole("button", { name: /Khởi động · Riêng/ })
+
+        expect(screen.queryByRole("button", { name: "Kết thúc trận đấu" })).toBeNull()
+    })
+
     it("shows the error phase when the read fails and no lobby answers either", async () => {
         draw({
             [LIVE]: { body: { message: "Hỏng" }, status: 500 },

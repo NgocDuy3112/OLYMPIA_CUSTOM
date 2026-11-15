@@ -94,6 +94,8 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
                         canStart: true,
                         busy: model.busy,
                         onStart: model.onStart,
+                        onEndMatch: model.endMatch,
+                        endingMatch: model.endingMatch,
                     }}
                     hint={startErrorHint}
                 />
