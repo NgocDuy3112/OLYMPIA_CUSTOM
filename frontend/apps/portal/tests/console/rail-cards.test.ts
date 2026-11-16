@@ -31,7 +31,6 @@ function input(over: Partial<RailCardsInput> = {}): RailCardsInput {
         target: null,
         selectedIds: new Set<string>(),
         videoOf: () => null,
-        verdictOf: () => null,
         giaiMa: null,
         veDich: null,
         khoiDong: null,
@@ -112,34 +111,30 @@ describe("railCardsOf — the answers rail", () => {
         expect(cards[0].value).toBeUndefined()
     })
 
-    it("shows the answer text, the awarded points, and the CALLER's verdict", () => {
+    it("shows the answer text and the answer time — never a separate points label", () => {
         const cards = railCardsOf(input({
-            rows: [row({ pointsAwarded: 15, verdict: "INCORRECT" })],
+            rows: [row({ pointsAwarded: 15, verdict: "INCORRECT", answeredMs: 3261 })],
             railVariant: "answers",
             railQ: "q1",
             judgingId: "q1",
-            verdictOf: () => "CORRECT",
         }))
-        expect(cards[0].answer).toBe("“một đáp án”")
-        expect(cards[0].value).toBe("15")
-        expect(cards[0].verdict).toBe("CORRECT")
+        expect(cards[0].answer).toBe("một đáp án")
+        expect(cards[0].value).toBeUndefined()
+        expect(cards[0].answeredMs).toBe(3261)
     })
 
-    it("says '…' while the verdict is still open, and the value once judged", () => {
+    it("keeps the answer text while the verdict is still open", () => {
         const pending = railCardsOf(input({
             rows: [row({ verdict: null })], railVariant: "answers", railQ: "q1", judgingId: "q1",
         }))
-        expect(pending[0].value).toBe("…")
-        const judged = railCardsOf(input({
-            rows: [row({ verdict: "CORRECT" })], railVariant: "answers", railQ: "q1", judgingId: "q1",
-        }))
-        expect(judged[0].value).toBe("“một đáp án”")
+        expect(pending[0].answer).toBe("một đáp án")
+        expect(pending[0].value).toBeUndefined()
     })
 
     it("shows an em dash for a player who did not answer", () => {
         const cards = railCardsOf(input({ railVariant: "answers", railQ: "q1", judgingId: "q1" }))
         expect(cards.map((c) => c.answer)).toEqual(["—", "—"])
-        expect(cards.map((c) => c.value)).toEqual(["—", "—"])
+        expect(cards.map((c) => c.value)).toEqual([undefined, undefined])
     })
 
     it("does not describe answers with no question in hand", () => {

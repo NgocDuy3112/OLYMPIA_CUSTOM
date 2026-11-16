@@ -16,8 +16,10 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
     const index = consoleKhoiDong?.questionIndex ?? 0
     const total = consoleKhoiDong?.questionCount || 6
     const windowOpen = consoleKhoiDong?.windowOpen ?? false
+    let counting = windowOpen
+    if (openNow?.deadlineAt && (remaining ?? 0) > 0) counting = true
     let timerRemaining: number | null = null
-    if (windowOpen) timerRemaining = remaining
+    if (counting) timerRemaining = remaining
 
     const gradeable = () => {
         if (selectedIds.size > 0) return [...selectedIds]
@@ -31,7 +33,7 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
     }
 
     let startWindow: (() => void) | undefined = undefined
-    if (!windowOpen) {
+    if (!counting) {
         if (openNow) startWindow = () => ctx.send({ kind: "khoi-dong.startWindow" })
     }
     let revealAnswer: (() => void) | undefined = undefined

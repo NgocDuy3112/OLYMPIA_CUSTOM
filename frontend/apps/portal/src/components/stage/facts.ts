@@ -6,6 +6,7 @@ export interface ConsoleFacts {
     v: LiveResponse
     stage: string
     remaining: number | null
+    oralRemaining: number | null
     rows: QuestionAnswerRow[]
     baseCards: CardData[]
     judgingId: string | null
@@ -26,9 +27,6 @@ export interface ConsoleFacts {
     pickQuestion: () => void
     byId: (id: string) => ConsoleQuestion | null
     verdictOf: (questionId: string, userId: string) => "CORRECT" | "INCORRECT" | null
-    watchRunning: boolean
-    watchMs: number
-    toggleWatch: () => void
     flash: string | null
     openAdjust: (userId: string) => void
 }

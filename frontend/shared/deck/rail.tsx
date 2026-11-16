@@ -42,14 +42,6 @@ export function Rail({ variant, view, myId, currentQid }: {
     let scoreFontSize = 44
     if (compact) scoreFontSize = 34
     const selfCam = useSelfCam()
-    const publicFor = (userId: string, qid: string | null | undefined) => {
-        if (!qid) return undefined
-        return view.publicVerdicts?.find((row) => row.questionId === qid && row.userId === userId)?.verdict
-    }
-    const myVerdictFor = (qid: string | null | undefined) => {
-        if (!qid) return undefined
-        return view.me.verdicts?.[qid]
-    }
     const answerRowFor = (userId: string, qid: string | null | undefined) => {
         if (!qid) return undefined
         return view.publicVerdicts?.find((row) => row.questionId === qid && row.userId === userId)
@@ -58,11 +50,7 @@ export function Rail({ variant, view, myId, currentQid }: {
         <>
             {view.table.slice(0, 4).map((row) => {
                 const mine = myId !== null && row.id === myId
-                const myVerdict = myVerdictFor(currentQid)
-                let shownVerdict = publicFor(row.id, currentQid)
-                if (mine) shownVerdict = myVerdict
                 const state = railCardState({
-                    verdict: shownVerdict ?? null,
                     buzzing: view.me.buzzer === row.id,
                 })
                 const activeRun = view.oral?.playerId === row.id

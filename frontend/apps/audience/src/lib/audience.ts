@@ -34,6 +34,7 @@ export function audienceCtx(view: PlayerView): PlayerCtx {
         stage: view.stage,
         open: view.open,
         remaining: 0,
+        oralRemaining: 0,
         myId: null,
         audience: true,
         flash: null,

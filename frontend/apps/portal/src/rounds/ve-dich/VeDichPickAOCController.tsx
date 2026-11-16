@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { ConsoleStage, QuestionCard, Rail } from "@/components/stage/deck"
+import { ConsoleStage, QuestionCard, Rail, Timer } from "@/components/stage/deck"
 import { backToLobbyAction } from "@/components/stage/actions"
 import { pt, DECK_PAD } from "@shared/deck/geometry"
 import { playerCellClass, type CellWhere } from "@shared/deck/cells"
@@ -190,6 +190,7 @@ function VeDichPickBoard({ ctx }: { ctx: VeDichPickCtx }) {
             <QuestionCard
                 round="Về đích"
                 mode={mode}
+                right={<Timer remaining={null} />}
             >
                 <div className="flex min-h-0 flex-1 flex-col justify-start gap-[0.9cqw]">
                     {rows.map((row) => (

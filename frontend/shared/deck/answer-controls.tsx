@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { STRIP_R, pt } from "./geometry"
 import { COPY } from "./copy"
 import type { AnswerValue, PlayerQuestion } from "./types"
@@ -20,7 +20,7 @@ const submitClass = (ready: boolean): string => {
     return `${SUBMIT} ${cursor}`
 }
 
-export function AnswerBand({ question, disabled, busy, error, onSubmit }: {
+export function AnswerBand({ question, answerState, disabled, busy, error, onSubmit }: {
     question: PlayerQuestion | null
     answerState?: "none" | "draft" | "final"
     disabled?: boolean
@@ -32,6 +32,10 @@ export function AnswerBand({ question, disabled, busy, error, onSubmit }: {
     const qid = question?.questionId ?? ""
     let state = { qid, picked: "", text: "" }
     if (draft.qid === qid) state = draft
+
+    useEffect(() => {
+        setDraft({ qid: "", picked: "", text: "" })
+    }, [qid, answerState])
     let sendLabel: string = COPY.send
     if (busy) sendLabel = "…"
 

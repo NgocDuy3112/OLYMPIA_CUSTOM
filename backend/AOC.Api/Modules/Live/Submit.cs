@@ -47,6 +47,19 @@ public sealed class SubmitService(
         return new Loaded(match, live, DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"));
     }
 
+    private static SubmittedAnswerValue TextOfChoice(Loaded loaded, SubmitContext ctx, SubmittedAnswerValue value, string message)
+    {
+        if (value is not SubmittedAnswerValue.Picked picked) return value;
+        var question = loaded.Match.QuestionsList.FirstOrDefault(q => q.Id == ctx.QuestionId.ToString())
+            ?? throw new SubmitError(400, "NOT_IN_MATCH", "question is not part of this match");
+        var optionId = picked.Items.FirstOrDefault();
+        var choice = question.Payload as QuestionPayload.Choice
+            ?? throw new SubmitError(400, "BAD_VALUE", message);
+        var option = choice.Options.FirstOrDefault(o => o.Id == optionId)
+            ?? throw new SubmitError(400, "BAD_VALUE", "unknown option");
+        return new SubmittedAnswerValue.Text(option.Text);
+    }
+
     private static Verdict Suggestion(MatchQuestion question, SubmittedAnswerValue value)
         => Matching.AutoMatch(question.Kind, question.Payload, value)
             ? Verdict.CORRECT
@@ -135,8 +148,7 @@ public sealed class SubmitService(
 
             case "khoi-dong":
             {
-                if (value is not SubmittedAnswerValue.Text)
-                    throw new SubmitError(400, "BAD_VALUE", "a chung answer must be text");
+                value = TextOfChoice(loaded, ctx, value, "a chung answer must be text");
                 var state = LiveState.ParseKhoiDong(loaded.Live.State);
                 if (state.Stage != "phase2" || state.Phase2 is null)
                     throw new SubmitError(409, "NO_WINDOW",

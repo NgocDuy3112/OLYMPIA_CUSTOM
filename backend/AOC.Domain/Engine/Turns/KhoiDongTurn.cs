@@ -49,13 +49,13 @@ public static class KhoiDongTurn
         };
     }
 
-    public static Phase1State AnswerPhase1(Phase1State state, bool correct, double spentS)
+    public static Phase1State AnswerPhase1(Phase1State state, bool correct, double elapsedTotalS)
     {
         if (state.Ended) Fail("PHASE_ENDED", "phase 1 is over");
-        var elapsedS = state.ElapsedS + spentS;
+        var elapsedS = Math.Min(elapsedTotalS, (double)state.BudgetS);
         var id = state.QuestionIds[state.Cursor];
 
-        if (elapsedS > state.BudgetS)
+        if (elapsedTotalS > state.BudgetS)
             return state with { ElapsedS = state.BudgetS, Ended = true };
 
         var cursor = state.Cursor + 1;

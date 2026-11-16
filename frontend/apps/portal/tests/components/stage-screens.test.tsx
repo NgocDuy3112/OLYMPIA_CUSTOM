@@ -53,9 +53,7 @@ function facts(
         pickQuestion: vi.fn(),
         byId: () => null,
         verdictOf: () => null,
-        watchRunning: false,
-        watchMs: 0,
-        toggleWatch: vi.fn(),
+        oralRemaining: null,
         flash: null,
         openAdjust: vi.fn(),
         ...over,
@@ -97,13 +95,18 @@ const veDichMc = (over: Partial<VeDichConsole> = {}): VeDichConsole => ({
 describe("KhoiDongRieng — S1, the oral run", () => {
     it("shows the stopwatch strip and sends the run's verdict", async () => {
         const user = userEvent.setup()
-        const f = renderRound("khoi-dong", {}, {
-            oral: { questionId: "q1", question: null, playerId: "u1", index: 0, total: 6, elapsedS: 10, budgetS: 45 },
+        const f = renderRound("khoi-dong", {
+            baseCards: [{ id: "u1", name: "An", points: 10 }],
+            oralRemaining: 30,
+        }, {
+            oral: { questionId: "q1", question: null, playerId: "u1", index: 0, total: 6, elapsedS: 10, budgetS: 45, deadlineAt: "2026-01-01T00:00:40.000Z" },
         })
 
-        expectButtonsInOrder(["Tính giờ", "Đúng", "Sai", "Về sảnh"])
+        await user.click(screen.getByText("An"))
+        expect(screen.getByText("Tính giờ")).toBeInTheDocument()
+        expectButtonsInOrder(["Đúng", "Sai", "Về sảnh"])
         await user.click(screen.getByRole("button", { name: "Đúng" }))
-        expect(f.send).toHaveBeenCalledWith({ kind: "khoi-dong.recordOral", correct: true, spentS: 0 })
+        expect(f.send).toHaveBeenCalledWith({ kind: "khoi-dong.recordOral", correct: true, spentS: 0, playerId: "u1" })
         await user.click(screen.getByRole("button", { name: "Về sảnh" }))
         expect(f.backToLobby).toHaveBeenCalledOnce()
     })
@@ -111,7 +114,7 @@ describe("KhoiDongRieng — S1, the oral run", () => {
     it("Hết lượt is always offered and switches the run explicitly", async () => {
         const user = userEvent.setup()
         const f = renderRound("khoi-dong", {}, {
-            oral: { questionId: "q1", question: null, playerId: "u1", index: 0, total: 6, elapsedS: 0, budgetS: 40 },
+            oral: { questionId: "q1", question: null, playerId: "u1", index: 0, total: 6, elapsedS: 0, budgetS: 40, deadlineAt: null },
         })
 
         await user.click(screen.getByRole("button", { name: "Hết lượt" }))
@@ -124,7 +127,7 @@ describe("KhoiDongRieng — S1, the oral run", () => {
         expect(screen.queryByText(/Lượt đã xong/)).toBeNull()
         expect(screen.queryByText(/Chưa chọn người chơi/)).toBeNull()
         expect(screen.queryByRole("button", { name: "Đúng" })).toBeNull()
-        expect(screen.getByRole("button", { name: "Tính giờ" })).toBeInTheDocument()
+        expect(screen.getByText("Tính giờ")).toBeInTheDocument()
     })
 
     const oralRun = {
@@ -144,6 +147,7 @@ describe("KhoiDongRieng — S1, the oral run", () => {
             total: 6,
             elapsedS: 0,
             budgetS: 40,
+            deadlineAt: null,
         },
     }
 
@@ -156,9 +160,9 @@ describe("KhoiDongRieng — S1, the oral run", () => {
     it("the engine withholds the question — the match list does not leak it", () => {
         renderRound(
             "khoi-dong",
-            { watchRunning: true },
+            { oralRemaining: 30 },
             {
-                oral: { questionId: "q9", question: null, playerId: "u1", index: 0, total: 6, elapsedS: 0, budgetS: 40 },
+                oral: { questionId: "q9", question: null, playerId: "u1", index: 0, total: 6, elapsedS: 0, budgetS: 40, deadlineAt: null },
             },
             null,
             [{
@@ -177,10 +181,14 @@ describe("KhoiDongRieng — S1, the oral run", () => {
         expect(screen.queryByText("Câu hỏi từ danh sách")).toBeNull()
     })
 
-    it("Tính giờ tells the engine to reveal the question", async () => {
+    it("Tính giờ tells the engine to reveal the question — only after a player is marked", async () => {
         const user = userEvent.setup()
-        const f = renderRound("khoi-dong", {}, oralRun)
+        const f = renderRound("khoi-dong", {
+            baseCards: [{ id: "u1", name: "An", points: 10 }],
+        }, oralRun)
 
+        expect(screen.queryByRole("button", { name: "Tính giờ" })).toBeNull()
+        await user.click(screen.getByText("An"))
         await user.click(screen.getByRole("button", { name: "Tính giờ" }))
 
         expect(f.send).toHaveBeenCalledWith({ kind: "khoi-dong.startClock" })
@@ -191,7 +199,7 @@ describe("KhoiDongRieng — S1, the oral run", () => {
         const f = renderRound("khoi-dong", {
             baseCards: [{ id: "u1", name: "An", points: 10 }, { id: "u2", name: "Bình", points: 5 }],
         }, {
-            oral: { questionId: "q1", question: null, playerId: "u1", index: 0, total: 6, elapsedS: 10, budgetS: 45 },
+            oral: { questionId: "q1", question: null, playerId: "u1", index: 0, total: 6, elapsedS: 10, budgetS: 45, deadlineAt: null },
         })
 
         await user.click(screen.getByText("Bình"))
@@ -202,8 +210,9 @@ describe("KhoiDongRieng — S1, the oral run", () => {
         const user = userEvent.setup()
         const f = renderRound("khoi-dong", {
             baseCards: [{ id: "u1", name: "An", points: 10 }, { id: "u2", name: "Bình", points: 5 }],
+            oralRemaining: 30,
         }, {
-            oral: { questionId: "q1", question: null, playerId: "u1", index: 0, total: 6, elapsedS: 10, budgetS: 45 },
+            oral: { questionId: "q1", question: null, playerId: "u1", index: 0, total: 6, elapsedS: 10, budgetS: 45, deadlineAt: "2026-01-01T00:00:40.000Z" },
         })
 
         await user.click(screen.getByText("Bình"))
@@ -220,8 +229,8 @@ describe("KhoiDongRieng — S1, the oral run", () => {
         expect(screen.getByRole("button", { name: "Về sảnh" })).toBeInTheDocument()
 
         rerender(mod.render(facts(
-            { watchMs: 6_000 },
-            { oral: { questionId: "q1", question: null, playerId: "u1", index: 2, total: 6, elapsedS: 40, budgetS: 45 } },
+            { oralRemaining: 0 },
+            { oral: { questionId: "q1", question: null, playerId: "u1", index: 2, total: 6, elapsedS: 40, budgetS: 45, deadlineAt: null } },
         )))
         expect(screen.queryByRole("button", { name: "Sai" })).toBeNull()
     })
@@ -616,6 +625,7 @@ const TWO_PLAYERS = [
 ]
 
 const answerRow = (userId: string, verdict: "CORRECT" | "INCORRECT" | null) => ({
+    questionId: "q1",
     userId,
     value: { text: "đáp án" },
     verdict,

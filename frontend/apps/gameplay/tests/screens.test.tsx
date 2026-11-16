@@ -52,6 +52,7 @@ function ctx(over: Partial<PlayerCtx> = {}): PlayerCtx {
         stage: v.stage,
         open: v.open,
         remaining: 12,
+        oralRemaining: 12,
         myId: "u1",
         flash: null,
         nameOf: (id) => (id === "u1" ? "An" : "Bình"),

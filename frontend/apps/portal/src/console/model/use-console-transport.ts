@@ -14,6 +14,7 @@ export interface ConsoleTransport {
     stage: string
     open: Projection["open"]
     remaining: number | null
+    oralRemaining: number | null
     userSeats: string[]
     questions: ConsoleQuestion[]
     table: Projection["table"]
@@ -35,6 +36,7 @@ export function useConsoleTransport(tournamentId: string, matchId: string): Cons
     const projection = v?.projection
     const open = projection?.open ?? []
     const remaining = useCountdown(open[0]?.deadlineAt ?? null, clock)
+    const oralRemaining = useCountdown(projection?.oral?.deadlineAt ?? null, clock)
     const questions = v?.questions ?? []
 
     const rtc = useRtcRoom({
@@ -88,6 +90,7 @@ export function useConsoleTransport(tournamentId: string, matchId: string): Cons
         stage: projection?.stage ?? "pending",
         open,
         remaining,
+        oralRemaining,
         userSeats,
         questions,
         table: projection?.table ?? [],

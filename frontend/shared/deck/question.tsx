@@ -49,14 +49,15 @@ export function QuestionBlock({ question, media, mediaHint = "hình ảnh câu h
 }
 
 function MediaWell({ media, mediaHint }: { media: { url: string; type: string }; mediaHint: string }) {
-    const [natural, setNatural] = useState<{ w: number; h: number } | null>(null)
     const [broken, setBroken] = useState(false)
+    const wellClass =
+        "ml-auto shrink-0 self-center overflow-hidden rounded-2xl bg-muted ring-1 ring-border"
 
     if (media.type !== "image" || broken) {
         let mediaText = `media: ${media.type}`
         if (broken) mediaText = mediaHint
         return (
-            <div className="ml-auto flex h-full w-[37.4cqw] shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-muted ring-1 ring-border">
+            <div className={`${wellClass} flex max-w-[37.4cqw] items-center justify-center px-[2cqw] py-[1.4cqw]`}>
                 <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>
                     {mediaText}
                 </span>
@@ -64,26 +65,12 @@ function MediaWell({ media, mediaHint }: { media: { url: string; type: string };
         )
     }
 
-    let aspect = "16 / 9"
-    if (natural) aspect = `${natural.w} / ${natural.h}`
     return (
-        <div
-            className="ml-auto flex shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-muted ring-1 ring-border"
-            style={{
-                height: "100%",
-                maxHeight: "min(100%, 34cqw)",
-                maxWidth: "37.4cqw",
-                aspectRatio: aspect,
-            }}
-        >
+        <div className={wellClass}>
             <img
                 src={media.url}
                 alt=""
-                className="h-full w-full object-contain"
-                onLoad={(event) => {
-                    const { naturalWidth: w, naturalHeight: h } = event.currentTarget
-                    if (w > 0 && h > 0) setNatural({ w, h })
-                }}
+                className="block max-h-[30cqw] max-w-[37.4cqw] object-contain"
                 onError={() => setBroken(true)}
             />
         </div>

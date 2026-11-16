@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useQuestionAnswers, type ConsoleQuestion, type QuestionAnswerRow } from "@/lib/live"
+import { type ConsoleQuestion, type QuestionAnswerRow } from "@/lib/live"
 import { judgingIdsOf, targetOf, type JudgingIds } from "../lib/judging"
 
 type Picked = { qid: string | null; ids: ReadonlySet<string> }
@@ -20,11 +20,10 @@ export interface ConsoleJudging extends JudgingIds {
 }
 
 interface JudgingScopeInput {
-    tournamentId: string
-    matchId: string
     roundId: string
     questions: ConsoleQuestion[]
     openIds: readonly string[]
+    answerRows: QuestionAnswerRow[]
 }
 
 export function useConsoleJudging(input: JudgingScopeInput): ConsoleJudging {
@@ -40,8 +39,8 @@ export function useConsoleJudging(input: JudgingScopeInput): ConsoleJudging {
         selectedQ,
     })
 
-    const answers = useQuestionAnswers(input.tournamentId, input.matchId, ids.judgingId ?? ids.resolvingId)
-    const rows = answers.data ?? []
+    const railQ = ids.judgingId ?? ids.resolvingId
+    const rows = input.answerRows.filter((row) => row.questionId === railQ)
 
     let selectedIds: ReadonlySet<string> = EMPTY_PICKS
     if (picked.qid === ids.judgingId) selectedIds = picked.ids

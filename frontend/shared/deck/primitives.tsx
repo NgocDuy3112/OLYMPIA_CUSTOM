@@ -84,10 +84,14 @@ export function Timer({ remaining, size = 40 }: {
     remaining: number | null
     size?: number
 }) {
-    if (remaining === null) return null
-    const text = toClock(formatRemaining(remaining))
+    let text = "00"
+    let tone = "text-muted-foreground"
+    if (remaining !== null) {
+        text = toClock(formatRemaining(remaining))
+        tone = "text-foreground"
+    }
     return (
-        <span className="shrink-0 text-right font-display font-bold leading-none tabular-nums text-foreground" style={{ fontSize: pt(size) }}>
+        <span className={`shrink-0 text-right font-display font-bold leading-none tabular-nums ${tone}`} style={{ fontSize: pt(size) }}>
             {text}
         </span>
     )

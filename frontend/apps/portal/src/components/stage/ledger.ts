@@ -4,8 +4,7 @@ import { type ConsoleQuestion, type QuestionAnswerRow } from "@/lib/live"
 export function valueText(row: QuestionAnswerRow, question?: ConsoleQuestion | null): string {
     const value = row.value
     if (!value) return "—"
-    if (value.text !== undefined) return `“${value.text}”`
-    if (value.oral) return "nói miệng"
+    if (value.text !== undefined) return value.text
     if (value.picked) {
         if (!question?.payload.options) return value.picked.join(", ")
         return value.picked

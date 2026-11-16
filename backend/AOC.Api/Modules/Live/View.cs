@@ -230,7 +230,10 @@ public static class LiveView
                     ["index"] = run.Cursor,
                     ["total"] = run.QuestionIds.Count,
                     ["elapsedS"] = run.ElapsedS,
-                    ["budgetS"] = run.BudgetS
+                    ["budgetS"] = run.BudgetS,
+                    ["deadlineAt"] = state.ClockStartedAt is null
+                        ? null
+                        : PlusSeconds(state.ClockStartedAt, run.BudgetS)
                 };
             }
             else

@@ -81,6 +81,7 @@ export interface LiveView {
         total: number
         elapsedS: number
         budgetS: number
+        deadlineAt: string | null
     } | null
     board?: Array<{
         questionId: string

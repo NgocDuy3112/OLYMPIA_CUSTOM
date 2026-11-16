@@ -63,6 +63,7 @@ export interface PlayerView {
         total: number
         elapsedS: number
         budgetS: number
+        deadlineAt: string | null
     } | null
     board?: Array<{
         questionId: string
@@ -127,6 +128,7 @@ export interface PlayerCtx {
     stage: string
     open: PlayerView["open"]
     remaining: number
+    oralRemaining: number
     myId: string | null
     audience?: boolean
     flash: string | null

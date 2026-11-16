@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react"
 import type { RemoteVideoTrack } from "livekit-client"
+import { formatDurationMs } from "@shared/lib/clock"
 import { pt } from "@shared/deck/geometry"
 import { railCardClass, railCardState, railScoreClass } from "@shared/deck/rail-card"
 
@@ -8,8 +9,8 @@ export interface CardData {
     name: string
     points: number
     answer?: string        
+    answeredMs?: number | null
     value?: string         
-    verdict?: "CORRECT" | "INCORRECT" | null
     badge?: { text: string; tone: "primary" | "amber" | "emerald" }  
     ring?: "selected" | "active"
     dimmed?: boolean       
@@ -61,7 +62,6 @@ export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answe
         <>
             {cards.map((c) => {
                 const state = railCardState({
-                    verdict: c.verdict ?? null,
                     locked: c.dimmed === true,
                     buzzing: c.buzzing === true
                 })
@@ -70,6 +70,7 @@ export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answe
                     badgeNode = <span className={badgePill(c.badge.tone)} style={{ fontSize: pt(9) }}>{c.badge.text}</span>
                 }
                 const hasAnswer = typeof c.answer === "string" && c.answer !== "" && c.answer !== "—"
+                const hasTime = typeof c.answeredMs === "number"
                 let showStatus = hasAnswer
                 if (c.badge) showStatus = true
                 let statusLine: ReactNode = null
@@ -79,6 +80,11 @@ export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answe
                             {hasAnswer && (
                                 <span className="w-full truncate text-center" style={{ fontSize: pt(12) }} title={c.answer}>
                                     {c.answer}
+                                </span>
+                            )}
+                            {hasTime && (
+                                <span className="tabular-nums text-muted-foreground" style={{ fontSize: pt(8) }}>
+                                    {formatDurationMs(c.answeredMs as number)}
                                 </span>
                             )}
                             {!c.badge && typeof c.value === "string" && c.value !== "" && c.value !== "—" && (

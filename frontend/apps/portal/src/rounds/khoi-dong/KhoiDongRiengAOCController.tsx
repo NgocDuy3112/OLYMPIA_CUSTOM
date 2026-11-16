@@ -6,22 +6,14 @@ import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
 import type { ScreenCore } from "../types"
 
 export type KhoiDongRiengCtx = ScreenCore & {
-    watchRunning: boolean
-    watchMs: number
-    toggleWatch: () => void
+    oralRemaining: number | null
 }
 
 export function KhoiDongRiengAOCController({ ctx }: { ctx: KhoiDongRiengCtx }) {
     const { v, baseCards, flash } = ctx
     const oral = v.projection.oral
-    let budgetSeconds = 45
-    if (oral) budgetSeconds = Math.max(0, oral.budgetS - oral.elapsedS)
-    const budgetMs = budgetSeconds * 1000
-    const remainingMs = Math.max(0, budgetMs - ctx.watchMs)
-    let overBudget = false
-    if (oral) overBudget = ctx.watchMs > budgetMs
-    const canVerdict = Boolean(oral?.playerId) && !overBudget
-    const spentS = Math.max(0, Math.floor(ctx.watchMs / 1000))
+    const counting = oral?.deadlineAt != null && (ctx.oralRemaining ?? 0) > 0
+    const canVerdict = Boolean(oral?.playerId) && counting
     const [marked, setMarked] = useState<string | null>(null)
     const mark = (id: string) => {
         setMarked(id)
@@ -31,14 +23,13 @@ export function KhoiDongRiengAOCController({ ctx }: { ctx: KhoiDongRiengCtx }) {
         const base = {
             kind: "khoi-dong.recordOral" as const,
             correct,
-            spentS,
+            spentS: 0,
         }
         if (marked) {
             ctx.send({ ...base, playerId: marked })
         } else {
             ctx.send(base)
         }
-        setMarked(null)
     }
     let cards = baseCards
     if (marked) {
@@ -48,22 +39,26 @@ export function KhoiDongRiengAOCController({ ctx }: { ctx: KhoiDongRiengCtx }) {
         })
     }
 
-    let startClock: (() => void) | undefined = () => {
-        ctx.send({ kind: "khoi-dong.startClock" })
-        ctx.toggleWatch()
+    let startClock: (() => void) | undefined = undefined
+    if (marked) {
+        if (oral) {
+            if (oral.deadlineAt === null) startClock = () => ctx.send({ kind: "khoi-dong.startClock" })
+        }
     }
-    if (ctx.watchRunning) startClock = undefined
     let oralTimerRemaining: number | null = null
-    if (ctx.watchRunning) oralTimerRemaining = remainingMs
-    let rightSlot: ReactNode = null
-    if (oral?.playerId) {
-        rightSlot = (
-            <>
-                <Progress total={oral.total} done={oral.index} active={oral.index} />
-                <Timer remaining={oralTimerRemaining} />
-            </>
-        )
+    if (counting) oralTimerRemaining = ctx.oralRemaining
+    let questionTotal = 6
+    let questionDone = 0
+    if (oral) {
+        questionTotal = oral.total
+        questionDone = oral.index
     }
+    const rightSlot: ReactNode = (
+        <>
+            <Progress total={questionTotal} done={questionDone} active={questionDone} />
+            <Timer remaining={oralTimerRemaining} />
+        </>
+    )
     let questionText: string | null = null
     if (oral) questionText = oral.question?.questionText ?? null
 

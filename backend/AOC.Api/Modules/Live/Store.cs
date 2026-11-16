@@ -264,13 +264,13 @@ public sealed class LiveReader(AOCDbContext db)
     {
         var rows = await db.Answers.AsNoTracking()
             .Where(a => a.MatchId == matchId && a.UserId == userId)
-            .Select(a => new { QuestionId = a.QuestionId, a.Judged, a.Verdict })
+            .Select(a => new { QuestionId = a.QuestionId, a.Judged, a.Verdict, a.AnsweredMs })
             .ToListAsync();
         return rows.Select(r => new SubmittedAnswer(
-            r.QuestionId.ToString(), r.Judged, r.Verdict)).ToList();
+            r.QuestionId.ToString(), r.Judged, r.Verdict, r.AnsweredMs)).ToList();
     }
 
-    public sealed record SubmittedAnswer(string QuestionId, bool Judged, Verdict? Verdict);
+    public sealed record SubmittedAnswer(string QuestionId, bool Judged, Verdict? Verdict, int? AnsweredMs);
 
     public async Task<List<object>> ReadQuestionAnswersAsync(Guid matchId, Guid questionId)
     {
@@ -284,19 +284,22 @@ public sealed class LiveReader(AOCDbContext db)
                 a.Verdict,
                 a.Judged,
                 a.PointsAwarded,
-                a.SubmittedAt
+                a.SubmittedAt,
+                a.AnsweredMs
             })
             .ToListAsync();
 
         return rows.Select(r => (object)new
         {
+            questionId = questionId,
             userId = r.UserId,
             value = r.Value,
             drafts = r.Drafts,
             verdict = r.Verdict,
             judged = r.Judged,
             pointsAwarded = r.PointsAwarded,
-            submittedAt = r.SubmittedAt
+            submittedAt = r.SubmittedAt,
+            answeredMs = r.AnsweredMs
         }).ToList();
     }
 

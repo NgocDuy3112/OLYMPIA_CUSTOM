@@ -21,26 +21,15 @@ describe("QuestionBlock — no media", () => {
     })
 })
 
-describe("QuestionBlock — horizontal media", () => {
-    it("the well adopts the image's landscape aspect once loaded", () => {
+describe("QuestionBlock — any media", () => {
+    it("the well hugs the image, capped on both axes", () => {
         const { img } = renderCard({ media: image("https://x/h.jpg") })
         expect(img).not.toBeNull()
-        expect(img!.parentElement!.style.aspectRatio).toBe("16 / 9")
-
-        Object.defineProperty(img!, "naturalWidth", { value: 1200 })
-        Object.defineProperty(img!, "naturalHeight", { value: 800 })
-        fireEvent.load(img!)
-        expect(img!.parentElement!.style.aspectRatio).toBe("1200 / 800")
-    })
-})
-
-describe("QuestionBlock — vertical media", () => {
-    it("the well narrows to the image's portrait aspect (no wide pillarbox)", () => {
-        const { img } = renderCard({ media: image("https://x/v.jpg") })
-        Object.defineProperty(img!, "naturalWidth", { value: 600 })
-        Object.defineProperty(img!, "naturalHeight", { value: 1000 })
-        fireEvent.load(img!)
-        expect(img!.parentElement!.style.aspectRatio).toBe("600 / 1000")
+        expect(img!.className).toContain("object-contain")
+        expect(img!.className).toContain("max-h-[30cqw]")
+        expect(img!.className).toContain("max-w-[37.4cqw]")
+        expect(img!.parentElement!.style.aspectRatio).toBe("")
+        expect(img!.parentElement!.className).toContain("self-center")
     })
 })
 

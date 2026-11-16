@@ -3,18 +3,11 @@ import { railCardClass, railCardState, railScoreClass } from "@shared/deck/rail-
 
 
 describe("railCardState", () => {
-    it("a judged CORRECT card is the bright one", () => {
-        expect(railCardState({ verdict: "CORRECT" })).toBe("correct")
-        expect(railCardClass("correct")).toContain("bg-emerald-50")
-        expect(railCardClass("correct")).toContain("ring-emerald-500")
-        expect(railScoreClass("correct")).toContain("emerald")
-    })
-
-    it("wrong and locked-out look the same: grey, no hue", () => {
-        expect(railCardState({ verdict: "INCORRECT" })).toBe("wrong")
+    it("locked-out looks grey, no hue", () => {
         expect(railCardState({ locked: true })).toBe("wrong")
         expect(railCardClass("wrong")).toContain("bg-muted")
         expect(railCardClass("wrong")).toContain("opacity-70")
+        expect(railScoreClass("wrong")).toContain("muted")
     })
 
     it("the live answerer is purple with a DASHED WHITE outline", () => {
@@ -24,8 +17,7 @@ describe("railCardState", () => {
         expect(railCardClass("buzzing")).toContain("outline-white")
     })
 
-    it("a verdict beats the buzz — once judged, the outcome is what the card says", () => {
-        expect(railCardState({ buzzing: true, verdict: "CORRECT" })).toBe("correct")
+    it("locked beats the buzz — the seat is out either way", () => {
         expect(railCardState({ buzzing: true, locked: true })).toBe("wrong")
     })
 

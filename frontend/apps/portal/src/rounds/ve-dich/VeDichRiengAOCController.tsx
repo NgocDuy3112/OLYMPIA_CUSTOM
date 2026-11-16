@@ -33,6 +33,18 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
     const racing = consoleVeDich?.power === "ASSIGN"
     const canLockBuzz = consoleVeDich?.openStage === "buzz" && consoleVeDich.buzzerId === null
 
+    let counting = false
+    if (openNow?.deadlineAt && (remaining ?? 0) > 0) counting = true
+
+    let startClock: (() => void) | undefined = undefined
+    if (openNow) {
+        if (revealed) {
+            if (consoleVeDich?.openStage === "current") {
+                if (!counting) startClock = () => ctx.send({ kind: "ve-dich.startClock" })
+            }
+        }
+    }
+
     let closeCurrent: (() => void) | undefined = undefined
     if (consoleVeDich?.openStage === "current") {
         if (!racing) closeCurrent = () => ctx.send({ kind: "ve-dich.closeCurrentAnswer" })
@@ -54,6 +66,10 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
         <ConsoleStage
             rail={<Rail variant="compact" cards={baseCards} onSelect={ctx.toggleSelect} />}
             actions={[
+                {
+                    label: COPY.startClock,
+                    onClick: startClock,
+                },
                 {
                     label: "Mở chuông",
                     onClick: closeCurrent,

@@ -18,6 +18,7 @@ const input = (over: Partial<PlanInput> = {}): PlanInput => ({
 })
 
 const row = (userId: string, verdict: QuestionAnswerRow["verdict"], judged: boolean): QuestionAnswerRow => ({
+    questionId: "q1",
     userId,
     value: { text: "đáp án" },
     verdict,

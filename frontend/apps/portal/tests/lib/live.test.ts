@@ -25,6 +25,7 @@ const giaiMaMc = (over: Partial<GiaiMaConsole> = {}): GiaiMaConsole => ({
 })
 
 const row = (over: Partial<QuestionAnswerRow>): QuestionAnswerRow => ({
+    questionId: "q1",
     userId: "p1",
     value: null,
     verdict: "CORRECT",

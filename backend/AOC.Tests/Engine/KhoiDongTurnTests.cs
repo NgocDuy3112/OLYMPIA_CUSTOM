@@ -39,7 +39,7 @@ public class KhoiDongTurnTests
     {
         var s = KhoiDongTurn.StartPhase1(Ids6, RoundRules.DefaultKhoiDong());
         for (var i = 0; i < 6; i++)
-            s = KhoiDongTurn.AnswerPhase1(s, correct: true, spentS: 5);
+            s = KhoiDongTurn.AnswerPhase1(s, correct: true, elapsedTotalS: 5 * (i + 1));
         Assert.True(s.Ended);
         Assert.Equal(60, KhoiDongTurn.Phase1Total(s));
     }
@@ -48,8 +48,8 @@ public class KhoiDongTurnTests
     public void Phase1_WrongAnswersScoreZeroButUseTheClock()
     {
         var s = KhoiDongTurn.StartPhase1(Ids6, RoundRules.DefaultKhoiDong());
-        s = KhoiDongTurn.AnswerPhase1(s, correct: true, spentS: 5);
-        s = KhoiDongTurn.AnswerPhase1(s, correct: false, spentS: 5);
+        s = KhoiDongTurn.AnswerPhase1(s, correct: true, elapsedTotalS: 5);
+        s = KhoiDongTurn.AnswerPhase1(s, correct: false, elapsedTotalS: 10);
         Assert.Equal(2, s.Cursor);
         Assert.Equal(10, KhoiDongTurn.Phase1Total(s));
     }
@@ -58,8 +58,8 @@ public class KhoiDongTurnTests
     public void Phase1_BudgetIsSharedAcrossThePhase()
     {
         var s = KhoiDongTurn.StartPhase1(Ids6, RoundRules.DefaultKhoiDong());
-        s = KhoiDongTurn.AnswerPhase1(s, correct: true, spentS: 20);
-        s = KhoiDongTurn.AnswerPhase1(s, correct: true, spentS: 20);
+        s = KhoiDongTurn.AnswerPhase1(s, correct: true, elapsedTotalS: 20);
+        s = KhoiDongTurn.AnswerPhase1(s, correct: true, elapsedTotalS: 40);
         Assert.Equal(40, s.ElapsedS);
         Assert.False(s.Ended);
     }
@@ -68,8 +68,8 @@ public class KhoiDongTurnTests
     public void Phase1_AnswerPastBudgetIsNotCounted()
     {
         var s = KhoiDongTurn.StartPhase1(Ids6, RoundRules.DefaultKhoiDong());
-        s = KhoiDongTurn.AnswerPhase1(s, correct: true, spentS: 30);
-        s = KhoiDongTurn.AnswerPhase1(s, correct: true, spentS: 20);
+        s = KhoiDongTurn.AnswerPhase1(s, correct: true, elapsedTotalS: 30);
+        s = KhoiDongTurn.AnswerPhase1(s, correct: true, elapsedTotalS: 50);
         Assert.True(s.Ended);
         Assert.Equal(10, KhoiDongTurn.Phase1Total(s));
     }
@@ -78,7 +78,7 @@ public class KhoiDongTurnTests
     public void Phase1_TimeOutEndsThePhase()
     {
         var s = KhoiDongTurn.StartPhase1(Ids6, RoundRules.DefaultKhoiDong());
-        s = KhoiDongTurn.AnswerPhase1(s, correct: true, spentS: 5);
+        s = KhoiDongTurn.AnswerPhase1(s, correct: true, elapsedTotalS: 5);
         s = KhoiDongTurn.TimeOutPhase1(s);
         Assert.True(s.Ended);
         Assert.Equal(10, KhoiDongTurn.Phase1Total(s));
@@ -90,7 +90,7 @@ public class KhoiDongTurnTests
         var s = KhoiDongTurn.TimeOutPhase1(
             KhoiDongTurn.StartPhase1(Ids6, RoundRules.DefaultKhoiDong()));
         Assert.Equal("PHASE_ENDED", CodeOf(() =>
-            KhoiDongTurn.AnswerPhase1(s, correct: true, spentS: 1)));
+            KhoiDongTurn.AnswerPhase1(s, correct: true, elapsedTotalS: 1)));
     }
 
 

@@ -20,7 +20,7 @@ public static class Sfx
                 return "kd_bat_dau.ogg";
             case LiveAction.KhoiDongNextQuestion:
                 return "kd_mo_cau_hoi.mp3";
-            case LiveAction.KhoiDongSetTurn:
+            case LiveAction.KhoiDongStartClock:
                 return "kd_40s.mp3";
             case LiveAction.KhoiDongStartWindow:
                 return "kd_10s.ogg";

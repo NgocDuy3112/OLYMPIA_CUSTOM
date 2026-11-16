@@ -265,24 +265,50 @@ public class KhoiDongRoundTests
     }
 
     [Fact]
-    public void ClockStartedGatesTheQuestion_MarkingAndNextQuestionHideItAgain()
+    public void ClockStartedGatesTheQuestion_MarkingHidesItAndRecordOralKeepsItRunning()
     {
         var started = KhoiDongRound.StartKhoiDong(Players, P1);
         Assert.False(started.ClockStarted);
 
-        var clocked = KhoiDongRound.StartClock(started);
+        var clocked = KhoiDongRound.StartClock(started, Opened);
         Assert.True(clocked.ClockStarted);
+        Assert.Equal(Opened, clocked.ClockStartedAt);
 
         var marked = KhoiDongRound.SetTurn(clocked, "p1");
         Assert.False(marked.ClockStarted);
+        Assert.Null(marked.ClockStartedAt);
 
-        var clockedAgain = KhoiDongRound.StartClock(marked);
-        var graded = KhoiDongRound.RecordOral(clockedAgain, correct: true, spentS: 1);
-        Assert.False(graded.ClockStarted);
+        var clockedAgain = KhoiDongRound.StartClock(marked, Opened);
+        var graded = KhoiDongRound.RecordOral(clockedAgain, correct: true, spentS: 1, nowIso: Opened);
+        Assert.True(graded.ClockStarted);
+        Assert.Equal(Opened, graded.ClockStartedAt);
 
-        var clockedForTimeout = KhoiDongRound.StartClock(graded);
-        var timedOut = KhoiDongRound.TimeOutRun(clockedForTimeout);
+        var timedOut = KhoiDongRound.TimeOutRun(graded);
         Assert.False(timedOut.ClockStarted);
+        Assert.Null(timedOut.ClockStartedAt);
+    }
+
+    [Fact]
+    public void StartClockRefusesWhileTheClockIsRunning()
+    {
+        var clocked = KhoiDongRound.StartClock(KhoiDongRound.StartKhoiDong(Players, P1), Opened);
+        Assert.Equal("ALREADY_OPEN", CodeOf(() => KhoiDongRound.StartClock(clocked, Opened)));
+    }
+
+    [Fact]
+    public void ServerClockOwnsTheElapsedBudget_NoDoubleSubtraction()
+    {
+        var marked = KhoiDongRound.SetTurn(KhoiDongRound.StartKhoiDong(Players, P1), "p0");
+        var clocked = KhoiDongRound.StartClock(marked, Opened);
+
+        var at5 = "2026-01-01T00:00:05.000Z";
+        var graded = KhoiDongRound.RecordOral(clocked, correct: true, spentS: 99, nowIso: at5);
+        Assert.Equal(5, graded.Runs["p0"].ElapsedS);
+
+        var at9 = "2026-01-01T00:00:09.000Z";
+        var gradedAgain = KhoiDongRound.RecordOral(graded, correct: true, spentS: 0, nowIso: at9);
+        Assert.Equal(9, gradedAgain.Runs["p0"].ElapsedS);
+        Assert.Equal(2, gradedAgain.Runs["p0"].Cursor);
     }
 
     [Fact]
@@ -291,7 +317,7 @@ public class KhoiDongRoundTests
         Assert.Equal("WRONG_STAGE", CodeOf(() =>
         {
             var s = KhoiDongRound.StartKhoiDong(Players, P1);
-            KhoiDongRound.StartClock(s with { Stage = "phase2" });
+            KhoiDongRound.StartClock(s with { Stage = "phase2" }, Opened);
         }));
     }
 }

@@ -47,9 +47,11 @@ export function usePlayerModel(matchId: string): PlayerModel {
     const v = live.view
     const open = v?.open ?? []
     const remaining = useCountdown(open[0]?.deadlineAt ?? null, live.clock)
+    const oralRemaining = useCountdown(v?.oral?.deadlineAt ?? null, live.clock)
     const myId = me.data?.id ?? null
 
-    const failureStatus = live.failure?.status
+    let failureStatus = live.failure?.status
+    if (v) failureStatus = undefined
     const matchNotLiveYet = failureStatus === 409
     const noViewToPaint = v === undefined
     const roundNotRunning = isWaitingStage(v?.stage ?? "")
@@ -76,6 +78,7 @@ export function usePlayerModel(matchId: string): PlayerModel {
         v,
         stage,
         remaining,
+        oralRemaining,
         myId,
         flash,
         selection,

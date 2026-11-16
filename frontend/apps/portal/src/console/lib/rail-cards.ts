@@ -23,7 +23,6 @@ export interface RailCardsInput {
     target: string | null
     selectedIds: ReadonlySet<string>
     videoOf: (id: string) => RemoteVideoTrack | null
-    verdictOf: (questionId: string, userId: string) => "CORRECT" | "INCORRECT" | null
     giaiMa: GiaiMaConsole | null
     veDich: VeDichConsole | null
     khoiDong: KhoiDongConsole | null
@@ -56,20 +55,7 @@ function applyAnswer(card: CardData, row: QuestionAnswerRow | undefined, input: 
     let answer = "—"
     if (row) answer = valueText(row, input.railQuestion)
     card.answer = answer
-    let value = "—"
-    if (row) {
-        if (row.pointsAwarded !== null) {
-            value = String(row.pointsAwarded)
-        } else {
-            if (row.verdict === null) {
-                value = "…"
-            } else {
-                value = valueText(row, input.railQuestion)
-            }
-        }
-    }
-    card.value = value
-    card.verdict = input.verdictOf(input.railQ, card.id)
+    card.answeredMs = row?.answeredMs ?? null
 }
 
 function applyGiaiMa(card: CardData, input: RailCardsInput): void {

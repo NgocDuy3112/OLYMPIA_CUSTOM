@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api } from "@shared/lib/api"
 import { logError } from "@shared/lib/log"
 import { playSfx } from "@shared/lib/sfx"
+import { ApiError } from "@shared/lib/api"
 import { useSocketStream } from "@shared/lib/ws"
 import type { LiveAction, Verdict } from "./live-actions"
 
@@ -44,8 +45,10 @@ export interface Projection {
         total: number
         elapsedS: number
         budgetS: number
+        deadlineAt: string | null
     } | null
     board?: Array<{ questionId: string; value: number; where: "free" | "pending" | "open" | "taken" | "deferred" }>
+    answers?: QuestionAnswerRow[]
     revealed?: {
         contestants: Array<{
             userId: string
@@ -159,11 +162,13 @@ export function useLobby(tournamentId: string, matchId: string, enabled: boolean
 }
 
 export interface QuestionAnswerRow {
+    questionId: string
     userId: string
     value: { picked?: string[]; text?: string; oral?: true } | null
     verdict: "CORRECT" | "INCORRECT" | null
     judged: boolean
     pointsAwarded: number | null
+    answeredMs?: number | null
 }
 
 
@@ -193,7 +198,10 @@ export function useLive(tournamentId: string, matchId: string, onFrame?: (at: st
         },
         enabled: Boolean(tournamentId && matchId),
         refetchInterval: (query) => {
-            if (query.state.status === "error") return 15_000
+            if (query.state.status === "error") {
+                if (query.state.data) return 3_000
+                return 15_000
+            }
             return 3_000
         },
         staleTime: 0,
@@ -237,12 +245,27 @@ export function useLive(tournamentId: string, matchId: string, onFrame?: (at: st
 export function useLiveAction(tournamentId: string, matchId: string) {
     const queryClient = useQueryClient()
 
-    return useMutation({
-        mutationFn: (input: { expectedVersion: number; action: LiveAction }) =>
-            api<{ version?: number }>(
+    const post = async (input: { expectedVersion: number; action: LiveAction }) => {
+        try {
+            return await api<{ version?: number }>(
                 `/portal/tournaments/${tournamentId}/matches/${matchId}/live/actions`,
                 { method: "POST", body: JSON.stringify(input) }
-            ),
+            )
+        } catch (error) {
+            const stale = error instanceof ApiError && error.status === 409 && error.code === "CONFLICT"
+            if (!stale) throw error
+            await queryClient.refetchQueries({ queryKey: liveKey(tournamentId, matchId) })
+            const fresh = queryClient.getQueryData<LiveResponse>(liveKey(tournamentId, matchId))
+            const nextVersion = fresh?.version ?? input.expectedVersion + 1
+            return await api<{ version?: number }>(
+                `/portal/tournaments/${tournamentId}/matches/${matchId}/live/actions`,
+                { method: "POST", body: JSON.stringify({ ...input, expectedVersion: nextVersion }) }
+            )
+        }
+    }
+
+    return useMutation({
+        mutationFn: post,
         onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: ["live"] })
             void queryClient.invalidateQueries({ queryKey: ["question-answers"] })
@@ -250,19 +273,6 @@ export function useLiveAction(tournamentId: string, matchId: string) {
         onError: () => {
             void queryClient.invalidateQueries({ queryKey: ["live"] })
         },
-    })
-}
-
-export function useQuestionAnswers(tournamentId: string, matchId: string, questionId: string | null) {
-    return useQuery({
-        queryKey: ["question-answers", matchId, questionId],
-        queryFn: () =>
-            api<{ items: QuestionAnswerRow[] }>(
-                `/portal/tournaments/${tournamentId}/matches/${matchId}/live/answers?questionId=${questionId}`
-            ).then((body) => body.items),
-        enabled: Boolean(questionId),
-        refetchInterval: 3_000,
-        retry: false,
     })
 }
 

@@ -44,9 +44,13 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
     if (openNow) {
         if (!revealed) reveal = () => ctx.send({ kind: "ve-dich.reveal" })
     }
+    let counting = false
+    if (openNow?.deadlineAt && (remaining ?? 0) > 0) counting = true
     let startClock: (() => void) | undefined = undefined
     if (openNow) {
-        if (revealed) startClock = () => ctx.send({ kind: "ve-dich.startClock" })
+        if (revealed) {
+            if (!counting) startClock = () => ctx.send({ kind: "ve-dich.startClock" })
+        }
     }
     let revealAnswer: (() => void) | undefined = undefined
     if (openNow) {

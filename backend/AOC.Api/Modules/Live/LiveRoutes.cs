@@ -136,20 +136,6 @@ public static class LiveRoutes
             return Results.Json(controller, JsonApi.Options);
         });
 
-        app.MapGet("/portal/tournaments/{tournamentId}/matches/{matchId}/live/answers", async (HttpContext http) =>
-        {
-            await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
-            var matchId = Validate.RouteUuid(http, "matchId");
-            var query = Validate.Query(http);
-            if (query.GetValueOrDefault("questionId") is not { } questionIdRaw
-                || !Guid.TryParse(questionIdRaw, out var questionId))
-                throw ApiException.BadRequest("questionId must be a uuid");
-
-            var reader = http.RequestServices.GetRequiredService<LiveReader>();
-            var items = await reader.ReadQuestionAnswersAsync(Guid.Parse(matchId), questionId);
-            return Results.Json(new { items }, JsonApi.Options);
-        }).RequireRateLimiting("public60");
-
         app.MapGet("/portal/tournaments/{tournamentId}/matches/{matchId}/live", async (HttpContext http) =>
         {
             await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");

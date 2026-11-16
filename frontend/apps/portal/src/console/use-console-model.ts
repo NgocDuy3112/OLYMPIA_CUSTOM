@@ -5,7 +5,6 @@ import { railVariantOf, roundModuleOf, type RoundModule } from "@/rounds"
 import { postControl, useLobby, type GiaiMaConsole, type KhoiDongConsole, type LobbyData, type MatchController, type VeDichConsole } from "@/lib/live"
 import { useMe } from "@/lib/session"
 import { useConsoleTransport } from "./model/use-console-transport"
-import { useConsoleWatch } from "./model/use-console-watch"
 import { useConsoleJudging } from "./model/use-console-judging"
 import { useConsoleCommits } from "./model/use-console-commits"
 import { useConsoleNav } from "./model/use-console-nav"
@@ -70,9 +69,13 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     const transition = useTransitionMatch(tournamentId)
     const [starting, setStarting] = useState(false)
     const [startError, setStartError] = useState<string | null>(null)
-    const watch = useConsoleWatch(v?.projection.oral?.questionId ?? null)
-    const judging = useConsoleJudging({ tournamentId, matchId, roundId, questions, openIds: open.map((q) => q.questionId) })
-    const { rows, judgingId, resolvingId, keywordQuestionId, selectedIds, target, verdictOf } = judging
+    const judging = useConsoleJudging({
+        roundId,
+        questions,
+        openIds: open.map((q) => q.questionId),
+        answerRows: v?.projection.answers ?? [],
+    })
+    const { rows, judgingId, resolvingId, keywordQuestionId, selectedIds, target } = judging
     const commits = useConsoleCommits({
         roundId,
         rows,
@@ -100,15 +103,9 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         roundId,
         stage,
         viewPainted: projection !== undefined,
-        transportRefused: live.isError,
+        transportRefused: live.isError && !v,
     })
     const lobby = useLobby(tournamentId, matchId, readiness.waiting)
-
-    useEffect(() => {
-        if (!nav.entered) return
-        watch.reset()
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [nav.entered])
 
     let stagePhase: 1 | 2 | null = null
     if (stage === "phase1") stagePhase = 1
@@ -170,7 +167,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
 
     if (live.isPending) return { phase: "loading", control, ...adjust }
 
-    if (live.isError || !v || !projection) {
+    if (!v || !projection) {
         if (lobby.data) {
             const startFromWaiting = async (roundId: string, phase?: 1 | 2) => {
                 if (control.blocked) return
@@ -259,7 +256,6 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         target,
         selectedIds,
         videoOf: (id) => peers.get(id)?.video ?? null,
-        verdictOf,
         giaiMa: consoleGiaiMa,
         veDich: consoleVeDich,
         khoiDong: consoleKhoiDong,
@@ -273,7 +269,6 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         judging,
         commits,
         plans,
-        watch,
         openAdjust: adjust.openAdjust,
     })
     return { phase: "deck", control, facts, roundModule: roundModuleOf(roundId), host: transport.host, ...adjust }

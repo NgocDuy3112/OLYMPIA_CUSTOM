@@ -33,7 +33,8 @@ public class SfxTests
     {
         Assert.Equal("kd_bat_dau.ogg", Sfx.FileFor(new LiveAction.KhoiDongStart(1), Empty, "khoi-dong"));
         Assert.Equal("kd_mo_cau_hoi.mp3", Sfx.FileFor(new LiveAction.KhoiDongNextQuestion(), Empty, "khoi-dong"));
-        Assert.Equal("kd_40s.mp3", Sfx.FileFor(new LiveAction.KhoiDongSetTurn("u1"), Empty, "khoi-dong"));
+        Assert.Equal(null, Sfx.FileFor(new LiveAction.KhoiDongSetTurn("u1"), Empty, "khoi-dong"));
+        Assert.Equal("kd_40s.mp3", Sfx.FileFor(new LiveAction.KhoiDongStartClock(), Empty, "khoi-dong"));
         Assert.Equal("kd_10s.ogg", Sfx.FileFor(new LiveAction.KhoiDongStartWindow(), Empty, "khoi-dong"));
         Assert.Equal("kd_ket_thuc.mp3", Sfx.FileFor(new LiveAction.KhoiDongEndRound(), Empty, "khoi-dong"));
         Assert.Equal("kd_ket_thuc.mp3", Sfx.FileFor(new LiveAction.KhoiDongTimeOutRun(), Empty, "khoi-dong"));

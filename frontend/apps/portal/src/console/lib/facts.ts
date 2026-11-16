@@ -3,7 +3,6 @@ import type { ConsoleCommits } from "../model/use-console-commits"
 import type { ConsoleJudging } from "../model/use-console-judging"
 import type { ConsolePlans } from "../model/use-console-plans"
 import type { ConsoleTransport } from "../model/use-console-transport"
-import type { ConsoleWatch } from "../model/use-console-watch"
 
 interface ConsoleFactsParts {
     transport: ConsoleTransport
@@ -12,16 +11,16 @@ interface ConsoleFactsParts {
     judging: ConsoleJudging
     commits: ConsoleCommits
     plans: Pick<ConsolePlans, "hetLuot" | "backToLobby" | "pickQuestion">
-    watch: ConsoleWatch
     openAdjust: (userId: string) => void
 }
 
 export function consoleFactsOf(parts: ConsoleFactsParts): ConsoleFacts {
-    const { transport, judging, commits, plans, watch } = parts
+    const { transport, judging, commits, plans } = parts
     return {
         v: transport.v!,
         stage: parts.stage,
         remaining: transport.remaining,
+        oralRemaining: transport.oralRemaining,
         rows: judging.rows,
         baseCards: parts.baseCards,
         judgingId: judging.judgingId,
@@ -42,9 +41,6 @@ export function consoleFactsOf(parts: ConsoleFactsParts): ConsoleFacts {
         pickQuestion: plans.pickQuestion,
         byId: transport.byId,
         verdictOf: judging.verdictOf,
-        watchRunning: watch.running,
-        watchMs: watch.ms,
-        toggleWatch: watch.toggle,
         flash: transport.flash,
         openAdjust: parts.openAdjust,
     }

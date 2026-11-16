@@ -41,6 +41,52 @@ public sealed class LiveService(
             sums.GetValueOrDefault(id) + adjustments.GetValueOrDefault(id))).ToList();
     }
 
+    private static List<string> OpenIdsOf(Dictionary<string, object?> view)
+    {
+        var ids = new List<string>();
+        if (view["open"] is List<object?> entries)
+        {
+            foreach (var entry in entries)
+            {
+                if (entry is Dictionary<string, object?> dict && dict["questionId"] is string qid)
+                    ids.Add(qid);
+            }
+        }
+        return ids;
+    }
+
+    private async Task<List<object>> AnswerRowsOfAsync(MatchEntity match, string roundId, Dictionary<string, object?> view)
+    {
+        var questions = new List<string>(OpenIdsOf(view));
+        if (roundId == "giai-ma")
+        {
+            var keyword = match.QuestionsList.FirstOrDefault(q => q.RoundId == roundId && q.Kind == QuestionKind.KEYWORD);
+            if (keyword is not null) questions.Add(keyword.Id);
+        }
+
+        var rows = new List<object>();
+        foreach (var questionId in questions.Distinct())
+        {
+            if (!Guid.TryParse(questionId, out var parsed)) continue;
+            rows.AddRange(await reader.ReadQuestionAnswersAsync(match.Id, parsed));
+        }
+        return rows;
+    }
+
+    public async Task<List<ScoreRow>> RoundTableAsync(MatchEntity match, string roundId, JsonElement state)
+    {
+        var table = await ScoreTableAsync(match);
+        if (roundId != "khoi-dong") return table;
+        var kd = LiveState.ParseKhoiDong(state);
+        var adjustments = await reader.SumAdjustmentsByPlayerAsync(match.Id);
+        return table
+            .Select(row => row with
+            {
+                Points = KhoiDongRound.KhoiDongPoints(kd, row.Id) + adjustments.GetValueOrDefault(row.Id)
+            })
+            .ToList();
+    }
+
     public sealed record ConsoleView(
         int Version,
         string RoundId,
@@ -66,13 +112,13 @@ public sealed class LiveService(
         if (live is null) return null;
 
         var match = await matches.GetMatchByIdAsync(matchId.ToString());
-        var table = await ScoreTableAsync(match);
         var started = live.State.ValueKind == JsonValueKind.Object && live.State.EnumerateObject().Any();
 
         Dictionary<string, object?> projection;
         if (started)
         {
             var state = LiveState.ParseRoundState(live.RoundId, live.State);
+            var table = await RoundTableAsync(match, live.RoundId, live.State);
             var view = LiveView.BuildPlayerView(new LiveView.ViewInput(
                 matchId.ToString(),
                 live.RoundId,
@@ -87,10 +133,12 @@ public sealed class LiveService(
                 revealAll,
                 await RevealedAnswersAsync(matchId, state)));
             view.Remove("me");
+            view["answers"] = await AnswerRowsOfAsync(match, live.RoundId, view);
             projection = view;
         }
         else
         {
+            var table = await ScoreTableAsync(match);
             projection = new Dictionary<string, object?>
             {
                 ["matchId"] = matchId.ToString(),
@@ -241,10 +289,9 @@ public sealed class LiveService(
         var live = await reader.ReadLiveAsync(matchId)
             ?? throw new LiveNotFoundError(matchId.ToString());
 
-        var table = await ScoreTableAsync(match);
-
         if (live.State.ValueKind != JsonValueKind.Object || !live.State.EnumerateObject().Any())
         {
+            var pendingTable = await ScoreTableAsync(match);
             return new Dictionary<string, object?>
             {
                 ["matchId"] = matchId.ToString(),
@@ -252,12 +299,13 @@ public sealed class LiveService(
                 ["version"] = live.Version,
                 ["stage"] = "pending",
                 ["open"] = new List<object?>(),
-                ["table"] = LiveView.RankTable(table),
+                ["table"] = LiveView.RankTable(pendingTable),
                 ["me"] = new Dictionary<string, object?>()
             };
         }
 
         var state = LiveState.ParseRoundState(live.RoundId, live.State);
+        var table = await RoundTableAsync(match, live.RoundId, live.State);
         return LiveView.BuildPlayerView(new LiveView.ViewInput(
             matchId.ToString(),
             live.RoundId,

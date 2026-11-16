@@ -6,7 +6,7 @@ import type { KhoiDongConsole } from "@/lib/live"
 
 
 function riengCtx(f: ConsoleFacts): KhoiDongRiengCtx {
-    return { ...screenCore(f), watchRunning: f.watchRunning, watchMs: f.watchMs, toggleWatch: f.toggleWatch }
+    return { ...screenCore(f), oralRemaining: f.oralRemaining }
 }
 
 function chungCtx(f: ConsoleFacts): KhoiDongChungCtx {

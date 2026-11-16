@@ -170,7 +170,8 @@ public static class KhoiDongApplier
                 var playerId = recordOral.PlayerId ?? KhoiDongRound.ActivePlayerId(state)
                     ?? throw new RuleError("NO_ACTIVE_PLAYER", "no player is answering");
 
-                var next = KhoiDongRound.RecordOral(state, recordOral.Correct, recordOral.SpentS, recordOral.PlayerId);
+                var next = KhoiDongRound.RecordOral(
+                    state, recordOral.Correct, recordOral.SpentS, recordOral.PlayerId, ctx.Now);
 
                 var questionId = KhoiDongRound.QuestionIdOf(state, playerId)
                     ?? throw new RuleError("NO_ACTIVE_PLAYER", "no player is answering");
@@ -191,7 +192,7 @@ public static class KhoiDongApplier
                 return (KhoiDongRound.SetTurn(state, setTurn.PlayerId), []);
 
             case LiveAction.KhoiDongStartClock:
-                return (KhoiDongRound.StartClock(state), []);
+                return (KhoiDongRound.StartClock(state, ctx.Now), []);
 
             case LiveAction.KhoiDongTimeOutRun:
                 return (KhoiDongRound.TimeOutRun(state), []);

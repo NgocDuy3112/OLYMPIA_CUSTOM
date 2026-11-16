@@ -1,4 +1,4 @@
-import { PlayerStage, QuestionCard, Rail, type PlayerCore } from "../player-deck"
+import { PlayerStage, QuestionCard, Rail, Timer, type PlayerCore } from "../player-deck"
 import { DECK_PAD, STRIP_R, pt } from "../geometry"
 import { mcCellClass, type CellWhere } from "../cells"
 import { VE_GRID_COLUMNS, boardRows } from "../ve-dich-board"
@@ -41,6 +41,7 @@ export function VeDichPickAOCPlayer({ ctx }: { ctx: VeDichPickPlayerCtx }) {
             <QuestionCard
                 round="Về đích"
                 mode={mode}
+                right={<Timer remaining={null} />}
             >
                 <div className="flex min-h-0 flex-1 flex-col justify-start gap-[0.9cqw]">
                     {rows.map((row) => (

@@ -6,6 +6,7 @@ interface PlayerCtxParts {
     v: PlayerView
     stage: string
     remaining: number
+    oralRemaining: number
     myId: string | null
     flash: string | null
     selection: S2Question
@@ -26,6 +27,7 @@ export function playerCtxOf(parts: PlayerCtxParts): PlayerCtx {
         stage: parts.stage,
         open: v.open,
         remaining: parts.remaining,
+        oralRemaining: parts.oralRemaining,
         myId: parts.myId,
         flash: parts.flash,
         nameOf: (id: string) => nameOfIn(v, id),
