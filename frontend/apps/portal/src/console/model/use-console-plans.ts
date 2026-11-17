@@ -76,7 +76,11 @@ export function useConsolePlans(input: ConsolePlansInput): ConsolePlans {
     const backToLobby = () => {
         input.nav.backToWaiting()
         if (stage === "ended") return
-        run(endRoundPlanOf(roundId, planInput()))
+        if (roundId === "khoi-dong" && stage === "phase1") {
+            send({ kind: "round.waiting" })
+            return
+        }
+        void sendChain([{ kind: "round.waiting" }, ...endRoundPlanOf(roundId, planInput())])
     }
 
     const pickQuestion = () => run(nextQuestionPlanOf(roundId, planInput()))
@@ -94,14 +98,8 @@ export function useConsolePlans(input: ConsolePlansInput): ConsolePlans {
             { force: otherPhase },
         )
         try {
-            let expectedVersion = transport.v!.version
             for (const action of plan) {
-                const res = await transport.writer.mutateAsync({ expectedVersion, action })
-                if (typeof res?.version === "number") {
-                    expectedVersion = res.version
-                } else {
-                    expectedVersion = expectedVersion + 1
-                }
+                await transport.writer.mutateAsync(action)
             }
             input.nav.enterRound()
             input.onStartError(null)

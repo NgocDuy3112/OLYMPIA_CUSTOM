@@ -1,4 +1,4 @@
-import { ConsoleStage, Progress, QuestionCard, Rail, Timer } from "@/components/stage/deck"
+import { ConsoleStage, QuestionCard, QuestionChips, Rail, Timer } from "@/components/stage/deck"
 import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
 import type { KhoiDongConsole } from "@/lib/live"
 import type { ScreenCore } from "../types"
@@ -41,14 +41,10 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
         revealAnswer = () => ctx.send({ kind: "reveal.answer", questionId: openNow.questionId })
     }
     const questionText: string | null = openNow?.question?.questionText ?? null
-    let nextQuestion: (() => void) | undefined = undefined
-    if (!openNow) {
-        if (index < total) nextQuestion = () => ctx.send({ kind: "khoi-dong.nextQuestion" })
-    }
 
     return (
         <ConsoleStage
-            rail={<Rail variant="answers" cards={baseCards} onSelect={toggleSelect} />}
+            rail={<Rail cards={baseCards} onSelect={toggleSelect} />}
             actions={[
                 {
                     label: "Bấm giờ",
@@ -67,21 +63,26 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
                 round="Khởi động"
                 mode="Lượt chung"
                 right={
-                    <>
-                        <Progress
-                            total={total}
-                            done={index}
-                            active={index}
-                            onPick={(i) => {
-                                if (i === index + 1) ctx.send({ kind: "khoi-dong.nextQuestion" })
+                    <span className="flex items-center gap-[1.2cqw]">
+                        <QuestionChips
+                            chips={Array.from({ length: total }, (_, i) => ({
+                                id: `chip-${i}`,
+                                label: String(i + 1),
+                                active: i === index,
+                                clickable: i === index + 1 || (index === -1 && i === 0),
+                            }))}
+                            onSelect={(id: string) => {
+                                const i = Number(id.replace("chip-", ""))
+                                if (i === index + 1 || (index === -1 && i === 0)) {
+                                    ctx.send({ kind: "khoi-dong.nextQuestion" })
+                                }
                             }}
                         />
                         <Timer remaining={timerRemaining} />
-                    </>
+                    </span>
                 }
                 question={questionText}
                 media={openNow?.question?.media ?? null}
-                onReveal={nextQuestion}
             />
         </ConsoleStage>
     )

@@ -1,6 +1,8 @@
-import { ConsoleStage, QuestionCard, Rail, Timer, VeDichStripCells } from "@/components/stage/deck"
+import { useState } from "react"
+import { ConsoleStage, QuestionCard, QuestionChips, Rail, Timer } from "@/components/stage/deck"
 import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
 import { COPY } from "@shared/deck/copy"
+import type { LiveAction } from "@/lib/live-actions"
 import { formatDurationMs } from "@shared/lib/clock"
 
 import type { VeDichConsole } from "@/lib/live"
@@ -20,8 +22,12 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
     const { v, remaining, baseCards, consoleVeDich, flash } = ctx
     const projection = v.projection
 
-    const stripCells = (projection.board ?? []).filter((c) => c.where === "open" || c.where === "pending")
     const openNow = projection.open[0]
+    const boardCells = projection.board ?? []
+    const openCell = openNow ? boardCells.find((c) => c.questionId === openNow.questionId) ?? null : null
+    const nextPendingId = consoleVeDich?.pendingQuestionId ?? null
+    const nextPendingCell = nextPendingId ? boardCells.find((c) => c.questionId === nextPendingId) ?? null : null
+    const stripCells = [openCell, nextPendingCell].filter((c): c is NonNullable<typeof c> => c !== null)
     const revealed = consoleVeDich?.revealed ?? false
     const qid = openNow.questionId
     let needsVerdict = true
@@ -35,6 +41,34 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
 
     let counting = false
     if (openNow?.deadlineAt && (remaining ?? 0) > 0) counting = true
+
+    const powerStorable = consoleVeDich?.phase === 2
+        && consoleVeDich?.openStage === "current"
+        && revealed === false
+        && counting === false
+        && consoleVeDich?.turnPowerUsed === false
+        && consoleVeDich?.turnPlayerId !== null
+    const [assignArmed, setAssignArmed] = useState(false)
+    const declarePower = (power: "STAR" | "ASSIGN", targetId?: string) => {
+        const playerId = consoleVeDich?.turnPlayerId
+        if (!playerId) return
+        ctx.send({ kind: "ve-dich.declarePower", playerId, power, targetId })
+        setAssignArmed(false)
+    }
+    const stageStar: (() => void) | undefined = powerStorable
+        ? () => declarePower("STAR")
+        : undefined
+    const armAssign: (() => void) | undefined = powerStorable
+        ? () => setAssignArmed(true)
+        : undefined
+
+    const railSelect = (id: string) => {
+        if (assignArmed) {
+            declarePower("ASSIGN", id)
+            return
+        }
+        ctx.toggleSelect(id)
+    }
 
     let startClock: (() => void) | undefined = undefined
     if (openNow) {
@@ -55,17 +89,26 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
     if (consoleVeDich?.buzzerMs != null) buzzText = formatDurationMs(consoleVeDich.buzzerMs)
     let endTurn: (() => void) | undefined = () => ctx.hetLuot()
     if (turnOpen) endTurn = undefined
-    let reveal: (() => void) | undefined = undefined
-    if (openNow) {
-        if (!revealed) reveal = () => ctx.send({ kind: "ve-dich.reveal" })
-    }
     let timerRemaining: number | null = null
     if (openNow?.deadlineAt) timerRemaining = remaining
+    else if (typeof openNow?.frozenRemainingMs === "number") timerRemaining = openNow.frozenRemainingMs
 
     return (
         <ConsoleStage
-            rail={<Rail variant="compact" cards={baseCards} onSelect={ctx.toggleSelect} />}
+            rail={<Rail cards={baseCards} onSelect={railSelect} />}
             actions={[
+                {
+                    label: COPY.powerStar,
+                    onClick: stageStar,
+                    content: !powerStorable && consoleVeDich?.turnPowerUsed === true ? "đã chốt" : undefined,
+                    muted: !powerStorable,
+                },
+                {
+                    label: COPY.powerAssign,
+                    onClick: armAssign,
+                    content: assignArmed ? "chọn thẻ để chỉ định" : undefined,
+                    muted: !powerStorable,
+                },
                 {
                     label: COPY.startClock,
                     onClick: startClock,
@@ -95,11 +138,31 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
             <QuestionCard
                 round="Về đích"
                 mode="Lượt cá nhân"
-                mid={<VeDichStripCells cells={stripCells} phase2 />}
-                right={<Timer remaining={timerRemaining} />}
+                right={
+                    <span className="flex items-center gap-[1.2cqw]">
+                        <QuestionChips
+                            chips={stripCells.map((cell) => ({
+                                id: cell.questionId,
+                                label: String(cell.value),
+                                active: cell.where === "open",
+                                clickable: cell.where === "open" && !revealed,
+                            }))}
+                            onSelect={(id: string) => {
+                                const actions: LiveAction[] = []
+                                if (openNow === null) {
+                                    actions.push({ kind: "ve-dich.openQuestion", questionId: id })
+                                } else if (id !== openNow.questionId) {
+                                    actions.push({ kind: "ve-dich.switchQuestion", questionId: id })
+                                }
+                                if (!revealed) actions.push({ kind: "ve-dich.reveal" })
+                                if (actions.length > 0) void ctx.sendChain(actions)
+                            }}
+                        />
+                        <Timer remaining={timerRemaining} />
+                    </span>
+                }
                 question={openNow.question?.questionText ?? ""}
                 media={openNow.question?.media ?? null}
-                onReveal={reveal}
             />
         </ConsoleStage>
     )

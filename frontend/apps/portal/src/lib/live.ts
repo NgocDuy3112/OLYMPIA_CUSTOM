@@ -1,8 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api } from "@shared/lib/api"
 import { logError } from "@shared/lib/log"
-import { playSfx } from "@shared/lib/sfx"
-import { ApiError } from "@shared/lib/api"
+import { playSfx, stopSfx } from "@shared/lib/sfx"
 import { useSocketStream } from "@shared/lib/ws"
 import type { LiveAction, Verdict } from "./live-actions"
 
@@ -35,7 +34,12 @@ export interface Projection {
     roundId: string
     version: number
     stage: string
-    open: Array<{ questionId: string; deadlineAt: string | null; question: SanitizedQuestion | null }>
+    open: Array<{
+        questionId: string
+        deadlineAt: string | null
+        frozenRemainingMs?: number | null
+        question: SanitizedQuestion | null
+    }>
     table: Array<{ id: string; displayName: string; points: number; rank: number }>
     oral?: {
         questionId: string
@@ -49,6 +53,8 @@ export interface Projection {
     } | null
     board?: Array<{ questionId: string; value: number; where: "free" | "pending" | "open" | "taken" | "deferred" }>
     answers?: QuestionAnswerRow[]
+    keywordCode?: string | null
+    hintAnswers?: Record<string, string> | null
     revealed?: {
         contestants: Array<{
             userId: string
@@ -65,6 +71,7 @@ export interface GiaiMaConsole {
     hintsPicked: string[]
     openHintId: string | null
     windowOpen: boolean
+    hintsLocked?: boolean
     players: Array<{ id: string; keywordLocked: boolean; eliminated: boolean }>
 }
 export interface VeDichConsole {
@@ -179,23 +186,17 @@ interface ConsoleStreamFrame {
     v?: number
     type?: "console" | "error" | "sfx"
     at?: string
-    data?: { view?: LiveResponse; name?: string; url?: string }
+    data?: { view?: LiveResponse; name?: string; url?: string; stop?: boolean }
 }
 
 export function useLive(tournamentId: string, matchId: string, onFrame?: (at: string) => void) {
     const queryClient = useQueryClient()
     const query = useQuery({
         queryKey: liveKey(tournamentId, matchId),
-        queryFn: async () => {
-            const incoming = await api<LiveResponse>(
+        queryFn: () =>
+            api<LiveResponse>(
                 `/portal/tournaments/${tournamentId}/matches/${matchId}/live`
-            )
-            const current = queryClient.getQueryData<LiveResponse>(liveKey(tournamentId, matchId))
-            if (current) {
-                if (current.version > incoming.version) return current
-            }
-            return incoming
-        },
+            ),
         enabled: Boolean(tournamentId && matchId),
         refetchInterval: (query) => {
             if (query.state.status === "error") {
@@ -216,19 +217,14 @@ export function useLive(tournamentId: string, matchId: string, onFrame?: (at: st
             if (!frame || typeof frame !== "object") return
 
             if (frame.type === "sfx") {
-                if (frame.data?.url) playSfx(frame.data.url)
+                if (frame.data?.stop === true) stopSfx()
+                else if (frame.data?.url) playSfx(frame.data.url)
                 return
             }
 
             if (frame.type === "console" && frame.data?.view) {
                 if (frame.at) onFrame?.(frame.at)
-                const incoming = frame.data.view
-                queryClient.setQueryData<LiveResponse>(liveKey(tournamentId, matchId), (current) => {
-                    if (current) {
-                        if (current.version > incoming.version) return current
-                    }
-                    return incoming
-                })
+                queryClient.setQueryData<LiveResponse>(liveKey(tournamentId, matchId), frame.data.view)
                 return
             }
 
@@ -245,24 +241,11 @@ export function useLive(tournamentId: string, matchId: string, onFrame?: (at: st
 export function useLiveAction(tournamentId: string, matchId: string) {
     const queryClient = useQueryClient()
 
-    const post = async (input: { expectedVersion: number; action: LiveAction }) => {
-        try {
-            return await api<{ version?: number }>(
-                `/portal/tournaments/${tournamentId}/matches/${matchId}/live/actions`,
-                { method: "POST", body: JSON.stringify(input) }
-            )
-        } catch (error) {
-            const stale = error instanceof ApiError && error.status === 409 && error.code === "CONFLICT"
-            if (!stale) throw error
-            await queryClient.refetchQueries({ queryKey: liveKey(tournamentId, matchId) })
-            const fresh = queryClient.getQueryData<LiveResponse>(liveKey(tournamentId, matchId))
-            const nextVersion = fresh?.version ?? input.expectedVersion + 1
-            return await api<{ version?: number }>(
-                `/portal/tournaments/${tournamentId}/matches/${matchId}/live/actions`,
-                { method: "POST", body: JSON.stringify({ ...input, expectedVersion: nextVersion }) }
-            )
-        }
-    }
+    const post = async (action: LiveAction) =>
+        await api<unknown>(
+            `/portal/tournaments/${tournamentId}/matches/${matchId}/live/actions`,
+            { method: "POST", body: JSON.stringify({ action }) }
+        )
 
     return useMutation({
         mutationFn: post,

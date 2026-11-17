@@ -1,6 +1,7 @@
-import { ConsoleStage, QuestionCard, Rail, Timer, VeDichStripCells } from "@/components/stage/deck"
+import { ConsoleStage, QuestionCard, QuestionChips, Rail, Timer } from "@/components/stage/deck"
 import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
 import { COPY } from "@shared/deck/copy"
+import type { LiveAction } from "@/lib/live-actions"
 
 import type { QuestionAnswerRow, VeDichConsole } from "@/lib/live"
 import type { ScreenCore } from "../types"
@@ -20,8 +21,12 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
     const { v, remaining, baseCards, consoleVeDich, flash, rows } = ctx
     const projection = v.projection
 
-    const stripCells = (projection.board ?? []).filter((c) => c.where === "open" || c.where === "pending")
-    const openNow = projection.open[0]
+    const openNow = projection.open[0] ?? null
+    const boardCells = projection.board ?? []
+    const openCell = openNow ? boardCells.find((c) => c.questionId === openNow.questionId) ?? null : null
+    const nextPendingId = consoleVeDich?.pendingQuestionId ?? null
+    const nextPendingCell = nextPendingId ? boardCells.find((c) => c.questionId === nextPendingId) ?? null : null
+    const stripCells = [openCell, nextPendingCell].filter((c): c is NonNullable<typeof c> => c !== null)
     const revealed = consoleVeDich?.revealed ?? false
     const needsVerdict = rows.some((r) => r.verdict === null)
     const gradeableIds = () => {
@@ -40,10 +45,6 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
         ctx.sendChain(ids.map((playerId) => ({ kind: "ve-dich.judge" as const, playerId, correct })))
     }
 
-    let reveal: (() => void) | undefined = undefined
-    if (openNow) {
-        if (!revealed) reveal = () => ctx.send({ kind: "ve-dich.reveal" })
-    }
     let counting = false
     if (openNow?.deadlineAt && (remaining ?? 0) > 0) counting = true
     let startClock: (() => void) | undefined = undefined
@@ -59,11 +60,11 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
     let endTurn: (() => void) | undefined = () => ctx.hetLuot()
     if (needsVerdict) endTurn = undefined
     let timerRemaining: number | null = null
-    if (openNow.deadlineAt) timerRemaining = remaining
+    if (openNow?.deadlineAt) timerRemaining = remaining
 
     return (
         <ConsoleStage
-            rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.toggleSelect} />}
+            rail={<Rail cards={baseCards} onSelect={ctx.toggleSelect} />}
             actions={[
                 {
                     label: "Tính giờ",
@@ -82,11 +83,29 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
             <QuestionCard
                 round="Về đích"
                 mode="Lượt chung"
-                mid={<VeDichStripCells cells={stripCells} phase2={false} />}
-                right={<Timer remaining={timerRemaining} />}
-                question={openNow.question?.questionText ?? ""}
-                media={openNow.question?.media ?? null}
-                onReveal={reveal}
+                right={
+                    <span className="flex items-center gap-[1.2cqw]">
+                        <QuestionChips
+                            chips={stripCells.map((cell) => ({
+                                id: cell.questionId,
+                                label: String(cell.value),
+                                active: cell.where === "open",
+                                clickable: cell.where === "open" && !revealed,
+                            }))}
+                            onSelect={(id: string) => {
+                                const actions: LiveAction[] = []
+                                if (openNow === null || id !== openNow.questionId) {
+                                    actions.push({ kind: "ve-dich.openPending", questionId: id })
+                                }
+                                if (!revealed) actions.push({ kind: "ve-dich.reveal" })
+                                if (actions.length > 0) void ctx.sendChain(actions)
+                            }}
+                        />
+                        <Timer remaining={timerRemaining} />
+                    </span>
+                }
+                question={openNow !== null && revealed ? openNow.question?.questionText ?? "" : ""}
+                media={openNow !== null && revealed ? openNow.question?.media ?? null : null}
             />
         </ConsoleStage>
     )

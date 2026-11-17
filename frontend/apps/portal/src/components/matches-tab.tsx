@@ -12,6 +12,7 @@ import {
     useMatchCodes,
     useMatches,
     useRotateMatchCode,
+    useTransitionMatch,
     type TournamentDetail,
 } from "@/lib/tournament"
 import { NewMatchDialog } from "./new-match-dialog"
@@ -37,8 +38,21 @@ export function MatchesTab({
     const allowedSeats = allowedSeatsOf(tournament.format)
 
     const [creating, setCreating] = useState(false)
-    const openStage = (matchId: string) =>
-        window.open(`/tournaments/${tournamentId}/matches/${matchId}/stage`, "_blank")
+    const transition = useTransitionMatch(tournamentId)
+
+    const openStage = (match: { id: string; status: string }) => {
+        if (match.status !== "UPCOMING") {
+            window.open(`/tournaments/${tournamentId}/matches/${match.id}/stage`, "_blank")
+            return
+        }
+        transition.mutate(
+            { matchId: match.id, status: "LIVE" },
+            {
+                onSuccess: () =>
+                    window.open(`/tournaments/${tournamentId}/matches/${match.id}/stage`, "_blank"),
+            },
+        )
+    }
 
     if (matches.isPending) return <p className="text-sm text-muted-foreground">Loading matches…</p>
     if (matches.isError) return <p role="alert" className="text-sm text-destructive">{matches.error.message}</p>
@@ -90,7 +104,8 @@ export function MatchesTab({
                             <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => openStage(match.id)}
+                                onClick={() => openStage(match)}
+                                disabled={transition.isPending}
                             >
                                 Control
                             </Button>

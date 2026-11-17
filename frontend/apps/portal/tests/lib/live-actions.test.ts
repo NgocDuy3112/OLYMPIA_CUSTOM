@@ -35,11 +35,11 @@ describe("startAction", () => {
     it("every other known round starts bare — phase 2 only when asked", () => {
         const questions = [question({})]
         expect(startAction("khoi-dong", { playerIds: ["p1"], questions }))
-            .toEqual({ kind: "khoi-dong.start" })
+            .toEqual({ kind: "khoi-dong.start", phase: 1 })
         expect(startAction("but-pha", { playerIds: ["p1"], questions }))
             .toEqual({ kind: "but-pha.start" })
         expect(startAction("ve-dich", { playerIds: ["p1"], questions }))
-            .toEqual({ kind: "ve-dich.start" })
+            .toEqual({ kind: "ve-dich.start", phase: 1 })
 
         expect(startAction("khoi-dong", { phase: 2, playerIds: ["p1"], questions }))
             .toEqual({ kind: "khoi-dong.start", phase: 2 })

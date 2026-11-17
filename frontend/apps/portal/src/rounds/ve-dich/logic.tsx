@@ -1,12 +1,13 @@
 import type { ConsoleFacts } from "@/components/stage/deck"
 import type { VeDichConsole } from "@/lib/live"
 import { VeDichChungAOCController, type VeDichChungCtx } from "./VeDichChungAOCController"
-import { VeDichPickAOCController, type VeDichPickCtx } from "./VeDichPickAOCController"
+import { VeDichChungPickAOCController, type VeDichChungPickCtx } from "./VeDichChungPickAOCController"
+import { VeDichRiengPickAOCController, type VeDichRiengPickCtx } from "./VeDichRiengPickAOCController"
 import { VeDichRiengAOCController, type VeDichRiengCtx } from "./VeDichRiengAOCController"
 import { screenCore, type HetLuotFacts, type RoundAction, type RoundModule } from "../types"
 
 
-function pickCtx(f: ConsoleFacts): VeDichPickCtx {
+function pickCtx(f: ConsoleFacts): VeDichChungPickCtx & VeDichRiengPickCtx {
     return {
         ...screenCore(f),
         questions: f.v.questions,
@@ -34,7 +35,7 @@ function riengCtx(f: ConsoleFacts): VeDichRiengCtx {
 }
 
 export function hetLuotAction(facts: HetLuotFacts): RoundAction | null {
-    if (facts.phase === 1) return { kind: "ve-dich.nextQuestion" }
+    if (facts.phase === 1) return { kind: "ve-dich.closeQuestion" }
 
     if (facts.answererVerdict === null) return null
     if (facts.buzzerId !== null && facts.buzzerVerdict === null) return null
@@ -49,7 +50,13 @@ export function hetLuotAction(facts: HetLuotFacts): RoundAction | null {
 
 export const veDichAOC: RoundModule = {
     render: (f) => {
-        if (f.v.projection.open.length === 0) return <VeDichPickAOCController ctx={pickCtx(f)} />
+        const pendingStaged = (f.v.projection.board ?? []).filter((c) => c.where === "pending").length > 0
+        if (f.v.projection.open.length === 0) {
+            const consoleView = f.v.console as VeDichConsole | null
+            if (consoleView?.phase === 2) return <VeDichRiengPickAOCController ctx={pickCtx(f)} />
+            if (pendingStaged) return <VeDichChungAOCController ctx={chungCtx(f)} />
+            return <VeDichChungPickAOCController ctx={pickCtx(f)} />
+        }
         const consoleView = f.v.console as VeDichConsole | null
         if (consoleView?.phase === 2) return <VeDichRiengAOCController ctx={riengCtx(f)} />
         return <VeDichChungAOCController ctx={chungCtx(f)} />

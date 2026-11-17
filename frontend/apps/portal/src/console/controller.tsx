@@ -4,7 +4,6 @@ import { Lobby } from "@shared/deck/lobby"
 import { Badges, StageLayout } from "@/components/stage/deck"
 import { ROUND_LABEL, pt } from "@shared/deck/geometry"
 import { AdjustScoreDialog } from "./AdjustScoreDialog"
-import { ConsoleHostContext, ConsoleToolbar } from "./ConsoleToolbar"
 import { useConsoleModel, type ConsoleControl } from "./use-console-model"
 import { ConsoleControlContext } from "./control-context"
 import { Button } from "@shared/ui/button"
@@ -99,11 +98,6 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
                     }}
                     hint={startErrorHint}
                 />
-                <ConsoleToolbar
-                    tournamentId={tournamentId}
-                    matchId={matchId}
-                    host={model.host}
-                />
             </StageShell>
         )
     }
@@ -119,8 +113,8 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
     )
     if (roundModule) screen = roundModule.render(facts)
     return (
-        <ConsoleHostContext.Provider value={{ tournamentId, matchId, host: model.host }}>
-            <ConsoleControlContext.Provider value={model.control}>
+
+    <ConsoleControlContext.Provider value={model.control}>
                 <StageShell>
                     <ControlBanner control={model.control} />
                     {screen}
@@ -133,6 +127,6 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
                     )}
                 </StageShell>
             </ConsoleControlContext.Provider>
-        </ConsoleHostContext.Provider>
+        
     )
 }

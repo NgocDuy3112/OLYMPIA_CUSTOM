@@ -187,6 +187,6 @@ describe("hetLuotAction — what Hết lượt sends", () => {
 
     it("phase 1 just advances the picked set", () => {
         expect(hetLuotAction({ phase: 1, answererVerdict: null, buzzerId: null, buzzerVerdict: null }))
-            .toEqual({ kind: "ve-dich.nextQuestion" })
+            .toEqual({ kind: "ve-dich.closeQuestion" })
     })
 })

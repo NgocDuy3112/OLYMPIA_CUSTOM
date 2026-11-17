@@ -177,22 +177,15 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
                 try {
                     await transition.mutateAsync({ matchId, status: "LIVE" })
                     const fresh = await live.refetch()
-                    const version = fresh.data?.version
-                    if (version === undefined) throw new Error("Trận chưa sẵn sàng — thử lại.")
+                    if (fresh.data === undefined) throw new Error("Trận chưa sẵn sàng — thử lại.")
 
                     const plan = navigatorStartPlan(
                         lobby.data!,
                         roundId,
                         startAction(roundId, { phase, playerIds: userSeats, questions })
                     )
-                    let next = version
                     for (const action of plan) {
-                        const res = await writer.mutateAsync({ expectedVersion: next, action })
-                        if (typeof res?.version === "number") {
-                            next = res.version
-                        } else {
-                            next = next + 1
-                        }
+                        await writer.mutateAsync(action)
                     }
                     nav.enterRound()
                 } catch (error) {
@@ -256,6 +249,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         target,
         selectedIds,
         videoOf: (id) => peers.get(id)?.video ?? null,
+        keywordQuestionId: judging.keywordQuestionId,
         giaiMa: consoleGiaiMa,
         veDich: consoleVeDich,
         khoiDong: consoleKhoiDong,

@@ -50,20 +50,14 @@ export function useConsoleTransport(tournamentId: string, matchId: string): Cons
     useAudioGate(rtc.room, projection?.audioGate)
 
     const send = (action: LiveAction) =>
-        writer.mutate({ expectedVersion: v!.version, action })
+        writer.mutate(action)
 
     const sendChain = async (actions: LiveAction[]) => {
-        let ver = v!.version
         for (const action of actions) {
             try {
-                const res = await writer.mutateAsync({ expectedVersion: ver, action })
-                if (typeof res?.version === "number") {
-                    ver = res.version
-                } else {
-                    ver = ver + 1
-                }
+                await writer.mutateAsync(action)
             } catch {
-                return 
+                return
             }
         }
     }

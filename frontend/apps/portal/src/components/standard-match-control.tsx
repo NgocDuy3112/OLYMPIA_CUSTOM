@@ -108,6 +108,19 @@ export function StandardMatchControl({
                             Bắt đầu chuyển trận sang LIVE — socket live mở cho thí sinh của trận.
                             Sau khi trận xong, nhập kết quả bên dưới để chốt điểm.
                         </p>
+                        <div className="mt-1 flex flex-wrap gap-2">
+                            <AssembledChip
+                                label="Khởi động Riêng"
+                                count={countQuestions(match, "khoi-dong", "phase1")}
+                            />
+                            <AssembledChip
+                                label="Khởi động Chung"
+                                count={countQuestions(match, "khoi-dong", "phase2")}
+                            />
+                            <AssembledChip label="Bứt phá" count={countQuestions(match, "but-pha")} />
+                            <AssembledChip label="Giải mã" count={countQuestions(match, "giai-ma")} />
+                            <AssembledChip label="Về đích" count={countQuestions(match, "ve-dich")} />
+                        </div>
                     </div>
                     <Button
                         onClick={() => transition.mutate({ matchId: match.id, status: "LIVE" })}
@@ -136,6 +149,22 @@ export function StandardMatchControl({
     )
 }
 
+
+
+function countQuestions(match: MatchSummary, roundId: string, turnId?: string): number {
+    const rows = match.questions as Array<{ roundId?: string; turnId?: string }> | null
+    return (rows ?? []).filter(
+        (row) => row.roundId === roundId && (turnId === undefined || row.turnId === turnId),
+    ).length
+}
+
+function AssembledChip({ label, count }: { label: string; count: number }) {
+    return (
+        <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+            {label}: <b className="tabular-nums text-foreground">{count}</b>
+        </span>
+    )
+}
 
 export function StatusBadge({ status }: { status: MatchSummary["status"] }) {
     if (status === "LIVE") return <Badge variant="destructive">LIVE</Badge>

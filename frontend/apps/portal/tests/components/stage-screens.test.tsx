@@ -299,10 +299,10 @@ describe("KhoiDongChung — S2, the timed batch", () => {
         const user = userEvent.setup()
         const f = renderRound("khoi-dong", { stage: "phase2" }, { open: [q1] }, batch({ questionIndex: 1 }))
 
-        await user.click(screen.getByRole("button", { name: "3" }))
+        await user.click(screen.getAllByRole("button", { name: "3" })[0]!)
         expect(f.send).toHaveBeenCalledWith({ kind: "khoi-dong.nextQuestion" })
 
-        await user.click(screen.getByRole("button", { name: "1" }))
+        await user.click(screen.getAllByRole("button", { name: "1" })[0]!)
         expect(f.send).toHaveBeenCalledTimes(1)
     })
 
@@ -327,7 +327,6 @@ describe("GiaiMa — S3", () => {
         renderRound("giai-ma")                 
         expect(screen.queryByText("Đúng", BUTTON)).toBeNull()
         expect(screen.queryByText("Đúng từ khoá", BUTTON)).toBeNull()
-        expect(screen.getByText("Sai")).toBeInTheDocument()      
         expect(screen.queryByRole("button", { name: "Sai" })).toBeNull()
     })
 
@@ -342,7 +341,6 @@ describe("GiaiMa — S3", () => {
         await user.click(screen.getByText("Đúng", BUTTON))
         expect(f.commitHint).toHaveBeenCalledOnce()
         expect(f.commitKeyword).not.toHaveBeenCalled()
-        expect(screen.getByText("Sai")).toBeInTheDocument()
         expect(screen.queryByRole("button", { name: "Sai" })).toBeNull()
     })
 
@@ -423,9 +421,9 @@ describe("GiaiMa — S3", () => {
             payload: { code: "BONTUONG" },
         }
         const f = renderRound("giai-ma", {}, {}, null, [...hints, keyword] as unknown as LiveResponse["questions"])
-        const tiles = screen.getAllByText(/^[1-8]$/)
+        const tiles = screen.getAllByText(/^[1-8]$/, { selector: "span" })
         expect(tiles).toHaveLength(8)
-        expect(tiles.slice(0, 6).every((tile) => tile.getAttribute("role") === "button")).toBe(true)
+        expect(tiles.slice(0, 6).every((tile) => tile.closest("[role='button']") !== null)).toBe(true)
         expect(tiles.slice(6).map((tile) => tile.getAttribute("role"))).toEqual([null, null])
         expect(screen.getByText(/8 chữ cái/)).toBeInTheDocument()
         expect(f.remaining).toBe(30)
@@ -459,42 +457,28 @@ describe("VeDichRieng — the powers and the duel", () => {
         kind: "TEXT" as const, questionText: "câu a", timeLimit: 30, points: 40, payload: {},
     }
 
-    it("the power row lives on the pick board — pressed BEFORE the question opens", async () => {
+    it("the power buttons live on the rieng page — before the clock or reveal", async () => {
         const user = userEvent.setup()
         const f = renderRound(
-            "ve-dich", {}, pickBoard,
+            "ve-dich", {}, opened,
             veDichMc({ phase: 2, turnPlayerId: "u1", pendingQuestionId: "a" }),
             [stagedQuestion],
         )
 
-        await user.click(screen.getByText("Ngôi sao hy vọng", BUTTON))
+        await user.click(screen.getByRole("button", { name: "Ngôi sao hy vọng" }))
         expect(f.send).toHaveBeenCalledWith({
             kind: "ve-dich.declarePower", playerId: "u1", power: "STAR",
-        })
-    })
-
-    it("Không dùng quyền năng sends the explicit none — never a pick", async () => {
-        const user = userEvent.setup()
-        const f = renderRound(
-            "ve-dich", {}, pickBoard,
-            veDichMc({ phase: 2, turnPlayerId: "u1", pendingQuestionId: "a" }),
-            [stagedQuestion],
-        )
-
-        await user.click(screen.getByText("Không dùng quyền năng", BUTTON))
-        expect(f.send).toHaveBeenCalledWith({
-            kind: "ve-dich.declarePower", playerId: "u1", power: null,
         })
     })
 
     it("Chỉ định đối kháng arms first — nothing is sent until a card is picked", async () => {
         const user = userEvent.setup()
         const f = renderRound(
-            "ve-dich", {}, pickBoard,
+            "ve-dich", {}, opened,
             veDichMc({ phase: 2, turnPlayerId: "u1", pendingQuestionId: "a" }),
             [stagedQuestion],
         )
-        await user.click(screen.getByText("Chỉ định đối kháng", BUTTON))
+        await user.click(screen.getByRole("button", { name: "Chỉ định đối kháng" }))
         expect(f.send).not.toHaveBeenCalled()
         expect(screen.getByText("chọn thẻ để chỉ định")).toBeInTheDocument()
     })
@@ -504,15 +488,38 @@ describe("VeDichRieng — the powers and the duel", () => {
         const f = renderRound(
             "ve-dich",
             { baseCards: [{ id: "u1", name: "An", points: 10 }, { id: "u2", name: "Bình", points: 5 }] },
-            pickBoard,
+            opened,
             veDichMc({ phase: 2, turnPlayerId: "u1", pendingQuestionId: "a" }),
             [stagedQuestion],
         )
-        await user.click(screen.getByText("Chỉ định đối kháng", BUTTON))
+        await user.click(screen.getByRole("button", { name: "Chỉ định đối kháng" }))
         await user.click(screen.getByText("Bình"))
         expect(f.send).toHaveBeenCalledWith({
             kind: "ve-dich.declarePower", playerId: "u1", power: "ASSIGN", targetId: "u2",
         })
+    })
+
+    it("one power per turn: the buttons go inert once the turn spent one", () => {
+        renderRound(
+            "ve-dich", {}, opened,
+            veDichMc({ phase: 2, turnPlayerId: "u1", pendingQuestionId: "a", turnPowerUsed: true }),
+            [stagedQuestion],
+        )
+        expect(screen.queryByRole("button", { name: "Ngôi sao hy vọng" })).toBeNull()
+        expect(screen.queryByRole("button", { name: "Chỉ định đối kháng" })).toBeNull()
+        expect(screen.getByText("đã chốt")).toBeInTheDocument()
+    })
+
+    it("the power buttons are muted once the question started", () => {
+        renderRound(
+            "ve-dich",
+            { oralRemaining: 20 },
+            { open: [{ questionId: "q1", deadlineAt: "2026-01-01T00:00:20.000Z", question: null }] },
+            veDichMc({ phase: 2, turnPlayerId: "u1", pendingQuestionId: "a" }),
+            [stagedQuestion],
+        )
+        expect(screen.queryByRole("button", { name: "Ngôi sao hy vọng" })).toBeNull()
+        expect(screen.queryByRole("button", { name: "Chỉ định đối kháng" })).toBeNull()
     })
 
     it("a rail card picks who plays next", async () => {
@@ -538,7 +545,7 @@ describe("VeDichRieng — the powers and the duel", () => {
         expect(screen.queryByText("Không dùng quyền năng", BUTTON)).toBeNull()
     })
 
-    it("one power per turn: the row goes inert once the turn spent one", () => {
+    it("the pick board carries no power buttons at all", () => {
         renderRound(
             "ve-dich", {}, pickBoard,
             veDichMc({ phase: 2, turnPlayerId: "u1", pendingQuestionId: "a", turnPowerUsed: true }),
@@ -547,7 +554,7 @@ describe("VeDichRieng — the powers and the duel", () => {
         expect(screen.queryByRole("button", { name: "Ngôi sao hy vọng" })).toBeNull()
         expect(screen.queryByRole("button", { name: "Chỉ định đối kháng" })).toBeNull()
         expect(screen.queryByRole("button", { name: "Không dùng quyền năng" })).toBeNull()
-        expect(screen.getByText("đã chốt lượt này")).toBeInTheDocument()
+        expect(screen.queryByText("đã chốt")).toBeNull()
     })
 
     it("during a duel the buzz slot is inert — an ASSIGN question has nothing to close", () => {
@@ -597,11 +604,11 @@ describe("ButPha — S4", () => {
         expect(f.backToLobby).toHaveBeenCalledOnce()
     })
 
-    it("clicking the question card reveals the next question", async () => {
+    it("clicking a question chip reveals the next question", async () => {
         const user = userEvent.setup()
         const f = renderRound("but-pha", { pickQuestion: vi.fn() })
 
-        await user.click(screen.getByRole("button", { name: "Mở câu hỏi" }))
+        await user.click(screen.getByRole("button", { name: "1" }))
         expect(f.pickQuestion).toHaveBeenCalledOnce()
     })
 
@@ -647,7 +654,7 @@ describe("VeDichPick — S5/S6, the board", () => {
     })
     const freeCell = (id: string, value: number) => ({ questionId: id, value, where: "free" as const })
 
-it("phase 1: each click writes the picked set — there is no confirm button", async () => {
+it("phase 1: clicking a value cell random-picks one question of that value", async () => {
         const user = userEvent.setup()
         const f = renderRound(
             "ve-dich",
@@ -657,13 +664,12 @@ it("phase 1: each click writes the picked set — there is no confirm button", a
             [veQuestion("q30", 30), veQuestion("q20", 20)],
         )
 
-        expect(screen.queryByRole("button", { name: "Chọn 2 câu" })).toBeNull()
+        await user.click(screen.getByTitle("Chọn ngẫu nhiên 1 câu 20"))
+        expect(f.send).not.toHaveBeenCalled()
+        await user.click(screen.getByTitle("Chọn ngẫu nhiên 1 câu 30"))
 
-        await user.click(screen.getByRole("button", { name: "20" }))
-        expect(f.send).toHaveBeenCalledWith({ kind: "ve-dich.pickRound", questionIds: ["q20"] })
-
-        await user.click(screen.getByRole("button", { name: "30" }))
-        expect(f.send).toHaveBeenLastCalledWith({
+        await user.click(screen.getByRole("button", { name: "Xác nhận" }))
+        expect(f.send).toHaveBeenCalledWith({
             kind: "ve-dich.pickRound",
             questionIds: ["q20", "q30"],
         })
@@ -681,15 +687,17 @@ it("phase 1: each click writes the picked set — there is no confirm button", a
 
         expect(screen.queryByRole("button", { name: "Chốt 3 câu" })).toBeNull()
 
-        for (const cell of screen.getAllByTitle("Chọn câu này")) {
-            await user.click(cell)
+        for (let i = 0; i < 3; i++) {
+            await user.click(screen.getByTitle("Chọn ngẫu nhiên 1 câu 40"))
         }
-        expect(f.send).toHaveBeenLastCalledWith({
-            kind: "ve-dich.pickBatch", playerId: "u1", questionIds: ["a", "b", "c"],
-        })
+        const call = (f.send as unknown as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0]
+        expect(call.kind).toBe("ve-dich.pickBatch")
+        expect(call.questionIds).toHaveLength(3)
+        expect(new Set(call.questionIds).size).toBe(3)
+        for (const id of call.questionIds) expect(["a", "b", "c"]).toContain(id)
     })
 
-it("phase 1: one question per player — a single free cell cannot confirm", () => {
+it("phase 1: a value with no free question is inert", () => {
         renderRound(
             "ve-dich",
             {},
@@ -698,20 +706,16 @@ it("phase 1: one question per player — a single free cell cannot confirm", () 
             [veQuestion("q30", 30)],
         )
 
-        expect(screen.getAllByTitle("Chọn câu này")).toHaveLength(1)
-        expect(screen.queryByRole("button", { name: "Chọn 2 câu" })).toBeNull()
+        expect(screen.getAllByTitle("Hết câu 20")).toHaveLength(1)
+        expect(screen.getAllByTitle("Chọn ngẫu nhiên 1 câu 30")).toHaveLength(1)
     })
 
-it("phase 1: with nothing picked, Xác nhận is inert and Chọn lại clears", async () => {
-        const user = userEvent.setup()
-        const f = renderRound("ve-dich", { send: vi.fn() }, {}, veDichMc({ phase: 1 }))
+it("phase 1: with nothing picked, there is no confirm — Chọn lại clears", async () => {
+        renderRound("ve-dich", { send: vi.fn() }, {}, veDichMc({ phase: 1 }))
 
-        expect(screen.getByText("Xác nhận")).toBeInTheDocument()
         expect(screen.queryByRole("button", { name: "Xác nhận" })).toBeNull()
-        expectButtonsInOrder(["Chọn lại", "Về sảnh"])
-
-        await user.click(screen.getByRole("button", { name: "Chọn lại" }))
-        expect(f.send).toHaveBeenCalledWith({ kind: "ve-dich.clearPicks" })
+        expect(screen.getByText("Chọn lại")).toBeInTheDocument()
+        expectButtonsInOrder(["Về sảnh"])
     })
 
     it("phase 2: Xác nhận opens the question the student picked", async () => {
@@ -763,13 +767,18 @@ describe("VeDichChung — S7, phase 1 question", () => {
         const f = renderRound(
             "ve-dich",
             {},
-            { open: [openQ] },
+            {
+                open: [openQ],
+                board: [{ questionId: "q1", value: 20, where: "open" }],
+            },
             veDichMc({ phase: 1, revealed: false, clockStarted: false }),
         )
 
         expect(screen.queryByRole("button", { name: "Tính giờ" })).toBeNull()
-        await user.click(screen.getByRole("button", { name: "Mở câu hỏi" }))
-        expect(f.send).toHaveBeenCalledWith({ kind: "ve-dich.reveal" })
+        await user.click(screen.getByRole("button", { name: "20" }))
+        expect(f.sendChain).toHaveBeenCalledWith([
+            { kind: "ve-dich.reveal" },
+        ])
     })
 
     it("Tính giờ starts the clock once the question is revealed", async () => {
@@ -874,17 +883,20 @@ describe("VeDichRieng — S8, phase 2 question", () => {
         expect(f.hetLuot).toHaveBeenCalledOnce()
     })
 
-    it("the question card is what reveals the phase 2 question to the players", async () => {
+    it("the chip reveals the phase 2 question to the players", async () => {
         const user = userEvent.setup()
         const f = renderRound(
             "ve-dich",
-            { send: vi.fn() },
-            { open: [openQ] },
+            { send: vi.fn(), sendChain: vi.fn() },
+            {
+                open: [openQ],
+                board: [{ questionId: "q1", value: 40, where: "open" }],
+            },
             veDichMc({ phase: 2, openStage: "current" }),
         )
 
-        await user.click(screen.getByRole("button", { name: "Mở câu hỏi" }))
-        expect(f.send).toHaveBeenCalledWith({ kind: "ve-dich.reveal" })
+        await user.click(screen.getByRole("button", { name: "40" }))
+        expect(f.sendChain).toHaveBeenCalled()
     })
 
     it("locks Hết lượt while a recorded buzzer has no verdict", () => {

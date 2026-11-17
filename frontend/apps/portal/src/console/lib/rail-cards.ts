@@ -27,6 +27,7 @@ export interface RailCardsInput {
     veDich: VeDichConsole | null
     khoiDong: KhoiDongConsole | null
     oralPlayerId: string | null
+    keywordQuestionId?: string | null
 }
 
 function applyBuzz(card: CardData, input: RailCardsInput): void {
@@ -61,7 +62,6 @@ function applyAnswer(card: CardData, row: QuestionAnswerRow | undefined, input: 
 function applyGiaiMa(card: CardData, input: RailCardsInput): void {
     if (input.roundId !== "giai-ma" || !input.giaiMa) return
     const player = input.giaiMa.players.find((p) => p.id === card.id)
-    if (player?.keywordLocked) card.badge = { text: "Giải mật mã", tone: "primary" }
     if (player?.eliminated) card.dimmed = true
 }
 
@@ -90,7 +90,31 @@ function applyPower(card: CardData, input: RailCardsInput): void {
     }
 }
 
+function applyKeyword(card: CardData, row: QuestionAnswerRow | undefined): void {
+    if (!row || row.value === null) return
+    const text = row.value.text
+    if (typeof text !== "string" || text === "") return
+    card.answer = text
+    card.answeredMs = row.answeredMs ?? null
+    card.badge = { text: "TỪ KHOÁ", tone: "primary" }
+}
+
 export function railCardsOf(input: RailCardsInput): CardData[] {
+    const rowsFor = (userId: string): QuestionAnswerRow | undefined => {
+        const pool = input.railQ
+            ? input.rows.filter((row) => row.questionId === input.railQ)
+            : input.rows
+        const mine = pool.filter((row) => row.userId === userId)
+        return mine.length > 0 ? mine[mine.length - 1] : undefined
+    }
+    const keywordRowFor = (userId: string): QuestionAnswerRow | undefined => {
+        if (!input.keywordQuestionId) return undefined
+        const mine = input.rows.filter(
+            (row) => row.questionId === input.keywordQuestionId && row.userId === userId,
+        )
+        return mine.length > 0 ? mine[mine.length - 1] : undefined
+    }
+
     const cards = input.table.map((seat): CardData => {
         const card: CardData = {
             id: seat.id,
@@ -99,11 +123,22 @@ export function railCardsOf(input: RailCardsInput): CardData[] {
             ring: ringOf(seat.id, input),
             video: input.videoOf(seat.id),
         }
-        applyAnswer(card, input.rows.find((r) => r.userId === seat.id), input)
+        applyAnswer(card, rowsFor(seat.id), input)
         applyGiaiMa(card, input)
         applyStagedPower(card, input)
         applyPower(card, input)
         applyBuzz(card, input)
+        if (input.roundId === "giai-ma") {
+            const kRow = keywordRowFor(seat.id)
+            applyKeyword(card, kRow)
+            const player = input.giaiMa?.players.find((p) => p.id === seat.id)
+            if (player?.keywordLocked) {
+                const text = typeof kRow?.value?.text === "string" && kRow.value.text !== ""
+                    ? kRow.value.text
+                    : "TỪ KHOÁ"
+                card.badge = { text, tone: "primary" }
+            }
+        }
         return card
     })
 

@@ -11,6 +11,7 @@ const TABLE = [
 function row(over: Partial<QuestionAnswerRow> = {}): QuestionAnswerRow {
     return {
         userId: "u1",
+        questionId: "q1",
         verdict: null,
         pointsAwarded: null,
         value: { text: "một đáp án" },
@@ -165,15 +166,21 @@ describe("railCardsOf — the live answerer wears the purple card", () => {
 })
 
 describe("railCardsOf — badges belong to the round", () => {
-    it("marks the keyword lock and dims the eliminated (giai-ma)", () => {
+    it("shows the player's keyword answer on the badge once locked (giai-ma)", () => {
         const giaiMa = {
             players: [
                 { id: "u1", keywordLocked: true, eliminated: false },
                 { id: "u2", keywordLocked: false, eliminated: true },
             ],
         } as unknown as GiaiMaConsole
-        const cards = railCardsOf(input({ roundId: "giai-ma", giaiMa }))
-        expect(badgeOf(cards, "u1")).toBe("Giải mật mã")
+        const cards = railCardsOf(input({
+            roundId: "giai-ma",
+            giaiMa,
+            keywordQuestionId: "k1",
+            rows: [row({ questionId: "k1", userId: "u1", value: { text: "MƯA" } })],
+        }))
+        expect(badgeOf(cards, "u1")).toBe("MƯA")
+        expect(cards.find((c) => c.id === "u1")?.answer).toBe("MƯA")
         expect(cards.find((c) => c.id === "u1")?.dimmed).toBeUndefined()
         expect(badgeOf(cards, "u2")).toBeUndefined()
         expect(cards.find((c) => c.id === "u2")?.dimmed).toBe(true)

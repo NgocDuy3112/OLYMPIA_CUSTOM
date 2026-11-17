@@ -1,4 +1,4 @@
-import { ConsoleStage, Progress, QuestionCard, Rail, Timer } from "@/components/stage/deck"
+import { ConsoleStage, QuestionCard, QuestionChips, Rail, Timer } from "@/components/stage/deck"
 import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
 import { COPY } from "@shared/deck/copy"
 
@@ -21,7 +21,6 @@ export function ButPhaAOCController({ ctx }: { ctx: ButPhaCtx }) {
     const openQ = open[0] ?? null
     let pos: number | null = null
     if (openQ) pos = ctx.byId(openQ.questionId)?.position ?? 0
-    const done = pos ?? 0
     let revealId: string | null = null
     if (consoleButPha?.opened === true) revealId = consoleButPha.questionId
     const clockStarted = consoleButPha?.clockStarted === true
@@ -40,7 +39,7 @@ export function ButPhaAOCController({ ctx }: { ctx: ButPhaCtx }) {
 
     return (
         <ConsoleStage
-            rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.toggleSelect} />}
+            rail={<Rail cards={baseCards} onSelect={ctx.toggleSelect} />}
             actions={[
                 {
                     label: COPY.startClock,
@@ -61,14 +60,21 @@ export function ButPhaAOCController({ ctx }: { ctx: ButPhaCtx }) {
             <QuestionCard
                 round="Bứt phá"
                 right={
-                    <>
-                        <Progress total={4} done={done} active={pos ?? done} />
+                    <span className="flex items-center gap-[1.2cqw]">
+                        <QuestionChips
+                            chips={Array.from({ length: 4 }, (_, i) => ({
+                                id: `chip-${i}`,
+                                label: String(i + 1),
+                                active: pos !== null && i === pos - 1,
+                                clickable: openQ === null,
+                            }))}
+                            onSelect={() => ctx.pickQuestion()}
+                        />
                         <Timer remaining={timerRemaining} />
-                    </>
+                    </span>
                 }
                 question={openQ?.question?.questionText ?? null}
                 media={openQ?.question?.media ?? null}
-                onReveal={() => ctx.pickQuestion()}
             />
         </ConsoleStage>
     )

@@ -27,9 +27,9 @@ describe("QuestionBlock — any media", () => {
         expect(img).not.toBeNull()
         expect(img!.className).toContain("object-contain")
         expect(img!.className).toContain("max-h-[30cqw]")
-        expect(img!.className).toContain("max-w-[37.4cqw]")
+        expect(img!.className).toContain("max-w-full")
         expect(img!.parentElement!.style.aspectRatio).toBe("")
-        expect(img!.parentElement!.className).toContain("self-center")
+        expect(img!.parentElement!.className).toContain("self-end")
     })
 })
 

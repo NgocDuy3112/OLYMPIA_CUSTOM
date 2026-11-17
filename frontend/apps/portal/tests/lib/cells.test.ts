@@ -13,7 +13,7 @@ describe("vé-đích cells", () => {
             const palette = where === "open"
                 ? "bg-primary text-primary-foreground"
                 : where === "pending"
-                    ? "bg-sky-50 text-sky-800"
+                    ? "bg-primary/10 text-primary"
                     : where === "taken"
                         ? "bg-black text-white"
                         : "opacity-50"
@@ -36,7 +36,7 @@ describe("vé-đích cells", () => {
 
     it("chosen beats free-but-actionable in the player's picker", () => {
         const chosen = playerCellClass({ where: "free", chosen: true, actionable: true })
-        expect(chosen).toContain("ring-sky-500")
+        expect(chosen).toContain("ring-primary")
         expect(chosen).not.toContain("hover:bg-accent")
     })
 

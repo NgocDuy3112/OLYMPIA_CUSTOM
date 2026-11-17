@@ -14,6 +14,7 @@ export type LiveAction =
     | { kind: "giai-ma.submitKeyword"; playerId: string; questionId: string; text: string; suggestion: "CORRECT" | "INCORRECT" }
     | { kind: "giai-ma.judgeKeyword"; playerId: string; questionId: string; correct: boolean }
     | { kind: "giai-ma.endRound" }
+    | { kind: "giai-ma.lockHints" }
     | { kind: "but-pha.start" }
     | { kind: "but-pha.openQuestion" }
     | { kind: "but-pha.closeQuestion" }
@@ -43,16 +44,24 @@ export type LiveAction =
     | { kind: "ve-dich.pick"; playerId: string; questionId: string }
     | { kind: "ve-dich.pickBatch"; playerId: string; questionIds: string[] }
     | { kind: "ve-dich.pickRound"; questionIds: string[] }
+    | { kind: "ve-dich.openPending"; questionId: string }
+    | { kind: "ve-dich.switchQuestion"; questionId: string }
+    | { kind: "ve-dich.closeQuestion" }
     | { kind: "ve-dich.nextQuestion" }
     | { kind: "ve-dich.clearPicks" }
     | { kind: "ve-dich.judge"; playerId: string; correct: boolean }
     | { kind: "round.goTo"; roundId: string }
+    | { kind: "round.waiting" }
     | { kind: "score.adjust"; userId: string; delta: number; reason: string }
     | { kind: "reveal.answer"; questionId: string }
 
 export function startAction(
     roundId: string,
-    opts: { phase?: 1 | 2; playerIds: string[]; questions: ConsoleQuestion[] }
+    opts: {
+        phase?: 1 | 2;
+        playerIds: string[];
+        questions: ConsoleQuestion[]
+    }
 ): LiveAction | null {
     const { phase, playerIds, questions } = opts
     switch (roundId) {
@@ -63,14 +72,10 @@ export function startAction(
                 .map((q) => q._id)
             return { kind: "giai-ma.start", playerIds, hintIds }
         }
-        case "khoi-dong": {
-            if (phase === 2) return { kind: "khoi-dong.start", phase: 2 }
-            return { kind: "khoi-dong.start" }
-        }
-        case "ve-dich": {
-            if (phase === 2) return { kind: "ve-dich.start", phase: 2 }
-            return { kind: "ve-dich.start" }
-        }
+        case "khoi-dong":
+            return { kind: "khoi-dong.start", phase: phase === 2 ? 2 : 1 }
+        case "ve-dich":
+            return { kind: "ve-dich.start", phase: phase === 2 ? 2 : 1 }
         case "but-pha":
             return { kind: "but-pha.start" }
         default:

@@ -64,7 +64,7 @@ export function KhoiDongRiengAOCController({ ctx }: { ctx: KhoiDongRiengCtx }) {
 
     return (
         <ConsoleStage
-            rail={<Rail variant="compact" cards={cards} onSelect={mark} />}
+            rail={<Rail cards={cards} onSelect={mark} />}
             actions={[
                 {
                     label: COPY.startClock,

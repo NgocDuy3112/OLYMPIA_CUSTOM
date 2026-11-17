@@ -1,7 +1,6 @@
 import { useContext } from "react"
 import type { ReactNode } from "react"
 import { StageLayout, Status, Strip, type StripItem } from "@shared/deck/stage"
-import { StripControls } from "@/console/ConsoleToolbar"
 import { ConsoleControlContext } from "@/console/control-context"
 
 export function ConsoleStage({ rail, actions, flash, children }: {
@@ -20,7 +19,6 @@ export function ConsoleStage({ rail, actions, flash, children }: {
             {children}
             <div className="flex flex-wrap items-center gap-[1cqw]">
                 <Strip items={items} />
-                <StripControls />
             </div>
             <Status error={flash} />
         </StageLayout>

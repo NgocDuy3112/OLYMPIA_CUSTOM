@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react"
 import type { RemoteVideoTrack } from "livekit-client"
-import { formatDurationMs } from "@shared/lib/clock"
-import { pt } from "@shared/deck/geometry"
+import { RailAnswerLine } from "@shared/deck/rail-answer"
+import { initialsOf, pt } from "@shared/deck/geometry"
 import { railCardClass, railCardState, railScoreClass } from "@shared/deck/rail-card"
 
 export interface CardData {
@@ -49,15 +49,10 @@ function CardVideo({ track }: { track: RemoteVideoTrack }) {
     return <span ref={holder} className="absolute inset-0 overflow-hidden rounded-lg" aria-hidden />
 }
 
-const initialsOf = (name: string): string =>
-    name.replace(/[^A-Za-zÀ-ỹ0-9]/g, "").slice(0, 2).toUpperCase() || "??"
-
-export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answers"; cards: CardData[]; onSelect?: (id: string) => void }) {
-    const isAnswers = variant === "answers"
+export function Rail({ cards, onSelect }: { cards: CardData[]; onSelect?: (id: string) => void }) {
     let Interactive: "button" | "div" = "div"
     if (onSelect) Interactive = "button"
-    let scoreSize = 34
-    if (isAnswers) scoreSize = 44
+    const scoreSize = 34
     return (
         <>
             {cards.map((c) => {
@@ -70,23 +65,13 @@ export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answe
                     badgeNode = <span className={badgePill(c.badge.tone)} style={{ fontSize: pt(9) }}>{c.badge.text}</span>
                 }
                 const hasAnswer = typeof c.answer === "string" && c.answer !== "" && c.answer !== "—"
-                const hasTime = typeof c.answeredMs === "number"
                 let showStatus = hasAnswer
                 if (c.badge) showStatus = true
                 let statusLine: ReactNode = null
                 if (showStatus) {
                     statusLine = (
                         <div className="flex min-w-0 flex-col items-center justify-center gap-[0.2cqw] font-sans leading-none text-foreground/85">
-                            {hasAnswer && (
-                                <span className="w-full truncate text-center" style={{ fontSize: pt(12) }} title={c.answer}>
-                                    {c.answer}
-                                </span>
-                            )}
-                            {hasTime && (
-                                <span className="tabular-nums text-muted-foreground" style={{ fontSize: pt(8) }}>
-                                    {formatDurationMs(c.answeredMs as number)}
-                                </span>
-                            )}
+                            <RailAnswerLine answer={c.answer} answeredMs={c.answeredMs ?? null} />
                             {!c.badge && typeof c.value === "string" && c.value !== "" && c.value !== "—" && (
                                 <span className={`font-semibold tabular-nums ${railScoreClass(state)}`} style={{ fontSize: pt(12) }}>
                                     {c.value}
@@ -104,8 +89,7 @@ export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answe
                         "aria-pressed": c.ring === "selected",
                     }
                 }
-                let cardHeight = "h-[9.3cqw]"
-                if (isAnswers) cardHeight = "h-[11.9cqw]"
+                const cardHeight = "h-[9.3cqw]"
                 let hoverCls = ""
                 if (onSelect) {
                     hoverCls = "cursor-pointer hover:ring-sky-400 active:ring-sky-600"
