@@ -6,7 +6,8 @@ import { GiaiMaAOCPlayer } from "@shared/deck/screens/GiaiMaAOCPlayer"
 import { ButPhaAOCPlayer } from "@shared/deck/screens/ButPhaAOCPlayer"
 import { KhoiDongChungAOCPlayer } from "@shared/deck/screens/KhoiDongChungAOCPlayer"
 import { VeDichChungAOCPlayer } from "@shared/deck/screens/VeDichChungAOCPlayer"
-import { VeDichPickAOCPlayer } from "@shared/deck/screens/VeDichPickAOCPlayer"
+import { VeDichChungPickPlayer } from "@shared/deck/screens/VeDichChungPickPlayer"
+import { VeDichRiengPickPlayer } from "@shared/deck/screens/VeDichRiengPickPlayer"
 import { VeDichRiengAOCPlayer } from "@shared/deck/screens/VeDichRiengAOCPlayer"
 import { Rail } from "@shared/deck/player-deck"
 
@@ -219,22 +220,22 @@ describe("player screens render from a plain fixture", () => {
 
     it("về đích · the board — a picker with the fixed bands", () => {
         const v = view({ roundId: "ve-dich", stage: "phase2", me: { isMyTurn: true } })
-        const { getAllByText, getByTitle } = render(<VeDichPickAOCPlayer ctx={ctx({ v })} />)
+        const { getAllByText } = render(<VeDichRiengPickPlayer ctx={ctx({ v })} />)
         expect(getAllByText("Về đích").length).toBeGreaterThan(0)
-        expect(getByTitle("đã dùng")).toBeTruthy()
+        expect(getAllByText("40").length).toBeGreaterThan(0)
     })
 
     it("về đích · the board — display-only: the console picks, the player watches", () => {
         const v = view({ roundId: "ve-dich", stage: "phase2", me: { isMyTurn: true } })
-        const { queryByText, getByText } = render(<VeDichPickAOCPlayer ctx={ctx({ v })} />)
+        const { queryByText } = render(<VeDichChungPickPlayer ctx={ctx({ v })} />)
         expect(queryByText("Chốt 3 câu")).toBeNull()
         expect(queryByText("Chọn câu này")).toBeNull()
-        expect(getByText(/điều hành bốc 3 câu/)).toBeTruthy()
+        // the status line was removed — the picked cells now sit beside the clock
     })
 
     it("rail — the buzzer's card reads Đã bấm chuông with the time they buzzed", () => {
         const v = view({ roundId: "ve-dich", stage: "phase2", me: { buzzer: "u2", buzzerMs: 1240 } })
-        const { getByText } = render(<Rail variant="answers" view={v} myId={null} />)
+        const { getByText } = render(<Rail view={v} myId={null} />)
         expect(getByText(/Đã bấm chuông/)).toBeTruthy()
         expect(getByText("01.240")).toBeTruthy()
     })
@@ -250,10 +251,11 @@ describe("player screens render from a plain fixture", () => {
             ],
         })
         const { getByText, getAllByText } = render(
-            <Rail variant="answers" view={v} myId={null} currentQid="q1" />
+            <Rail view={v} myId={null} currentQid="q1" />
         )
 
-        expect(getAllByText("Answer")).toHaveLength(2)
+        expect(getAllByText("09.002")).toHaveLength(1)
+        expect(getAllByText("04.100")).toHaveLength(1)
         expect(getByText("09.002")).toBeTruthy()
         expect(getByText("04.100")).toBeTruthy()
         expect(getByText("Đã bấm chuông")).toBeTruthy()

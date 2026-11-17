@@ -16,7 +16,7 @@ export function KhoiDongRiengAOCPlayer({ ctx }: { ctx: KhoiDongRiengPlayerCtx })
     }
     return (
         <PlayerStage
-            rail={<Rail variant="compact" view={v} myId={myId} />}
+            rail={<Rail view={v} myId={myId} />}
         >
             <QuestionCard
                 round="Khởi động"

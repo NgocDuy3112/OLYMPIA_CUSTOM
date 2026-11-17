@@ -4,7 +4,7 @@ import { X } from "lucide-react"
 import { useSelfCam } from "@shared/lib/rtc"
 import { Button } from "@shared/ui/button"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@shared/ui/dialog"
-import { pt } from "./geometry"
+import { initialsOf, pt } from "./geometry"
 import { SelfCamControls } from "./cam-controls"
 import type { LobbyData } from "./types"
 
@@ -61,7 +61,7 @@ export function Lobby({
                 {data.title}
             </h1>
             <p className="mt-[1.2cqw] font-sans font-medium leading-none text-muted-foreground" style={{ fontSize: "1.4cqw" }}>
-                {data.title} - {data.label}
+                {data.label}
             </p>
 
             
@@ -87,7 +87,7 @@ export function Lobby({
                                     style={{ fontSize: pt(16) }}
                                 >
                                     <span aria-hidden>
-                                        {row.displayName.replace(/[^A-Za-zÀ-ỹ0-9]/g, "").slice(0, 2).toUpperCase() || "??"}
+                                        {initialsOf(row.displayName)}
                                     </span>
                                     {video && <LobbyVideo track={video} />}
                                     {mine && <SelfCamControls />}

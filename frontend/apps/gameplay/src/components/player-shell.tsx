@@ -47,7 +47,7 @@ export function PlayerShell({ matchId }: { matchId: string }) {
         const v = model.v!
         return (
             <StageShell>
-                <StageLayout rail={<Rail variant="compact" view={v} myId={model.myId} />}>
+                <StageLayout rail={<Rail view={v} myId={model.myId} />}>
                     <MainCard>
                         <Badges round={ROUND_LABEL[v.roundId] ?? v.roundId} />
                         <p className="font-sans leading-relaxed text-foreground" style={{ fontSize: pt(16) }}>

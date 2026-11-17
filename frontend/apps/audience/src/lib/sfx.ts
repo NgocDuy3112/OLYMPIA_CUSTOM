@@ -1,9 +1,9 @@
 import { useSocketStream } from "@shared/lib/ws"
-import { playSfx } from "@shared/lib/sfx"
+import { playSfx, stopSfx } from "@shared/lib/sfx"
 
 interface SfxFrame {
     type?: string
-    data?: { name?: string; url?: string }
+    data?: { name?: string; url?: string; stop?: boolean }
 }
 
 export function useAudienceSfx(tournamentId: string, matchId: string) {
@@ -13,7 +13,10 @@ export function useAudienceSfx(tournamentId: string, matchId: string) {
         (message) => {
             const frame = message as SfxFrame | null
             if (!frame || typeof frame !== "object") return
-            if (frame.type === "sfx" && frame.data?.url) playSfx(frame.data.url)
+            if (frame.type === "sfx") {
+                if (frame.data?.stop === true) stopSfx()
+                else if (frame.data?.url) playSfx(frame.data.url)
+            }
         }
     )
 }

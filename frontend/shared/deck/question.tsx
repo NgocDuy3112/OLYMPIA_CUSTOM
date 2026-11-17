@@ -30,15 +30,13 @@ export function QuestionBlock({ question, media, mediaHint = "hình ảnh câu h
     if (media) mediaPad = "pr-[1.2cqw]"
     let revealCls = ""
     if (onReveal) revealCls = "cursor-pointer rounded-xl ring-1 ring-transparent transition hover:ring-primary/40"
-    let questionWidth = "flex-1"
-    if (media) questionWidth = "w-[26.7cqw] shrink-0"
     return (
         <div
-            className={`flex min-h-0 flex-1 items-stretch gap-[1.4cqw] ${mediaPad} ${revealCls}`}
+            className={`flex min-h-0 flex-1 items-end gap-[1.4cqw] ${mediaPad} ${revealCls}`}
             {...revealProps}
         >
             <p
-                className={`min-w-0 font-sans font-medium leading-snug text-foreground ${questionWidth}`}
+                className={`min-w-0 self-start flex-1 font-sans font-medium leading-snug text-foreground`}
                 style={{ fontSize: pt(14), ...DECK_PAD }}
             >
                 {question ?? ""}
@@ -51,13 +49,13 @@ export function QuestionBlock({ question, media, mediaHint = "hình ảnh câu h
 function MediaWell({ media, mediaHint }: { media: { url: string; type: string }; mediaHint: string }) {
     const [broken, setBroken] = useState(false)
     const wellClass =
-        "ml-auto shrink-0 self-center overflow-hidden rounded-2xl bg-muted ring-1 ring-border"
+        "ml-auto min-w-0 flex-1 self-end overflow-hidden rounded-2xl bg-muted ring-1 ring-border flex items-end justify-end"
 
     if (media.type !== "image" || broken) {
         let mediaText = `media: ${media.type}`
         if (broken) mediaText = mediaHint
         return (
-            <div className={`${wellClass} flex max-w-[37.4cqw] items-center justify-center px-[2cqw] py-[1.4cqw]`}>
+            <div className={`${wellClass} items-center justify-center px-[2cqw] py-[1.4cqw]`}>
                 <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>
                     {mediaText}
                 </span>
@@ -70,21 +68,31 @@ function MediaWell({ media, mediaHint }: { media: { url: string; type: string };
             <img
                 src={media.url}
                 alt=""
-                className="block max-h-[30cqw] max-w-[37.4cqw] object-contain"
+                className="block max-h-[30cqw] max-w-full object-contain"
                 onError={() => setBroken(true)}
             />
         </div>
     )
 }
 
-export function KeywordLengthBanner({ length }: { length: number | null }) {
+export function KeywordLengthBanner({ length, code, onClick }: { length: number | null; code?: string | null; onClick?: () => void }) {
     if (length === null) return null
     return (
-        <div className="flex shrink-0 items-center justify-center rounded-2xl bg-card px-[2cqw] py-[0.7cqw] shadow-md ring-1 ring-border">
-            <span className="font-display font-bold uppercase tracking-wide text-foreground" style={{ fontSize: pt(32) }}>
+        <button
+            type="button"
+            onClick={onClick}
+            title={onClick ? "Hiện đáp án từ khoá" : undefined}
+            className="flex h-[125px] shrink-0 items-center justify-center gap-[1.5cqw] rounded-2xl bg-card px-[2cqw] shadow-md ring-1 ring-border transition hover:ring-primary/60"
+        >
+            <span className="font-display font-bold uppercase tracking-wide text-foreground" style={{ fontSize: pt(40) }}>
                 Mật mã gồm có {length} chữ cái
             </span>
-        </div>
+            {code !== null && (
+                <span className="font-display font-bold uppercase tracking-wide text-primary" style={{ fontSize: pt(32) }}>
+                    {code}
+                </span>
+            )}
+        </button>
     )
 }
 
@@ -101,8 +109,10 @@ export function QuestionCard({ round, mode, size, mid, right, question, media, f
     className?: string
     children?: ReactNode
 }) {
+    let cardHeight = "h-[600px]"
+    if (className?.includes("h-[")) cardHeight = ""
     return (
-        <MainCard className={className}>
+        <MainCard className={`${cardHeight} ${className ?? ""}`}>
             <CardHeader
                 left={<Badges round={round} mode={mode} size={size} />}
                 mid={mid}

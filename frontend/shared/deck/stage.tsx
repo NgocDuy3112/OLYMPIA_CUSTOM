@@ -10,4 +10,6 @@ export {
 
 export { KeywordLengthBanner, QuestionBlock, QuestionCard } from "./question"
 
-export { Strip, VeDichStripCells, type StripItem } from "./strip"
+export { Strip, Chip, QuestionChips, VeDichStripCells, type StripItem } from "./strip"
+export { HintBars } from "./hint-bars"
+export { ValueCells } from "./value-cells"

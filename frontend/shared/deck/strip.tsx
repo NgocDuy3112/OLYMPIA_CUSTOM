@@ -15,35 +15,43 @@ const stripSlotClass = (pressable: boolean, muted = false): string => {
 }
 
 export function Strip({ items }: { items: StripItem[] }) {
+    const visible = items.filter((item) => !item.empty)
+    const rows: StripItem[][] = []
+    for (let index = 0; index < visible.length; index += 5) {
+        rows.push(visible.slice(index, index + 5))
+    }
     return (
-        <div className="flex shrink-0 flex-wrap items-center gap-[1cqw]">
-            {items.map((item) => {
-                if (item.empty) return null
-                if (item.onClick) {
-                    return (
-                        <button
-                            key={item.label}
-                            type="button"
-                            onClick={item.onClick}
-                            title={item.title}
-                            className={stripSlotClass(true)}
-                            style={{ fontSize: pt(11), borderRadius: STRIP_R }}
-                        >
-                            {item.content ?? item.label}
-                        </button>
-                    )
-                }
-                return (
-                    <span
-                        key={item.label}
-                        title={item.title}
-                        className={stripSlotClass(false, item.muted)}
-                        style={{ fontSize: pt(11), borderRadius: STRIP_R }}
-                    >
-                        {item.content ?? item.label}
-                    </span>
-                )
-            })}
+        <div className="flex shrink-0 flex-col items-start gap-[1cqw]">
+            {rows.map((row, rowIndex) => (
+                <div key={rowIndex} className="flex items-center gap-[1cqw]">
+                    {row.map((item) => {
+                        if (item.onClick) {
+                            return (
+                                <button
+                                    key={item.label}
+                                    type="button"
+                                    onClick={item.onClick}
+                                    title={item.title}
+                                    className={stripSlotClass(true)}
+                                    style={{ fontSize: pt(11), borderRadius: STRIP_R }}
+                                >
+                                    {item.content ?? item.label}
+                                </button>
+                            )
+                        }
+                        return (
+                            <span
+                                key={item.label}
+                                title={item.title}
+                                className={stripSlotClass(false, item.muted)}
+                                style={{ fontSize: pt(11), borderRadius: STRIP_R }}
+                            >
+                                {item.content ?? item.label}
+                            </span>
+                        )
+                    })}
+                </div>
+            ))}
         </div>
     )
 }
@@ -70,5 +78,53 @@ export function VeDichStripCells({ cells, phase2 }: {
                 )
             })}
         </>
+    )
+}
+
+
+export function Chip({ value, tone = "gray", clickable, onClick, title }: {
+    value: string | number | null
+    tone?: "purple" | "gray"
+    clickable?: boolean
+    onClick?: () => void
+    title?: string
+}) {
+    const toneClass = tone === "purple"
+        ? "bg-primary text-primary-foreground ring-primary"
+        : "bg-muted text-foreground ring-border"
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={!clickable}
+            title={title}
+            className={`flex h-[4.43cqw] min-w-0 flex-1 max-w-[10cqw] items-center justify-center rounded-lg shadow-sm ring-1 font-display leading-none ${toneClass} ${clickable ? "cursor-pointer transition hover:brightness-95" : "cursor-default"}`}
+            style={{ ...DECK_PAD, fontSize: pt(28) }}
+        >
+            {value ?? ""}
+        </button>
+    )
+}
+
+export function QuestionChips({ chips, onSelect }: {
+    chips: Array<{ id: string; label: string; active: boolean; clickable?: boolean }>
+    onSelect?: (id: string) => void
+}) {
+    return (
+        <span className="flex min-w-0 flex-1 items-center gap-[1.2cqw]">
+            {chips.map((chip) => {
+                let click: (() => void) | undefined = undefined
+                if (chip.clickable && onSelect) click = () => onSelect(chip.id)
+                return (
+                    <Chip
+                        key={chip.id}
+                        value={chip.label}
+                        tone={chip.active ? "purple" : "gray"}
+                        clickable={Boolean(click)}
+                        onClick={click}
+                    />
+                )
+            })}
+        </span>
     )
 }

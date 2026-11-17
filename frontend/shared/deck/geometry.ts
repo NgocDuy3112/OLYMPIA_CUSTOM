@@ -21,7 +21,7 @@ export const ROUND_LABEL: Record<string, string> = {
 
 export const isKnownRound = (roundId: string): boolean => roundId in ROUND_LABEL
 
-const WAITING_STAGES = new Set(["pending", "ended", "unknown"])
+const WAITING_STAGES = new Set(["pending", "ended", "unknown", "lobby"])
 export const isWaitingStage = (stage: string): boolean => WAITING_STAGES.has(stage)
 
 export const toClock = (text: string): string => {
@@ -30,3 +30,6 @@ export const toClock = (text: string): string => {
     if (Number.isNaN(seconds)) return text
     return String(seconds).padStart(2, "0")
 }
+
+export const initialsOf = (name: string): string =>
+    name.replace(/[^A-Za-zÀ-ỹ0-9]/g, "").slice(0, 2).toUpperCase() || "??"

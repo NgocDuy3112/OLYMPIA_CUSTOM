@@ -8,6 +8,7 @@ const listeners = new Set<Listener>()
 let blocked = false
 let unlocked = false
 let lastUrl = ""
+let current: HTMLAudioElement | null = null
 let gesture: (() => void) | null = null
 
 function notify(next: boolean) {
@@ -46,11 +47,19 @@ function armUnlock() {
     document.addEventListener("keydown", gesture, true)
 }
 
+export function stopSfx(): void {
+    if (current) {
+        current.pause()
+        current = null
+    }
+}
+
 export function playSfx(url: string): void {
     if (!url) return
     lastUrl = url
     try {
         const audio = new Audio(url)
+        current = audio
         audio.play().then(
             () => {
                 unlocked = true

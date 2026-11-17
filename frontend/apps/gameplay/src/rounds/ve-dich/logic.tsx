@@ -1,13 +1,17 @@
 import { playerScreenOf } from "@/lib/live"
 import { VeDichChungAOCPlayer } from "@shared/deck/screens/VeDichChungAOCPlayer"
-import { VeDichPickAOCPlayer } from "@shared/deck/screens/VeDichPickAOCPlayer"
+import { VeDichChungPickPlayer } from "@shared/deck/screens/VeDichChungPickPlayer"
+import { VeDichRiengPickPlayer } from "@shared/deck/screens/VeDichRiengPickPlayer"
 import { VeDichRiengAOCPlayer } from "@shared/deck/screens/VeDichRiengAOCPlayer"
 import type { RoundModule } from "../types"
 
 export const veDichAOC: RoundModule = {
     render: (ctx) => {
         const which = playerScreenOf(ctx.v)
-        if (which === "ve-dich-pick") return <VeDichPickAOCPlayer ctx={ctx} />
+        if (which === "ve-dich-pick") {
+            if (ctx.stage === "phase2") return <VeDichRiengPickPlayer ctx={ctx} />
+            return <VeDichChungPickPlayer ctx={ctx} />
+        }
         if (which === "ve-dich-rieng") return <VeDichRiengAOCPlayer ctx={ctx} />
         return <VeDichChungAOCPlayer ctx={ctx} />
     },

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { STRIP_R, pt } from "./geometry"
 import { COPY } from "./copy"
 import type { AnswerValue, PlayerQuestion } from "./types"
@@ -33,9 +33,11 @@ export function AnswerBand({ question, answerState, disabled, busy, error, onSub
     let state = { qid, picked: "", text: "" }
     if (draft.qid === qid) state = draft
 
-    useEffect(() => {
+    const [lastReset, setLastReset] = useState({ qid, answerState })
+    if (lastReset.qid !== qid || lastReset.answerState !== answerState) {
+        setLastReset({ qid, answerState })
         setDraft({ qid: "", picked: "", text: "" })
-    }, [qid, answerState])
+    }
     let sendLabel: string = COPY.send
     if (busy) sendLabel = "…"
 

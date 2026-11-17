@@ -55,7 +55,9 @@ export function usePlayerModel(matchId: string): PlayerModel {
     const matchNotLiveYet = failureStatus === 409
     const noViewToPaint = v === undefined
     const roundNotRunning = isWaitingStage(v?.stage ?? "")
-    const lobby = useLiveLobby(matchId, matchNotLiveYet || noViewToPaint || roundNotRunning)
+    const matchEnded = noViewToPaint === false && live.failure?.status === 409
+    const lobby = useLiveLobby(matchId, matchNotLiveYet || noViewToPaint || roundNotRunning || matchEnded)
+    if (matchEnded && lobby.data?.status === "FINISHED") failureStatus = 409
 
     const base = {
         myId,
@@ -98,7 +100,7 @@ export function usePlayerModel(matchId: string): PlayerModel {
         ...base,
         screen: playerScreenOf(v),
         roundId,
-        lobbyHint: lobbyHintOf(roundId, stage, lobby.data?.status),
+        lobbyHint: lobbyHintOf(roundId, stage),
         ctx,
         render: roundModuleOf(roundId)?.render ?? null,
     }

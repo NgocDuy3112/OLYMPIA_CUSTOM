@@ -20,6 +20,7 @@ export function VeDichRiengAOCPlayer({ ctx }: { ctx: VeDichRiengPlayerCtx }) {
     const qid = openQ.questionId
     let timerRemaining: number | null = null
     if (openQ?.deadlineAt) timerRemaining = remaining
+    else if (typeof openQ?.frozenRemainingMs === "number") timerRemaining = openQ.frozenRemainingMs
     let faceSlot: ReactNode = undefined
     if (audience) {
         faceSlot = <AudienceFace options={openQ.question?.payload.options ?? []} />
@@ -58,7 +59,7 @@ export function VeDichRiengAOCPlayer({ ctx }: { ctx: VeDichRiengPlayerCtx }) {
     }
     return (
         <PlayerStage
-            rail={<Rail variant="compact" view={v} myId={myId} currentQid={qid || null} />}
+            rail={<Rail view={v} myId={myId} currentQid={qid || null} />}
         >
             <QuestionCard
                 round="Về đích"

@@ -11,7 +11,7 @@ describe("the question card's image", () => {
         const box = img.parentElement as HTMLElement
 
         expect(img.className).toContain("max-h-[30cqw]")
-        expect(img.className).toContain("max-w-[37.4cqw]")
+        expect(img.className).toContain("max-w-full")
         expect(img.className).toContain("object-contain")
         expect(img.className).not.toContain("object-cover")
         expect(box.style.aspectRatio).toBe("")
@@ -22,8 +22,8 @@ describe("the question card's image", () => {
         const { container } = render(<QuestionBlock question="Câu hỏi?" media={image} />)
         const box = container.querySelector("img")!.parentElement as HTMLElement
 
-        expect(box.className).toContain("self-center")
-        expect(box.className).toContain("shrink-0")
+        expect(box.className).toContain("self-end")
+        expect(box.className).toContain("flex-1")
         expect(box.className).not.toContain("h-full")
     })
 })

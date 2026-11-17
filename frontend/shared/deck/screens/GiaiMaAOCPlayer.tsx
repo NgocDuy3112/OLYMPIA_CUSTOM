@@ -1,7 +1,6 @@
 import type { ReactNode } from "react"
-import { AnswerBand, AnswerBandIdle, KeywordBox, KeywordLengthBanner, PlayerStage, QuestionCard, Rail, Timer, VerdictIcon, type PlayerCore } from "../player-deck"
-import { STRIP_R, pt } from "../geometry"
-import { HINT_TILES, playerHintTileClass } from "../cells"
+import { AnswerBand, AnswerBandIdle, HintBars, KeywordBox, KeywordLengthBanner, PlayerStage, QuestionCard, Rail, Timer, type PlayerCore } from "../player-deck"
+import { pt } from "../geometry"
 import type { AnswerValue } from "../types"
 
 type GiaiMaPlayerCtx = PlayerCore & {
@@ -17,7 +16,6 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
     const hintWindow = ctx.open[0] ?? null
     const keyword = v.keyword
     const locked = v.me.keywordLocked === true
-    const eliminated = v.me.eliminated === true
     const codeLength = keyword?.question?.payload.codeLength ?? null
 
     let keywordSlot: ReactNode = null
@@ -32,14 +30,6 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
     if (locked) {
         keywordSlot = (
             <span className="inline-flex items-center gap-[0.5cqw] font-sans font-semibold text-emerald-600" style={{ fontSize: pt(12) }}>
-                Đã khóa từ khóa <VerdictIcon verdict={v.me.verdicts?.[keyword?.questionId ?? ""]} />
-            </span>
-        )
-    }
-    if (eliminated) {
-        keywordSlot = (
-            <span className="flex h-[3.3cqw] items-center rounded-lg bg-red-50 px-[1.2cqw] font-sans font-semibold text-red-600 ring-1 ring-red-200" style={{ fontSize: pt(12), borderRadius: STRIP_R }}>
-                Bạn không giải được từ khóa — bị loại vòng này
             </span>
         )
     }
@@ -51,7 +41,7 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
     let questionText: string | null = null
     if (hintWindow) questionText = hintWindow.question?.questionText ?? null
     let answerSlot: ReactNode = <AnswerBandIdle />
-    if (hintWindow) {
+    if (hintWindow && hintWindow.deadlineAt) {
         answerSlot = (
             <AnswerBand
                 question={hintWindow.question}
@@ -66,34 +56,24 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
 
     return (
         <PlayerStage
-            rail={<Rail variant="answers" view={v} myId={myId} currentQid={hintWindow?.questionId ?? keyword?.questionId ?? null} />}
+            rail={<Rail view={v} myId={myId} currentQid={hintWindow?.questionId ?? keyword?.questionId ?? null} />}
         >
-            <KeywordLengthBanner length={codeLength} />
+            <KeywordLengthBanner length={codeLength} code={v.keywordCode ?? null} />
 
-            <div
-                className="grid min-h-0 flex-1 gap-x-[2.2cqw] gap-y-[1.1cqw]"
-                style={{
-                    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-                    gridTemplateRows: `repeat(${Math.ceil(HINT_TILES / 4)}, minmax(0, 1fr))`,
-                }}
-            >
-                {Array.from({ length: HINT_TILES }, (_, i) => i + 1).map((n) => (
-                    <div
-                        key={n}
-                        className={playerHintTileClass(hintWindow !== null)}
-                        style={{ fontSize: pt(60) }}
-                    >
-                        {n}
-                    </div>
-                ))}
-            </div>
+            <HintBars
+                openTile={v.me.openTile ?? null}
+                pickedTiles={v.me.pickedTiles ?? []}
+                verdicts={v.me.hintVerdicts ?? {}}
+                answers={v.hintAnswers ?? {}}
+                code={v.keywordCode ?? null}
+            />
 
             <QuestionCard
                 round="Giải mã"
                 size={28}
                 right={<Timer remaining={timerRemaining} size={32} />}
                 question={questionText}
-                className="min-h-[16cqw] flex-none"
+                className="h-50"
             />
             <div className="flex w-full flex-col gap-[0.7cqw]">
                 {answerSlot}

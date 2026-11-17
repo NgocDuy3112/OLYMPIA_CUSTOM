@@ -6,7 +6,7 @@ import { DECK_PAD, STRIP_R, pt, toClock } from "./geometry"
 
 export function StageLayout({ rail, children }: { rail?: ReactNode; children: ReactNode }) {
     return (
-        <div className="absolute inset-0 flex gap-[4cqw] p-[3cqw] pt-[2.9cqw]">
+        <div className="absolute inset-0 flex gap-[4cqw] p-[3cqw]">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-[1.2cqw]">{children}</div>
             {rail && <aside className="flex w-[27cqw] shrink-0 flex-col gap-[1cqw]">{rail}</aside>}
         </div>
@@ -15,7 +15,7 @@ export function StageLayout({ rail, children }: { rail?: ReactNode; children: Re
 
 export function MainCard({ className = "", children }: { className?: string; children?: ReactNode }) {
     return (
-        <section className={`flex min-h-0 flex-1 flex-col gap-[1.2cqw] overflow-hidden rounded-2xl bg-card p-[1.6cqw] shadow-md ring-1 ring-border ${className}`}>
+        <section className={`flex min-h-0 flex-col gap-[1.2cqw] overflow-hidden rounded-2xl bg-card p-[1.6cqw] shadow-md ring-1 ring-border ${className}`}>
             {children}
         </section>
     )
@@ -26,7 +26,7 @@ export function CardHeader({ left, mid, right }: { left?: ReactNode; mid?: React
         <div className="flex shrink-0 items-start justify-between gap-[1.5cqw]">
             {left}
             {mid && <div className="flex min-w-0 flex-1 items-start justify-center gap-[1.1cqw]">{mid}</div>}
-            {right && <div className="flex shrink-0 items-start gap-[1.6cqw]">{right}</div>}
+            {right && <div className="flex min-w-0 items-start gap-[1.6cqw]">{right}</div>}
         </div>
     )
 }

@@ -16,7 +16,7 @@ export function VeDichChungAOCPlayer({ ctx }: { ctx: VeDichChungPlayerCtx }) {
     if (openQ.deadlineAt) timerRemaining = remaining
     return (
         <PlayerStage
-            rail={<Rail variant="answers" view={v} myId={myId} currentQid={qid || null} />}
+            rail={<Rail view={v} myId={myId} currentQid={qid || null} />}
         >
             <QuestionCard
                 round="Về đích"

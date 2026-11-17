@@ -29,6 +29,9 @@ export interface PlayerMe {
     questionCount?: number
     keywordLocked?: boolean
     eliminated?: boolean
+    openTile?: number | null
+    pickedTiles?: number[]
+    hintVerdicts?: Record<string, string>
     keywordValue?: number | null
     revealedHints?: Array<{ questionId: string; question: PlayerQuestion | null }>
     hintsRevealed?: number
@@ -52,6 +55,7 @@ export interface PlayerView {
     open: Array<{
         questionId: string
         deadlineAt: string | null
+        frozenRemainingMs?: number | null
         question: PlayerQuestion | null
     }>
     table: PlayerScoreRow[]
@@ -71,6 +75,8 @@ export interface PlayerView {
         where: "free" | "pending" | "open" | "taken" | "deferred"
     }>
     keyword?: { questionId: string; question: PlayerQuestion | null } | null
+    keywordCode?: string | null
+    hintAnswers?: Record<string, string> | null
     me: PlayerMe
     publicVerdicts?: Array<{
         questionId: string
@@ -85,6 +91,7 @@ export interface PlayerView {
             name: string
             answer: string | null
             verdict: "CORRECT" | "INCORRECT" | null
+            answeredMs?: number | null
         }>
     }
 }
