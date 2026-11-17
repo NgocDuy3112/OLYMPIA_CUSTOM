@@ -38,9 +38,9 @@ export function NavBar() {
     const list = useTournamentList()
     const tournaments = list.data?.tournaments ?? []
 
-    const slug = pathname.split("/")[2]
-    const currentSlug = tournaments.find((t) => t.current)?.slug
-    const viewingOtherTournament = Boolean(slug) && slug !== currentSlug
+    const tournamentId = pathname.split("/")[2]
+    const currentId = tournaments.find((t) => t.current)?.id
+    const viewingOtherTournament = Boolean(tournamentId) && tournamentId !== currentId
 
     const me = useMe()
     const logout = useLogout()
@@ -51,7 +51,7 @@ export function NavBar() {
 
     const goToMatch = (match: MyMatch) => {
         setEnterOpen(false)
-        navigate(`/s/${match.slug}/matches/${match.matchId}`)
+        navigate(`/tournaments/${match.tournamentId}/matches/${match.matchId}`)
     }
 
     let accountSlot: ReactNode = <span className="ml-auto h-9 w-24 animate-pulse rounded-md bg-muted" />
@@ -148,7 +148,7 @@ export function NavBar() {
                                 return (
                                     <DropdownMenuItem
                                         key={tournament.id}
-                                        onClick={() => navigate(`/s/${tournament.slug}`)}
+                                        onClick={() => navigate(`/tournaments/${tournament.id}`)}
                                     >
                                         <span
                                             className={cn("size-1.5 rounded-full", dotCls)}
@@ -201,7 +201,7 @@ function EnterMatchDialog({ open, onClose, myMatches, goToMatch }: EnterMatchDia
             onSuccess: (match) => {
                 setCode("")
                 onClose()
-                navigate(`/s/${match.slug}/matches/${match.matchId}`)
+                navigate(`/tournaments/${match.tournamentId}/matches/${match.matchId}`)
             },
         })
     }

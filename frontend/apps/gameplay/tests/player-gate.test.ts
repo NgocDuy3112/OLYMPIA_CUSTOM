@@ -39,25 +39,15 @@ describe("lobbyHintOf — why the lobby is showing", () => {
         expect(lobbyHintOf("khoi-dong", "unknown")).toBe("Vòng thi không tồn tại.")
     })
 
-    it("a round end never claims the match ended", () => {
-        expect(lobbyHintOf("ve-dich", "ended")).toBe("Trận đấu sẽ tiếp tục sau một ít thời gian")
-        expect(lobbyHintOf("ve-dich", "ended", "LIVE")).toBe("Trận đấu sẽ tiếp tục sau một ít thời gian")
-        expect(lobbyHintOf("ve-dich", "ended", "UPCOMING")).toBe("Trận đấu sẽ tiếp tục sau một ít thời gian")
-    })
-
-    it("says the MATCH ended only when the lobby says FINISHED", () => {
-        expect(lobbyHintOf("ve-dich", "ended", "FINISHED")).toBe("Trận đấu đã kết thúc.")
-        expect(lobbyHintOf("khoi-dong", "phase1", "FINISHED")).toBe("Trận đấu đã kết thúc.")
-    })
-
-    it("says the round is coming on any running stage", () => {
-        for (const stage of ["phase1", "phase2"]) {
-            expect(lobbyHintOf("khoi-dong", stage)).toBe("Trận đấu sẽ tiếp tục sau một ít thời gian")
+    it("never exposes round pause or end states — the hint stays neutral", () => {
+        for (const stage of ["phase1", "phase2", "ended", "lobby"]) {
+            expect(lobbyHintOf("khoi-dong", stage)).toBe(NOT_LIVE_HINT)
+            expect(lobbyHintOf("ve-dich", stage)).toBe(NOT_LIVE_HINT)
+            expect(lobbyHintOf("ve-dich", stage)).toBe(NOT_LIVE_HINT)
         }
     })
 
-    it("keeps the not-LIVE hint separate from the waiting hint", () => {
+    it("keeps the not-LIVE hint neutral", () => {
         expect(NOT_LIVE_HINT).toBe("Trận đấu sắp sửa diễn ra.")
-        expect(lobbyHintOf("khoi-dong", "phase1")).not.toBe(NOT_LIVE_HINT)
     })
 })

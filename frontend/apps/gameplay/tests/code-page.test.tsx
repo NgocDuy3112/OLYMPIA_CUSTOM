@@ -69,14 +69,14 @@ describe("CodePage — signed in", () => {
     it("seats the player with the code and lands them on the deck", async () => {
         const { fetchMock } = draw({
             ...signedIn,
-            [CLAIM]: { body: { matchId: "m1", slug: "cup", label: "Chung kết" } },
+            [CLAIM]: { body: { matchId: "m1", tournamentId: "t-cup", slug: "cup", label: "Chung kết" } },
         })
 
         await screen.findByText("Nhập mã vào trận")
         await userEvent.type(screen.getByLabelText("Mã phòng"), "ABC234")
         await userEvent.click(screen.getByRole("button", { name: "Vào trận" }))
 
-        await waitFor(() => expect(screen.getByText("landed at /s/cup/matches/m1")).toBeTruthy())
+        await waitFor(() => expect(screen.getByText("landed at /tournaments/t-cup/matches/m1")).toBeTruthy())
         const call = fetchMock.mock.calls.find(([input]) => String(input).includes("/join/claim"))
         expect(JSON.parse(String(call![1]?.body))).toEqual({ code: "ABC234" })
     })

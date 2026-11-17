@@ -51,8 +51,8 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 }
 
 function TournamentLayout() {
-    const { slug } = useParams()
-    const query = useTournament(slug ?? "")
+    const { tournamentId } = useParams()
+    const query = useTournament(tournamentId ?? "")
 
     if (query.isPending) return <LoadingState />
     if (query.error) {
@@ -65,7 +65,7 @@ function TournamentLayout() {
 
 function ScheduleRoute() {
     const { tournament } = useOutletContext<TournamentContext>()
-    const schedule = useSchedule(tournament.slug)
+    const schedule = useSchedule(tournament.id)
 
     const matches = useMemo(
         () => schedule.data?.items.map((row) => toMatch(row, tournament.rounds)) ?? [],
@@ -76,8 +76,8 @@ function ScheduleRoute() {
 
 function StandingsRoute() {
     const { tournament } = useOutletContext<TournamentContext>()
-    const standings = useStandings(tournament.slug)
-    const schedule = useSchedule(tournament.slug)
+    const standings = useStandings(tournament.id)
+    const schedule = useSchedule(tournament.id)
 
     const matches = useMemo(
         () => schedule.data?.items.map((row) => toMatch(row, tournament.rounds)) ?? [],
@@ -97,7 +97,7 @@ function StandingsRoute() {
 function MatchRoute() {
     const { tournament } = useOutletContext<TournamentContext>()
     const { id } = useParams()
-    const schedule = useSchedule(tournament.slug)
+    const schedule = useSchedule(tournament.id)
     const selfCam = useSelfBroadcast(id ?? "")
 
     if (schedule.isPending) return <LoadingState />
@@ -113,7 +113,7 @@ function MatchRoute() {
     )
 }
 
-function CurrentTournamentRedirect({ path }: { path: (slug: string) => string }) {
+function CurrentTournamentRedirect({ path }: { path: (tournamentId: string) => string }) {
     const list = useTournamentList()
 
     if (list.isPending) return <LoadingState />
@@ -123,7 +123,7 @@ function CurrentTournamentRedirect({ path }: { path: (slug: string) => string })
     const current = tournaments.find((t) => t.current) ?? tournaments[tournaments.length - 1]
     if (!current) return <NotFoundPage />
 
-    return <Navigate to={path(current.slug)} replace />
+    return <Navigate to={path(current.id)} replace />
 }
 
 function App() {
@@ -131,13 +131,13 @@ function App() {
         <BrowserRouter>
             <Routes>
                 <Route element={<AppShell />}>
-                    <Route path="/" element={<CurrentTournamentRedirect path={(slug) => `/s/${slug}`} />} />
-                    <Route path="/s/:slug" element={<TournamentLayout />}>
+                    <Route path="/" element={<CurrentTournamentRedirect path={(tournamentId) => `/tournaments/${tournamentId}`} />} />
+                    <Route path="/tournaments/:tournamentId" element={<TournamentLayout />}>
                         <Route index element={<ScheduleRoute />} />
                         <Route path="standings" element={<StandingsRoute />} />
                         <Route path="matches/:id" element={<MatchRoute />} />
                     </Route>
-                    <Route path="/standings" element={<CurrentTournamentRedirect path={(slug) => `/s/${slug}/standings`} />} />
+                    <Route path="/standings" element={<CurrentTournamentRedirect path={(tournamentId) => `/tournaments/${tournamentId}/standings`} />} />
                     <Route path="/privacy" element={<PrivacyPage />} />
                     
                     <Route path="/login" element={<LoginPage />} />

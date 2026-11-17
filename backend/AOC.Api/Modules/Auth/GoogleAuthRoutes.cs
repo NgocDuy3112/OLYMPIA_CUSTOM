@@ -23,7 +23,7 @@ public static class GoogleAuthRoutes
         app.MapGet("/gameplay/auth/methods", (HttpContext http) =>
         {
             var oidc = http.RequestServices.GetRequiredService<GoogleOidcService>();
-            return Results.Json(new { google = oidc.Configured }, JsonApi.Options);
+            return Results.Json(new { google = oidc.Configured, password = true }, JsonApi.Options);
         }).RequireRateLimiting("strict10");
 
         app.MapGet("/gameplay/auth/google", async (HttpContext http) =>

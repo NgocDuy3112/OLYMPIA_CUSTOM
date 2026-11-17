@@ -13,9 +13,69 @@ namespace AOC.Api.Modules.Auth;
 public static class PlayerAccountRoutes
 {
     private const int PasswordMin = 8;
+    private static readonly Regex EmailPattern =
+        new("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", RegexOptions.Compiled);
 
     public static IEndpointRouteBuilder MapPlayerAccountRoutes(this IEndpointRouteBuilder app)
     {
+        app.MapPost("/gameplay/auth/register", async (HttpContext http) =>
+        {
+            var body = Validate.Object(await Validate.ReadJsonBodyAsync(http));
+            var email = Validate.RequiredString(body, "email", maxLength: 256, minLength: 3)
+                .Trim()
+                .ToLowerInvariant();
+            if (!EmailPattern.IsMatch(email))
+                throw ApiException.BadRequest("Email không hợp lệ.");
+            var password = Validate.RequiredString(body, "password", maxLength: 256, minLength: 1);
+            if (password.Length < PasswordMin)
+                throw ApiException.BadRequest($"Mật khẩu cần ít nhất {PasswordMin} ký tự.");
+            var displayName = Validate.OptionalString(body, "displayName", maxLength: 80);
+
+            var db = http.RequestServices.GetRequiredService<AOCDbContext>();
+            var tokens = http.RequestServices.GetRequiredService<SessionTokens>();
+
+            var taken = await db.Users.AnyAsync(u => u.Email != null && u.Email.ToLower() == email);
+            if (taken) throw ApiException.Conflict("Email này đã được dùng — hãy đăng nhập.");
+
+            var name = string.IsNullOrWhiteSpace(displayName) ? email.Split('@')[0] : displayName.Trim();
+            var user = new UserEntity
+            {
+                Role = UserRole.PLAYER,
+                Username = await Usernames.PickUsernameAsync(db, name),
+                Email = email,
+                DisplayName = name,
+                PasswordHash = await PasswordHasher.HashAsync(password)
+            };
+            db.Users.Add(user);
+            await db.SaveChangesAsync();
+
+            Cookies.SetSession(http, Surface.GAMEPLAY, tokens.SignSession(Surface.GAMEPLAY,
+                new SessionTokenPayload(user.Id.ToString(), user.Role.ToString(), user.TokenVersion)));
+            return Results.Json(new { ok = true, displayName = user.DisplayName }, JsonApi.Options);
+        }).RequireRateLimiting("strict10").DisableAntiforgery();
+
+        app.MapPost("/gameplay/auth/login", async (HttpContext http) =>
+        {
+            var body = Validate.Object(await Validate.ReadJsonBodyAsync(http));
+            var email = Validate.RequiredString(body, "email", maxLength: 256, minLength: 1)
+                .Trim()
+                .ToLowerInvariant();
+            var password = Validate.RequiredString(body, "password", maxLength: 256, minLength: 1);
+
+            var db = http.RequestServices.GetRequiredService<AOCDbContext>();
+            var tokens = http.RequestServices.GetRequiredService<SessionTokens>();
+
+            var user = await db.Users.FirstOrDefaultAsync(u =>
+                (u.Email != null && u.Email.ToLower() == email) || u.Username.ToLower() == email);
+            var invalid = () => ApiException.Unauthorized("Email hoặc mật khẩu không đúng.");
+            if (user is null || user.PasswordHash is null) throw invalid();
+            if (!await PasswordHasher.VerifyAsync(user.PasswordHash, password)) throw invalid();
+            if (user.DisabledAt is not null) throw ApiException.Forbidden("Tài khoản đã bị vô hiệu.");
+
+            Cookies.SetSession(http, Surface.GAMEPLAY, tokens.SignSession(Surface.GAMEPLAY,
+                new SessionTokenPayload(user.Id.ToString(), user.Role.ToString(), user.TokenVersion)));
+            return Results.Json(new { ok = true, displayName = user.DisplayName }, JsonApi.Options);
+        }).RequireRateLimiting("strict10").DisableAntiforgery();
 
         app.MapPost("/gameplay/auth/change-password", async (HttpContext http) =>
         {
@@ -66,7 +126,7 @@ public static class PlayerAccountRoutes
             await using var connection = await RawSql.OpenAsync(db);
             await using var command = connection.CreateCommand();
             command.CommandText = """
-                SELECT m.id, m.label, m.status::text, m.scheduled_at, t.slug, t.name
+                SELECT m.id, m.label, m.status::text, m.scheduled_at, t.slug, t.id, t.name
                   FROM matches m
                   JOIN tournaments t ON t.id = m.tournament_id
                  WHERE (m.status = 'UPCOMING' OR m.status = 'LIVE')
@@ -90,7 +150,8 @@ public static class PlayerAccountRoutes
                     status = reader.GetString(2),
                     scheduledAt = reader.GetDateTime(3),
                     slug = reader.GetString(4),
-                    tournamentName = reader.GetString(5)
+                    tournamentId = reader.GetGuid(5).ToString(),
+                    tournamentName = reader.GetString(6)
                 });
             }
 

@@ -97,7 +97,7 @@ public sealed class MatchCodesService(AOCDbContext db)
         ).ToListAsync();
     }
 
-    public sealed record ClaimResult(Guid MatchId, string Slug, string Label);
+    public sealed record ClaimResult(Guid MatchId, string TournamentId, string Slug, string Label);
 
     public async Task<ClaimResult> ClaimSeatAsync(string userId, string rawCode)
     {
@@ -136,7 +136,7 @@ public sealed class MatchCodesService(AOCDbContext db)
         var seats = locked.PlayersList;
         var uid = Guid.Parse(userId);
         if (MatchSeats.IsSeatedInMatch(seats, uid))
-            return new ClaimResult(matchId, tournament.Slug, match.Label);
+            return new ClaimResult(matchId, tournament.Id.ToString(), tournament.Slug, match.Label);
 
         if (seats.Count >= capacity)
             throw new CodeError(CodeErrorCode.CONFLICT,
@@ -149,7 +149,7 @@ public sealed class MatchCodesService(AOCDbContext db)
         locked.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 
-        return new ClaimResult(matchId, tournament.Slug, match.Label);
+        return new ClaimResult(matchId, tournament.Id.ToString(), tournament.Slug, match.Label);
     }
 }
 

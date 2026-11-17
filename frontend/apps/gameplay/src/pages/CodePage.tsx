@@ -28,7 +28,7 @@ export function CodePage() {
         claim.mutate(typed, {
             onSuccess: (match) => {
                 setCode("")
-                navigate(`/s/${match.slug}/matches/${match.matchId}`)
+                navigate(`/tournaments/${match.tournamentId}/matches/${match.matchId}`)
             },
         })
     }

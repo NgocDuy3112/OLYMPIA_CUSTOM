@@ -1,5 +1,5 @@
-import type { ReactNode } from "react"
-import { Link, useSearchParams } from "react-router-dom"
+import { useState, type FormEvent, type ReactNode } from "react"
+import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { buttonVariants } from "@shared/ui/button"
 import {
     Card,
@@ -9,7 +9,7 @@ import {
     CardHeader,
     CardTitle,
 } from "@shared/ui/card"
-import { googleLoginLink, useAuthMethods } from "@/lib/session"
+import { googleLoginLink, useAuthMethods, usePasswordLogin, usePasswordRegister } from "@/lib/session"
 import { cn } from "cn"
 
 function safeNext(raw: string | null): string {
@@ -33,22 +33,64 @@ function GoogleMark() {
     )
 }
 
+type Mode = "login" | "register"
+
 export function LoginPage() {
     const [params] = useSearchParams()
+    const navigate = useNavigate()
     const methods = useAuthMethods()
+    const login = usePasswordLogin()
+    const register = usePasswordRegister()
 
     const next = safeNext(params.get("next"))
     const notice = params.get("notice")
     const googleOff = notice === "google-off" || methods.data?.google === false
 
-    let authSlot: ReactNode = (
-        <div
-            role="status"
-            aria-label="Đang tải"
-            className="h-9 w-full animate-pulse rounded-lg bg-muted"
-        />
-    )
-    if (methods.data) {
+    const [mode, setMode] = useState<Mode>("login")
+    const [email, setEmail] = useState("")
+    const [password, setPassword] = useState("")
+    const [displayName, setDisplayName] = useState("")
+
+    const busy = login.isPending || register.isPending
+    const error = login.error ?? register.error
+    let errorText: string | null = null
+    if (error instanceof Error) errorText = error.message
+
+    const submit = (event: FormEvent) => {
+        event.preventDefault()
+        if (busy) return
+        if (mode === "login") {
+            login.mutate(
+                { email, password },
+                {
+                    onSuccess: (result) => {
+                        if (result.mustChangePassword) {
+                            navigate(`/password?next=${encodeURIComponent(next)}`)
+                            return
+                        }
+                        navigate(next)
+                    },
+                },
+            )
+            return
+        }
+        register.mutate(
+            { email, password, displayName: displayName || undefined },
+            { onSuccess: () => navigate(next) },
+        )
+    }
+
+    let authSlot: ReactNode = null
+    if (methods.isPending) {
+        authSlot = (
+            <div
+                role="status"
+                aria-label="Đang tải"
+                className="h-9 w-full animate-pulse rounded-lg bg-muted"
+            />
+        )
+    }
+    else if (!googleOff) {
         authSlot = (
             <a
                 href={googleLoginLink(next)}
@@ -59,13 +101,9 @@ export function LoginPage() {
             </a>
         )
     }
-    if (googleOff) {
-        authSlot = (
-            <p role="alert" className="text-center font-sans text-sm text-amber-700">
-                Đăng nhập Google chưa được cấu hình — liên hệ ban điều hành để vào trận.
-            </p>
-        )
-    }
+
+    const inputClass =
+        "h-10 w-full rounded-lg border border-input bg-background px-3 font-sans text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
 
     return (
         <div className="mx-auto flex w-full max-w-96 flex-col gap-4 px-4 py-12">
@@ -75,18 +113,97 @@ export function LoginPage() {
                         Đăng nhập
                     </CardTitle>
                     <CardDescription>
-                        Cổng vào trận của thí sinh — dùng đúng tài khoản Google ban điều hành đã ghi
-                        danh.
+                        Cổng vào trận của thí sinh — dùng email và mật khẩu của bạn.
                     </CardDescription>
                 </CardHeader>
 
                 <CardContent className="flex flex-col gap-3">
                     {authSlot}
+                    {!googleOff && methods.data && (
+                        <div className="flex items-center gap-3 font-sans text-xs uppercase tracking-wide text-muted-foreground">
+                            <span className="h-px flex-1 bg-border" />
+                            <span>hoặc</span>
+                            <span className="h-px flex-1 bg-border" />
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+                        <button
+                            type="button"
+                            onClick={() => setMode("login")}
+                            className={cn(
+                                "rounded-md px-2 py-1.5 font-sans text-sm font-semibold transition",
+                                mode === "login"
+                                    ? "bg-background text-foreground shadow-sm"
+                                    : "text-muted-foreground",
+                            )}
+                        >
+                            Đăng nhập
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setMode("register")}
+                            className={cn(
+                                "rounded-md px-2 py-1.5 font-sans text-sm font-semibold transition",
+                                mode === "register"
+                                    ? "bg-background text-foreground shadow-sm"
+                                    : "text-muted-foreground",
+                            )}
+                        >
+                            Đăng ký
+                        </button>
+                    </div>
+
+                    <form className="flex flex-col gap-2" onSubmit={submit}>
+                        {mode === "register" && (
+                            <input
+                                type="text"
+                                value={displayName}
+                                onChange={(event) => setDisplayName(event.target.value)}
+                                placeholder="Tên hiển thị (không bắt buộc)"
+                                className={inputClass}
+                                aria-label="Tên hiển thị"
+                                maxLength={80}
+                            />
+                        )}
+                        <input
+                            type="email"
+                            required
+                            value={email}
+                            onChange={(event) => setEmail(event.target.value)}
+                            placeholder="Email"
+                            className={inputClass}
+                            aria-label="Email"
+                            autoComplete="email"
+                        />
+                        <input
+                            type="password"
+                            required
+                            minLength={8}
+                            value={password}
+                            onChange={(event) => setPassword(event.target.value)}
+                            placeholder={mode === "register" ? "Mật khẩu (tối thiểu 8 ký tự)" : "Mật khẩu"}
+                            className={inputClass}
+                            aria-label="Mật khẩu"
+                            autoComplete={mode === "register" ? "new-password" : "current-password"}
+                        />
+                        {errorText && (
+                            <p role="alert" className="font-sans text-sm font-medium text-destructive">
+                                {errorText}
+                            </p>
+                        )}
+                        <button
+                            type="submit"
+                            disabled={busy}
+                            className={cn(buttonVariants({ size: "lg" }), "h-10 w-full disabled:opacity-60")}
+                        >
+                            {busy ? "…" : mode === "login" ? "Vào trận" : "Tạo tài khoản"}
+                        </button>
+                    </form>
                 </CardContent>
 
                 <CardFooter className="flex-col gap-1 text-center font-sans text-sm text-muted-foreground">
-                    <span>Chưa có tài khoản?</span>
-                    <span>Liên hệ ban điều hành để được ghi danh giải.</span>
+                    <span>Vào trận bằng mã mời sau khi đăng nhập.</span>
                 </CardFooter>
             </Card>
 

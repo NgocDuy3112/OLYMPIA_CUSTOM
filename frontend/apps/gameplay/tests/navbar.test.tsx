@@ -51,7 +51,7 @@ const noTournaments = { [Tournaments]: { body: { tournaments: [] } } }
 const oneMatch = {
     [MATCHES]: {
         body: {
-            items: [{ matchId: "m1", label: "Chung kết", status: "LIVE", scheduledAt: "", slug: "cup", tournamentName: "Cúp A" }],
+            items: [{ matchId: "m1", label: "Chung kết", status: "LIVE", scheduledAt: "", tournamentId: "t-cup", slug: "cup", tournamentName: "Cúp A" }],
         },
     },
 }
@@ -85,7 +85,7 @@ describe("NavBar — signed in", () => {
         await userEvent.click(screen.getByRole("button", { name: "Vào trận" }))
         const dialog = await screen.findByRole("dialog")
         await userEvent.click(within(dialog).getByRole("button", { name: /Chung kết/ }))
-        await waitFor(() => expect(screen.getByText("landed at /s/cup/matches/m1")).toBeTruthy())
+        await waitFor(() => expect(screen.getByText("landed at /tournaments/t-cup/matches/m1")).toBeTruthy())
     })
 
     it("no seat → the dialog is just the code box, not a dead navigation", async () => {
@@ -105,8 +105,8 @@ describe("NavBar — signed in", () => {
             [MATCHES]: {
                 body: {
                     items: [
-                        { matchId: "m2", label: "Bán kết", status: "UPCOMING", scheduledAt: "", slug: "cup", tournamentName: "Cúp A" },
-                        { matchId: "m1", label: "Chung kết", status: "LIVE", scheduledAt: "", slug: "cup", tournamentName: "Cúp A" },
+                        { matchId: "m2", label: "Bán kết", status: "UPCOMING", scheduledAt: "", tournamentId: "t-cup", slug: "cup", tournamentName: "Cúp A" },
+                        { matchId: "m1", label: "Chung kết", status: "LIVE", scheduledAt: "", tournamentId: "t-cup", slug: "cup", tournamentName: "Cúp A" },
                     ],
                 },
             },
@@ -117,7 +117,7 @@ describe("NavBar — signed in", () => {
         const dialog = await screen.findByRole("dialog")
 
         await userEvent.click(within(dialog).getByRole("button", { name: /Chung kết/ }))
-        await waitFor(() => expect(screen.getByText("landed at /s/cup/matches/m1")).toBeTruthy())
+        await waitFor(() => expect(screen.getByText("landed at /tournaments/t-cup/matches/m1")).toBeTruthy())
     })
 
     it("an unreadable seat list is an answer, not a silent failure", async () => {

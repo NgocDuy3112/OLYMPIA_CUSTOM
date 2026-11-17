@@ -38,6 +38,7 @@ export function googleLoginLink(next?: string): string {
 
 interface AuthMethods {
     google: boolean
+    password: boolean
 }
 
 export function useAuthMethods() {
@@ -55,6 +56,34 @@ export function useLogout() {
         mutationFn: () => api<{ ok: true }>("/gameplay/auth/logout", { method: "POST" }),
         onSuccess: () => {
             queryClient.setQueryData(ME_QUERY_KEY, null)
+        },
+    })
+}
+
+export function usePasswordLogin() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: (input: { email: string; password: string }) =>
+            api<{ ok: true; displayName: string; mustChangePassword?: boolean }>(
+                "/gameplay/auth/login",
+                { method: "POST", body: JSON.stringify(input) }
+            ),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ME_QUERY_KEY })
+        },
+    })
+}
+
+export function usePasswordRegister() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: (input: { email: string; password: string; displayName?: string }) =>
+            api<{ ok: true; displayName: string }>(
+                "/gameplay/auth/register",
+                { method: "POST", body: JSON.stringify(input) }
+            ),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ME_QUERY_KEY })
         },
     })
 }
@@ -79,6 +108,7 @@ export interface MyMatch {
     status: "UPCOMING" | "LIVE" | "FINISHED"
     scheduledAt: string
     slug: string
+    tournamentId: string
     tournamentName: string
 }
 
@@ -86,7 +116,7 @@ export function useClaimCode() {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: (code: string) =>
-            api<{ matchId: string; slug: string; label: string }>("/gameplay/join/claim", {
+            api<{ matchId: string; tournamentId: string; slug: string; label: string }>("/gameplay/join/claim", {
                 method: "POST",
                 body: JSON.stringify({ code }),
             }),

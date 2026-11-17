@@ -60,7 +60,7 @@ export function SchedulePage({
     const openMatchById = (id: string) => {
         const found = matches.find((m) => m.id === id)
         if (found?.status === "LIVE") {
-            navigate(`/s/${tournament.slug}/matches/${id}`)
+            navigate(`/tournaments/${tournament.id}/matches/${id}`)
             return
         }
         setSearchParams((prev) => {
@@ -106,7 +106,7 @@ export function SchedulePage({
                         <MatchCard
                             match={liveMatch}
                             featured
-                            onOpen={() => navigate(`/s/${tournament.slug}/matches/${liveMatch.id}`)}
+                            onOpen={() => navigate(`/tournaments/${tournament.id}/matches/${liveMatch.id}`)}
                         />
                     </div>
                 )}

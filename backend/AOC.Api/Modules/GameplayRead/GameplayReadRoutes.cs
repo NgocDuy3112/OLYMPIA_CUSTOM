@@ -131,12 +131,16 @@ public static class Present
 
 public sealed class GameplayReadService(AOCDbContext db, MatchesService matches, StandingsService standings)
 {
-    public async Task<TournamentEntity> RequirePublicTournamentBySlugAsync(string slug)
+    public async Task<TournamentEntity> RequirePublicTournamentBySlugAsync(string token)
     {
-        var row = await db.Tournaments.AsNoTracking().FirstOrDefaultAsync(t =>
-            t.Slug == slug && t.Visibility == Visibility.PUBLIC && t.DeletedAt == null);
+        var byId = Guid.TryParse(token, out var id);
+        var row = byId
+            ? await db.Tournaments.AsNoTracking().FirstOrDefaultAsync(t =>
+                t.Id == id && t.Visibility == Visibility.PUBLIC && t.DeletedAt == null)
+            : await db.Tournaments.AsNoTracking().FirstOrDefaultAsync(t =>
+                t.Slug == token && t.Visibility == Visibility.PUBLIC && t.DeletedAt == null);
         if (row is null)
-            throw new TournamentError(TournamentErrorCode.NOT_FOUND, $"tournament {slug} not found");
+            throw new TournamentError(TournamentErrorCode.NOT_FOUND, $"tournament {token} not found");
         return row;
     }
 
@@ -224,7 +228,7 @@ public static class GameplayReadRoutes
         app.MapGet("/gameplay/tournaments/{slug}", async (HttpContext http) =>
         {
             var slug = Validate.RouteString(http, "slug");
-            if (!Regex.IsMatch(slug, "^[a-z0-9-]{1,100}$"))
+            if (!Regex.IsMatch(slug, "^[a-z0-9-]{1,100}$") && !Guid.TryParse(slug, out _))
                 throw ApiException.BadRequest("slug must match pattern");
             var service = http.RequestServices.GetRequiredService<GameplayReadService>();
             return Results.Json(await service.PublicTournamentAsync(slug), JsonApi.Options);
@@ -233,7 +237,7 @@ public static class GameplayReadRoutes
         app.MapGet("/gameplay/tournaments/{slug}/matches", async (HttpContext http) =>
         {
             var slug = Validate.RouteString(http, "slug");
-            if (!Regex.IsMatch(slug, "^[a-z0-9-]{1,100}$"))
+            if (!Regex.IsMatch(slug, "^[a-z0-9-]{1,100}$") && !Guid.TryParse(slug, out _))
                 throw ApiException.BadRequest("slug must match pattern");
             var service = http.RequestServices.GetRequiredService<GameplayReadService>();
             var page = Pagination.ParsePage(Validate.Query(http));
@@ -243,7 +247,7 @@ public static class GameplayReadRoutes
         app.MapGet("/gameplay/tournaments/{slug}/standings", async (HttpContext http) =>
         {
             var slug = Validate.RouteString(http, "slug");
-            if (!Regex.IsMatch(slug, "^[a-z0-9-]{1,100}$"))
+            if (!Regex.IsMatch(slug, "^[a-z0-9-]{1,100}$") && !Guid.TryParse(slug, out _))
                 throw ApiException.BadRequest("slug must match pattern");
             var service = http.RequestServices.GetRequiredService<GameplayReadService>();
             return Results.Json(await service.PublicStandingsAsync(slug), JsonApi.Options);

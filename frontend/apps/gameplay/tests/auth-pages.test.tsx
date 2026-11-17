@@ -52,16 +52,62 @@ const signedIn = { [ME]: { body: { id: "u1", displayName: "Ngọc Duy", username
 const signedOut = { [ME]: { status: 401, body: { message: "no session" } } }
 
 describe("LoginPage", () => {
-    const GOOGLE = { [METHODS]: { body: { google: true } } }
+    const GOOGLE = { [METHODS]: { body: { google: true, password: true } } }
     const googleDoor = () => screen.findByRole("link", { name: "Đăng nhập bằng Google" })
 
-    it("offers Google as the only way in — no handle, no password field", async () => {
+    it("offers Google next to the email/password form", async () => {
         draw(GOOGLE)
 
         await googleDoor()
         expect(screen.queryByLabelText("Tên đăng nhập")).toBeNull()
-        expect(screen.queryByLabelText("Mật khẩu")).toBeNull()
-        expect(screen.queryByRole("button", { name: "Đăng nhập" })).toBeNull()
+        expect(screen.getByLabelText("Email")).toBeTruthy()
+        expect(screen.getByLabelText("Mật khẩu")).toBeTruthy()
+    })
+
+    it("registers with email + password and lands on next", async () => {
+        const routes = {
+            ...GOOGLE,
+            "POST /gameplay/auth/register": { body: { ok: true, displayName: "An" } },
+        }
+        draw(routes, "/login?next=%2Fcode")
+
+        await googleDoor()
+        await userEvent.click(screen.getByRole("button", { name: "Đăng ký" }))
+        await userEvent.type(screen.getByLabelText("Email"), "an@example.com")
+        await userEvent.type(screen.getByLabelText("Mật khẩu"), "mat-khau-2026")
+        await userEvent.click(screen.getByRole("button", { name: "Tạo tài khoản" }))
+
+        await waitFor(() => expect(screen.getByText("landed at /code")).toBeTruthy())
+    })
+
+    it("logs in with email + password and lands on next", async () => {
+        const routes = {
+            ...GOOGLE,
+            "POST /gameplay/auth/login": { body: { ok: true, displayName: "An" } },
+        }
+        draw(routes, "/login?next=%2Fcode")
+
+        await googleDoor()
+        await userEvent.type(screen.getByLabelText("Email"), "an@example.com")
+        await userEvent.type(screen.getByLabelText("Mật khẩu"), "mat-khau-2026")
+        await userEvent.click(screen.getByRole("button", { name: "Vào trận" }))
+
+        await waitFor(() => expect(screen.getByText("landed at /code")).toBeTruthy())
+    })
+
+    it("keeps the server's refusal on the form", async () => {
+        const routes = {
+            ...GOOGLE,
+            "POST /gameplay/auth/login": { body: { message: "Email hoặc mật khẩu không đúng." }, status: 401 },
+        }
+        draw(routes)
+
+        await googleDoor()
+        await userEvent.type(screen.getByLabelText("Email"), "an@example.com")
+        await userEvent.type(screen.getByLabelText("Mật khẩu"), "sai-mat-khau")
+        await userEvent.click(screen.getByRole("button", { name: "Vào trận" }))
+
+        expect(await screen.findByRole("alert")).toHaveTextContent(/không đúng/)
     })
 
     it("carries ?next= into the Google redirect", async () => {
@@ -77,15 +123,11 @@ describe("LoginPage", () => {
         expect(decodeURIComponent(href.split("next=")[1])).toBe("/")
     })
 
-    it("explains a Google link that could not start", async () => {
+    it("still offers the email form when Google is off", async () => {
         draw({}, "/login?notice=google-off")
-        expect(await screen.findByText(/chưa được cấu hình/)).toBeTruthy()
-    })
-
-    it("says so plainly when the server has Google switched off", async () => {
-        draw({ [METHODS]: { body: { google: false } } })
-        expect(await screen.findByText(/chưa được cấu hình/)).toBeTruthy()
+        expect(await screen.findByLabelText("Email")).toBeTruthy()
         expect(screen.queryByRole("link", { name: "Đăng nhập bằng Google" })).toBeNull()
+        expect(screen.queryByText(/chưa được cấu hình/)).toBeNull()
     })
 })
 describe("ChangePasswordPage — where the desk's password ends", () => {
@@ -112,14 +154,14 @@ describe("ChangePasswordPage — where the desk's password ends", () => {
 
     it("saves the player's own password and goes back to where the gate found them", async () => {
         draw({ ...signedIn, [CHANGE]: { body: { ok: true, displayName: "Ngọc Duy" } } },
-            "/password?next=%2Fs%2Fcup%2Fmatches%2Fm1")
+            "/password?next=%2Ftournaments%2Ft-cup%2Fmatches%2Fm1")
 
         await userEvent.type(screen.getByLabelText("Mật khẩu ban điều hành cấp"), "mat-khau-ban-2026")
         await userEvent.type(screen.getByLabelText("Mật khẩu mới"), "mat-khau-moi-123")
         await userEvent.type(screen.getByLabelText("Nhập lại mật khẩu mới"), "mat-khau-moi-123")
         await userEvent.click(screen.getByRole("button", { name: "Đặt mật khẩu" }))
 
-        await waitFor(() => expect(screen.getByText("landed at /s/cup/matches/m1")).toBeTruthy())
+        await waitFor(() => expect(screen.getByText("landed at /tournaments/t-cup/matches/m1")).toBeTruthy())
     })
 
     it("keeps the SERVER's refusal to the current password on the form", async () => {
