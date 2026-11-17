@@ -11,15 +11,15 @@ public sealed record ScoreRow(string Id, string DisplayName, int Points);
 
 public sealed record RankedScore(string Id, string DisplayName, int Points, int Rank);
 
-public sealed record SubmittedAnswerRow(string QuestionId, bool Judged, Verdict? Verdict);
+public sealed record SubmittedAnswerRow(string QuestionId, bool Judged, Verdict? Verdict, int? AnsweredMs = null, Verdict? Suggestion = null);
 
 public sealed record JudgedRow(string QuestionId, string UserId, Verdict? Verdict, int? AnsweredMs = null);
 
-public sealed record RevealedAnswerRow(string UserId, AnswerValue Value, Verdict? Verdict);
+public sealed record RevealedAnswerRow(string UserId, AnswerValue Value, Verdict? Verdict, int? AnsweredMs = null);
 
 public static class LiveView
 {
-    private static readonly string[] PublishesVerdicts = ["khoi-dong", "but-pha", "ve-dich"];
+    private static readonly string[] PublishesVerdicts = ["khoi-dong", "but-pha", "ve-dich", "giai-ma"];
 
     public sealed record ViewInput(
         string MatchId,
@@ -107,17 +107,28 @@ public static class LiveView
         var windowOpen = state.OpenHint is not null && state.OpenHintAt is not null
             && GiaiMaTurn.IsWindowOpen(state, input.Now);
         var open = new List<object?>();
+        var hintsLocked = state.OpenHintLocked;
+        var openHintContent = QuestionOf(input, state.OpenHint!);
+        if (hintsLocked && !string.IsNullOrEmpty(input.UserId))
+        {
+            var row = input.Submitted.FirstOrDefault(s => s.QuestionId == state.OpenHint);
+            var hintVerdict = row is null ? null : (row.Judged ? row.Verdict : row.Suggestion) ?? row.Verdict;
+            if (hintVerdict != Verdict.CORRECT) openHintContent = null;
+        }
+
         if (state.OpenHint is not null)
         {
             open.Add(new Dictionary<string, object?>
             {
                 ["questionId"] = state.OpenHint,
                 ["deadlineAt"] = windowOpen ? PlusSeconds(state.OpenHintAt!, 15) : null,
-                ["question"] = QuestionOf(input, state.OpenHint!)
+                ["question"] = openHintContent
             });
         }
 
         var keywordQuestion = (input.Questions ?? []).FirstOrDefault(q => q.Kind == QuestionKind.KEYWORD);
+        var keywordRevealed = state.RevealedAnswer is not null && keywordQuestion is not null
+            && state.RevealedAnswer == keywordQuestion.Id;
 
         string answerState = "none";
         if (open.Count > 0)
@@ -126,9 +137,23 @@ public static class LiveView
             answerState = StateOf(input.Submitted, openQuestionId);
         }
 
+        var hintTiles = (input.Questions ?? [])
+            .Where(q => q.Kind == QuestionKind.HINT)
+            .OrderBy(q => q.Position)
+            .Select((q, index) => new { q.Id, Tile = index })
+            .ToDictionary(x => x.Id, x => x.Tile);
+        var openTile = state.OpenHint is not null && hintTiles.TryGetValue(state.OpenHint, out var tile)
+            ? tile
+            : (int?) null;
+
         var me = new Dictionary<string, object?>
         {
             ["verdicts"] = VerdictsOf(input.Submitted),
+            ["openTile"] = openTile,
+            ["pickedTiles"] = state.Picked
+                .Where(p => hintTiles.ContainsKey(p))
+                .Select(p => hintTiles[p])
+                .ToList(),
             ["keywordLocked"] = player?.KeywordLocked ?? false,
             ["eliminated"] = player?.Eliminated ?? false,
             ["keywordValue"] = player is null ? null : GiaiMaTurn.KeywordValueFor(state, input.UserId),
@@ -155,6 +180,30 @@ public static class LiveView
                 ["question"] = QuestionView.Sanitize(keywordQuestion)
             };
         }
+        if (keywordRevealed && keywordQuestion!.Payload is QuestionPayload.Keyword keywordPayload)
+        {
+            view["keywordCode"] = keywordPayload.Code;
+        }
+        var hintAnswers = new Dictionary<string, object?>();
+        var hintVerdicts = new Dictionary<string, object?>();
+        var consoleView = string.IsNullOrEmpty(input.UserId);
+        foreach (var pair in hintTiles)
+        {
+            if (state.Picked.Contains(pair.Key) is false) continue;
+            var row = consoleView
+                ? null
+                : input.Submitted.FirstOrDefault(s => s.QuestionId == pair.Key);
+            var verdict = row is null ? null : (row.Judged ? row.Verdict : row.Suggestion) ?? row.Verdict;
+            hintVerdicts[$"{pair.Value}"] = verdict?.ToString();
+            var show = consoleView || verdict == Verdict.CORRECT || keywordRevealed;
+            var question = (input.Questions ?? []).FirstOrDefault(q => q.Id == pair.Key);
+            if (show && question?.Payload is QuestionPayload.Text textPayload && textPayload.AcceptedAnswers.Count > 0)
+                hintAnswers[$"{pair.Value}"] = textPayload.AcceptedAnswers[0];
+        }
+        if (hintAnswers.Count > 0) view["hintAnswers"] = hintAnswers;
+
+        var meHintVerdicts = new Dictionary<string, object?>(hintVerdicts);
+        me["hintVerdicts"] = meHintVerdicts;
         return view;
     }
 
@@ -257,6 +306,7 @@ public static class LiveView
                 ["question"] = QuestionOf(input, qid)
             });
         }
+        // with Index = -1 nothing is picked yet: qid is null, so no question leaks
 
         var p2me = new Dictionary<string, object?>
         {
@@ -275,7 +325,7 @@ public static class LiveView
     private static string? VeDichDeadline(VeDichState state, OpenQuestion open)
     {
         if (open.Stage == "buzz" && state.BuzzOpenedAt is not null)
-            return PlusSeconds(state.BuzzOpenedAt, state.Rules.BuzzWindowS);
+            return PlusSeconds(state.BuzzOpenedAt, VeDichTurn.BuzzWindowSeconds(state));
         if (open.Stage == "current" && open.OpenedAt is not null)
         {
             var seconds = RoundRules.VeDichClockSeconds(state.Rules, open.Question.Value);
@@ -292,10 +342,19 @@ public static class LiveView
         var openList = new List<object?>();
         if (open is not null)
         {
+            var frozenRemainingMs = open.Stage == "buzz"
+                && open.Buzzer is not null
+                && state.BuzzOpenedAt is not null
+                ? Math.Max(0,
+                    VeDichTurn.BuzzWindowSeconds(state) * 1000
+                    - (DateTimeOffset.Parse(input.Now).ToUnixTimeMilliseconds()
+                        - DateTimeOffset.Parse(state.BuzzOpenedAt).ToUnixTimeMilliseconds()))
+                : (long?) null;
             openList.Add(new Dictionary<string, object?>
             {
                 ["questionId"] = open.Question.Id,
-                ["deadlineAt"] = VeDichDeadline(state, open),
+                ["deadlineAt"] = frozenRemainingMs is null ? VeDichDeadline(state, open) : null,
+                ["frozenRemainingMs"] = frozenRemainingMs,
                 ["question"] = open.Revealed || input.RevealAll
                     ? QuestionOf(input, open.Question.Id)
                     : null
@@ -463,7 +522,8 @@ public static class LiveView
                 ["userId"] = row.UserId,
                 ["name"] = name,
                 ["answer"] = QuestionView.AnswerRowDisplay(row.Value, question),
-                ["verdict"] = row.Verdict?.ToString()
+                ["verdict"] = row.Verdict?.ToString(),
+                ["answeredMs"] = row.AnsweredMs
             });
         }
         if (contestants.Count == 0) return view;
@@ -478,8 +538,22 @@ public static class LiveView
 
 public static class LiveFacts
 {
+    public static JsonElement WaitingMarker() =>
+        JsonSerializer.SerializeToElement(new { waiting = true }, JsonApiOptions.Options);
+
+    public static bool IsWaitingState(JsonElement raw)
+    {
+        if (raw.ValueKind != JsonValueKind.Object) return false;
+        foreach (var prop in raw.EnumerateObject())
+        {
+            if (prop.Name == "waiting") return prop.Value.ValueKind == JsonValueKind.True;
+        }
+        return false;
+    }
+
     public static bool IsRoundEnded(string roundId, JsonElement raw)
     {
+        if (IsWaitingState(raw)) return false;
         if (raw.ValueKind != JsonValueKind.Object || !raw.EnumerateObject().Any()) return false;
         return roundId switch
         {
@@ -493,6 +567,7 @@ public static class LiveFacts
 
     public static Dictionary<string, object?>? ConsoleFacts(string roundId, JsonElement raw, string now)
     {
+        if (IsWaitingState(raw)) return null;
         if (raw.ValueKind != JsonValueKind.Object || !raw.EnumerateObject().Any()) return null;
 
         switch (roundId)
@@ -506,6 +581,7 @@ public static class LiveFacts
                     ["hintsPicked"] = state.Picked,
                     ["openHintId"] = state.OpenHint,
                     ["windowOpen"] = GiaiMaTurn.IsWindowOpen(state, now),
+                    ["hintsLocked"] = state.OpenHintLocked && state.OpenHint is not null,
                     ["players"] = state.Players.Select(p => (object)new Dictionary<string, object?>
                     {
                         ["id"] = p.Id,

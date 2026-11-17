@@ -19,6 +19,11 @@ public abstract record LiveAction
         public override string Kind => "giai-ma.openHint";
     }
 
+    public sealed record GiaiMaLockHints : LiveAction
+    {
+        public override string Kind => "giai-ma.lockHints";
+    }
+
     public sealed record GiaiMaStartWindow : LiveAction
     {
         public override string Kind => "giai-ma.startWindow";
@@ -199,6 +204,21 @@ public abstract record LiveAction
         public override string Kind => "ve-dich.pickRound";
     }
 
+    public sealed record VeDichOpenPending(string QuestionId) : LiveAction
+    {
+        public override string Kind => "ve-dich.openPending";
+    }
+
+    public sealed record VeDichSwitchQuestion(string QuestionId) : LiveAction
+    {
+        public override string Kind => "ve-dich.switchQuestion";
+    }
+
+    public sealed record VeDichCloseQuestion : LiveAction
+    {
+        public override string Kind => "ve-dich.closeQuestion";
+    }
+
     public sealed record VeDichNextQuestion : LiveAction
     {
         public override string Kind => "ve-dich.nextQuestion";
@@ -227,6 +247,11 @@ public abstract record LiveAction
     public sealed record RoundGoTo(string RoundId) : LiveAction
     {
         public override string Kind => "round.goTo";
+    }
+
+    public sealed record RoundWaiting() : LiveAction
+    {
+        public override string Kind => "round.waiting";
     }
 
     public sealed record RevealAnswer(string QuestionId) : LiveAction
@@ -327,6 +352,7 @@ public sealed class LiveActionConverter : JsonConverter<LiveAction>
         {
             "giai-ma.start" => new LiveAction.GiaiMaStart(StrList("playerIds"), StrList("hintIds")),
             "giai-ma.openHint" => new LiveAction.GiaiMaOpenHint(Str("hintId")),
+            "giai-ma.lockHints" => new LiveAction.GiaiMaLockHints(),
             "giai-ma.startWindow" => new LiveAction.GiaiMaStartWindow(),
             "giai-ma.closeHintWindow" => new LiveAction.GiaiMaCloseHintWindow(),
             "giai-ma.resolveHint" => new LiveAction.GiaiMaResolveHint(VerdictList("verdicts")),
@@ -373,6 +399,9 @@ public sealed class LiveActionConverter : JsonConverter<LiveAction>
             "ve-dich.pick" => new LiveAction.VeDichPick(Str("playerId"), Str("questionId")),
             "ve-dich.pickBatch" => new LiveAction.VeDichPickBatch(Str("playerId"), StrList("questionIds")),
             "ve-dich.pickRound" => new LiveAction.VeDichPickRound(StrList("questionIds")),
+            "ve-dich.openPending" => new LiveAction.VeDichOpenPending(Str("questionId")),
+            "ve-dich.switchQuestion" => new LiveAction.VeDichSwitchQuestion(Str("questionId")),
+            "ve-dich.closeQuestion" => new LiveAction.VeDichCloseQuestion(),
             "ve-dich.nextQuestion" => new LiveAction.VeDichNextQuestion(),
             "ve-dich.clearPicks" => new LiveAction.VeDichClearPicks(),
             "ve-dich.judge" => new LiveAction.VeDichJudge(Str("playerId"), Bool("correct")),
@@ -385,6 +414,7 @@ public sealed class LiveActionConverter : JsonConverter<LiveAction>
             "ve-dich.buzz" => new LiveAction.VeDichBuzz(Str("playerId")),
 
             "round.goTo" => new LiveAction.RoundGoTo(Str("roundId")),
+            "round.waiting" => new LiveAction.RoundWaiting(),
             "reveal.answer" => new LiveAction.RevealAnswer(Str("questionId")),
             "score.adjust" => new LiveAction.ScoreAdjust(Str("userId"), Int("delta"), Str("reason")),
 

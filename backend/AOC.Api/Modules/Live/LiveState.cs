@@ -1,14 +1,30 @@
 using System.Text.Json;
 using AOC.Api.Http;
+using AOC.Infrastructure.Data;
 using AOC.Domain.Engine.Turns;
 
 namespace AOC.Api.Modules.Live;
 
 public static class LiveState
 {
+    private static bool IsWaitingMarker(JsonElement raw)
+    {
+        if (raw.ValueKind != JsonValueKind.Object) return false;
+        foreach (var prop in raw.EnumerateObject())
+        {
+            if (prop.Name == "waiting") return prop.Value.ValueKind == JsonValueKind.True;
+        }
+        return false;
+    }
+
     private static T Parse<T>(JsonElement raw, Action<JsonElement, List<string>> validate)
     {
         var details = new List<string>();
+        if (IsWaitingMarker(raw))
+        {
+            // the round is paused (controller back at the lobby) — deserialize defaults
+            return JsonSerializer.Deserialize<T>(JsonDefaults.EmptyObject, JsonApi.Options)!;
+        }
         if (raw.ValueKind != JsonValueKind.Object)
             details.Add("<root>: expected object");
         else
@@ -158,7 +174,10 @@ public static class LiveState
                         details.Add($"phase2.results.{prop.Name}: expected object");
                     else
                         foreach (var inner in prop.Value.EnumerateObject())
-                            StateGuard.RequireInteger(inner.Value, inner.Name, details, "phase2.results");
+                        {
+                            if (inner.Value.ValueKind != JsonValueKind.Number || !inner.Value.TryGetInt32(out _))
+                                details.Add($"phase2.results.{inner.Name}: expected integer");
+                        }
             }
             StateGuard.RequireBoolean(phase2, "closed", details, "phase2");
         }

@@ -215,8 +215,8 @@ public class KhoiDongRoundTests
     }
 
     private static KhoiDongState InPhase2()
-        => KhoiDongRound.BeginPhase2(
-            FinishRun(KhoiDongRound.TimeOutRun(FinishRun(KhoiDongRound.StartKhoiDong(Players, P1)))), P2);
+        => KhoiDongRound.NextQuestion(KhoiDongRound.BeginPhase2(
+            FinishRun(KhoiDongRound.TimeOutRun(FinishRun(KhoiDongRound.StartKhoiDong(Players, P1)))), P2));
 
     [Fact]
     public void BangGioOpensWindowAndJudgesPayOnTopOfRuns()

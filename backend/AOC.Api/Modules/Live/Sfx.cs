@@ -53,6 +53,8 @@ public static class Sfx
             case LiveAction.ButPhaFinalize finalize:
                 return finalize.Verdicts.Any(v => v.Correct) ? "bp_dung.mp3" : null;
 
+            case LiveAction.VeDichBuzz:
+                return "vd_buzz.mp3";
             case LiveAction.VeDichDeclarePower declare:
                 return declare.PowerValue switch
                 {
@@ -118,5 +120,10 @@ public static class Sfx
         var url = UrlFor(file);
         if (url is null) return;
         await hub.BroadcastAsync(matchId, Protocol.Sfx(file, url), "console", "spectate");
+    }
+
+    public static async Task BroadcastStopAsync(MatchHubRegistry hub, string matchId)
+    {
+        await hub.BroadcastAsync(matchId, Protocol.SfxStop(), "console", "spectate");
     }
 }

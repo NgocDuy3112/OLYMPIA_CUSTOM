@@ -48,6 +48,9 @@ public static class Protocol
             ["url"] = url
         });
 
+    public static Dictionary<string, object?> SfxStop()
+        => Envelope("sfx", null, new Dictionary<string, object?> { ["stop"] = true });
+
     public static (string Type, string? RequestId, JsonElement Data)? ParseClientMessage(JsonElement raw)
     {
         if (raw.ValueKind != JsonValueKind.Object) return null;

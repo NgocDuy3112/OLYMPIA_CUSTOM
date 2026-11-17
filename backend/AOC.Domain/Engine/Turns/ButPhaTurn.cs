@@ -37,7 +37,7 @@ public static class ButPhaTurn
         rules ??= RoundRules.DefaultButPha();
         var ids = questionIds.ToList();
         if (ids.Count != rules.QuestionCount)
-            throw Err("VALIDATION", $"but-pha needs exactly {rules.QuestionCount} questions");
+            throw Err("VALIDATION", $"but-pha needs exactly {rules.QuestionCount} questions — got {ids.Count} assembled into this match");
         return new ButPhaState { QuestionIds = ids, Rules = rules };
     }
 

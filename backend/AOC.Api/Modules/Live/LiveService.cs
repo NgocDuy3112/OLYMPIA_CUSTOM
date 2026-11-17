@@ -41,50 +41,15 @@ public sealed class LiveService(
             sums.GetValueOrDefault(id) + adjustments.GetValueOrDefault(id))).ToList();
     }
 
-    private static List<string> OpenIdsOf(Dictionary<string, object?> view)
-    {
-        var ids = new List<string>();
-        if (view["open"] is List<object?> entries)
-        {
-            foreach (var entry in entries)
-            {
-                if (entry is Dictionary<string, object?> dict && dict["questionId"] is string qid)
-                    ids.Add(qid);
-            }
-        }
-        return ids;
-    }
-
     private async Task<List<object>> AnswerRowsOfAsync(MatchEntity match, string roundId, Dictionary<string, object?> view)
     {
-        var questions = new List<string>(OpenIdsOf(view));
-        if (roundId == "giai-ma")
-        {
-            var keyword = match.QuestionsList.FirstOrDefault(q => q.RoundId == roundId && q.Kind == QuestionKind.KEYWORD);
-            if (keyword is not null) questions.Add(keyword.Id);
-        }
-
         var rows = new List<object>();
-        foreach (var questionId in questions.Distinct())
+        foreach (var question in match.QuestionsList.Where(q => q.RoundId == roundId).OrderBy(q => q.Position))
         {
-            if (!Guid.TryParse(questionId, out var parsed)) continue;
+            if (!Guid.TryParse(question.Id, out var parsed)) continue;
             rows.AddRange(await reader.ReadQuestionAnswersAsync(match.Id, parsed));
         }
         return rows;
-    }
-
-    public async Task<List<ScoreRow>> RoundTableAsync(MatchEntity match, string roundId, JsonElement state)
-    {
-        var table = await ScoreTableAsync(match);
-        if (roundId != "khoi-dong") return table;
-        var kd = LiveState.ParseKhoiDong(state);
-        var adjustments = await reader.SumAdjustmentsByPlayerAsync(match.Id);
-        return table
-            .Select(row => row with
-            {
-                Points = KhoiDongRound.KhoiDongPoints(kd, row.Id) + adjustments.GetValueOrDefault(row.Id)
-            })
-            .ToList();
     }
 
     public sealed record ConsoleView(
@@ -113,12 +78,27 @@ public sealed class LiveService(
 
         var match = await matches.GetMatchByIdAsync(matchId.ToString());
         var started = live.State.ValueKind == JsonValueKind.Object && live.State.EnumerateObject().Any();
+        var waiting = LiveFacts.IsWaitingState(live.State);
 
         Dictionary<string, object?> projection;
-        if (started)
+        if (started && waiting)
+        {
+            var waitingTable = await ScoreTableAsync(match);
+            projection = new Dictionary<string, object?>
+            {
+                ["matchId"] = matchId.ToString(),
+                ["roundId"] = live.RoundId,
+                ["version"] = live.Version,
+                ["stage"] = "lobby",
+                ["open"] = new List<object?>(),
+                ["table"] = LiveView.RankTable(waitingTable),
+                ["answers"] = new List<object>()
+            };
+        }
+        else if (started)
         {
             var state = LiveState.ParseRoundState(live.RoundId, live.State);
-            var table = await RoundTableAsync(match, live.RoundId, live.State);
+            var table = await ScoreTableAsync(match);
             var view = LiveView.BuildPlayerView(new LiveView.ViewInput(
                 matchId.ToString(),
                 live.RoundId,
@@ -304,8 +284,23 @@ public sealed class LiveService(
             };
         }
 
+        if (LiveFacts.IsWaitingState(live.State))
+        {
+            var waitingTable = await ScoreTableAsync(match);
+            return new Dictionary<string, object?>
+            {
+                ["matchId"] = matchId.ToString(),
+                ["roundId"] = live.RoundId,
+                ["version"] = live.Version,
+                ["stage"] = "lobby",
+                ["open"] = new List<object?>(),
+                ["table"] = LiveView.RankTable(waitingTable),
+                ["me"] = new Dictionary<string, object?>()
+            };
+        }
+
         var state = LiveState.ParseRoundState(live.RoundId, live.State);
-        var table = await RoundTableAsync(match, live.RoundId, live.State);
+        var table = await ScoreTableAsync(match);
         return LiveView.BuildPlayerView(new LiveView.ViewInput(
             matchId.ToString(),
             live.RoundId,
@@ -314,7 +309,7 @@ public sealed class LiveService(
             userId.ToString(),
             state,
             (await reader.ReadPlayerAnswersAsync(matchId, userId))
-                .Select(a => new SubmittedAnswerRow(a.QuestionId, a.Judged, a.Verdict)).ToList(),
+                .Select(a => new SubmittedAnswerRow(a.QuestionId, a.Judged, a.Verdict, a.AnsweredMs, a.Suggestion)).ToList(),
             (await reader.ReadJudgedAnswersAsync(matchId))
                 .Select(a => new JudgedRow(a.QuestionId, a.UserId, a.Verdict, a.AnsweredMs)).ToList(),
             match.QuestionsList,
@@ -358,16 +353,39 @@ public sealed class LiveService(
                         actorId.ToString())]);
             }
 
+            var waiting = LiveFacts.IsWaitingState(current.State);
+
+            if (waiting && action is LiveAction.KhoiDongEndRound
+                or LiveAction.GiaiMaEndRound or LiveAction.ButPhaEndRound
+                or LiveAction.VeDichEndRound)
+            {
+                return new Transition<JsonElement>(current.State, []);
+            }
+
+            if (action is LiveAction.RoundWaiting)
+            {
+                if (waiting) return new Transition<JsonElement>(current.State, []);
+                if (current.State.ValueKind != JsonValueKind.Object || !current.State.EnumerateObject().Any())
+                    return new Transition<JsonElement>(current.State, []);
+                var pausedArchive = new Dictionary<string, JsonElement>(current.Archive)
+                {
+                    [current.RoundId] = current.State
+                };
+                return new Transition<JsonElement>(LiveFacts.WaitingMarker(), [], current.RoundId, pausedArchive);
+            }
+
             if (action is LiveAction.RoundGoTo goTo)
             {
                 if (!ordered.Contains(goTo.RoundId))
                     throw new RuleError("UNKNOWN_ROUND", $"round {goTo.RoundId} is not part of this match");
                 if (goTo.RoundId == current.RoundId)
-                    return new Transition<JsonElement>(current.State, []);
-                var archive = new Dictionary<string, JsonElement>(current.Archive)
                 {
-                    [current.RoundId] = current.State
-                };
+                    if (waiting && current.Archive.TryGetValue(goTo.RoundId, out var resumed))
+                        return new Transition<JsonElement>(resumed, []);
+                    return new Transition<JsonElement>(current.State, []);
+                }
+                var archive = new Dictionary<string, JsonElement>(current.Archive);
+                if (!waiting) archive[current.RoundId] = current.State;
                 var target = current.Archive.TryGetValue(goTo.RoundId, out var restored)
                     ? restored
                     : JsonDefaults.EmptyObject;
@@ -501,9 +519,22 @@ public sealed class LiveService(
                         match.QuestionsList.Where(q => q.RoundId == current.RoundId)
                             .OrderBy(q => q.Position).Select(q => q.Id).ToList(),
                         answerDrafts);
-                    var (next, facts) = ButPhaApplier.Apply(engine, action, ctx);
-                    return new Transition<JsonElement>(
-                        JsonSerializer.SerializeToElement(next, JsonDefaults.Options), facts);
+                    Transition<JsonElement> transition;
+                    try
+                    {
+                        var (next, facts) = ButPhaApplier.Apply(engine, action, ctx);
+                        transition = new Transition<JsonElement>(
+                            JsonSerializer.SerializeToElement(next, JsonDefaults.Options), facts);
+                    }
+                    catch (RuleError error) when (error.Code == "VALIDATION" && action is LiveAction.ButPhaStart)
+                    {
+                        var perRound = string.Join(", ", match.QuestionsList
+                            .GroupBy(q => q.RoundId)
+                            .Select(group => $"{group.Key}: {group.Count()}"));
+                        throw new RuleError(error.Code,
+                            $"{error.Message} — questions stored on this match by round: [{perRound}]");
+                    }
+                    return transition;
                 }
 
                 case "khoi-dong":

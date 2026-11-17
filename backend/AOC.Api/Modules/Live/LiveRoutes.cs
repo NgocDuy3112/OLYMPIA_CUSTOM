@@ -22,7 +22,10 @@ public static class LiveRoutes
             var matchId = Validate.RouteUuid(http, "matchId");
             var body = Validate.Object(await Validate.ReadJsonBodyAsync(http));
 
-            var expectedVersion = Validate.RequiredInt(body, "expectedVersion", min: 0);
+            var expectedVersion = body.TryGetProperty("expectedVersion", out var expectedEl)
+                && expectedEl.ValueKind == JsonValueKind.Number
+                ? expectedEl.GetInt32()
+                : -1;
             if (!body.TryGetProperty("action", out var actionEl) || actionEl.ValueKind != JsonValueKind.Object)
                 throw ApiException.BadRequest("invalid live action");
 

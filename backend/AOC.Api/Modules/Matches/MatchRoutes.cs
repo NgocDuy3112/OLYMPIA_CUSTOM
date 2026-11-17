@@ -166,6 +166,12 @@ public static class MatchRoutes
 
             if (match.Status != previous.Status)
             {
+                var hubRegistry = http.RequestServices.GetRequiredService<AOC.Api.Realtime.MatchHubRegistry>();
+                await hubRegistry.PublishAsync(matchId);
+            }
+
+            if (match.Status != previous.Status)
+            {
                 var action = match.Status == MatchStatus.LIVE ? "match_started" : "match_ended";
                 await AuditAsync(http, action, matchId, new Dictionary<string, object?>
                 {

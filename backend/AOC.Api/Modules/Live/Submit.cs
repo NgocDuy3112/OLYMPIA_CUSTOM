@@ -104,8 +104,15 @@ public sealed class SubmitService(
                 var question = loaded.Match.QuestionsList.FirstOrDefault(q => q.Id == ctx.QuestionId.ToString())
                     ?? throw new SubmitError(400, "NOT_IN_MATCH", "question is not part of this match");
                 var suggestion = Suggestion(question, value);
+                int? answeredMs = null;
+                if (state.OpenHintAt is not null)
+                {
+                    answeredMs = Math.Max(0,
+                        (int)(DateTimeOffset.Parse(loaded.Now).ToUnixTimeMilliseconds()
+                            - DateTimeOffset.Parse(state.OpenHintAt!).ToUnixTimeMilliseconds()));
+                }
                 await drafts.WriteDraftAsync(ctx.MatchId, ctx.QuestionId, ctx.UserId,
-                    ctx.Value, suggestion);
+                    ctx.Value, suggestion, answeredMs: answeredMs);
                 await DraftAuditAsync(ctx, loaded.Live.RoundId, suggestion);
 
                 await hub.PublishAsync(ctx.MatchId.ToString());
@@ -208,8 +215,13 @@ public sealed class SubmitService(
                 var question = loaded.Match.QuestionsList.FirstOrDefault(q => q.Id == ctx.QuestionId.ToString())
                     ?? throw new SubmitError(400, "NOT_IN_MATCH", "question is not part of this match");
                 var suggestion = Suggestion(question, value);
+                var answeredMs = open.OpenedAt is null
+                    ? (int?) null
+                    : Math.Max(0,
+                        (int)(DateTimeOffset.Parse(loaded.Now).ToUnixTimeMilliseconds()
+                            - DateTimeOffset.Parse(open.OpenedAt).ToUnixTimeMilliseconds()));
                 await drafts.WriteDraftAsync(ctx.MatchId, ctx.QuestionId, ctx.UserId,
-                    ctx.Value, suggestion);
+                    ctx.Value, suggestion, answeredMs: answeredMs);
                 await DraftAuditAsync(ctx, loaded.Live.RoundId, suggestion);
 
                 await hub.PublishAsync(ctx.MatchId.ToString());

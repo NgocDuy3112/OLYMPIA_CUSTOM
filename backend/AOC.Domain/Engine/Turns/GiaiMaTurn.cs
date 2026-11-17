@@ -22,6 +22,7 @@ public sealed record GiaiMaState
     [JsonPropertyName("picked")] public List<string> Picked { get; init; } = [];
     [JsonPropertyName("openHint")] public string? OpenHint { get; init; }
     [JsonPropertyName("openHintAt")] public string? OpenHintAt { get; init; }
+    [JsonPropertyName("openHintLocked")] public bool OpenHintLocked { get; init; }
 
     [JsonPropertyName("revealedAnswer")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -62,6 +63,12 @@ public static class GiaiMaTurn
         return GiaiMaScoring.KeywordValue(player.HintsRevealed, KeywordRulesOf(state));
     }
 
+    public static GiaiMaState LockOpenHint(GiaiMaState state, IReadOnlyDictionary<string, bool> answers)
+    {
+        if (state.OpenHint is null) throw Err("NO_OPEN_HINT", "no hint is open to lock");
+        return ResolveOpenHint(state, answers);
+    }
+
     public static GiaiMaState PickHint(GiaiMaState state, string hintId)
     {
         if (state.Stage != "hints") throw Err("WRONG_STAGE", "hints are over");
@@ -99,7 +106,7 @@ public static class GiaiMaTurn
     public static GiaiMaState CloseHintWindow(GiaiMaState state)
     {
         if (state.OpenHint is null) throw Err("NO_OPEN_HINT", "no hint window is open");
-        return state with { OpenHint = null, OpenHintAt = null };
+        return state with { OpenHint = null, OpenHintAt = null, OpenHintLocked = false };
     }
 
     public static GiaiMaState ResolveOpenHint(GiaiMaState state, IReadOnlyDictionary<string, bool> answers)
@@ -119,7 +126,7 @@ public static class GiaiMaTurn
         }).ToList();
 
         var picked = new List<string>(state.Picked) { hint };
-        var next = state with { Players = players, Picked = picked, OpenHint = null, OpenHintAt = null };
+        var next = state with { Players = players, Picked = picked, OpenHint = null, OpenHintAt = null, OpenHintLocked = false };
         return RemainingHints(next).Count == 0 ? next with { Stage = "ended" } : next;
     }
 

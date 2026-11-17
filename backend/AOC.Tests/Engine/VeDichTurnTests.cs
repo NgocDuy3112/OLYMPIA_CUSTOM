@@ -273,12 +273,19 @@ public class VeDichTurnTests
     }
 
     [Fact]
-    public void Assign_TooLateOnceOpen()
+    public void Assign_AllowedWhileOpenButNotStarted()
     {
         var s = TwoUp();
         var a = s.Players[0].Id;
         var opened = VeDichTurn.OpenPhase2Question(s, "40-1");
-        Assert.Equal("ALREADY_OPEN", CodeOf(() => VeDichTurn.DeclarePower(opened, a, Power.STAR)));
+        var powered = VeDichTurn.DeclarePower(opened, a, Power.STAR);
+        Assert.Equal(Power.STAR, powered.Open!.Power);
+        Assert.True(powered.TurnPowerUsed == true);
+        Assert.Single(powered.Players[0].PowersLeft);
+        Assert.Equal(Power.ASSIGN, powered.Players[0].PowersLeft[0]);
+
+        var revealed = VeDichTurn.RevealQuestion(powered, Now);
+        Assert.Equal("ALREADY_OPEN", CodeOf(() => VeDichTurn.DeclarePower(revealed, a, Power.ASSIGN, s.Players[1].Id)));
     }
 
     [Fact]

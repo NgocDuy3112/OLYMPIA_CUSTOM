@@ -264,13 +264,23 @@ public sealed class LiveReader(AOCDbContext db)
     {
         var rows = await db.Answers.AsNoTracking()
             .Where(a => a.MatchId == matchId && a.UserId == userId)
-            .Select(a => new { QuestionId = a.QuestionId, a.Judged, a.Verdict, a.AnsweredMs })
+            .Select(a => new { QuestionId = a.QuestionId, a.Judged, a.Verdict, a.AnsweredMs, a.Drafts })
             .ToListAsync();
-        return rows.Select(r => new SubmittedAnswer(
-            r.QuestionId.ToString(), r.Judged, r.Verdict, r.AnsweredMs)).ToList();
+        return rows.Select(r =>
+        {
+            Verdict? suggestion = null;
+            if (r.Drafts is { } drafts && drafts.ValueKind == JsonValueKind.Object
+                && drafts.TryGetProperty("auto", out var auto)
+                && auto.ValueKind == JsonValueKind.String
+                && Enum.TryParse<Verdict>(auto.GetString(), out var parsed))
+                suggestion = parsed;
+            return new SubmittedAnswer(
+                r.QuestionId.ToString(), r.Judged, r.Verdict, r.AnsweredMs, suggestion);
+        }).ToList();
     }
 
-    public sealed record SubmittedAnswer(string QuestionId, bool Judged, Verdict? Verdict, int? AnsweredMs);
+    public sealed record SubmittedAnswer(
+        string QuestionId, bool Judged, Verdict? Verdict, int? AnsweredMs, Verdict? Suggestion = null);
 
     public async Task<List<object>> ReadQuestionAnswersAsync(Guid matchId, Guid questionId)
     {
@@ -309,7 +319,7 @@ public sealed class LiveReader(AOCDbContext db)
             .Where(a => a.MatchId == matchId && a.QuestionId == questionId)
             .ToListAsync();
         return rows
-            .Select(a => new RevealedAnswerRow(a.UserId.ToString(), a.ValueObject, a.Verdict))
+            .Select(a => new RevealedAnswerRow(a.UserId.ToString(), a.ValueObject, a.Verdict, a.AnsweredMs))
             .ToList();
     }
 

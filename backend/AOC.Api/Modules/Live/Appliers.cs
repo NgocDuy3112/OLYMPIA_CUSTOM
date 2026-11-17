@@ -31,6 +31,19 @@ public static class GiaiMaApplier
                 return (next, facts);
             }
 
+            case LiveAction.GiaiMaLockHints:
+            {
+                if (state.OpenHint is null) throw new RuleError("NO_OPEN_HINT", "no hint is open to lock");
+                var answers = ctx.AnswerDrafts.ToDictionary(
+                    d => d.UserId, d => d.Suggestion == Verdict.CORRECT);
+                var next = GiaiMaTurn.LockOpenHint(state, answers);
+                var facts = ctx.AnswerDrafts.Select(d => (LiveFact)new JudgeFact(
+                    state.OpenHint!, d.UserId,
+                    d.Suggestion == Verdict.CORRECT ? Verdict.CORRECT : Verdict.INCORRECT,
+                    0)).ToList();
+                return (next, facts);
+            }
+
             case LiveAction.GiaiMaStartWindow:
                 return (GiaiMaTurn.StartWindow(state, ctx.Now), []);
 
@@ -309,6 +322,15 @@ public static class VeDichApplier
 
             case LiveAction.VeDichPickRound pickRound:
                 return (VeDichTurn.PickRound(state, pickRound.QuestionIds), []);
+
+            case LiveAction.VeDichOpenPending openPending:
+                return (VeDichTurn.OpenPending(state, openPending.QuestionId), []);
+
+            case LiveAction.VeDichSwitchQuestion switchQuestion:
+                return (VeDichTurn.SwitchPhase2Question(state, switchQuestion.QuestionId), []);
+
+            case LiveAction.VeDichCloseQuestion:
+                return (VeDichTurn.CloseQuestion(state), []);
 
             case LiveAction.VeDichNextQuestion:
                 return (VeDichTurn.NextQuestion(state), []);

@@ -14,9 +14,7 @@ public sealed class LiveConflictError(int expectedVersion, int currentVersion)
 
     public static void AssertVersion(int expected, int current)
     {
-        if (expected < 0)
-            throw new ArgumentOutOfRangeException(nameof(expected),
-                $"expected version must be a non-negative integer, got {expected}");
+        if (expected < 0) return;
         if (expected != current)
             throw new LiveConflictError(expected, current);
     }

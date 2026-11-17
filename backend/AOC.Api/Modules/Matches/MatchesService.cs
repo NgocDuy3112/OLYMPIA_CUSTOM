@@ -454,6 +454,18 @@ public sealed class MatchesService(
                         $"khoi-dong Riêng: {assembled} assembled, needs {needed} ({perPlayer} × {seats} seat{(seats == 1 ? "" : "s")})");
             }
 
+            if (tournament.RoundsList.Any(r => r.Id == "but-pha"))
+            {
+                var butPhaCount = existing.RoundConfigsMap.GetValueOrDefault("but-pha") is { } bpCfg
+                    ? bpCfg.Turns.FirstOrDefault(t => t.Id == "phase1")?.QuestionCount ?? 4
+                    : 4;
+                var butPhaAssembled = existing.QuestionsList
+                    .Count(q => q.RoundId == "but-pha");
+                if (butPhaAssembled != butPhaCount)
+                    shortfalls.Add(
+                        $"but-pha: {butPhaAssembled} assembled, needs exactly {butPhaCount}");
+            }
+
             if (shortfalls.Count > 0)
                 throw new MatchError(MatchErrorCode.NOT_READY,
                     $"match {matchId} is not ready to go live", shortfalls);

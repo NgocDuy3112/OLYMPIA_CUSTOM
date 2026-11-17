@@ -270,6 +270,74 @@ public static class VeDichTurn
         };
     }
 
+    public static VeDichState OpenPending(VeDichState state, string questionId)
+    {
+        if (state.Phase != 1) throw Err("WRONG_PHASE", "openPending only applies in Phase 1");
+        var question = state.PendingPicks.FirstOrDefault(q => q.Id == questionId)
+            ?? throw Err("INVALID_QUESTION", $"question {questionId} is not picked");
+        var pending = state.PendingPicks.Where(q => q.Id != questionId).ToList();
+
+        if (state.Open is not null)
+        {
+            // swapping is allowed only while nothing has started on the open question
+            var open = state.Open;
+            if (open.Revealed || open.OpenedAt is not null || open.Buzzer is not null)
+                throw Err("ALREADY_OPEN", "the question already started — finish it first");
+            pending.Insert(0, open.Question);
+        }
+
+        return state with
+        {
+            PendingPicks = pending,
+            Open = new OpenQuestion
+            {
+                Question = question,
+                Answerer = "",
+                Power = null,
+                Stage = "current",
+                OpenedAt = null,
+                Revealed = false,
+                Buzzer = null,
+                AssignedTo = null
+            },
+            BuzzOpenedAt = null,
+            BuzzLocked = false
+        };
+    }
+
+    public static VeDichState SwitchPhase2Question(VeDichState state, string questionId)
+    {
+        if (state.Phase != 2) throw Err("WRONG_PHASE", "switchQuestion only applies in Phase 2");
+        if (state.Open is null) throw Err("NOTHING_OPEN", "no question is open");
+        var open = state.Open;
+        if (open.Revealed || open.OpenedAt is not null || open.Buzzer is not null)
+            throw Err("ALREADY_OPEN", "the question already started — finish it first");
+        if (open.Question.Id == questionId) return state;
+
+        var question = state.PendingPicks.FirstOrDefault(q => q.Id == questionId)
+            ?? throw Err("INVALID_QUESTION", $"question {questionId} is not picked");
+
+        return state with
+        {
+            PendingPicks = state.PendingPicks
+                .Where(q => q.Id != questionId)
+                .Concat([open.Question])
+                .ToList(),
+            Open = open with
+            {
+                Question = question,
+                Revealed = false
+            }
+        };
+    }
+
+    public static VeDichState CloseQuestion(VeDichState state)
+    {
+        if (state.Phase != 1) throw Err("WRONG_PHASE", "closeQuestion only applies in Phase 1");
+        if (state.Open is null) return state;
+        return state with { Open = null, BuzzOpenedAt = null, BuzzLocked = false };
+    }
+
     public static VeDichState NextQuestion(VeDichState state)
     {
         if (state.Phase != 1) throw Err("WRONG_PHASE", "nextQuestion only applies in Phase 1");
@@ -320,7 +388,48 @@ public static class VeDichTurn
         if (state.Phase != 2)
             throw Err("WRONG_PHASE_FOR_POWER", "powers only exist in Về đích Riêng (phase 2)");
         if (state.Open is not null)
-            throw Err("ALREADY_OPEN", "powers are declared before the question opens");
+        {
+            // phase 2: the power may still be declared while the question is open
+            // but before anything started (no reveal, no clock, no buzz)
+            var open = state.Open;
+            if (open.Stage != "current" || open.Revealed || open.OpenedAt is not null || open.Buzzer is not null)
+                throw Err("ALREADY_OPEN", "the question already started — powers are off");
+            if (CurrentPlayer(state).Id != playerId)
+                throw Err("NOT_YOUR_TURN", "only the current player's power may be declared");
+            if (power is null) return state;
+            if (state.TurnPowerUsed == true)
+                throw Err("ONE_POWER_PER_TURN", "the turn has already chosen its power");
+            var owner = state.Players.First(p => p.Id == playerId);
+            if (!owner.PowersLeft.Contains(power.Value))
+                throw Err("POWER_UNAVAILABLE", $"{power} already spent");
+            if (power == Power.ASSIGN)
+            {
+                if (targetId is null) throw Err("INVALID_TARGET", "ASSIGN needs a player to hand the question to");
+                if (targetId == playerId) throw Err("INVALID_TARGET", "you cannot assign the question to yourself");
+                if (!state.Players.Any(p => p.Id == targetId))
+                    throw Err("INVALID_TARGET", $"{targetId} is not playing this round");
+            }
+
+            var spenders = state.Players.Select(p => p.Id == playerId
+                ? p with { PowersLeft = p.PowersLeft.Where(x => x != power!.Value).ToList() }
+                : p).ToList();
+            var powered = open with { Power = power!.Value };
+            if (power == Power.ASSIGN)
+                powered = powered with
+                {
+                    AssignedTo = targetId,
+                    Stage = "buzz"
+                };
+            return state with
+            {
+                Players = spenders,
+                TurnPowerUsed = true,
+                StagedPower = null,
+                Open = powered,
+                BuzzOpenedAt = null,
+                BuzzLocked = false
+            };
+        }
         if (CurrentPlayer(state).Id != playerId)
             throw Err("NOT_YOUR_TURN", "only the current player's power may be staged");
         if (state.PendingPicks.Count == 0)

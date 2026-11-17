@@ -40,7 +40,7 @@ public static class KhoiDongTurn
     {
         var ids = questionIds.ToList();
         if (ids.Count != rules.Phase1Questions)
-            Fail("VALIDATION", $"phase 1 needs exactly {rules.Phase1Questions} questions");
+            Fail("VALIDATION", $"phase 1 needs exactly {rules.Phase1Questions} questions — got {ids.Count} assembled into this match");
         return new Phase1State
         {
             QuestionIds = ids,
@@ -82,17 +82,20 @@ public static class KhoiDongTurn
     {
         var ids = questionIds.ToList();
         if (ids.Count != rules.Phase2Questions)
-            Fail("VALIDATION", $"chung needs exactly {rules.Phase2Questions} questions");
+            Fail("VALIDATION", $"chung needs exactly {rules.Phase2Questions} questions — got {ids.Count} assembled into this match");
         return new Phase2State
         {
             PointsPerCorrect = rules.PointsPerCorrect,
             WindowS = rules.Phase2WindowS,
-            QuestionIds = ids
+            QuestionIds = ids,
+            Index = -1
         };
     }
 
     public static string? Phase2QuestionId(Phase2State state)
-        => state.Closed || state.Index >= state.QuestionIds.Count ? null : state.QuestionIds[state.Index];
+        => state.Closed || state.Index < 0 || state.Index >= state.QuestionIds.Count
+            ? null
+            : state.QuestionIds[state.Index];
 
     public static bool Phase2Complete(Phase2State state)
         => state.Closed || state.Index >= state.QuestionIds.Count;
@@ -108,7 +111,8 @@ public static class KhoiDongTurn
     public static Phase2State OpenPhase2Window(Phase2State state, string nowIso)
     {
         if (state.Closed) Fail("PHASE_ENDED", "chung is over");
-        if (Phase2QuestionId(state) is null) Fail("PHASE_ENDED", "every question has been played");
+        if (Phase2QuestionId(state) is null)
+            Fail("NOT_PICKED", "pick a question number first");
         if (IsPhase2WindowOpen(state, nowIso)) Fail("ALREADY_OPEN", "the window is already running");
         return state with { OpenedAt = nowIso };
     }
@@ -130,9 +134,9 @@ public static class KhoiDongTurn
     public static Phase2State NextPhase2(Phase2State state)
     {
         if (state.Closed) Fail("PHASE_ENDED", "chung is over");
-        if (Phase2QuestionId(state) is null) Fail("PHASE_ENDED", "every question has been played");
+        if (state.Index >= state.QuestionIds.Count) Fail("PHASE_ENDED", "every question has been played");
 
-        var index = state.Index + 1;
+        var index = state.Index < 0 ? 0 : state.Index + 1;
         return state with { Index = index, OpenedAt = null, Closed = index >= state.QuestionIds.Count };
     }
 
