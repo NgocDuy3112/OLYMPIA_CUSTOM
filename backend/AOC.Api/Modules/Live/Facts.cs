@@ -44,6 +44,14 @@ public sealed record JudgeFact(
     public const string TypeName = "judge";
 }
 
+public sealed record RegradeFact(
+    string QuestionId,
+    string UserId,
+    int PointsAwarded) : LiveFact
+{
+    public const string TypeName = "regrade";
+}
+
 public sealed record AdjustFact(
     string UserId,
     int Delta,

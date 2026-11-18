@@ -156,6 +156,18 @@ internal sealed class PgLiveTx(AOCDbContext db, Guid matchId, MatchLiveEntity ro
             });
         }
 
+        foreach (var regrade in facts.OfType<RegradeFact>())
+        {
+            var target = await db.Answers.FirstOrDefaultAsync(a =>
+                a.MatchId == matchId
+                && a.QuestionId == Guid.Parse(regrade.QuestionId)
+                && a.UserId == Guid.Parse(regrade.UserId));
+            if (target is null)
+                throw new RuleError("NO_ANSWER",
+                    $"no submitted answer from {regrade.UserId} to regrade");
+            target.PointsAwarded = regrade.PointsAwarded;
+        }
+
         foreach (var adjust in facts.OfType<AdjustFact>())
         {
             db.ScoreAdjustments.Add(new ScoreAdjustmentEntity

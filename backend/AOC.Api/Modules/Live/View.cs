@@ -189,18 +189,21 @@ public static class LiveView
         var consoleView = string.IsNullOrEmpty(input.UserId);
         foreach (var pair in hintTiles)
         {
-            if (state.Picked.Contains(pair.Key) is false) continue;
-            var row = consoleView
+            var isPicked = state.Picked.Contains(pair.Key);
+            var row = consoleView || !isPicked
                 ? null
                 : input.Submitted.FirstOrDefault(s => s.QuestionId == pair.Key);
             var verdict = row is null ? null : (row.Judged ? row.Verdict : row.Suggestion) ?? row.Verdict;
-            hintVerdicts[$"{pair.Value}"] = verdict?.ToString();
-            var show = consoleView || verdict == Verdict.CORRECT || keywordRevealed;
+            if (isPicked) hintVerdicts[$"{pair.Value}"] = verdict?.ToString();
+
+            // opened hints: console always, the answering player when correct.
+            // after the keyword is revealed: every hint's answer, everyone.
+            var show = keywordRevealed || (isPicked && (consoleView || verdict == Verdict.CORRECT));
             var question = (input.Questions ?? []).FirstOrDefault(q => q.Id == pair.Key);
             if (show && question?.Payload is QuestionPayload.Text textPayload && textPayload.AcceptedAnswers.Count > 0)
                 hintAnswers[$"{pair.Value}"] = textPayload.AcceptedAnswers[0];
         }
-        if (hintAnswers.Count > 0) view["hintAnswers"] = hintAnswers;
+        view["hintAnswers"] = hintAnswers;
 
         var meHintVerdicts = new Dictionary<string, object?>(hintVerdicts);
         me["hintVerdicts"] = meHintVerdicts;

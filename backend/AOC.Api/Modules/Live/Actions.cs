@@ -259,6 +259,11 @@ public abstract record LiveAction
         public override string Kind => "reveal.answer";
     }
 
+    public sealed record Regrade(string QuestionId, string PlayerId, int Delta) : LiveAction
+    {
+        public override string Kind => "answer.regrade";
+    }
+
     public sealed record ScoreAdjust(string UserId, int Delta, string Reason) : LiveAction
     {
         public override string Kind => "score.adjust";
@@ -417,6 +422,7 @@ public sealed class LiveActionConverter : JsonConverter<LiveAction>
             "round.waiting" => new LiveAction.RoundWaiting(),
             "reveal.answer" => new LiveAction.RevealAnswer(Str("questionId")),
             "score.adjust" => new LiveAction.ScoreAdjust(Str("userId"), Int("delta"), Str("reason")),
+            "answer.regrade" => new LiveAction.Regrade(Str("questionId"), Str("playerId"), Int("delta")),
 
             _ => throw new JsonException($"unknown action kind \"{kind}\"")
         };

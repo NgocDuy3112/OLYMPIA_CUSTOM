@@ -103,6 +103,24 @@ public static class LiveRoutes
                     }
                 });
             }
+            if (action is LiveAction.Regrade regrade)
+            {
+                await audit.AuditAsync(new AOC.Infrastructure.Audit.AuditEvent
+                {
+                    Action = "answer_regraded",
+                    ActorId = user.Id,
+                    MatchId = Guid.Parse(matchId),
+                    Ip = http.Connection.RemoteIpAddress?.ToString(),
+                    UserAgent = http.Request.Headers.UserAgent.ToString(),
+                    Details = new Dictionary<string, object?>
+                    {
+                        ["roundId"] = next.RoundId,
+                        ["questionId"] = regrade.QuestionId,
+                        ["playerId"] = regrade.PlayerId,
+                        ["delta"] = regrade.Delta
+                    }
+                });
+            }
 
             return Results.Json(new
             {

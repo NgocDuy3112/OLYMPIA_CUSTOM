@@ -353,6 +353,59 @@ public sealed class LiveService(
                         actorId.ToString())]);
             }
 
+            if (action is LiveAction.Regrade regrade)
+            {
+                var answer = await db.Answers.AsNoTracking().FirstOrDefaultAsync(a =>
+                    a.MatchId == matchId
+                    && a.QuestionId == Guid.Parse(regrade.QuestionId)
+                    && a.UserId == Guid.Parse(regrade.PlayerId));
+                if (answer is null)
+                    throw new RuleError("NO_ANSWER",
+                        $"no submitted answer from {regrade.PlayerId} to regrade");
+                var newPoints = Math.Max(0, (answer.PointsAwarded ?? 0) + regrade.Delta);
+                var regradeFacts = new List<LiveFact>
+                {
+                    new RegradeFact(regrade.QuestionId, regrade.PlayerId, newPoints)
+                };
+
+                if (current.RoundId == "khoi-dong")
+                {
+                    var kd = LiveState.ParseKhoiDong(current.State);
+                    if (kd.Stage == "phase1")
+                    {
+                        var runs = new Dictionary<string, Phase1State>(kd.Runs);
+                        foreach (var pair in kd.Runs)
+                        {
+                            if (!pair.Value.Results.ContainsKey(regrade.QuestionId)) continue;
+                            var results = new Dictionary<string, Phase1Result>(pair.Value.Results);
+                            results[regrade.QuestionId] =
+                                results[regrade.QuestionId] with { Points = newPoints };
+                            runs[pair.Key] = pair.Value with { Results = results };
+                        }
+                        var nextKd = kd with { Runs = runs };
+                        return new Transition<JsonElement>(
+                            JsonSerializer.SerializeToElement(nextKd, JsonDefaults.Options), regradeFacts);
+                    }
+                    if (kd.Phase2 is not null
+                        && kd.Phase2.Results.TryGetValue(regrade.QuestionId, out var byPlayer)
+                        && byPlayer.ContainsKey(regrade.PlayerId))
+                    {
+                        var p2Results = new Dictionary<string, Dictionary<string, int>>(kd.Phase2.Results)
+                        {
+                            [regrade.QuestionId] = new Dictionary<string, int>(byPlayer)
+                            {
+                                [regrade.PlayerId] = newPoints
+                            }
+                        };
+                        var nextKd = kd with { Phase2 = kd.Phase2 with { Results = p2Results } };
+                        return new Transition<JsonElement>(
+                            JsonSerializer.SerializeToElement(nextKd, JsonDefaults.Options), regradeFacts);
+                    }
+                }
+
+                return new Transition<JsonElement>(current.State, regradeFacts);
+            }
+
             var waiting = LiveFacts.IsWaitingState(current.State);
 
             if (waiting && action is LiveAction.KhoiDongEndRound
