@@ -19,7 +19,7 @@ import { flashOf } from "@/lib/flash"
 import { lobbyHintOf } from "@/lib/lobby-hint"
 import { playerCtxOf } from "@/lib/player-ctx"
 import { s2QuestionOf } from "@/lib/s2"
-import { useMe } from "@/lib/session"
+import { useMe } from "@shared/session"
 
 export interface PlayerModel {
     myId: string | null

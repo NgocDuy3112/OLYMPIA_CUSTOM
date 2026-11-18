@@ -4,7 +4,7 @@ import { Lobby } from "@shared/deck/lobby"
 import { Gate } from "@shared/deck/player-deck"
 import { Card, CardContent } from "@shared/ui/card"
 import { NOT_LIVE_HINT } from "@/lib/lobby-hint"
-import { loginLink } from "@/lib/session"
+import { loginLink } from "@shared/session"
 import type { PlayerGate } from "@/lib/player-gate"
 import type { PlayerModel } from "@/hooks/use-player-model"
 

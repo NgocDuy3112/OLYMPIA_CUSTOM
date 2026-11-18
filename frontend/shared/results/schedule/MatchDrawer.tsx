@@ -1,8 +1,8 @@
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import { cn } from "cn"
 import { DialogOverlay } from "@shared/ui/dialog"
-import type { TournamentRound } from "@/lib/api"
-import type { Match } from "@/lib/types"
+import type { TournamentRound } from "@shared/results/api"
+import type { Match } from "@shared/results/types"
 import { MatchDetail } from "./MatchDetail"
 
 

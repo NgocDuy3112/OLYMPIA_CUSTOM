@@ -5,11 +5,11 @@ import {
     Card,
     CardContent,
     CardDescription,
-    CardFooter,
     CardHeader,
     CardTitle,
 } from "@shared/ui/card"
-import { googleLoginLink, useAuthMethods, usePasswordLogin, usePasswordRegister } from "@/lib/session"
+import { googleLoginLink, useAuthMethods, usePasswordLogin, usePasswordRegister } from "@shared/session"
+import { authNextTarget } from "@shared/results/links"
 import { cn } from "cn"
 
 function safeNext(raw: string | null): string {
@@ -68,7 +68,9 @@ export function LoginPage() {
                             navigate(`/password?next=${encodeURIComponent(next)}`)
                             return
                         }
-                        navigate(next)
+                        const target = authNextTarget(next)
+                        if (target.startsWith("http")) window.location.assign(target)
+                        else navigate(target)
                     },
                 },
             )
@@ -76,7 +78,13 @@ export function LoginPage() {
         }
         register.mutate(
             { email, password, displayName: displayName || undefined },
-            { onSuccess: () => navigate(next) },
+            {
+                onSuccess: () => {
+                    const target = authNextTarget(next)
+                    if (target.startsWith("http")) window.location.assign(target)
+                    else navigate(target)
+                },
+            },
         )
     }
 
@@ -202,9 +210,6 @@ export function LoginPage() {
                     </form>
                 </CardContent>
 
-                <CardFooter className="flex-col gap-1 text-center font-sans text-sm text-muted-foreground">
-                    <span>Vào trận bằng mã mời sau khi đăng nhập.</span>
-                </CardFooter>
             </Card>
 
             <p className="text-center font-sans text-xs leading-relaxed text-muted-foreground">

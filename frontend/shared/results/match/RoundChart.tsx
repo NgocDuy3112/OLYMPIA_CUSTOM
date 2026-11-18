@@ -5,8 +5,8 @@ import {
     ChartTooltipContent,
     type ChartConfig,
 } from "@shared/ui/chart"
-import type { TournamentRound } from "@/lib/api"
-import type { PlayerResult } from "@/lib/types"
+import type { TournamentRound } from "@shared/results/api"
+import type { PlayerResult } from "@shared/results/types"
 
 
 interface RoundChartProps {

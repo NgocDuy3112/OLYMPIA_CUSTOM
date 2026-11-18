@@ -153,6 +153,7 @@ describe("ChangePasswordPage — where the desk's password ends", () => {
     })
 
     it("saves the player's own password and goes back to where the gate found them", async () => {
+        vi.stubEnv("VITE_GAMEPLAY_BASE_URL", "/app")
         draw({ ...signedIn, [CHANGE]: { body: { ok: true, displayName: "Ngọc Duy" } } },
             "/password?next=%2Ftournaments%2Ft-cup%2Fmatches%2Fm1")
 
@@ -161,7 +162,8 @@ describe("ChangePasswordPage — where the desk's password ends", () => {
         await userEvent.type(screen.getByLabelText("Nhập lại mật khẩu mới"), "mat-khau-moi-123")
         await userEvent.click(screen.getByRole("button", { name: "Đặt mật khẩu" }))
 
-        await waitFor(() => expect(screen.getByText("landed at /tournaments/t-cup/matches/m1")).toBeTruthy())
+        await waitFor(() => expect(screen.getByText("landed at /app/tournaments/t-cup/matches/m1")).toBeTruthy())
+        vi.unstubAllEnvs()
     })
 
     it("keeps the SERVER's refusal to the current password on the form", async () => {

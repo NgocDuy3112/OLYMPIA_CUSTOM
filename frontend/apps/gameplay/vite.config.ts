@@ -8,6 +8,7 @@ const dir = fileURLToPath(new URL(".", import.meta.url))
 
 export default defineConfig({
     root: dir,
+    envDir: path.resolve(dir, "../../../configs"),
     cacheDir: path.resolve(dir, "node_modules/.vite"),
     publicDir: path.resolve(dir, "../../public"),
     plugins: [react(), tailwindcss()],

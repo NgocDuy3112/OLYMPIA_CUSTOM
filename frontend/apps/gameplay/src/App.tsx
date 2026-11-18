@@ -1,18 +1,13 @@
-import { useMemo } from "react"
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useParams, useOutletContext } from "react-router-dom"
+import { useEffect } from "react"
+import { BrowserRouter, Outlet, Route, Routes, useParams, useOutletContext } from "react-router-dom"
 import { ApiError } from "@shared/lib/api"
+import { requiredEnv } from "@shared/results/links"
 import { AppShell } from "@/components/layout/AppShell"
-import { SchedulePage } from "@/pages/SchedulePage"
-import { StandingsPage } from "@/pages/StandingsPage"
 import { NotFoundPage } from "@/pages/NotFoundPage"
 import { PrivacyPage } from "@/pages/PrivacyPage"
-import { LoginPage } from "@/pages/LoginPage"
-import { ChangePasswordPage } from "@/pages/ChangePasswordPage"
-import { CodePage } from "@/pages/CodePage"
 import { PlayerShell } from "@/components/player-shell"
 import { SelfBroadcastContext, useSelfBroadcast } from "@shared/lib/rtc"
-import { useSchedule, useStandings, useTournament, useTournamentList, type TournamentDetail } from "@/lib/api"
-import { toMatch, toStandings } from "@/lib/adapters"
+import { useSchedule, useTournament, type TournamentDetail } from "@shared/results/api"
 
 interface TournamentContext { tournament: TournamentDetail }
 
@@ -63,37 +58,6 @@ function TournamentLayout() {
     return <Outlet context={{ tournament: query.data }} />
 }
 
-function ScheduleRoute() {
-    const { tournament } = useOutletContext<TournamentContext>()
-    const schedule = useSchedule(tournament.id)
-
-    const matches = useMemo(
-        () => schedule.data?.items.map((row) => toMatch(row, tournament.rounds)) ?? [],
-        [schedule.data, tournament.rounds]
-    )
-    return <SchedulePage tournament={tournament} matches={matches} loading={schedule.isPending} />
-}
-
-function StandingsRoute() {
-    const { tournament } = useOutletContext<TournamentContext>()
-    const standings = useStandings(tournament.id)
-    const schedule = useSchedule(tournament.id)
-
-    const matches = useMemo(
-        () => schedule.data?.items.map((row) => toMatch(row, tournament.rounds)) ?? [],
-        [schedule.data, tournament.rounds]
-    )
-    const rows = useMemo(() => toStandings(standings.data?.rows ?? []), [standings.data])
-
-    return (
-        <StandingsPage
-            rows={rows}
-            matches={matches}
-            loading={standings.isPending || schedule.isPending}
-        />
-    )
-}
-
 function MatchRoute() {
     const { tournament } = useOutletContext<TournamentContext>()
     const { id } = useParams()
@@ -113,17 +77,11 @@ function MatchRoute() {
     )
 }
 
-function CurrentTournamentRedirect({ path }: { path: (tournamentId: string) => string }) {
-    const list = useTournamentList()
-
-    if (list.isPending) return <LoadingState />
-    if (list.error) return <ErrorState onRetry={() => void list.refetch()} />
-
-    const tournaments = list.data.tournaments
-    const current = tournaments.find((t) => t.current) ?? tournaments[tournaments.length - 1]
-    if (!current) return <NotFoundPage />
-
-    return <Navigate to={path(current.id)} replace />
+function RootRedirect() {
+    useEffect(() => {
+        window.location.replace(`${requiredEnv("VITE_RESULTS_BASE_URL")}/`)
+    }, [])
+    return null
 }
 
 function App() {
@@ -131,19 +89,12 @@ function App() {
         <BrowserRouter>
             <Routes>
                 <Route element={<AppShell />}>
-                    <Route path="/" element={<CurrentTournamentRedirect path={(tournamentId) => `/tournaments/${tournamentId}`} />} />
+                    <Route path="/" element={<RootRedirect />} />
                     <Route path="/tournaments/:tournamentId" element={<TournamentLayout />}>
-                        <Route index element={<ScheduleRoute />} />
-                        <Route path="standings" element={<StandingsRoute />} />
                         <Route path="matches/:id" element={<MatchRoute />} />
                     </Route>
-                    <Route path="/standings" element={<CurrentTournamentRedirect path={(tournamentId) => `/tournaments/${tournamentId}/standings`} />} />
                     <Route path="/privacy" element={<PrivacyPage />} />
                     
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/password" element={<ChangePasswordPage />} />
-                    
-                    <Route path="/code" element={<CodePage />} />
                     <Route path="*" element={<NotFoundPage />} />
                 </Route>
             </Routes>

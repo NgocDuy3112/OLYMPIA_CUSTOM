@@ -67,6 +67,7 @@ describe("CodePage — signed out", () => {
 
 describe("CodePage — signed in", () => {
     it("seats the player with the code and lands them on the deck", async () => {
+        vi.stubEnv("VITE_GAMEPLAY_BASE_URL", "/app")
         const { fetchMock } = draw({
             ...signedIn,
             [CLAIM]: { body: { matchId: "m1", tournamentId: "t-cup", slug: "cup", label: "Chung kết" } },
@@ -76,9 +77,10 @@ describe("CodePage — signed in", () => {
         await userEvent.type(screen.getByLabelText("Mã phòng"), "ABC234")
         await userEvent.click(screen.getByRole("button", { name: "Vào trận" }))
 
-        await waitFor(() => expect(screen.getByText("landed at /tournaments/t-cup/matches/m1")).toBeTruthy())
+        await waitFor(() => expect(screen.getByText("landed at /app/tournaments/t-cup/matches/m1")).toBeTruthy())
         const call = fetchMock.mock.calls.find(([input]) => String(input).includes("/join/claim"))
         expect(JSON.parse(String(call![1]?.body))).toEqual({ code: "ABC234" })
+        vi.unstubAllEnvs()
     })
 
     it("keeps the server's refusal: unknown, expired, or a full table", async () => {

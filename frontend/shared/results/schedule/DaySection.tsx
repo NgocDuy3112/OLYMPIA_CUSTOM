@@ -1,6 +1,6 @@
-import type { Match } from "@/lib/types"
+import type { Match } from "@shared/results/types"
 import { MatchCard } from "./MatchCard"
-import { formatDay } from "@/lib/format"
+import { formatDay } from "@shared/results/format"
 
 interface DaySectionProps {
     date: string

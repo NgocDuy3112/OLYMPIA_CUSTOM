@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
-import type { Match, TournamentRound } from "@/lib/api"
-import { roundNameOf, showDate, showTime, toMatch, toStandings } from "@/lib/adapters"
+import type { Match, TournamentRound } from "@shared/results/api"
+import { roundNameOf, showDate, showTime, toMatch, toStandings } from "@shared/results/adapters"
 
 
 const ROUNDS: TournamentRound[] = [

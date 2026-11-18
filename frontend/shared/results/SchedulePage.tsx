@@ -1,13 +1,14 @@
 import { useMemo, useState, type ReactNode } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
-import type { TournamentDetail } from "@/lib/api"
-import type { Match } from "@/lib/types"
-import { DaySection } from "@/components/schedule/DaySection"
-import { MatchCard } from "@/components/schedule/MatchCard"
-import { MatchDrawer } from "@/components/schedule/MatchDrawer"
-import { StageTimeline } from "@/components/schedule/StageTimeline"
-import { ScheduleHeader } from "@/components/schedule/ScheduleHeader"
-import { formatDay } from "@/lib/format"
+import { openGameplayMatch } from "@shared/results/links"
+import type { TournamentDetail } from "@shared/results/api"
+import type { Match } from "@shared/results/types"
+import { DaySection } from "@shared/results/schedule/DaySection"
+import { MatchCard } from "@shared/results/schedule/MatchCard"
+import { MatchDrawer } from "@shared/results/schedule/MatchDrawer"
+import { StageTimeline } from "@shared/results/schedule/StageTimeline"
+import { ScheduleHeader } from "@shared/results/schedule/ScheduleHeader"
+import { formatDay } from "@shared/results/format"
 import { Inbox } from "lucide-react"
 
 interface SchedulePageProps {
@@ -60,7 +61,7 @@ export function SchedulePage({
     const openMatchById = (id: string) => {
         const found = matches.find((m) => m.id === id)
         if (found?.status === "LIVE") {
-            navigate(`/tournaments/${tournament.id}/matches/${id}`)
+            openGameplayMatch(navigate, tournament.id, id)
             return
         }
         setSearchParams((prev) => {
@@ -106,7 +107,7 @@ export function SchedulePage({
                         <MatchCard
                             match={liveMatch}
                             featured
-                            onOpen={() => navigate(`/tournaments/${tournament.id}/matches/${liveMatch.id}`)}
+                            onOpen={() => openGameplayMatch(navigate, tournament.id, liveMatch.id)}
                         />
                     </div>
                 )}

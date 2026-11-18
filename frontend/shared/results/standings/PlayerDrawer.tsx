@@ -4,9 +4,9 @@ import { X } from "lucide-react"
 import { cn } from "cn"
 import { Badge } from "@shared/ui/badge"
 import { DialogOverlay } from "@shared/ui/dialog"
-import { formatDay } from "@/lib/format"
-import { STATUS_LABEL, STATUS_VARIANT } from "@/components/schedule/status"
-import type { Match, StandingRow } from "@/lib/types"
+import { formatDay } from "@shared/results/format"
+import { STATUS_LABEL, STATUS_VARIANT } from "@shared/results/schedule/status"
+import type { Match, StandingRow } from "@shared/results/types"
 import { DialogTitle } from "@shared/ui/dialog"
 
 

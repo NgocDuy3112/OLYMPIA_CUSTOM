@@ -5,7 +5,8 @@ import { Card, CardContent } from "@shared/ui/card"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@shared/ui/field"
 import { Input } from "@shared/ui/input"
 import { ApiError } from "@shared/lib/api"
-import { isUnauthorized, loginLink, useClaimCode, useMe } from "@/lib/session"
+import { isUnauthorized, loginLink, useClaimCode, useMe } from "@shared/session"
+import { gameplayMatchUrl, openGameplayMatch } from "@shared/results/links"
 
 function isGone(error: unknown): boolean {
     return error instanceof ApiError && error.status === 401
@@ -14,6 +15,7 @@ function isGone(error: unknown): boolean {
 export function CodePage() {
     const me = useMe()
     const claim = useClaimCode()
+    const [routeError, setRouteError] = useState<string | null>(null)
     const navigate = useNavigate()
 
     const [code, setCode] = useState("")
@@ -25,10 +27,22 @@ export function CodePage() {
         if (claim.isPending) return
         const typed = code.trim()
         if (!typed) return
+        const tab = window.open("", "_blank")
         claim.mutate(typed, {
             onSuccess: (match) => {
-                setCode("")
-                navigate(`/tournaments/${match.tournamentId}/matches/${match.matchId}`)
+                try {
+                    const target = gameplayMatchUrl(match.tournamentId, match.matchId)
+                    if (tab && target.startsWith("http")) {
+                        tab.location.href = target
+                    } else {
+                        if (tab) tab.close()
+                        openGameplayMatch(navigate, match.tournamentId, match.matchId)
+                    }
+                    setCode("")
+                } catch (error) {
+                    if (tab) tab.close()
+                    setRouteError(error instanceof Error ? error.message : String(error))
+                }
             },
         })
     }
@@ -62,7 +76,9 @@ export function CodePage() {
     const sessionGone = isGone(claim.error)
 
     let codeStatus: ReactNode = null
-    if (claim.isError) {
+    if (routeError) {
+        codeStatus = <FieldError>{routeError}</FieldError>
+    } else if (claim.isError) {
         codeStatus = <FieldError>{claim.error.message}</FieldError>
     }
     if (sessionGone) {

@@ -16,7 +16,7 @@ import {
 } from "@shared/ui/table"
 import { Trophy, ArrowRight } from "lucide-react"
 import { cn } from "cn"
-import type { StandingRow } from "@/lib/types"
+import type { StandingRow } from "@shared/results/types"
 
 
 interface StandingsPanelProps {

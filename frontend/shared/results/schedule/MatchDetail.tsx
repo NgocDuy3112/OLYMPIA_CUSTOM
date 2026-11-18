@@ -1,14 +1,14 @@
 import { ArrowLeft, Trophy } from "lucide-react"
-import { RoundChart } from "@/components/match/RoundChart"
+import { RoundChart } from "@shared/results/match/RoundChart"
 import { buttonVariants } from "@shared/ui/button"
 import { Badge } from "@shared/ui/badge"
 import { Card, CardContent } from "@shared/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
 import { cn } from "cn"
-import type { TournamentRound } from "@/lib/api"
-import type { Match } from "@/lib/types"
-import { statisticsFor, type RoundRow } from "@/lib/match-stats"
+import type { TournamentRound } from "@shared/results/api"
+import type { Match } from "@shared/results/types"
+import { statisticsFor, type RoundRow } from "@shared/results/match-stats"
 import { STATUS_LABEL, STATUS_VARIANT } from "./status" 
 
 interface MatchDetailProps {

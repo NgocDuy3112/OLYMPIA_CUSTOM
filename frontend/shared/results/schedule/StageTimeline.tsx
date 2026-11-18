@@ -1,6 +1,6 @@
 import { Check } from "lucide-react"
 import { cn } from "cn"
-import type { Stage } from "@/lib/api"
+import type { Stage } from "@shared/results/api"
 
 
 type StageState = "done" | "current" | "upcoming"

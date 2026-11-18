@@ -1,6 +1,6 @@
-import { StandingsPanel } from "@/components/standings/StandingsPanel"
-import type { Match, StandingRow } from "@/lib/types"
-import { PlayerDrawer } from "@/components/standings/PlayerDrawer"
+import { StandingsPanel } from "@shared/results/standings/StandingsPanel"
+import type { Match, StandingRow } from "@shared/results/types"
+import { PlayerDrawer } from "@shared/results/standings/PlayerDrawer"
 import { useState } from "react"
 
 interface StandingsPageProps {

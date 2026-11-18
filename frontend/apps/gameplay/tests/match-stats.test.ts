@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { statisticsFor } from "../src/lib/match-stats"
-import type { Match, PlayerResult } from "../src/lib/types"
+import { statisticsFor } from "@shared/results/match-stats"
+import type { Match, PlayerResult } from "@shared/results/types"
 
 const ROUNDS = [
     { id: "khoi-dong", name: "Khởi động", order: 0, chart: "grid" },

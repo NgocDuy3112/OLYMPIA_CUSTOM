@@ -1,4 +1,4 @@
-import type { MatchStatus } from "@/lib/types"
+import type { MatchStatus } from "@shared/results/types"
 
 export const STATUS_VARIANT: Record<MatchStatus, "outline" | "destructive" | "secondary"> = {
     UPCOMING: "outline",

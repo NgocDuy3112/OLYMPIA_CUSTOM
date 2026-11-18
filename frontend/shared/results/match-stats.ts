@@ -1,5 +1,5 @@
-import type { TournamentRound } from "@/lib/api"
-import type { Match, PlayerResult } from "@/lib/types"
+import type { TournamentRound } from "@shared/results/api"
+import type { Match, PlayerResult } from "@shared/results/types"
 
 export interface RoundRow {
     round: string

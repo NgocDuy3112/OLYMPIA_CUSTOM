@@ -5,7 +5,8 @@ import { Card, CardContent } from "@shared/ui/card"
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@shared/ui/field"
 import { Input } from "@shared/ui/input"
 import { ApiError } from "@shared/lib/api"
-import { isUnauthorized, loginLink, useChangePassword, useMe } from "@/lib/session"
+import { isUnauthorized, loginLink, useChangePassword, useMe } from "@shared/session"
+import { authNextTarget } from "@shared/results/links"
 
 const PASSWORD_MIN = 8
 
@@ -37,7 +38,7 @@ export function ChangePasswordPage() {
                     setCurrent("")
                     setNext1("")
                     setConfirm("")
-                    navigate(back, { replace: true })
+                    const target = authNextTarget(back); if (target.startsWith("http")) window.location.assign(target); else navigate(target, { replace: true })
                 },
             }
         )
