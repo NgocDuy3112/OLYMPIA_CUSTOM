@@ -12,6 +12,7 @@ interface ConsoleFactsParts {
     commits: ConsoleCommits
     plans: Pick<ConsolePlans, "hetLuot" | "backToLobby" | "pickQuestion">
     openAdjust: (userId: string) => void
+    openRegrade: (userId: string) => void
 }
 
 export function consoleFactsOf(parts: ConsoleFactsParts): ConsoleFacts {
@@ -43,5 +44,6 @@ export function consoleFactsOf(parts: ConsoleFactsParts): ConsoleFacts {
         verdictOf: judging.verdictOf,
         flash: transport.flash,
         openAdjust: parts.openAdjust,
+        openRegrade: parts.openRegrade,
     }
 }

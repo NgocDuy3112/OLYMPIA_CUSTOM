@@ -4,6 +4,7 @@ import { Lobby } from "@shared/deck/lobby"
 import { Badges, StageLayout } from "@/components/stage/deck"
 import { ROUND_LABEL, pt } from "@shared/deck/geometry"
 import { AdjustScoreDialog } from "./AdjustScoreDialog"
+import { RegradeDialog } from "./RegradeDialog"
 import { useConsoleModel, type ConsoleControl } from "./use-console-model"
 import { ConsoleControlContext } from "./control-context"
 import { Button } from "@shared/ui/button"
@@ -123,6 +124,21 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
                             playerName={facts.baseCards.find((c) => c.id === model.adjustFor)?.name ?? model.adjustFor}
                             onCancel={model.closeAdjust}
                             onSubmit={model.submitAdjust}
+                        />
+                    )}
+                    {model.regradeFor && (
+                        <RegradeDialog
+                            playerName={facts.baseCards.find((c) => c.id === model.regradeFor)?.name ?? model.regradeFor}
+                            rows={(facts.v.projection.answers ?? [])
+                                .filter((a) => a.userId === model.regradeFor)
+                                .map((a) => ({
+                                    questionId: a.questionId,
+                                    text: facts.byId(a.questionId)?.questionText ?? a.questionId,
+                                    points: a.pointsAwarded ?? 0,
+                                    roundId: facts.byId(a.questionId)?.roundId ?? "",
+                                }))}
+                            onCancel={model.closeRegrade}
+                            onSubmit={model.submitRegrade}
                         />
                     )}
                 </StageShell>

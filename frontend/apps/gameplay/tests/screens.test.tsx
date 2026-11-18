@@ -41,7 +41,8 @@ function view(over: Partial<PlayerView> = {}): PlayerView {
             { id: "u2", displayName: "Bình", points: 20, rank: 2 },
         ],
         board,
-        me: {},
+        me: { pickedTiles: [], hintVerdicts: {} },
+        hintAnswers: {},
         ...over,
     }
 }
@@ -97,7 +98,7 @@ describe("player screens render from a plain fixture", () => {
         view({
             roundId: "khoi-dong",
             open: [{ questionId: "q1", deadlineAt: null, question: question("q1") }],
-            me: { windowOpen: true, questionIndex: 0, questionCount: 6 } as PlayerView["me"],
+            me: { windowOpen: true, questionIndex: 0, questionCount: 6, pickedTiles: [], hintVerdicts: {} } as PlayerView["me"],
         })
 
     it("khởi động · lượt chung — the field opens with the window", () => {
@@ -213,20 +214,20 @@ describe("player screens render from a plain fixture", () => {
     })
 
     it("về đích · lượt cá nhân — the buzz button is this player's", () => {
-        const v = view({ roundId: "ve-dich", stage: "phase2", open: [openQ], me: { canBuzz: true, buzzWindowOpen: true } as PlayerView["me"] })
+        const v = view({ roundId: "ve-dich", stage: "phase2", open: [openQ], me: { canBuzz: true, buzzWindowOpen: true, pickedTiles: [], hintVerdicts: {} } as PlayerView["me"] })
         const { getAllByText } = render(<VeDichRiengAOCPlayer ctx={ctx({ v })} />)
         expect(getAllByText("Bấm chuông").length).toBeGreaterThan(0)
     })
 
     it("về đích · the board — a picker with the fixed bands", () => {
-        const v = view({ roundId: "ve-dich", stage: "phase2", me: { isMyTurn: true } })
+        const v = view({ roundId: "ve-dich", stage: "phase2", me: { isMyTurn: true, pickedTiles: [], hintVerdicts: {} } })
         const { getAllByText } = render(<VeDichRiengPickPlayer ctx={ctx({ v })} />)
         expect(getAllByText("Về đích").length).toBeGreaterThan(0)
         expect(getAllByText("40").length).toBeGreaterThan(0)
     })
 
     it("về đích · the board — display-only: the console picks, the player watches", () => {
-        const v = view({ roundId: "ve-dich", stage: "phase2", me: { isMyTurn: true } })
+        const v = view({ roundId: "ve-dich", stage: "phase2", me: { isMyTurn: true, pickedTiles: [], hintVerdicts: {} } })
         const { queryByText } = render(<VeDichChungPickPlayer ctx={ctx({ v })} />)
         expect(queryByText("Chốt 3 câu")).toBeNull()
         expect(queryByText("Chọn câu này")).toBeNull()
@@ -234,7 +235,7 @@ describe("player screens render from a plain fixture", () => {
     })
 
     it("rail — the buzzer's card reads Đã bấm chuông with the time they buzzed", () => {
-        const v = view({ roundId: "ve-dich", stage: "phase2", me: { buzzer: "u2", buzzerMs: 1240 } })
+        const v = view({ roundId: "ve-dich", stage: "phase2", me: { buzzer: "u2", buzzerMs: 1240, pickedTiles: [], hintVerdicts: {} } })
         const { getByText } = render(<Rail view={v} myId={null} />)
         expect(getByText(/Đã bấm chuông/)).toBeTruthy()
         expect(getByText("01.240")).toBeTruthy()
@@ -244,7 +245,7 @@ describe("player screens render from a plain fixture", () => {
         const v = view({
             roundId: "ve-dich",
             stage: "phase2",
-            me: { buzzer: "u2", buzzerMs: 3425 },
+            me: { buzzer: "u2", buzzerMs: 3425, pickedTiles: [], hintVerdicts: {} },
             publicVerdicts: [
                 { questionId: "q1", userId: "u1", verdict: "CORRECT", answeredMs: 9002 },
                 { questionId: "q1", userId: "u2", verdict: "INCORRECT", answeredMs: 4100 },

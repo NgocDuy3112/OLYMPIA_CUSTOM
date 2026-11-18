@@ -54,7 +54,7 @@ export interface Projection {
     board?: Array<{ questionId: string; value: number; where: "free" | "pending" | "open" | "taken" | "deferred" }>
     answers?: QuestionAnswerRow[]
     keywordCode?: string | null
-    hintAnswers?: Record<string, string> | null
+    hintAnswers: Record<string, string>
     revealed?: {
         contestants: Array<{
             userId: string

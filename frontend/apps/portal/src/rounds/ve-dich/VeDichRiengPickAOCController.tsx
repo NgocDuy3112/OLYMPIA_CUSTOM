@@ -66,7 +66,7 @@ function VeDichRiengPickBoard({ ctx }: { ctx: VeDichRiengPickCtx }) {
 
     return (
         <ConsoleStage
-            rail={<Rail cards={baseCards} onSelect={(id) => ctx.send({ kind: "ve-dich.setTurn", playerId: id })} />}
+            rail={<Rail cards={baseCards} onSelect={(id) => ctx.send({ kind: "ve-dich.setTurn", playerId: id })} onScoreClick={ctx.openRegrade} />}
             actions={[
                 {
                     label: "Xác nhận",

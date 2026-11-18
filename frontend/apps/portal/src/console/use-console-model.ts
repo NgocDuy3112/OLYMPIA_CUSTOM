@@ -37,6 +37,10 @@ type ConsoleModel = {
     openAdjust: (userId: string) => void
     closeAdjust: () => void
     submitAdjust: (delta: number, reason: string) => void
+    regradeFor: string | null
+    openRegrade: (userId: string) => void
+    closeRegrade: () => void
+    submitRegrade: (questionId: string, delta: number) => void
     control: ConsoleControl
 } & (
     | { phase: "loading" }
@@ -264,6 +268,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         commits,
         plans,
         openAdjust: adjust.openAdjust,
+        openRegrade: adjust.openRegrade,
     })
     return { phase: "deck", control, facts, roundModule: roundModuleOf(roundId), host: transport.host, ...adjust }
 }

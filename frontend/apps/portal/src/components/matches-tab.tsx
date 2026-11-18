@@ -41,17 +41,12 @@ export function MatchesTab({
     const transition = useTransitionMatch(tournamentId)
 
     const openStage = (match: { id: string; status: string }) => {
-        if (match.status !== "UPCOMING") {
-            window.open(`/tournaments/${tournamentId}/matches/${match.id}/stage`, "_blank")
-            return
+        // open synchronously inside the click — window.open after the async
+        // transition would be blocked as a popup
+        window.open(`/tournaments/${tournamentId}/matches/${match.id}/stage`, "_blank")
+        if (match.status === "UPCOMING") {
+            transition.mutate({ matchId: match.id, status: "LIVE" })
         }
-        transition.mutate(
-            { matchId: match.id, status: "LIVE" },
-            {
-                onSuccess: () =>
-                    window.open(`/tournaments/${tournamentId}/matches/${match.id}/stage`, "_blank"),
-            },
-        )
     }
 
     if (matches.isPending) return <p className="text-sm text-muted-foreground">Loading matches…</p>

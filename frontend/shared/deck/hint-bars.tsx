@@ -1,13 +1,12 @@
 import { HINT_TILES, hintTileClass } from "./cells"
 import { pt } from "./geometry"
 
-export function HintBars({ tiles, openTile, pickedTiles, verdicts, answers, code, onPick }: {
+export function HintBars({ tiles, openTile, pickedTiles, verdicts, answers, onPick }: {
     tiles?: Array<string | null>
     openTile?: number | null
-    pickedTiles?: readonly number[]
-    verdicts?: Record<string, string>
-    answers?: Record<string, string>
-    code?: string | null
+    pickedTiles: readonly number[]
+    verdicts: Record<string, string>
+    answers: Record<string, string>
     onPick?: (qid: string) => void
 }) {
     const count = tiles?.length ?? HINT_TILES
@@ -19,20 +18,7 @@ export function HintBars({ tiles, openTile, pickedTiles, verdicts, answers, code
             {Array.from({ length: count }, (_, index) => {
                 const qid = tiles ? tiles[index] ?? null : null
 
-                if (code !== null && code !== undefined) {
-                    return (
-                        <div
-                            key={index}
-                            className="flex h-[75px] items-center justify-center gap-[1cqw] px-[1.2cqw] rounded-xl bg-primary/10 ring-1 ring-primary/40"
-                        >
-                            <span className="font-display font-bold leading-none text-foreground" style={{ fontSize: pt(48) }}>
-                                {code[index] ?? ""}
-                            </span>
-                        </div>
-                    )
-                }
-
-                const verdict = verdicts?.[String(index)]
+                const verdict = verdicts[String(index)]
                 if (verdict === "INCORRECT") {
                     return (
                         <div
@@ -45,7 +31,7 @@ export function HintBars({ tiles, openTile, pickedTiles, verdicts, answers, code
                     )
                 }
 
-                const answer = answers?.[String(index)]
+                const answer = answers[String(index)]
                 if (answer !== undefined) {
                     return (
                         <div
@@ -63,7 +49,7 @@ export function HintBars({ tiles, openTile, pickedTiles, verdicts, answers, code
                 }
 
                 const absent = tiles !== undefined && qid === null
-                const picked = pickedTiles?.includes(index) ?? false
+                const picked = pickedTiles.includes(index)
                 const state = absent ? "absent" : index === openTile ? "open" : picked ? "used" : "free"
                 const interactive = Boolean(onPick) && qid !== null && state === "free"
                 let title: string | undefined

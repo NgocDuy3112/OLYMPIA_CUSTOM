@@ -64,7 +64,7 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
 
     return (
         <ConsoleStage
-            rail={<Rail cards={baseCards} onSelect={ctx.toggleSelect} />}
+            rail={<Rail cards={baseCards} onSelect={ctx.toggleSelect} onScoreClick={ctx.openRegrade} />}
             actions={[
                 {
                     label: "Tính giờ",

@@ -34,7 +34,7 @@ export function VeDichChungPickAOCController({ ctx }: { ctx: VeDichChungPickCtx 
 
     return (
         <ConsoleStage
-            rail={<Rail cards={baseCards} onSelect={ctx.setSelectedPlayer} />}
+            rail={<Rail cards={baseCards} onSelect={ctx.setSelectedPlayer} onScoreClick={ctx.openRegrade} />}
             actions={[
                 {
                     label: "Xác nhận",

@@ -24,6 +24,7 @@ function facts(
             stage: "phase1",
             open: [],
             table: [{ id: "u1", displayName: "An", points: 10, rank: 1 }],
+            hintAnswers: {},
             ...projection,
         },
         roundEnded: false,
@@ -56,6 +57,7 @@ function facts(
         oralRemaining: null,
         flash: null,
         openAdjust: vi.fn(),
+        openRegrade: vi.fn(),
         ...over,
     }
 }

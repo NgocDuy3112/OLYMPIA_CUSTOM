@@ -62,10 +62,9 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
 
             <HintBars
                 openTile={v.me.openTile ?? null}
-                pickedTiles={v.me.pickedTiles ?? []}
-                verdicts={v.me.hintVerdicts ?? {}}
-                answers={v.hintAnswers ?? {}}
-                code={v.keywordCode ?? null}
+                pickedTiles={v.me.pickedTiles}
+                verdicts={v.me.hintVerdicts}
+                answers={v.hintAnswers}
             />
 
             <QuestionCard

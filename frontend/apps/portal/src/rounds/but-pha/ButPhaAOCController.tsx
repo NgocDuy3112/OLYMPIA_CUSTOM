@@ -39,7 +39,7 @@ export function ButPhaAOCController({ ctx }: { ctx: ButPhaCtx }) {
 
     return (
         <ConsoleStage
-            rail={<Rail cards={baseCards} onSelect={ctx.toggleSelect} />}
+            rail={<Rail cards={baseCards} onSelect={ctx.toggleSelect} onScoreClick={ctx.openRegrade} />}
             actions={[
                 {
                     label: COPY.startClock,

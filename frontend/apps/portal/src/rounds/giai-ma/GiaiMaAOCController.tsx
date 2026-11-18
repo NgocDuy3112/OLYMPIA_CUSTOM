@@ -61,7 +61,7 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
 
     return (
         <ConsoleStage
-            rail={<Rail cards={baseCards} onSelect={ctx.toggleSelect} />}
+            rail={<Rail cards={baseCards} onSelect={ctx.toggleSelect} onScoreClick={ctx.openRegrade} />}
             actions={[
                 { label: COPY.correct, onClick: commitHint },
                 { label: COPY.judgeKeyword, onClick: commitKeyword },
@@ -94,8 +94,8 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
                 pickedTiles={hintQuestions
                     .map((q, index) => (pickedHints.includes(q._id) ? index : -1))
                     .filter((index) => index >= 0)}
-                answers={v.projection.hintAnswers ?? {}}
-                code={v.projection.keywordCode ?? null}
+                verdicts={{}}
+                answers={v.projection.hintAnswers}
                 onPick={openHint}
             />
             <QuestionCard
@@ -103,7 +103,7 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
                 size={28}
                 right={<Timer remaining={timerRemaining} size={32} />}
                 question={questionText}
-                className="h-[150px]"
+                className="h-37.5"
             />
         </ConsoleStage>
     )

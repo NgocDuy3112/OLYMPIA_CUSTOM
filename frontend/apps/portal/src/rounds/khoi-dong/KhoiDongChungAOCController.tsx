@@ -44,7 +44,7 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
 
     return (
         <ConsoleStage
-            rail={<Rail cards={baseCards} onSelect={toggleSelect} />}
+            rail={<Rail cards={baseCards} onSelect={toggleSelect} onScoreClick={ctx.openRegrade} />}
             actions={[
                 {
                     label: "Bấm giờ",

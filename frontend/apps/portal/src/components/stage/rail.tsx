@@ -49,7 +49,7 @@ function CardVideo({ track }: { track: RemoteVideoTrack }) {
     return <span ref={holder} className="absolute inset-0 overflow-hidden rounded-lg" aria-hidden />
 }
 
-export function Rail({ cards, onSelect }: { cards: CardData[]; onSelect?: (id: string) => void }) {
+export function Rail({ cards, onSelect, onScoreClick }: { cards: CardData[]; onSelect?: (id: string) => void; onScoreClick?: (id: string) => void }) {
     let Interactive: "button" | "div" = "div"
     if (onSelect) Interactive = "button"
     const scoreSize = 34
@@ -116,9 +116,21 @@ export function Rail({ cards, onSelect }: { cards: CardData[]; onSelect?: (id: s
                             <span className="flex min-w-0 items-center justify-center gap-[0.3cqw] font-display font-semibold leading-none text-foreground" style={{ fontSize: pt(16) }}>
                                 <span className="truncate">{c.name}</span>
                             </span>
-                            <span className={`font-display font-bold leading-none tabular-nums ${railScoreClass(state)}`} style={{ fontSize: pt(scoreSize) }}>
-                                {c.points}
-                            </span>
+                            {onScoreClick ? (
+                                <button
+                                    type="button"
+                                    onClick={() => onScoreClick(c.id)}
+                                    title="Sửa điểm câu trả lời"
+                                    className={`cursor-pointer font-display font-bold leading-none tabular-nums transition hover:underline ${railScoreClass(state)}`}
+                                    style={{ fontSize: pt(scoreSize) }}
+                                >
+                                    {c.points}
+                                </button>
+                            ) : (
+                                <span className={`font-display font-bold leading-none tabular-nums ${railScoreClass(state)}`} style={{ fontSize: pt(scoreSize) }}>
+                                    {c.points}
+                                </span>
+                            )}
                             {statusLine}
                         </div>
                     </div>

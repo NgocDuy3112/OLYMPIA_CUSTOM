@@ -60,6 +60,7 @@ export function playSfx(url: string): void {
     try {
         const audio = new Audio(url)
         current = audio
+        audio.volume = 0.5
         audio.play().then(
             () => {
                 unlocked = true

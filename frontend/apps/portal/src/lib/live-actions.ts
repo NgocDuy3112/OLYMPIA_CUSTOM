@@ -53,6 +53,7 @@ export type LiveAction =
     | { kind: "round.goTo"; roundId: string }
     | { kind: "round.waiting" }
     | { kind: "score.adjust"; userId: string; delta: number; reason: string }
+    | { kind: "answer.regrade"; questionId: string; playerId: string; delta: number }
     | { kind: "reveal.answer"; questionId: string }
 
 export function startAction(

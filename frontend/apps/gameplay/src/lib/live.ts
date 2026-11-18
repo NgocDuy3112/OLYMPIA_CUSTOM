@@ -58,6 +58,9 @@ export interface LiveMe {
     isAnswerer?: boolean
     canAnswer?: boolean
     canBuzz?: boolean
+    openTile?: number | null
+    pickedTiles: number[]
+    hintVerdicts: Record<string, string>
     power?: "STAR" | "ASSIGN" | null
     buzzer?: string | null
 }
@@ -90,6 +93,7 @@ export interface LiveView {
         where: "free" | "pending" | "open" | "taken" | "deferred"
     }>
     keyword?: { questionId: string; question: LiveQuestion | null } | null
+    hintAnswers: Record<string, string>
     me: LiveMe
     audioGate?: { allowed: string[] }
 }

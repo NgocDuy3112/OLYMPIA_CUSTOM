@@ -49,7 +49,7 @@ export function QuestionBlock({ question, media, mediaHint = "hình ảnh câu h
 function MediaWell({ media, mediaHint }: { media: { url: string; type: string }; mediaHint: string }) {
     const [broken, setBroken] = useState(false)
     const wellClass =
-        "ml-auto min-w-0 flex-1 self-end overflow-hidden rounded-2xl bg-muted ring-1 ring-border flex items-end justify-end"
+        "ml-auto h-fit min-w-0 flex-1 self-end overflow-hidden rounded-2xl bg-muted ring-1 ring-border flex items-end justify-end"
 
     if (media.type !== "image" || broken) {
         let mediaText = `media: ${media.type}`
@@ -82,7 +82,7 @@ export function KeywordLengthBanner({ length, code, onClick }: { length: number 
             type="button"
             onClick={onClick}
             title={onClick ? "Hiện đáp án từ khoá" : undefined}
-            className="flex h-[125px] shrink-0 items-center justify-center gap-[1.5cqw] rounded-2xl bg-card px-[2cqw] shadow-md ring-1 ring-border transition hover:ring-primary/60"
+            className="flex h-31.25 shrink-0 items-center justify-center gap-[1.5cqw] rounded-2xl bg-card px-[2cqw] shadow-md ring-1 ring-border transition hover:ring-primary/60"
         >
             <span className="font-display font-bold uppercase tracking-wide text-foreground" style={{ fontSize: pt(40) }}>
                 Mật mã gồm có {length} chữ cái

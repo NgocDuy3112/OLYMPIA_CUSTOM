@@ -29,4 +29,5 @@ export interface ConsoleFacts {
     verdictOf: (questionId: string, userId: string) => "CORRECT" | "INCORRECT" | null
     flash: string | null
     openAdjust: (userId: string) => void
+    openRegrade: (userId: string) => void
 }

@@ -30,8 +30,8 @@ export interface PlayerMe {
     keywordLocked?: boolean
     eliminated?: boolean
     openTile?: number | null
-    pickedTiles?: number[]
-    hintVerdicts?: Record<string, string>
+    pickedTiles: number[]
+    hintVerdicts: Record<string, string>
     keywordValue?: number | null
     revealedHints?: Array<{ questionId: string; question: PlayerQuestion | null }>
     hintsRevealed?: number
@@ -76,7 +76,7 @@ export interface PlayerView {
     }>
     keyword?: { questionId: string; question: PlayerQuestion | null } | null
     keywordCode?: string | null
-    hintAnswers?: Record<string, string> | null
+    hintAnswers: Record<string, string>
     me: PlayerMe
     publicVerdicts?: Array<{
         questionId: string

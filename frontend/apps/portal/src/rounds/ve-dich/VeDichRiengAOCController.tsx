@@ -95,7 +95,7 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
 
     return (
         <ConsoleStage
-            rail={<Rail cards={baseCards} onSelect={railSelect} />}
+            rail={<Rail cards={baseCards} onSelect={railSelect} onScoreClick={ctx.openRegrade} />}
             actions={[
                 {
                     label: COPY.powerStar,

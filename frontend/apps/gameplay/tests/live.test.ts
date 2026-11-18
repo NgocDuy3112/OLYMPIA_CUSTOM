@@ -8,7 +8,8 @@ const view = (over: Partial<LiveView>): LiveView => ({
     stage: "pending",
     open: [],
     table: [],
-    me: {},
+    me: { pickedTiles: [], hintVerdicts: {} },
+    hintAnswers: {},
     ...over,
 })
 
