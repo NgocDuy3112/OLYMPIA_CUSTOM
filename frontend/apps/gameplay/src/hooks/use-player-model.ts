@@ -16,6 +16,7 @@ import {
     type PlayerScreen,
 } from "@/lib/live"
 import { flashOf } from "@/lib/flash"
+import { useGlow, glowKeyOf, type GlowKey } from "@shared/lib/glow"
 import { lobbyHintOf } from "@/lib/lobby-hint"
 import { playerCtxOf } from "@/lib/player-ctx"
 import { s2QuestionOf } from "@/lib/s2"
@@ -45,6 +46,9 @@ export function usePlayerModel(matchId: string): PlayerModel {
     const [view2, setView2] = useState({ qid: "", idx: 0 })       
 
     const v = live.view
+    let glowKey: GlowKey = "lobby"
+    if (v !== undefined) glowKey = glowKeyOf(v.roundId, v.stage)
+    useGlow(glowKey, "lobby")
     const open = v?.open ?? []
     const remaining = useCountdown(open[0]?.deadlineAt ?? null, live.clock)
     const oralRemaining = useCountdown(v?.oral?.deadlineAt ?? null, live.clock)

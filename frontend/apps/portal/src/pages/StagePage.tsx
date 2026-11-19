@@ -6,7 +6,7 @@ export function StagePage() {
     const { tournamentId, matchId } = useParams()
 
     return (
-        <div className="flex h-dvh w-full flex-col bg-background">
+        <div className="flex h-dvh w-full flex-col">
             <div className="flex w-full flex-1 flex-col">
                 <Controller tournamentId={tournamentId!} matchId={matchId!} />
             </div>

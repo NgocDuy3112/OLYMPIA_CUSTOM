@@ -12,6 +12,7 @@ import { useConsolePlans } from "./model/use-console-plans"
 import { useConsoleAdjust } from "./model/use-console-adjust"
 import { useTransitionMatch } from "@/lib/tournament"
 import { ApiError } from "@shared/lib/api"
+import { setGlow, roundGlowOf, glowKeyOf } from "@shared/lib/glow"
 import { navigatorStartPlan } from "./navigator-plan"
 import { startAction } from "@/lib/live-actions"
 import { railCardsOf } from "./lib/rail-cards"
@@ -178,6 +179,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
                 if (starting) return
                 setStarting(true)
                 setStartError(null)
+                setGlow(roundGlowOf(roundId))
                 try {
                     await transition.mutateAsync({ matchId, status: "LIVE" })
                     const fresh = await live.refetch()
@@ -193,6 +195,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
                     }
                     nav.enterRound()
                 } catch (error) {
+                    setGlow(glowKeyOf(v?.roundId ?? "", projection?.stage ?? "pending"))
                     let refusal: Error = new Error("Không bắt đầu được vòng")
                     if (error instanceof Error) refusal = error
                     setStartError(startRefusal(refusal))
@@ -230,6 +233,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
             endingMatch: transition.isPending,
             onStart: (roundId: string, phase?: 1 | 2) => {
                 if (control.blocked) return
+                setGlow(roundGlowOf(roundId))
                 plans.onStart(roundId, phase)
             },
             busy: writer.isPending,

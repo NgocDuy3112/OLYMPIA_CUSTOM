@@ -2,6 +2,7 @@ import type { LobbyData, VeDichConsole } from "@/lib/live"
 import type { LiveAction } from "@/lib/live-actions"
 import { startAction } from "@/lib/live-actions"
 import { ApiError } from "@shared/lib/api"
+import { setGlow, glowKeyOf } from "@shared/lib/glow"
 import { endRoundPlanOf, nextQuestionPlanOf, roundModuleOf } from "@/rounds"
 import { navigatorStartPlan } from "../navigator-plan"
 import type { ConsoleJudging } from "./use-console-judging"
@@ -104,6 +105,7 @@ export function useConsolePlans(input: ConsolePlansInput): ConsolePlans {
             input.nav.enterRound()
             input.onStartError(null)
         } catch (error) {
+            setGlow(glowKeyOf(roundId, stage))
             input.onStartError(refusalOf(error))
         }
     }

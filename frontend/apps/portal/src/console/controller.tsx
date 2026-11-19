@@ -7,6 +7,7 @@ import { AdjustScoreDialog } from "./AdjustScoreDialog"
 import { RegradeDialog } from "./RegradeDialog"
 import { useConsoleModel, type ConsoleControl } from "./use-console-model"
 import { ConsoleControlContext } from "./control-context"
+import { useGlow, glowKeyOf, type GlowKey } from "@shared/lib/glow"
 import { Button } from "@shared/ui/button"
 
 function ControlBanner({ control }: { control: ConsoleControl }) {
@@ -29,6 +30,9 @@ function ControlBanner({ control }: { control: ConsoleControl }) {
 
 export function Controller({ tournamentId, matchId }: { tournamentId: string; matchId: string }) {
     const model = useConsoleModel(tournamentId, matchId)
+    let glowKey: GlowKey = "lobby"
+    if (model.phase === "deck") glowKey = glowKeyOf(model.facts.v.roundId, model.facts.stage)
+    useGlow(glowKey)
 
     if (model.phase === "loading") {
         return (
