@@ -145,10 +145,11 @@
 
   body {
     @apply text-foreground;
-    background-color: #05050a;
+    background-color: #07060e;
     background-image:
-      radial-gradient(55rem 40rem at 12% -10%, rgb(168 85 247 / 0.16), transparent 70%),
-      radial-gradient(50rem 36rem at 88% 110%, rgb(56 128 255 / 0.11), transparent 70%);
+      radial-gradient(72rem 55rem at 6% -18%, rgb(168 85 247 / 0.45), transparent 62%),
+      radial-gradient(60rem 46rem at 94% 118%, rgb(56 128 255 / 0.32), transparent 62%),
+      radial-gradient(46rem 34rem at 78% -8%, rgb(217 70 239 / 0.22), transparent 68%);
     background-attachment: fixed;
   }
 
