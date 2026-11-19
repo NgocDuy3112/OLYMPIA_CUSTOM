@@ -196,7 +196,19 @@ function RootRedirect() {
 
     const tournaments = list.data.tournaments
     const current = tournaments.find((t) => t.current) ?? tournaments[tournaments.length - 1]
-    if (!current) return <ErrorState onRetry={() => void list.refetch()} />
+    if (!current) {
+        return (
+            <>
+                <ResultsNav />
+                <div className="mx-auto flex w-full max-w-360 flex-col items-center gap-3 px-4 py-16 text-center">
+                    <p className="font-medium">Chưa có giải đấu nào</p>
+                    <p className="text-sm text-muted-foreground">
+                        Danh sách giải sẽ xuất hiện ở đây khi ban tổ chức tạo.
+                    </p>
+                </div>
+            </>
+        )
+    }
 
     return <Navigate to={`/tournaments/${current.id}`} replace />
 }
