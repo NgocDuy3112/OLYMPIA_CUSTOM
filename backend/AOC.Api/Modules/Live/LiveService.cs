@@ -537,16 +537,9 @@ public sealed class LiveService(
 
                 case "but-pha":
                 {
-                    ButPhaState engine;
-                    if (action is LiveAction.ButPhaStart)
-                    {
-                        engine = ButPhaTurn.StartButPha([], RoundRules.ResolveButPha(
-                            match.RoundConfigsMap.GetValueOrDefault(current.RoundId)));
-                    }
-                    else
-                    {
-                        engine = LiveState.ParseButPha(current.State);
-                    }
+                    var butPhaRules = RoundRules.ResolveButPha(
+                        match.RoundConfigsMap.GetValueOrDefault(current.RoundId));
+                    var engine = ButPhaEngineSeed(action, butPhaRules, current.State);
 
                     var answerDrafts = new List<AnswerDraft>();
                     if (action is LiveAction.ButPhaFinalize finalize)
@@ -568,7 +561,7 @@ public sealed class LiveService(
                     }
 
                     var ctx = new ButPhaApplier.ButPhaContext(actorId.ToString(), current.RoundId, now,
-                        RoundRules.ResolveButPha(match.RoundConfigsMap.GetValueOrDefault(current.RoundId)),
+                        butPhaRules,
                         match.QuestionsList.Where(q => q.RoundId == current.RoundId)
                             .OrderBy(q => q.Position).Select(q => q.Id).ToList(),
                         answerDrafts);
@@ -701,6 +694,16 @@ public sealed class LiveService(
 
         await BroadcastSfxAsync(matchId, action, next);
         return next;
+    }
+
+    public static ButPhaState ButPhaEngineSeed(
+        LiveAction action, RoundRules.ButPhaRules rules, JsonElement savedState)
+    {
+        if (action is LiveAction.ButPhaStart)
+        {
+            return new ButPhaState { Rules = rules };
+        }
+        return LiveState.ParseButPha(savedState);
     }
 
     private async Task BroadcastSfxAsync(Guid matchId, LiveAction action, LiveRecord<JsonElement> next)

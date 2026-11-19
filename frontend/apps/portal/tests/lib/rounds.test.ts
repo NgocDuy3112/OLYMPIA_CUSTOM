@@ -159,6 +159,27 @@ describe("nextQuestionPlanOf — what Tính giờ sends (pick a NEW question)", 
             { kind: "but-pha.closeQuestion" },
         ])
     })
+
+    it("positions are 0-based: the 4th question (position 3) is the last one", () => {
+        expect(nextQuestionPlanOf("but-pha", input({
+            stage: "question",
+            openIds: ["b4"],
+            openQuestionPosition: 3,
+            rows: [row("u1", "CORRECT", true)],
+        }))).toEqual([
+            { kind: "but-pha.closeQuestion" },
+        ])
+
+        expect(nextQuestionPlanOf("but-pha", input({
+            stage: "question",
+            openIds: ["b3"],
+            openQuestionPosition: 2,
+            rows: [row("u1", "CORRECT", true)],
+        }))).toEqual([
+            { kind: "but-pha.closeQuestion" },
+            { kind: "but-pha.openQuestion" },
+        ])
+    })
 })
 
 describe("hetLuotAction — what Hết lượt sends", () => {

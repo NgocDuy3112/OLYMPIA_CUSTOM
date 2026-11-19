@@ -233,29 +233,17 @@ public static class LiveView
 
         if (questionId is not null && state.QuestionRevealedAt is not null)
         {
-            double? atS = null;
+            string? deadlineAt = null;
             if (state.QuestionOpenedAt is not null)
             {
-                try
-                {
-                    atS = ButPhaTurn.ElapsedSeconds(state, input.Now);
-                }
-                catch (RuleError)
-                {
-                    atS = double.PositiveInfinity;
-                }
+                deadlineAt = PlusSeconds(state.QuestionOpenedAt, state.Rules.QuestionLimitS);
             }
-            if (atS is null || atS <= 30)
+            open.Add(new Dictionary<string, object?>
             {
-                open.Add(new Dictionary<string, object?>
-                {
-                    ["questionId"] = questionId,
-                    ["deadlineAt"] = state.QuestionOpenedAt is not null
-                        ? PlusSeconds(state.QuestionOpenedAt, 30)
-                        : null,
-                    ["question"] = QuestionOf(input, questionId)
-                });
-            }
+                ["questionId"] = questionId,
+                ["deadlineAt"] = deadlineAt,
+                ["question"] = QuestionOf(input, questionId)
+            });
         }
 
         var me = new Dictionary<string, object?>

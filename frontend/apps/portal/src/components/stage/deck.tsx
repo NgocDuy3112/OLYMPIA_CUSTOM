@@ -9,6 +9,7 @@ export {
     HintBars,
     ValueCells,
     QuestionChips,
+    QuestionStepper,
     StageLayout,
     Timer,
     VeDichStripCells,

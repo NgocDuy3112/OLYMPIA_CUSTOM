@@ -36,7 +36,7 @@ export const butPhaAOC: RoundModule = {
         [...finalizeIfNeeded(input), { kind: "but-pha.endRound" }],
     nextQuestionPlan: (input): RoundAction[] => {
         if (input.openIds.length === 0) return [{ kind: "but-pha.openQuestion" }]
-        const isLastQuestion = (input.openQuestionPosition ?? TOTAL_QUESTIONS) >= TOTAL_QUESTIONS
+        const isLastQuestion = (input.openQuestionPosition ?? TOTAL_QUESTIONS) >= TOTAL_QUESTIONS - 1
         const chain: RoundAction[] = [
             ...finalizeIfNeeded(input),
             { kind: "but-pha.closeQuestion" },

@@ -1,4 +1,4 @@
-import { AnswerBand, PlayerStage, Progress, QuestionCard, Rail, Timer, type PlayerCore } from "../player-deck"
+import { AnswerBand, PlayerStage, QuestionCard, QuestionStepper, Rail, Timer, type PlayerCore } from "../player-deck"
 import type { AnswerValue } from "../types"
 
 type ButPhaPlayerCtx = PlayerCore & {
@@ -7,13 +7,23 @@ type ButPhaPlayerCtx = PlayerCore & {
     submitAnswer: (questionId: string, value: AnswerValue) => void
 }
 
+const TOTAL_QUESTIONS = 4
+
 export function ButPhaAOCPlayer({ ctx }: { ctx: ButPhaPlayerCtx }) {
     const { v, remaining, myId, flash, answerBusy, submitAnswer } = ctx
     const openQ = ctx.open[0] ?? null
-    const pos = openQ?.question?.position ?? null
+    let active: number | null = null
     let done = 0
-    if (pos !== null) done = pos
-    if (ctx.stage === "ended") done = 4
+    if (openQ) {
+        if (openQ.question) {
+            active = openQ.question.position
+            done = active
+        }
+    }
+    if (ctx.stage === "ended") {
+        done = TOTAL_QUESTIONS
+        active = null
+    }
     let timerRemaining: number | null = null
     if (openQ) {
         if (openQ.deadlineAt) timerRemaining = remaining
@@ -26,7 +36,7 @@ export function ButPhaAOCPlayer({ ctx }: { ctx: ButPhaPlayerCtx }) {
                 round="Bứt phá"
                 right={
                     <>
-                        <Progress total={4} done={done} active={pos ?? done} />
+                        <QuestionStepper total={TOTAL_QUESTIONS} done={done} active={active} next={null} />
                         <Timer remaining={timerRemaining} />
                     </>
                 }

@@ -596,6 +596,20 @@ describe("VeDichRieng — the powers and the duel", () => {
     })
 });
 
+const butPhaQuestions: LiveResponse["questions"] = [0, 1, 2, 3].map((i) => ({
+    _id: `bp-${i + 1}`,
+    kind: "TEXT",
+    roundId: "but-pha",
+    turnId: "phase1",
+    position: i,
+    questionText: `Câu hỏi BP ${i + 1}`,
+    timeLimit: 30,
+    points: 10,
+    payload: {},
+}))
+
+const byButPhaId = (id: string) => butPhaQuestions.find((q) => q._id === id) ?? null
+
 describe("ButPha — S4", () => {
     it("Tính giờ starts the revealed question's clock, Về sảnh ends the round", async () => {
         const user = userEvent.setup()
@@ -632,6 +646,56 @@ describe("ButPha — S4", () => {
     it("…and stays inert before the clock ever starts", () => {
         renderRound("but-pha", {}, {}, { questionId: "q1", opened: false })
         expect(screen.queryByRole("button", { name: "Đáp án thí sinh" })).toBeNull()
+    })
+
+    it("while a question is open, the NEXT chip is the clickable one", async () => {
+        const user = userEvent.setup()
+        const f = renderRound(
+            "but-pha",
+            { pickQuestion: vi.fn(), byId: byButPhaId },
+            { open: [{ questionId: "bp-1", deadlineAt: null, question: null }] },
+            { questionId: "bp-1", opened: true, clockStarted: true },
+            butPhaQuestions,
+        )
+
+        expect(screen.queryByRole("button", { name: "1" })).toBeNull()
+        await user.click(screen.getByRole("button", { name: "2" }))
+        expect(f.pickQuestion).toHaveBeenCalledOnce()
+    })
+
+    it("the open question's own chip is the current one (0-based position)", () => {
+        renderRound(
+            "but-pha",
+            { byId: byButPhaId },
+            { open: [{ questionId: "bp-2", deadlineAt: null, question: null }] },
+            { questionId: "bp-2", opened: true, clockStarted: true },
+            butPhaQuestions,
+        )
+
+        const current = document.querySelector('[aria-current="step"]')
+        expect(current?.textContent).toBe("2")
+    })
+
+    it("on the LAST question the current chip itself closes it", async () => {
+        const user = userEvent.setup()
+        const f = renderRound(
+            "but-pha",
+            { pickQuestion: vi.fn(), byId: byButPhaId },
+            { open: [{ questionId: "bp-4", deadlineAt: null, question: null }] },
+            { questionId: "bp-4", opened: true, clockStarted: true },
+            butPhaQuestions,
+        )
+
+        await user.click(screen.getByRole("button", { name: "4" }))
+        expect(f.pickQuestion).toHaveBeenCalledOnce()
+    })
+
+    it("once the round ends every chip reads done and nothing is clickable", () => {
+        renderRound("but-pha", {}, { stage: "ended" })
+
+        expect(screen.queryByRole("button", { name: "1" })).toBeNull()
+        expect(screen.getByText("✓1")).toBeInTheDocument()
+        expect(screen.getByText("✓4")).toBeInTheDocument()
     })
 })
 

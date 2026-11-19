@@ -144,6 +144,22 @@ describe("player screens render from a plain fixture", () => {
         expect(getByText("Bứt phá")).toBeTruthy()
     })
 
+    it("bứt phá — the stepper marks done questions with ✓ and lights the current one", () => {
+        const open = {
+            questionId: "bp-3",
+            deadlineAt: null,
+            question: { ...question("bp-3"), position: 2 },
+        }
+        const { getByText, container } = render(
+            <ButPhaAOCPlayer ctx={ctx({ v: view({ roundId: "but-pha", open: [open] }) })} />
+        )
+
+        expect(getByText("✓1")).toBeTruthy()
+        expect(getByText("✓2")).toBeTruthy()
+        const current = container.querySelector('[aria-current="step"]')
+        expect(current?.textContent).toBe("3")
+    })
+
     it("giải mã — the keyword banner and the eight tiles", () => {
         const v = view({
             roundId: "giai-ma",

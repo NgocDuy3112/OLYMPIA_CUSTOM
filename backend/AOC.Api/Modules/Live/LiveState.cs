@@ -111,7 +111,7 @@ public static class LiveState
                     details.Add($"points.{prop.Name}: expected object");
                 else
                     foreach (var inner in prop.Value.EnumerateObject())
-                        StateGuard.RequireInteger(inner.Value, inner.Name, details, "points");
+                        StateGuard.RequireInteger(prop.Value, inner.Name, details, $"points.{prop.Name}");
         }
         StateGuard.RequireBoolean(obj, "ended", details);
         OptionalRevealedAnswer(obj, details);

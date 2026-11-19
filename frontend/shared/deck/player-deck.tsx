@@ -13,6 +13,8 @@ export { AudienceFace, KeywordLengthBanner, QuestionCard } from "./question"
 
 export { VeDichStripCells } from "./strip"
 
+export { QuestionStepper } from "./stepper"
+
 export { Rail } from "./rail"
 
 export { AnswerBand, AnswerBandIdle, KeywordBox } from "./answer-controls"

@@ -146,7 +146,7 @@ public sealed class SubmitService(
                 var suggestion = Suggestion(question, value);
                 await drafts.WriteDraftAsync(ctx.MatchId, ctx.QuestionId, ctx.UserId,
                     ctx.Value, suggestion,
-                    answeredMs: (int)Math.Round(atS * 1000), revise: false);
+                    answeredMs: (int)Math.Round(atS * 1000), revise: true);
                 await DraftAuditAsync(ctx, loaded.Live.RoundId, suggestion);
 
                 await hub.PublishAsync(ctx.MatchId.ToString());

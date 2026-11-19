@@ -1,4 +1,4 @@
-import { ConsoleStage, QuestionCard, QuestionChips, Rail, Timer } from "@/components/stage/deck"
+import { ConsoleStage, QuestionCard, QuestionStepper, Rail, Timer } from "@/components/stage/deck"
 import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
 import { COPY } from "@shared/deck/copy"
 
@@ -15,12 +15,12 @@ export type ButPhaCtx = ScreenCore & {
     consoleButPha: ButPhaConsole | null
 }
 
+const TOTAL_QUESTIONS = 4
+
 export function ButPhaAOCController({ ctx }: { ctx: ButPhaCtx }) {
     const { v, remaining, baseCards, flash, consoleButPha } = ctx
     const open = v.projection.open
     const openQ = open[0] ?? null
-    let pos: number | null = null
-    if (openQ) pos = ctx.byId(openQ.questionId)?.position ?? 0
     let revealId: string | null = null
     if (consoleButPha?.opened === true) revealId = consoleButPha.questionId
     const clockStarted = consoleButPha?.clockStarted === true
@@ -36,6 +36,34 @@ export function ButPhaAOCController({ ctx }: { ctx: ButPhaCtx }) {
     }
     let timerRemaining: number | null = null
     if (openQ?.deadlineAt) timerRemaining = remaining
+
+    let ended = v.roundEnded
+    if (v.projection.stage === "ended") ended = true
+
+    let done: number
+    let active: number | null = null
+    let next: number | null = null
+    if (ended) {
+        done = TOTAL_QUESTIONS
+    } else if (openQ) {
+        let pos = 0
+        const opened = ctx.byId(openQ.questionId)
+        if (opened) pos = opened.position
+        done = pos
+        active = pos
+        next = pos + 1
+        if (next >= TOTAL_QUESTIONS) next = pos
+    } else {
+        let cursor = 0
+        if (consoleButPha) {
+            if (consoleButPha.questionId) {
+                const cursorQuestion = ctx.byId(consoleButPha.questionId)
+                if (cursorQuestion) cursor = cursorQuestion.position
+            }
+        }
+        done = cursor
+        next = cursor
+    }
 
     return (
         <ConsoleStage
@@ -61,14 +89,12 @@ export function ButPhaAOCController({ ctx }: { ctx: ButPhaCtx }) {
                 round="Bứt phá"
                 right={
                     <span className="flex items-center gap-[1.2cqw]">
-                        <QuestionChips
-                            chips={Array.from({ length: 4 }, (_, i) => ({
-                                id: `chip-${i}`,
-                                label: String(i + 1),
-                                active: pos !== null && i === pos - 1,
-                                clickable: openQ === null,
-                            }))}
-                            onSelect={() => ctx.pickQuestion()}
+                        <QuestionStepper
+                            total={TOTAL_QUESTIONS}
+                            done={done}
+                            active={active}
+                            next={next}
+                            onAdvance={ctx.pickQuestion}
                         />
                         <Timer remaining={timerRemaining} />
                     </span>
