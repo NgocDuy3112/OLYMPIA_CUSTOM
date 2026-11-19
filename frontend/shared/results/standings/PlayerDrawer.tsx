@@ -2,6 +2,7 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import type { ReactNode } from "react"
 import { X } from "lucide-react"
 import { cn } from "cn"
+import { SOLID_SURFACE } from "@shared/ui/solid"
 import { Badge } from "@shared/ui/badge"
 import { DialogOverlay } from "@shared/ui/dialog"
 import { formatDay } from "@shared/results/format"
@@ -81,7 +82,8 @@ export function PlayerDrawer({
                 <DialogOverlay />
                 <DialogPrimitive.Popup
                     className={cn(
-                        "fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col gap-8 overflow-y-auto bg-popover p-6 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-200 outline-none",
+                        SOLID_SURFACE,
+                "fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col gap-8 overflow-y-auto p-6 text-sm text-popover-foreground duration-200 outline-none",
                         "data-open:animate-in data-open:fade-in-0 data-open:slide-in-from-right",
                         "data-closed:animate-out data-closed:fade-out-0 data-closed:slide-out-to-right"
                     )}

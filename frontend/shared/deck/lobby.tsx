@@ -3,6 +3,7 @@ import type { LocalVideoTrack, RemoteVideoTrack } from "livekit-client"
 import { X } from "lucide-react"
 import { useSelfCam } from "@shared/lib/rtc"
 import { Button } from "@shared/ui/button"
+import { SOLID_SURFACE } from "@shared/ui/solid"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@shared/ui/dialog"
 import { initialsOf, pt } from "./geometry"
 import { SelfCamControls } from "./cam-controls"
@@ -79,7 +80,7 @@ export function Lobby({
                     return (
                         <div
                             key={row.id}
-                            className={`flex h-[9.3cqw] w-[21cqw] shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl bg-card p-[0.9cqw] shadow-sm ring-1 ring-border ${rowRing}`}
+                            className={`flex h-[9.3cqw] w-[21cqw] shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl p-[0.9cqw] shadow-sm ${SOLID_SURFACE} ${rowRing}`}
                         >
                             <div className="flex min-h-0 flex-1 gap-[0.7cqw]">
                                 <div

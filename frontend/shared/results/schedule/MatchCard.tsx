@@ -4,6 +4,7 @@ import { cn } from "cn"
 import type { Match } from "@shared/results/types"
 import { Trophy } from "lucide-react"
 import { STATUS_LABEL, STATUS_VARIANT } from "./status"
+import { SOLID_SURFACE } from "@shared/ui/solid"
 
 interface MatchCardProps {
     match: Match
@@ -27,6 +28,7 @@ export function MatchCard({ match, featured = false, onOpen }: MatchCardProps) {
         <Card
             size="sm"
             className={cn(
+                SOLID_SURFACE,
                 isLive && "ring-1 ring-destructive/40",
                 featured && "ring-2 ring-destructive"
             )}

@@ -16,6 +16,7 @@ import {
 } from "@shared/ui/table"
 import { Trophy, ArrowRight } from "lucide-react"
 import { cn } from "cn"
+import { SOLID_SURFACE } from "@shared/ui/solid"
 import type { StandingRow } from "@shared/results/types"
 
 
@@ -31,7 +32,7 @@ export function StandingsPanel({
     onSelectRow
 }: StandingsPanelProps) {
     return (
-        <Card className="h-fit lg:sticky lg:top-3 [--card-spacing:--spacing(6)]">
+        <Card className={cn(SOLID_SURFACE, "h-fit lg:sticky lg:top-3 [--card-spacing:--spacing(6)]")}>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-xl">
                     <Trophy className="size-4" aria-hidden />
