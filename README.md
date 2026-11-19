@@ -76,7 +76,7 @@ Notes:
   (prints a session cookie + the URL to open; pass a name/email to pick the seat).
   Google sign-in activates once
   `GOOGLE_OIDC_ISSUER / _CLIENT_ID / _CLIENT_SECRET / _REDIRECT_URI` are set — the local
-  redirect URI is `http://localhost:5175/gameplay/auth/google/callback`.
+  redirect URI is `http://localhost:5176/auth/google/callback` (results app).
 - Seed the first admin: `cd backend && set -a && source ../configs/.env && set +a && dotnet run -- --seed-admin`.
 - Other CLI helpers: `--mint-portal-session <username>`, `--mint-mcp-key [label]`.
 - Run the engine test suite: `cd backend && dotnet test`.

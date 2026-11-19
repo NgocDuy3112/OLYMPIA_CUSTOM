@@ -19,7 +19,7 @@ export default defineConfig({
         },
     },
     server: {
-        port: 5177,
+        port: 5176,
         proxy: {
             "/api": { target: process.env.API_PROXY_TARGET ?? "http://localhost:3000", changeOrigin: false },
             "/auth/google": { target: process.env.API_PROXY_TARGET ?? "http://localhost:3000", changeOrigin: false },
