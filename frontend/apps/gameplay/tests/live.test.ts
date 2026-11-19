@@ -10,6 +10,9 @@ const view = (over: Partial<LiveView>): LiveView => ({
     table: [],
     me: { pickedTiles: [], hintVerdicts: {} },
     hintAnswers: {},
+    keywordDeadlineAt: null,
+    keywordLength: 7,
+    keywordKind: "letters",
     ...over,
 })
 

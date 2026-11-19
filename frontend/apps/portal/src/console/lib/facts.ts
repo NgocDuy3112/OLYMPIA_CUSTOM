@@ -21,6 +21,7 @@ export function consoleFactsOf(parts: ConsoleFactsParts): ConsoleFacts {
         v: transport.v!,
         stage: parts.stage,
         remaining: transport.remaining,
+        keywordRemaining: transport.keywordRemaining,
         oralRemaining: transport.oralRemaining,
         rows: judging.rows,
         baseCards: parts.baseCards,

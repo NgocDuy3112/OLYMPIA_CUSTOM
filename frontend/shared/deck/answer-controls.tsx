@@ -135,7 +135,7 @@ export function AnswerBandIdle() {
     )
 }
 
-export function KeywordBox({ busy, onSubmit }: { busy: boolean; onSubmit: (text: string) => void }) {
+export function KeywordBox({ busy, disabled, onSubmit }: { busy: boolean; disabled?: boolean; onSubmit: (text: string) => void }) {
     const [draft, setDraft] = useState({ locked: false, text: "" })
     const [confirming, setConfirming] = useState(false)
     if (draft.locked) {
@@ -160,7 +160,7 @@ export function KeywordBox({ busy, onSubmit }: { busy: boolean; onSubmit: (text:
             <input
                 type="text"
                 value={draft.text}
-                disabled={busy}
+                disabled={busy || disabled}
                 onChange={(event) => {
                     setDraft({ locked: false, text: event.target.value })
                     setConfirming(false)
@@ -175,10 +175,10 @@ export function KeywordBox({ busy, onSubmit }: { busy: boolean; onSubmit: (text:
             />
             <button
                 type="button"
-                disabled={busy || !draft.text.trim()}
+                disabled={busy || disabled || !draft.text.trim()}
                 onClick={commit}
                 title={submitTitle}
-                className={submitClass(!busy && Boolean(draft.text.trim()))}
+                className={submitClass(!busy && !disabled && Boolean(draft.text.trim()))}
                 style={{ fontSize: pt(11), borderRadius: STRIP_R }}
             >
                 {submitLabel}

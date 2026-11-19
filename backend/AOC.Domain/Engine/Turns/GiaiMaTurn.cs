@@ -22,6 +22,7 @@ public sealed record GiaiMaState
     [JsonPropertyName("picked")] public List<string> Picked { get; init; } = [];
     [JsonPropertyName("openHint")] public string? OpenHint { get; init; }
     [JsonPropertyName("openHintAt")] public string? OpenHintAt { get; init; }
+    [JsonPropertyName("keywordOpenedAt")] public string? KeywordOpenedAt { get; init; }
     [JsonPropertyName("openHintLocked")] public bool OpenHintLocked { get; init; }
 
     [JsonPropertyName("revealedAnswer")]
@@ -88,6 +89,22 @@ public static class GiaiMaTurn
         return state with { OpenHintAt = nowIso };
     }
 
+    public static bool IsKeywordWindowOpen(GiaiMaState state, string nowIso)
+    {
+        if (state.KeywordOpenedAt is null) return false;
+        var elapsed = DateTimeOffset.Parse(nowIso).ToUnixTimeMilliseconds()
+            - DateTimeOffset.Parse(state.KeywordOpenedAt).ToUnixTimeMilliseconds();
+        return elapsed >= 0 && elapsed <= state.Rules.HintWindowS * 1000;
+    }
+
+    public static GiaiMaState StartKeywordWindow(GiaiMaState state, string nowIso)
+    {
+        if (state.Stage != "hints") throw Err("WRONG_STAGE", "hints are over");
+        if (IsKeywordWindowOpen(state, nowIso))
+            throw Err("WINDOW_OPEN", "the keyword window is already running");
+        return state with { KeywordOpenedAt = nowIso };
+    }
+
     public static bool IsWindowOpen(GiaiMaState state, string nowIso)
     {
         if (state.OpenHint is null || state.OpenHintAt is null) return false;
@@ -98,6 +115,7 @@ public static class GiaiMaTurn
 
     public static bool CanPlayerAnswer(GiaiMaState state, string playerId, string nowIso)
     {
+        if (IsKeywordWindowOpen(state, nowIso)) return false;
         if (!IsWindowOpen(state, nowIso)) return false;
         var player = state.Players.FirstOrDefault(p => p.Id == playerId);
         return player is not null && !player.KeywordLocked && !player.Eliminated;

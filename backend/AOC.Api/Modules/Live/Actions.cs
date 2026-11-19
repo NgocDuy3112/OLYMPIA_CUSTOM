@@ -19,6 +19,11 @@ public abstract record LiveAction
         public override string Kind => "giai-ma.openHint";
     }
 
+    public sealed record GiaiMaStartKeywordWindow : LiveAction
+    {
+        public override string Kind => "giai-ma.startKeywordWindow";
+    }
+
     public sealed record GiaiMaLockHints : LiveAction
     {
         public override string Kind => "giai-ma.lockHints";
@@ -358,6 +363,7 @@ public sealed class LiveActionConverter : JsonConverter<LiveAction>
             "giai-ma.start" => new LiveAction.GiaiMaStart(StrList("playerIds"), StrList("hintIds")),
             "giai-ma.openHint" => new LiveAction.GiaiMaOpenHint(Str("hintId")),
             "giai-ma.lockHints" => new LiveAction.GiaiMaLockHints(),
+            "giai-ma.startKeywordWindow" => new LiveAction.GiaiMaStartKeywordWindow(),
             "giai-ma.startWindow" => new LiveAction.GiaiMaStartWindow(),
             "giai-ma.closeHintWindow" => new LiveAction.GiaiMaCloseHintWindow(),
             "giai-ma.resolveHint" => new LiveAction.GiaiMaResolveHint(VerdictList("verdicts")),

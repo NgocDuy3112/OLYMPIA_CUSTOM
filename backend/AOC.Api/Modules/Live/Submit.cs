@@ -260,6 +260,9 @@ public sealed class SubmitService(
             var state = LiveState.ParseGiaiMa(current.State);
             if (state.Players.FirstOrDefault(p => p.Id == ctx.UserId.ToString())?.KeywordLocked == true)
                 throw new RuleError("ALREADY_SUBMITTED", "you already submitted a keyword");
+            if (!GiaiMaTurn.IsKeywordWindowOpen(state, loaded.Now))
+                throw new RuleError("NO_WINDOW",
+                    "the keyword window is not open — wait for Đếm giờ từ khoá");
 
             var (nextState, facts) = GiaiMaApplier.Apply(state,
                 new LiveAction.GiaiMaSubmitKeyword(

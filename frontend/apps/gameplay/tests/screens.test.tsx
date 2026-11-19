@@ -43,9 +43,14 @@ function view(over: Partial<PlayerView> = {}): PlayerView {
         board,
         me: { pickedTiles: [], hintVerdicts: {} },
         hintAnswers: {},
+        keywordDeadlineAt: null,
+        keywordLength: 7,
+        keywordKind: "letters",
         ...over,
     }
 }
+
+const stubClock = { sync: () => {}, skew: () => 0 }
 
 function ctx(over: Partial<PlayerCtx> = {}): PlayerCtx {
     const v = over.v ?? view()
@@ -55,6 +60,7 @@ function ctx(over: Partial<PlayerCtx> = {}): PlayerCtx {
         open: v.open,
         remaining: 12,
         oralRemaining: 12,
+        clock: stubClock,
         myId: "u1",
         flash: null,
         nameOf: (id) => (id === "u1" ? "An" : "Bình"),
@@ -191,6 +197,7 @@ describe("player screens render from a plain fixture", () => {
         const v = view({
             roundId: "giai-ma",
             keyword: { questionId: "k1", question: question("k1", "KEYWORD") },
+            keywordDeadlineAt: "2099-01-01T00:00:00.000Z",
         })
         const { getByLabelText, getByRole } = render(
             <GiaiMaAOCPlayer ctx={ctx({ v, submitKeyword })} />

@@ -38,6 +38,7 @@ public static class Sfx
             case LiveAction.GiaiMaOpenHint:
                 return "gm_mo_cau_hoi.ogg";
             case LiveAction.GiaiMaStartWindow:
+            case LiveAction.GiaiMaStartKeywordWindow:
                 return "gm_15s.ogg";
             case LiveAction.GiaiMaResolveHint resolve:
                 return resolve.Verdicts.Any(v => v.Correct) ? "gm_dung_goi_y.mp3" : null;

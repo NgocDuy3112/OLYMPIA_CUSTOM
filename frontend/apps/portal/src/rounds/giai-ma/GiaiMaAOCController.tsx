@@ -8,6 +8,7 @@ import type { ScreenCore } from "../types"
 
 export type GiaiMaCtx = ScreenCore & {
     remaining: number | null
+    keywordRemaining: number | null
     questions: ConsoleQuestion[]
     consoleGiaiMa: GiaiMaConsole | null
     toggleSelect: (userId: string) => void
@@ -22,8 +23,7 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
     const open = v.projection.open
 
     const keywordQ = questions.find((q) => q.roundId === "giai-ma" && q.kind === "KEYWORD")
-    let keywordLength: number | null = null
-    if (typeof keywordQ?.payload.code === "string") keywordLength = keywordQ.payload.code.length
+    const keywordLength: number | null = v.projection.keywordLength ?? null
     const hintQuestions = questions
         .filter((q) => q.roundId === "giai-ma" && q.kind !== "KEYWORD")
         .sort((a, b) => a.position - b.position)
@@ -45,6 +45,9 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
     if (openHintId) {
         if (!consoleGiaiMa?.windowOpen) startWindow = () => ctx.send({ kind: "giai-ma.startWindow" })
     }
+    const keywordOpen = (ctx.keywordRemaining ?? 0) > 0
+    let startKeywordWindow: (() => void) | undefined = undefined
+    if (keywordQ && !keywordOpen) startKeywordWindow = () => ctx.send({ kind: "giai-ma.startKeywordWindow" })
     let revealHint: (() => void) | undefined = undefined
     if (hintTarget) {
         const targetId = hintTarget
@@ -55,7 +58,8 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
     let lockHints: (() => void) | undefined = undefined
     if (openHintId) lockHints = () => ctx.send({ kind: "giai-ma.lockHints" })
     let timerRemaining: number | null = null
-    if (open[0]?.deadlineAt) timerRemaining = remaining
+    if ((ctx.keywordRemaining ?? 0) > 0) timerRemaining = ctx.keywordRemaining
+    else if (open[0]?.deadlineAt) timerRemaining = remaining
     let questionText: string | null = null
     if (open.length > 0) questionText = open[0].question?.questionText ?? null
 
@@ -68,6 +72,10 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
                 {
                     label: "Đếm giờ",
                     onClick: startWindow,
+                },
+                {
+                    label: "Đếm giờ từ khoá",
+                    onClick: startKeywordWindow,
                 },
                 {
                     label: "Khoá gợi ý",
@@ -85,9 +93,13 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
             ]}
             flash={flash}
         >
-            <KeywordLengthBanner length={keywordLength} code={v.projection.keywordCode ?? null} onClick={revealKeyword} />
+            <KeywordLengthBanner
+                length={keywordLength}
+                kind={v.projection.keywordKind ?? undefined}
+                code={v.projection.keywordCode ?? null}
+                onClick={revealKeyword}
+            />
 
-            
             <HintBars
                 tiles={tiles.map((q) => q?._id ?? null)}
                 openTile={openHintId !== null ? hintQuestions.findIndex((q) => q._id === openHintId) : null}

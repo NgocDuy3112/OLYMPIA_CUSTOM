@@ -8,6 +8,7 @@ function giaiMaCtx(f: ConsoleFacts): GiaiMaCtx {
     return {
         ...screenCore(f),
         remaining: f.remaining,
+        keywordRemaining: f.keywordRemaining,
         questions: f.v.questions,
         consoleGiaiMa: (f.v.console ?? null) as GiaiMaConsole | null,
         toggleSelect: f.toggleSelect,

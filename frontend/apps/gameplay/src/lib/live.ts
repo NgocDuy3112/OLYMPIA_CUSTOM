@@ -94,6 +94,9 @@ export interface LiveView {
     }>
     keyword?: { questionId: string; question: LiveQuestion | null } | null
     hintAnswers: Record<string, string>
+    keywordDeadlineAt: string | null
+    keywordLength: number
+    keywordKind: string
     me: LiveMe
     audioGate?: { allowed: string[] }
 }

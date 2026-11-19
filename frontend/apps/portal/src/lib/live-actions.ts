@@ -15,6 +15,7 @@ export type LiveAction =
     | { kind: "giai-ma.judgeKeyword"; playerId: string; questionId: string; correct: boolean }
     | { kind: "giai-ma.endRound" }
     | { kind: "giai-ma.lockHints" }
+    | { kind: "giai-ma.startKeywordWindow" }
     | { kind: "but-pha.start" }
     | { kind: "but-pha.openQuestion" }
     | { kind: "but-pha.closeQuestion" }

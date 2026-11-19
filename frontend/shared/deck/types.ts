@@ -1,4 +1,5 @@
 import type { RemoteVideoTrack } from "livekit-client"
+import type { ServerClock } from "@shared/lib/clock"
 
 export interface PlayerQuestion {
     questionId: string
@@ -77,6 +78,9 @@ export interface PlayerView {
     keyword?: { questionId: string; question: PlayerQuestion | null } | null
     keywordCode?: string | null
     hintAnswers: Record<string, string>
+    keywordDeadlineAt: string | null
+    keywordLength: number
+    keywordKind: string
     me: PlayerMe
     publicVerdicts?: Array<{
         questionId: string
@@ -136,6 +140,7 @@ export interface PlayerCtx {
     open: PlayerView["open"]
     remaining: number
     oralRemaining: number
+    clock: ServerClock
     myId: string | null
     audience?: boolean
     flash: string | null

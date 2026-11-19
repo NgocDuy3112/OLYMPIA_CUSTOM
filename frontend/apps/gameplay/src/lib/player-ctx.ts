@@ -1,4 +1,5 @@
 import type { PlayerCtx, PlayerView } from "@shared/deck/types"
+import type { ServerClock } from "@shared/lib/clock"
 import type { AnswerValue, LivePlayerCommand } from "@/lib/live"
 import type { S2Question } from "./s2"
 
@@ -7,6 +8,7 @@ interface PlayerCtxParts {
     stage: string
     remaining: number
     oralRemaining: number
+    clock: ServerClock
     myId: string | null
     flash: string | null
     selection: S2Question
@@ -28,6 +30,7 @@ export function playerCtxOf(parts: PlayerCtxParts): PlayerCtx {
         open: v.open,
         remaining: parts.remaining,
         oralRemaining: parts.oralRemaining,
+        clock: parts.clock,
         myId: parts.myId,
         flash: parts.flash,
         nameOf: (id: string) => nameOfIn(v, id),

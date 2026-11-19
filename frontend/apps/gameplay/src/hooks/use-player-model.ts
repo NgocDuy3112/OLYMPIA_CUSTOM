@@ -81,6 +81,7 @@ export function usePlayerModel(matchId: string): PlayerModel {
         stage,
         remaining,
         oralRemaining,
+        clock: live.clock,
         myId,
         flash,
         selection,

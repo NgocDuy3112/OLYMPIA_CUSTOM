@@ -6,6 +6,7 @@ export interface ConsoleFacts {
     v: LiveResponse
     stage: string
     remaining: number | null
+    keywordRemaining: number | null
     oralRemaining: number | null
     rows: QuestionAnswerRow[]
     baseCards: CardData[]

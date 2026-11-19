@@ -55,6 +55,7 @@ function facts(
         byId: () => null,
         verdictOf: () => null,
         oralRemaining: null,
+        keywordRemaining: null,
         flash: null,
         openAdjust: vi.fn(),
         openRegrade: vi.fn(),
@@ -422,7 +423,13 @@ describe("GiaiMa — S3", () => {
             timeLimit: null,
             payload: { code: "BONTUONG" },
         }
-        const f = renderRound("giai-ma", {}, {}, null, [...hints, keyword] as unknown as LiveResponse["questions"])
+        const f = renderRound(
+            "giai-ma",
+            {},
+            { keywordLength: 8, keywordKind: "letters" },
+            null,
+            [...hints, keyword] as unknown as LiveResponse["questions"],
+        )
         const tiles = screen.getAllByText(/^[1-8]$/, { selector: "span" })
         expect(tiles).toHaveLength(8)
         expect(tiles.slice(0, 6).every((tile) => tile.closest("[role='button']") !== null)).toBe(true)

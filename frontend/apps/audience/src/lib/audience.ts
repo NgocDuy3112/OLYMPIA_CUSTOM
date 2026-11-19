@@ -35,6 +35,7 @@ export function audienceCtx(view: PlayerView): PlayerCtx {
         open: view.open,
         remaining: 0,
         oralRemaining: 0,
+        clock: { sync: () => {}, skew: () => 0 },
         myId: null,
         audience: true,
         flash: null,

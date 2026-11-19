@@ -31,6 +31,9 @@ public static class GiaiMaApplier
                 return (next, facts);
             }
 
+            case LiveAction.GiaiMaStartKeywordWindow:
+                return (GiaiMaTurn.StartKeywordWindow(state, ctx.Now), []);
+
             case LiveAction.GiaiMaLockHints:
             {
                 if (state.OpenHint is null) throw new RuleError("NO_OPEN_HINT", "no hint is open to lock");

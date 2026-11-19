@@ -127,6 +127,16 @@ public static class LiveView
         }
 
         var keywordQuestion = (input.Questions ?? []).FirstOrDefault(q => q.Kind == QuestionKind.KEYWORD);
+        var keywordCompact = "";
+        var keywordKind = "mixed";
+        if (keywordQuestion?.Payload is QuestionPayload.Keyword kwPayload)
+        {
+            keywordCompact = kwPayload.Code.Replace(" ", "");
+            keywordKind = keywordCompact.Length == 0 ? "mixed"
+                : keywordCompact.All(char.IsDigit) ? "digits"
+                : keywordCompact.All(char.IsLetter) ? "letters"
+                : "mixed";
+        }
         var keywordRevealed = state.RevealedAnswer is not null && keywordQuestion is not null
             && state.RevealedAnswer == keywordQuestion.Id;
 
@@ -166,8 +176,14 @@ public static class LiveView
             ["answerState"] = answerState
         };
 
+        var keywordDeadlineAt = GiaiMaTurn.IsKeywordWindowOpen(state, input.Now)
+            ? PlusSeconds(state.KeywordOpenedAt!, state.Rules.HintWindowS)
+            : null;
         var view = Base(input.MatchId, input.RoundId, input.Version,
             state.Stage, open, RankTable(input.Table), me);
+        view["keywordDeadlineAt"] = keywordDeadlineAt;
+        view["keywordLength"] = keywordCompact.Length;
+        view["keywordKind"] = keywordKind;
         if (keywordQuestion is null)
         {
             view["keyword"] = null;

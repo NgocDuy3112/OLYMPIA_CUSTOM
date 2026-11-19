@@ -75,8 +75,11 @@ function MediaWell({ media, mediaHint }: { media: { url: string; type: string };
     )
 }
 
-export function KeywordLengthBanner({ length, code, onClick }: { length: number | null; code?: string | null; onClick?: () => void }) {
+export function KeywordLengthBanner({ length, kind, code, onClick }: { length: number | null; kind?: string; code?: string | null; onClick?: () => void }) {
     if (length === null) return null
+    let unit = "ký tự"
+    if (kind === "digits") unit = "chữ số"
+    else if (kind === "letters") unit = "chữ cái"
     return (
         <button
             type="button"
@@ -84,12 +87,13 @@ export function KeywordLengthBanner({ length, code, onClick }: { length: number 
             title={onClick ? "Hiện đáp án từ khoá" : undefined}
             className="flex h-31.25 shrink-0 items-center justify-center gap-[1.5cqw] rounded-2xl bg-card px-[2cqw] shadow-md ring-1 ring-border transition hover:ring-primary/60"
         >
-            <span className="font-display font-bold uppercase tracking-wide text-foreground" style={{ fontSize: pt(40) }}>
-                Mật mã gồm có {length} chữ cái
-            </span>
-            {code !== null && (
-                <span className="font-display font-bold uppercase tracking-wide text-primary" style={{ fontSize: pt(32) }}>
+            {code !== null && code !== undefined && code !== "" ? (
+                <span className="font-display font-bold uppercase tracking-wide text-primary" style={{ fontSize: pt(40) }}>
                     {code}
+                </span>
+            ) : (
+                <span className="font-display font-bold uppercase tracking-wide text-foreground" style={{ fontSize: pt(40) }}>
+                    Mật mã gồm có {length} {unit}
                 </span>
             )}
         </button>

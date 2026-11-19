@@ -1,10 +1,12 @@
 import type { ReactNode } from "react"
+import { useCountdown, type ServerClock } from "@shared/lib/clock"
 import { AnswerBand, AnswerBandIdle, HintBars, KeywordBox, KeywordLengthBanner, PlayerStage, QuestionCard, Rail, Timer, type PlayerCore } from "../player-deck"
-import { pt } from "../geometry"
+import { STRIP_R, pt } from "../geometry"
 import type { AnswerValue } from "../types"
 
 type GiaiMaPlayerCtx = PlayerCore & {
     remaining: number
+    clock: ServerClock
     answerBusy: boolean
     submitAnswer: (questionId: string, value: AnswerValue) => void
     keywordBusy: boolean
@@ -15,27 +17,32 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
     const { v, remaining, myId, flash, answerBusy, submitAnswer, keywordBusy, submitKeyword } = ctx
     const hintWindow = ctx.open[0] ?? null
     const keyword = v.keyword
-    const locked = v.me.keywordLocked === true
-    const codeLength = keyword?.question?.payload.codeLength ?? null
+    const eliminated = v.me.eliminated === true
+    const codeLength = v.keywordLength
+    const keywordRemaining = useCountdown(v.keywordDeadlineAt, ctx.clock)
+    const keywordOpen = v.keywordDeadlineAt !== null && keywordRemaining > 0
 
     let keywordSlot: ReactNode = null
     if (keyword) {
         keywordSlot = (
             <KeywordBox
                 busy={keywordBusy}
+                disabled={!keywordOpen}
                 onSubmit={(text) => submitKeyword(keyword.questionId, text)}
             />
         )
     }
-    if (locked) {
+    if (eliminated) {
         keywordSlot = (
-            <span className="inline-flex items-center gap-[0.5cqw] font-sans font-semibold text-emerald-600" style={{ fontSize: pt(12) }}>
+            <span className="flex h-[3.3cqw] items-center rounded-lg bg-red-50 px-[1.2cqw] font-sans font-semibold text-red-600 ring-1 ring-red-200" style={{ fontSize: pt(12), borderRadius: STRIP_R }}>
+                Bạn không giải được từ khóa — bị loại vòng này
             </span>
         )
     }
 
     let timerRemaining: number | null = null
-    if (hintWindow) {
+    if (keywordOpen) timerRemaining = keywordRemaining
+    else if (hintWindow) {
         if (hintWindow.deadlineAt) timerRemaining = remaining
     }
     let questionText: string | null = null
@@ -46,7 +53,7 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
             <AnswerBand
                 question={hintWindow.question}
                 answerState={v.me.answerState}
-                disabled={remaining <= 0}
+                disabled={remaining <= 0 || keywordOpen}
                 busy={answerBusy}
                 error={flash}
                 onSubmit={(value) => submitAnswer(hintWindow.questionId, value)}
@@ -58,7 +65,7 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
         <PlayerStage
             rail={<Rail view={v} myId={myId} currentQid={hintWindow?.questionId ?? keyword?.questionId ?? null} />}
         >
-            <KeywordLengthBanner length={codeLength} code={v.keywordCode ?? null} />
+            <KeywordLengthBanner length={codeLength} kind={v.keywordKind} code={v.keywordCode ?? null} />
 
             <HintBars
                 openTile={v.me.openTile ?? null}
