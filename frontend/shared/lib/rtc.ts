@@ -490,14 +490,15 @@ export function useHostBroadcast(room: Room | null): HostBroadcast {
     const [camOn, setCamOn] = useState(false)
     const [micOn, setMicOn] = useState(false)
     const [mediaError, setMediaError] = useState<string | null>(null)
-
-    useEffect(() => {
+    const [prevRoom, setPrevRoom] = useState(room)
+    if (room !== prevRoom) {
+        setPrevRoom(room)
         if (!room) {
             setVideo(null)
             setCamOn(false)
             setMicOn(false)
         }
-    }, [room])
+    }
 
     const toggleCam = () => {
         if (!room) return
