@@ -161,13 +161,13 @@ function itemStyle(index: number): CSSProperties {
     const top = row * 11.1 + (((index * 29) % 50) / 10)
     const size = 16 + ((index * 7) % 15)
     const rotate = ((index * 47) % 60) - 30
-    const duration = 5 + (index % 7) * 1.3
-    const delay = -((index * 13) % 120) / 10
+    const duration = 3.2 + (index % 5) * 0.7
+    const delay = -((index * 13) % 60) / 10
     const peak = 0.1 + (index % 5) * 0.05
-    const driftX = ((index * 31) % 44) - 22
-    const driftY = ((index * 23) % 32) - 16
-    const floatDuration = 9 + (index % 6) * 2.5
-    const floatDelay = -((index * 19) % 150) / 10
+    const driftX = ((index * 31) % 96) - 48
+    const driftY = ((index * 23) % 68) - 34
+    const floatDuration = 5 + (index % 6) * 1.4
+    const floatDelay = -((index * 19) % 80) / 10
     return {
         left: `${left}%`,
         top: `${top}%`,
