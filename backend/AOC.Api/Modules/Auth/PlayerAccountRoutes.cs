@@ -18,7 +18,7 @@ public static class PlayerAccountRoutes
 
     public static IEndpointRouteBuilder MapPlayerAccountRoutes(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/gameplay/auth/register", async (HttpContext http) =>
+        app.MapPost("/api/auth/register", async (HttpContext http) =>
         {
             var body = Validate.Object(await Validate.ReadJsonBodyAsync(http));
             var email = Validate.RequiredString(body, "email", maxLength: 256, minLength: 3)
@@ -54,7 +54,7 @@ public static class PlayerAccountRoutes
             return Results.Json(new { ok = true, displayName = user.DisplayName }, JsonApi.Options);
         }).RequireRateLimiting("strict10").DisableAntiforgery();
 
-        app.MapPost("/gameplay/auth/login", async (HttpContext http) =>
+        app.MapPost("/api/auth/login", async (HttpContext http) =>
         {
             var body = Validate.Object(await Validate.ReadJsonBodyAsync(http));
             var email = Validate.RequiredString(body, "email", maxLength: 256, minLength: 1)
@@ -77,7 +77,7 @@ public static class PlayerAccountRoutes
             return Results.Json(new { ok = true, displayName = user.DisplayName }, JsonApi.Options);
         }).RequireRateLimiting("strict10").DisableAntiforgery();
 
-        app.MapPost("/gameplay/auth/change-password", async (HttpContext http) =>
+        app.MapPost("/api/auth/change-password", async (HttpContext http) =>
         {
             var user = await http.RequireAuthAsync(Surface.GAMEPLAY);
             var body = Validate.Object(await Validate.ReadJsonBodyAsync(http));
@@ -115,7 +115,7 @@ public static class PlayerAccountRoutes
             return Results.Json(new { ok = true, displayName = user.DisplayName }, JsonApi.Options);
         }).RequireRateLimiting("strict10").DisableAntiforgery();
 
-        app.MapGet("/gameplay/me/match", async (HttpContext http) =>
+        app.MapGet("/api/me/match", async (HttpContext http) =>
         {
             var user = await http.RequireAuthAsync(Surface.GAMEPLAY);
             var db = http.RequestServices.GetRequiredService<AOCDbContext>();

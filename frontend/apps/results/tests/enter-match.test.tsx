@@ -38,9 +38,9 @@ describe("ResultsNav — Vào trận", () => {
 
     it("opens the enter-match dialog for a signed-in player", async () => {
         draw({
-            "GET /gameplay/tournaments": { body: { tournaments: [] } },
-            "GET /gameplay/auth/me": { body: { id: "u1", displayName: "An", role: "PLAYER" } },
-            "GET /gameplay/me/match": { body: { items: [] } },
+            "GET /api/tournaments": { body: { tournaments: [] } },
+            "GET /api/auth/me": { body: { id: "u1", displayName: "An", role: "PLAYER" } },
+            "GET /api/me/match": { body: { items: [] } },
         })
 
         const user = userEvent.setup()

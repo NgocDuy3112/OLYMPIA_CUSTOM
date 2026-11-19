@@ -16,7 +16,7 @@ interface SessionUser {
 export function useMe() {
     return useQuery({
         queryKey: ME_QUERY_KEY,
-        queryFn: () => api<SessionUser>("/gameplay/auth/me"),
+        queryFn: () => api<SessionUser>("/api/auth/me"),
         retry: false,
         staleTime: 5 * 60_000,
     })
@@ -33,7 +33,7 @@ export function loginLink(next?: string): string {
 }
 
 export function googleLoginLink(next?: string): string {
-    return `/gameplay/auth/google?next=${encodeURIComponent(next ?? "/")}`
+    return `/auth/google?next=${encodeURIComponent(next ?? "/")}`
 }
 
 interface AuthMethods {
@@ -44,7 +44,7 @@ interface AuthMethods {
 export function useAuthMethods() {
     return useQuery({
         queryKey: ["auth-methods"],
-        queryFn: () => api<AuthMethods>("/gameplay/auth/methods"),
+        queryFn: () => api<AuthMethods>("/api/auth/methods"),
         staleTime: 30 * 60_000,
         retry: false,
     })
@@ -53,7 +53,7 @@ export function useAuthMethods() {
 export function useLogout() {
     const queryClient = useQueryClient()
     return useMutation({
-        mutationFn: () => api<{ ok: true }>("/gameplay/auth/logout", { method: "POST" }),
+        mutationFn: () => api<{ ok: true }>("/api/auth/logout", { method: "POST" }),
         onSuccess: () => {
             queryClient.setQueryData(ME_QUERY_KEY, null)
         },
@@ -65,7 +65,7 @@ export function usePasswordLogin() {
     return useMutation({
         mutationFn: (input: { email: string; password: string }) =>
             api<{ ok: true; displayName: string; mustChangePassword?: boolean }>(
-                "/gameplay/auth/login",
+                "/api/auth/login",
                 { method: "POST", body: JSON.stringify(input) }
             ),
         onSuccess: () => {
@@ -79,7 +79,7 @@ export function usePasswordRegister() {
     return useMutation({
         mutationFn: (input: { email: string; password: string; displayName?: string }) =>
             api<{ ok: true; displayName: string }>(
-                "/gameplay/auth/register",
+                "/api/auth/register",
                 { method: "POST", body: JSON.stringify(input) }
             ),
         onSuccess: () => {
@@ -92,7 +92,7 @@ export function useChangePassword() {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: (input: { currentPassword: string; newPassword: string }) =>
-            api<{ ok: true; displayName: string }>("/gameplay/auth/change-password", {
+            api<{ ok: true; displayName: string }>("/api/auth/change-password", {
                 method: "POST",
                 body: JSON.stringify(input),
             }),
@@ -116,7 +116,7 @@ export function useClaimCode() {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: (code: string) =>
-            api<{ matchId: string; tournamentId: string; slug: string; label: string }>("/gameplay/join/claim", {
+            api<{ matchId: string; tournamentId: string; slug: string; label: string }>("/api/join/claim", {
                 method: "POST",
                 body: JSON.stringify({ code }),
             }),
@@ -129,7 +129,7 @@ export function useClaimCode() {
 export function useMyMatches(options: { enabled: boolean } = { enabled: true }) {
     return useQuery({
         queryKey: ["my-matches"],
-        queryFn: () => api<{ items: MyMatch[] }>("/gameplay/me/match"),
+        queryFn: () => api<{ items: MyMatch[] }>("/api/me/match"),
         enabled: options.enabled,
         retry: false,
         staleTime: 30_000,

@@ -191,7 +191,7 @@ public static class LiveRoutes
             return Results.Json(await service.LobbyOfAsync(Guid.Parse(matchId)), JsonApi.Options);
         }).RequireRateLimiting("public60");
 
-        app.MapGet("/gameplay/matches/{matchId}/live", async (HttpContext http) =>
+        app.MapGet("/api/matches/{matchId}/live", async (HttpContext http) =>
         {
             var user = await http.RequireAuthAsync(Surface.GAMEPLAY);
             var matchId = Validate.RouteUuid(http, "matchId");
@@ -212,7 +212,7 @@ public static class LiveRoutes
                 await service.PlayerViewOfAsync(Guid.Parse(matchId), user.Id), JsonApi.Options);
         });
 
-        app.MapGet("/gameplay/matches/{matchId}/lobby", async (HttpContext http) =>
+        app.MapGet("/api/matches/{matchId}/lobby", async (HttpContext http) =>
         {
             var user = await http.RequireAuthAsync(Surface.GAMEPLAY);
             var matchId = Validate.RouteUuid(http, "matchId");
@@ -226,7 +226,7 @@ public static class LiveRoutes
             return Results.Json(await service.LobbyOfAsync(Guid.Parse(matchId)), JsonApi.Options);
         });
 
-        app.MapPost("/gameplay/matches/{matchId}/live/answers", async (HttpContext http) =>
+        app.MapPost("/api/matches/{matchId}/live/answers", async (HttpContext http) =>
         {
             var user = await http.RequireAuthAsync(Surface.GAMEPLAY);
             var matchId = Validate.RouteUuid(http, "matchId");
@@ -243,7 +243,7 @@ public static class LiveRoutes
             return Results.Json(result, JsonApi.Options);
         });
 
-        app.MapPost("/gameplay/matches/{matchId}/live/commands", async (HttpContext http) =>
+        app.MapPost("/api/matches/{matchId}/live/commands", async (HttpContext http) =>
         {
             var user = await http.RequireAuthAsync(Surface.GAMEPLAY);
             var matchId = Validate.RouteUuid(http, "matchId");
@@ -262,7 +262,7 @@ public static class LiveRoutes
             throw ApiException.BadRequest("unknown command");
         });
 
-        app.MapPost("/gameplay/matches/{matchId}/live/keyword", async (HttpContext http) =>
+        app.MapPost("/api/matches/{matchId}/live/keyword", async (HttpContext http) =>
         {
             var user = await http.RequireAuthAsync(Surface.GAMEPLAY);
             var matchId = Validate.RouteUuid(http, "matchId");

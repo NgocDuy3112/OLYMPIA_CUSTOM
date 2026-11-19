@@ -218,14 +218,14 @@ public static class GameplayReadRoutes
 {
     public static IEndpointRouteBuilder MapGameplayReadRoutes(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/gameplay/tournaments", async (HttpContext http) =>
+        app.MapGet("/api/tournaments", async (HttpContext http) =>
         {
             var service = http.RequestServices.GetRequiredService<GameplayReadService>();
             return Results.Json(new { tournaments = await service.ListPublicTournamentsAsync() },
                 JsonApi.Options);
         }).RequireRateLimiting("public120");
 
-        app.MapGet("/gameplay/tournaments/{slug}", async (HttpContext http) =>
+        app.MapGet("/api/tournaments/{slug}", async (HttpContext http) =>
         {
             var slug = Validate.RouteString(http, "slug");
             if (!Regex.IsMatch(slug, "^[a-z0-9-]{1,100}$") && !Guid.TryParse(slug, out _))
@@ -234,7 +234,7 @@ public static class GameplayReadRoutes
             return Results.Json(await service.PublicTournamentAsync(slug), JsonApi.Options);
         }).RequireRateLimiting("public120");
 
-        app.MapGet("/gameplay/tournaments/{slug}/matches", async (HttpContext http) =>
+        app.MapGet("/api/tournaments/{slug}/matches", async (HttpContext http) =>
         {
             var slug = Validate.RouteString(http, "slug");
             if (!Regex.IsMatch(slug, "^[a-z0-9-]{1,100}$") && !Guid.TryParse(slug, out _))
@@ -244,7 +244,7 @@ public static class GameplayReadRoutes
             return Results.Json(await service.PublicScheduleAsync(slug, page), JsonApi.Options);
         }).RequireRateLimiting("public120");
 
-        app.MapGet("/gameplay/tournaments/{slug}/standings", async (HttpContext http) =>
+        app.MapGet("/api/tournaments/{slug}/standings", async (HttpContext http) =>
         {
             var slug = Validate.RouteString(http, "slug");
             if (!Regex.IsMatch(slug, "^[a-z0-9-]{1,100}$") && !Guid.TryParse(slug, out _))

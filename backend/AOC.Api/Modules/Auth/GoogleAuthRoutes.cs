@@ -16,17 +16,17 @@ public static class GoogleAuthRoutes
 {
     private const string OauthPendingCookie = "oauth_pending";
     private const int PendingMaxAgeSeconds = 10 * 60;
-    private const string RedirectPath = "/gameplay/auth/google";
+    private const string RedirectPath = "/auth/google";
 
     public static IEndpointRouteBuilder MapGoogleAuthRoutes(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/gameplay/auth/methods", (HttpContext http) =>
+        app.MapGet("/api/auth/methods", (HttpContext http) =>
         {
             var oidc = http.RequestServices.GetRequiredService<GoogleOidcService>();
             return Results.Json(new { google = oidc.Configured, password = true }, JsonApi.Options);
         }).RequireRateLimiting("strict10");
 
-        app.MapGet("/gameplay/auth/google", async (HttpContext http) =>
+        app.MapGet("/auth/google", async (HttpContext http) =>
         {
             var oidc = http.RequestServices.GetRequiredService<GoogleOidcService>();
             var tokens = http.RequestServices.GetRequiredService<SessionTokens>();
@@ -57,7 +57,7 @@ public static class GoogleAuthRoutes
             return Results.Redirect(url);
         }).RequireRateLimiting("strict10");
 
-        app.MapGet("/gameplay/auth/google/callback", async (HttpContext http) =>
+        app.MapGet("/auth/google/callback", async (HttpContext http) =>
         {
             var oidc = http.RequestServices.GetRequiredService<GoogleOidcService>();
             var tokens = http.RequestServices.GetRequiredService<SessionTokens>();

@@ -157,7 +157,7 @@ public static class MatchCodeRoutes
 {
     public static IEndpointRouteBuilder MapMatchCodeRoutes(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/gameplay/join/claim", async (HttpContext http) =>
+        app.MapPost("/api/join/claim", async (HttpContext http) =>
         {
             var user = await http.RequireAuthAsync(Surface.GAMEPLAY);
             var body = Validate.Object(await Validate.ReadJsonBodyAsync(http));

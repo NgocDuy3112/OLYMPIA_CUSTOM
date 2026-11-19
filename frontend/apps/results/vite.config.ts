@@ -21,7 +21,8 @@ export default defineConfig({
     server: {
         port: 5177,
         proxy: {
-            "/gameplay": { target: process.env.API_PROXY_TARGET ?? "http://localhost:3000", changeOrigin: false },
+            "/api": { target: process.env.API_PROXY_TARGET ?? "http://localhost:3000", changeOrigin: false },
+            "/auth/google": { target: process.env.API_PROXY_TARGET ?? "http://localhost:3000", changeOrigin: false },
             "/public": { target: process.env.API_PROXY_TARGET ?? "http://localhost:3000", changeOrigin: false },
         },
     },

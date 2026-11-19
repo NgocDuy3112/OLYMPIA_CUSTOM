@@ -44,9 +44,9 @@ function draw(routes: Record<string, StubRoute>, entry = "/login") {
     return { ...result, fetchMock: mock }
 }
 
-const ME = "GET /gameplay/auth/me"
-const METHODS = "GET /gameplay/auth/methods"
-const CHANGE = "POST /gameplay/auth/change-password"
+const ME = "GET /api/auth/me"
+const METHODS = "GET /api/auth/methods"
+const CHANGE = "POST /api/auth/change-password"
 
 const signedIn = { [ME]: { body: { id: "u1", displayName: "Ngọc Duy", username: "ngoc-duy", role: "PLAYER" } } }
 const signedOut = { [ME]: { status: 401, body: { message: "no session" } } }
@@ -67,7 +67,7 @@ describe("LoginPage", () => {
     it("registers with email + password and lands on next", async () => {
         const routes = {
             ...GOOGLE,
-            "POST /gameplay/auth/register": { body: { ok: true, displayName: "An" } },
+            "POST /api/auth/register": { body: { ok: true, displayName: "An" } },
         }
         draw(routes, "/login?next=%2Fcode")
 
@@ -83,7 +83,7 @@ describe("LoginPage", () => {
     it("logs in with email + password and lands on next", async () => {
         const routes = {
             ...GOOGLE,
-            "POST /gameplay/auth/login": { body: { ok: true, displayName: "An" } },
+            "POST /api/auth/login": { body: { ok: true, displayName: "An" } },
         }
         draw(routes, "/login?next=%2Fcode")
 
@@ -98,7 +98,7 @@ describe("LoginPage", () => {
     it("keeps the server's refusal on the form", async () => {
         const routes = {
             ...GOOGLE,
-            "POST /gameplay/auth/login": { body: { message: "Email hoặc mật khẩu không đúng." }, status: 401 },
+            "POST /api/auth/login": { body: { message: "Email hoặc mật khẩu không đúng." }, status: 401 },
         }
         draw(routes)
 
@@ -113,7 +113,7 @@ describe("LoginPage", () => {
     it("carries ?next= into the Google redirect", async () => {
         draw(GOOGLE, "/login?next=%2Fcode")
         const href = (await googleDoor()).getAttribute("href") ?? ""
-        expect(href).toContain("/gameplay/auth/google")
+        expect(href).toContain("/auth/google")
         expect(decodeURIComponent(href.split("next=")[1])).toBe("/code")
     })
 

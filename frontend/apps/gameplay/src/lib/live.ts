@@ -121,7 +121,7 @@ export function useLiveMatch(matchId: string, enabled: boolean): UseLiveMatch {
 
     const query = useQuery({
         queryKey: liveKey(matchId),
-        queryFn: () => api<LiveView>(`/gameplay/matches/${matchId}/live`),
+        queryFn: () => api<LiveView>(`/api/matches/${matchId}/live`),
         enabled: enabled && Boolean(matchId),
         retry: false,
         staleTime: Infinity,
@@ -130,7 +130,7 @@ export function useLiveMatch(matchId: string, enabled: boolean): UseLiveMatch {
 
     let streamPath: string | null = null
     if (enabled) {
-        if (matchId) streamPath = `/gameplay/matches/${matchId}/live/stream`
+        if (matchId) streamPath = `/api/matches/${matchId}/live/stream`
     }
     useSocketStream(
         streamPath,
@@ -168,7 +168,7 @@ const lobbyKey = (matchId: string) => ["lobby", matchId] as const
 export function useLiveLobby(matchId: string, enabled: boolean) {
     return useQuery({
         queryKey: lobbyKey(matchId),
-        queryFn: () => api<LobbyData>(`/gameplay/matches/${matchId}/lobby`),
+        queryFn: () => api<LobbyData>(`/api/matches/${matchId}/lobby`),
         enabled: enabled && Boolean(matchId),
         refetchInterval: 3_000,
         retry: false,
@@ -187,7 +187,7 @@ function useLiveCommandPost<TInput>(matchId: string, suffix: string) {
 
     return useMutation({
         mutationFn: (input: TInput) =>
-            api<unknown>(`/gameplay/matches/${matchId}/live/${suffix}`, {
+            api<unknown>(`/api/matches/${matchId}/live/${suffix}`, {
                 method: "POST",
                 body: JSON.stringify(input),
             }),

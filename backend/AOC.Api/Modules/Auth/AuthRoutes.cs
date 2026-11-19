@@ -118,13 +118,13 @@ public static class AuthRoutes
             return Results.Json(new { ok = true }, JsonApi.Options);
         });
 
-        app.MapGet("/gameplay/auth/me", async (HttpContext http) =>
+        app.MapGet("/api/auth/me", async (HttpContext http) =>
         {
             var user = await http.RequireAuthAsync(Surface.GAMEPLAY);
             return Results.Json(PublicUsers.Of(user), JsonApi.Options);
         });
 
-        app.MapPost("/gameplay/auth/logout", (HttpContext http) =>
+        app.MapPost("/api/auth/logout", (HttpContext http) =>
         {
             Cookies.ClearSession(http, Surface.GAMEPLAY);
             return Results.Json(new { ok = true }, JsonApi.Options);

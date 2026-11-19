@@ -13,8 +13,8 @@ function WhereAmI() {
     return <p>landed at {location.pathname}</p>
 }
 
-const ME = "GET /gameplay/auth/me"
-const CLAIM = "POST /gameplay/join/claim"
+const ME = "GET /api/auth/me"
+const CLAIM = "POST /api/join/claim"
 
 function draw(routes: Record<string, StubRoute>, entry = "/code") {
     const mock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {

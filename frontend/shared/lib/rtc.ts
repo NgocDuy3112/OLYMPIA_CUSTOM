@@ -19,7 +19,7 @@ interface RtcToken {
 }
 
 function fetchPlayerRtcToken(matchId: string): Promise<RtcToken> {
-    return api<RtcToken>(`/gameplay/matches/${matchId}/rtc/token`, { method: "POST" });
+    return api<RtcToken>(`/api/matches/${matchId}/rtc/token`, { method: "POST" });
 }
 
 export function fetchOperatorRtcToken(tournamentId: string, matchId: string): Promise<RtcToken> {

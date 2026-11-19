@@ -214,7 +214,7 @@ app.MapMcpKeyRoutes();
 app.MapMcpRoutes();
 app.MapRtcRoutes();
 
-app.MapHub<PlayerLiveHub>("/gameplay/matches/{matchId}/live/stream");
+app.MapHub<PlayerLiveHub>("/api/matches/{matchId}/live/stream");
 app.MapHub<ConsoleLiveHub>("/portal/tournaments/{tournamentId}/matches/{matchId}/live/stream");
 app.MapHub<SpectateLiveHub>("/spectate/tournaments/{tournamentId}/matches/{matchId}/live/stream");
 

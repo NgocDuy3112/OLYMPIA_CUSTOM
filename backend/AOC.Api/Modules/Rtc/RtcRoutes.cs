@@ -11,7 +11,7 @@ public static class RtcRoutes
 {
     public static IEndpointRouteBuilder MapRtcRoutes(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/gameplay/matches/{matchId}/rtc/token", async (HttpContext http) =>
+        app.MapPost("/api/matches/{matchId}/rtc/token", async (HttpContext http) =>
         {
             var user = await http.RequireAuthAsync(Surface.GAMEPLAY);
             var matchId = Validate.RouteUuid(http, "matchId");

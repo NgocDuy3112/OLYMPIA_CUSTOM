@@ -13,9 +13,9 @@ public static class Guards
 
     private static readonly HashSet<string> PasswordChangeExempt =
     [
-        "/gameplay/auth/me",
-        "/gameplay/auth/logout",
-        "/gameplay/auth/change-password"
+        "/api/auth/me",
+        "/api/auth/logout",
+        "/api/auth/change-password"
     ];
 
     public static async Task<UserEntity> AuthenticateAsync(HttpContext http, Surface surface)

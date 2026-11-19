@@ -88,14 +88,14 @@ export function useTournamentList() {
     return useQuery({
         queryKey: ["gameplay", "tournaments"],
         queryFn: () =>
-            api<{ tournaments: TournamentSummary[] }>("/gameplay/tournaments"),
+            api<{ tournaments: TournamentSummary[] }>("/api/tournaments"),
     })
 }
 
 export function useTournament(slug: string) {
     return useQuery({
         queryKey: ["gameplay", "tournament", slug],
-        queryFn: () => api<TournamentDetail>(`/gameplay/tournaments/${slug}`),
+        queryFn: () => api<TournamentDetail>(`/api/tournaments/${slug}`),
         enabled: Boolean(slug),
     })
 }
@@ -105,7 +105,7 @@ export function useSchedule(slug: string) {
         queryKey: ["gameplay", "schedule", slug],
         queryFn: () =>
             api<Page<Match>>(
-                `/gameplay/tournaments/${slug}/matches?limit=${SCHEDULE_LIMIT}`
+                `/api/tournaments/${slug}/matches?limit=${SCHEDULE_LIMIT}`
             ),
         enabled: Boolean(slug),
     })
@@ -115,7 +115,7 @@ export function useStandings(slug: string) {
     return useQuery({
         queryKey: ["gameplay", "standings", slug],
         queryFn: () =>
-            api<{ rows: StandingRow[] }>(`/gameplay/tournaments/${slug}/standings`),
+            api<{ rows: StandingRow[] }>(`/api/tournaments/${slug}/standings`),
         enabled: Boolean(slug),
     })
 }

@@ -6,9 +6,9 @@ import { PlayerShell } from "@/components/player-shell"
 
 
 const M = "m1"
-const ME = "GET /gameplay/auth/me"
-const LIVE = `GET /gameplay/matches/${M}/live`
-const LOBBY = `GET /gameplay/matches/${M}/lobby`
+const ME = "GET /api/auth/me"
+const LIVE = `GET /api/matches/${M}/live`
+const LOBBY = `GET /api/matches/${M}/lobby`
 
 interface StubRoute { body: unknown; status?: number }
 
