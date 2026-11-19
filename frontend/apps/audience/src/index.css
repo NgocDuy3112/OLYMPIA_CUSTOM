@@ -144,14 +144,8 @@
   }
 
   body {
-    @apply bg-background text-foreground;
-    background-image:
-      linear-gradient(rgb(0 0 0 / 0.30), rgb(0 0 0 / 0.45)),
-      url("/background/aoc-background.jpg");
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
-    background-repeat: no-repeat;
+    @apply text-foreground;
+    background-color: #000;
   }
 
   html {
