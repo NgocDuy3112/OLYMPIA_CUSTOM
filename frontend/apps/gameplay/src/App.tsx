@@ -8,6 +8,7 @@ import { PrivacyPage } from "@/pages/PrivacyPage"
 import { PlayerShell } from "@/components/player-shell"
 import { SelfBroadcastContext, useSelfBroadcast } from "@shared/lib/rtc"
 import { useSchedule, useTournament, type TournamentDetail } from "@shared/results/api"
+import { IconField } from "@shared/decors/icon-field"
 
 interface TournamentContext { tournament: TournamentDetail }
 
@@ -86,7 +87,9 @@ function RootRedirect() {
 
 function App() {
     return (
-        <BrowserRouter>
+        <>
+            <IconField />
+            <BrowserRouter>
             <Routes>
                 <Route element={<AppShell />}>
                     <Route path="/" element={<RootRedirect />} />
@@ -98,7 +101,8 @@ function App() {
                     <Route path="*" element={<NotFoundPage />} />
                 </Route>
             </Routes>
-        </BrowserRouter>
+            </BrowserRouter>
+        </>
     )
 }
 

@@ -10,11 +10,14 @@ import { QuestionsPage } from "@/pages/QuestionsPage"
 import { McpKeysPage } from "@/pages/McpKeysPage"
 import { OperatorsPage } from "@/pages/OperatorsPage"
 import { PortalShell } from "@/components/portal-shell"
+import { IconField } from "@shared/decors/icon-field"
 
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <>
+      <IconField />
+      <BrowserRouter>
       <Routes>
         <Route
           element={
@@ -53,6 +56,7 @@ export default function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </BrowserRouter>
+      </BrowserRouter>
+    </>
   )
 }

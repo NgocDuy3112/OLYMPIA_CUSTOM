@@ -102,6 +102,8 @@ function AccountSlot({ onEnterMatch }: { onEnterMatch: () => void }) {
     )
 }
 
+import { IconField } from "@shared/decors/icon-field"
+
 function AppShell() {
     return (
         <div className="flex h-dvh flex-col">
@@ -223,7 +225,9 @@ function NotFoundPage() {
 
 function App() {
     return (
-        <BrowserRouter>
+        <>
+            <IconField />
+            <BrowserRouter>
             <Routes>
                 <Route element={<AppShell />}>
                     <Route path="/" element={<RootRedirect />} />
@@ -239,7 +243,8 @@ function App() {
                     <Route path="*" element={<NotFoundPage />} />
                 </Route>
             </Routes>
-        </BrowserRouter>
+            </BrowserRouter>
+        </>
     )
 }
 
