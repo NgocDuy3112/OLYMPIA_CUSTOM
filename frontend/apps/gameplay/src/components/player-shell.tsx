@@ -35,7 +35,7 @@ export function PlayerShell({ matchId }: { matchId: string }) {
     if (model.screen === "lobby") {
         if (model.lobby.data) {
             return (
-                <StageShell>
+                <StageShell fullHeight>
                     <Lobby
                         data={model.lobby.data}
                         meId={model.myId}
@@ -46,7 +46,7 @@ export function PlayerShell({ matchId }: { matchId: string }) {
         }
         const v = model.v!
         return (
-            <StageShell>
+            <StageShell fullHeight>
                 <StageLayout rail={<Rail view={v} myId={model.myId} />}>
                     <MainCard>
                         <Badges round={ROUND_LABEL[v.roundId] ?? v.roundId} />
@@ -66,6 +66,6 @@ export function PlayerShell({ matchId }: { matchId: string }) {
     if (model.render) {
         if (model.ctx) body = model.render(model.ctx)
     }
-    return <StageShell>{body}</StageShell>
+    return <StageShell fullHeight>{body}</StageShell>
 }
 

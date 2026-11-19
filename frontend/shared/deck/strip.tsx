@@ -5,7 +5,7 @@ import { DECK_PAD, STRIP_R, pt } from "./geometry"
 export type StripItem = { label: string; content?: ReactNode; onClick?: () => void; title?: string; muted?: boolean; empty?: boolean }
 
 const STRIP_BTN =
-    "flex h-[3.3cqw] w-[9.08cqw] shrink-0 items-center justify-center px-[0.5cqw] text-center font-sans text-[inherit] font-semibold uppercase leading-tight tracking-wide shadow-sm"
+    "flex h-[2.6cqw] w-[7.6cqw] shrink-0 items-center justify-center px-[0.4cqw] text-center font-sans text-[inherit] font-semibold uppercase leading-tight tracking-wide shadow-sm"
 
 const stripSlotClass = (pressable: boolean, muted = false): string => {
     if (pressable) return `${STRIP_BTN} cursor-pointer bg-primary text-primary-foreground transition hover:brightness-110`
@@ -17,8 +17,8 @@ const stripSlotClass = (pressable: boolean, muted = false): string => {
 export function Strip({ items }: { items: StripItem[] }) {
     const visible = items.filter((item) => !item.empty)
     const rows: StripItem[][] = []
-    for (let index = 0; index < visible.length; index += 5) {
-        rows.push(visible.slice(index, index + 5))
+    for (let index = 0; index < visible.length; index += 8) {
+        rows.push(visible.slice(index, index + 8))
     }
     return (
         <div className="flex shrink-0 flex-col items-start gap-[1cqw]">
@@ -33,7 +33,7 @@ export function Strip({ items }: { items: StripItem[] }) {
                                     onClick={item.onClick}
                                     title={item.title}
                                     className={stripSlotClass(true)}
-                                    style={{ fontSize: pt(11), borderRadius: STRIP_R }}
+                                    style={{ fontSize: pt(9), borderRadius: STRIP_R }}
                                 >
                                     {item.content ?? item.label}
                                 </button>
@@ -44,7 +44,7 @@ export function Strip({ items }: { items: StripItem[] }) {
                                 key={item.label}
                                 title={item.title}
                                 className={stripSlotClass(false, item.muted)}
-                                style={{ fontSize: pt(11), borderRadius: STRIP_R }}
+                                style={{ fontSize: pt(9), borderRadius: STRIP_R }}
                             >
                                 {item.content ?? item.label}
                             </span>

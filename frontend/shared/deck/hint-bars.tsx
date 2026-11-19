@@ -23,7 +23,7 @@ export function HintBars({ tiles, openTile, pickedTiles, verdicts, answers, onPi
                     return (
                         <div
                             key={index}
-                            className="flex h-[75px] items-center justify-center gap-[1cqw] px-[1.2cqw] bg-muted text-muted-foreground/40 ring-1 ring-border"
+                            className="flex h-[75px] items-center justify-center gap-[1cqw] px-[1.2cqw] bg-muted font-display font-bold leading-none text-muted-foreground/40 ring-1 ring-border"
                             style={{ fontSize: pt(28) }}
                         >
                             <span>{index + 1}</span>

@@ -32,7 +32,7 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
 
     if (model.phase === "loading") {
         return (
-            <StageShell>
+            <StageShell fullHeight>
                 <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Đang tải vòng thi…</div>
             </StageShell>
         )
@@ -40,7 +40,7 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
 
     if (model.phase === "error") {
         return (
-            <StageShell>
+            <StageShell fullHeight>
                 <div role="alert" className="flex h-full items-center justify-center p-8 text-sm text-destructive">
                     {model.message}
                 </div>
@@ -50,7 +50,7 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
 
     if (model.phase === "not-live") {
         return (
-            <StageShell>
+            <StageShell fullHeight>
                 <ControlBanner control={model.control} />
                 
                 <Lobby
@@ -86,7 +86,7 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
             )
         }
         return (
-            <StageShell>
+            <StageShell fullHeight>
                 <ControlBanner control={model.control} />
                 <Lobby
                     data={model.lobby}
@@ -116,7 +116,7 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
     return (
 
     <ConsoleControlContext.Provider value={model.control}>
-                <StageShell>
+                <StageShell fullHeight>
                     <ControlBanner control={model.control} />
                     {screen}
                     {model.adjustFor && (
