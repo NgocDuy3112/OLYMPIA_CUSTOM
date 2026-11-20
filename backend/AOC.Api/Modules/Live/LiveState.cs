@@ -343,8 +343,7 @@ public static class LiveState
 
             if (open.TryGetProperty("window", out var window))
             {
-                if (window.ValueKind != JsonValueKind.Object)
-                    details.Add("open.window: expected object");
+                ValidateWindow(window, details, "open.window");
             }
             else
             {
@@ -391,6 +390,35 @@ public static class LiveState
 
         OptionalRevealedAnswer(obj, details);
     }, UpgradeVeDich);
+
+    private static void ValidateWindow(JsonElement window, List<string> details, string path)
+    {
+        if (window.ValueKind != JsonValueKind.Object)
+        {
+            details.Add($"{path}: expected object");
+            return;
+        }
+
+        StateGuard.RequireOneOf(window, "mode", ["Oral", "Buzz", "Typed"], details, path);
+        StateGuard.RequireOneOf(window, "eligibility", ["Everyone", "CurrentTurn", "Others", "Pair"], details, path);
+        StateGuard.RequireOptionalString(window, "openedAt", details, path);
+        StateGuard.RequireOptionalString(window, "closesAt", details, path);
+
+        var mode = window.TryGetProperty("mode", out var m) && m.ValueKind == JsonValueKind.String
+            ? m.GetString()
+            : null;
+        if (mode != "Buzz") return;
+
+        StateGuard.RequireInteger(window, "seconds", details, path);
+        var eligibility = window.TryGetProperty("eligibility", out var e) && e.ValueKind == JsonValueKind.String
+            ? e.GetString()
+            : null;
+        if (eligibility == "Pair")
+        {
+            StateGuard.RequireString(window, "pairA", details, path);
+            StateGuard.RequireString(window, "pairB", details, path);
+        }
+    }
 
     private static void ValidatePowerSet(JsonElement powers, List<string> details, string path)
     {
@@ -498,6 +526,9 @@ public static class LiveState
         var index = 0;
         foreach (var p in arr.EnumerateArray())
         {
+            if (index >= players.Count)
+                throw new LiveStateError("stored live state failed validation",
+                    [$"players[{index}]: the state holds fewer players than the jsonb array"]);
             var player = players[index];
             if (!p.TryGetProperty("powers", out _))
                 player = player with { Powers = PowersFrom(p, raw, index == turnIndex) };

@@ -88,6 +88,30 @@ public class VeDichStateParseTests
     }
 
     [Fact]
+    public void ParseVeDich_ABuzzWindowWithoutSecondsIsRejected()
+    {
+        var broken = """
+            {"phase":2,"players":[{"id":"u1","score":0,"powers":{"available":["STAR"],"usedThisTurn":false}}],"remaining":[],"deferred":[],"turnIndex":0,"pendingPicks":[],"open":{"question":{"id":"q1","value":40},"answerer":"u1","power":null,"revealed":true,"window":{"mode":"Buzz","eligibility":"Others"}},"ended":false,"turnPicked":0,"picksConfirmed":false}
+            """;
+
+        var error = Assert.Throws<LiveStateError>(() => Parse(broken));
+
+        Assert.Contains(error.Details, detail => detail.Contains("open.window.seconds"));
+    }
+
+    [Fact]
+    public void ParseVeDich_APairWindowNeedsBothHalves()
+    {
+        var broken = """
+            {"phase":2,"players":[{"id":"u1","score":0,"powers":{"available":["STAR"],"usedThisTurn":false}}],"remaining":[],"deferred":[],"turnIndex":0,"pendingPicks":[],"open":{"question":{"id":"q1","value":40},"answerer":"u1","power":null,"revealed":true,"window":{"mode":"Buzz","eligibility":"Pair","seconds":30,"pairA":"u1"}},"ended":false,"turnPicked":0,"picksConfirmed":false}
+            """;
+
+        var error = Assert.Throws<LiveStateError>(() => Parse(broken));
+
+        Assert.Contains(error.Details, detail => detail.Contains("open.window.pairB"));
+    }
+
+    [Fact]
     public void ParseVeDich_ANewStateRoundTrips()
     {
         var state = new VeDichState

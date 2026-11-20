@@ -400,6 +400,8 @@ public static class VeDichTurn
         var staged = state.Players.First(p => p.Id == answerer).Powers.Staged;
         var isAssign = staged?.Power == PowerKind.ASSIGN;
         if (isAssign && nowIso is null) throw Err("INVALID_TARGET", "ASSIGN needs the server clock to open the race");
+        if (isAssign && staged!.TargetId is null)
+            throw Err("INVALID_TARGET", "ASSIGN needs a player to hand the question to");
 
         AnswerWindow window;
         if (isAssign)
@@ -452,6 +454,9 @@ public static class VeDichTurn
     {
         if (state.Open is null) throw Err("NOTHING_OPEN", "no question is open");
         if (!state.Open.Revealed) throw Err("NOT_REVEALED", "reveal the question first");
+
+        if (state.Open.Window.Locked)
+            throw Err("ALREADY_OPEN", "the answer window is locked");
 
         var clock = RoundRules.VeDichClockSeconds(state.Rules, state.Open.Question.Value);
         AnswerWindow window;

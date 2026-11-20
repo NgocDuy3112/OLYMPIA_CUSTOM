@@ -385,8 +385,10 @@ public static class LiveView
                 && open.Window.Buzzer is not null
                 && open.Window.HasStarted)
             {
+                var seconds = open.Window.Seconds
+                    ?? throw new LiveStateError("open.window.seconds: expected integer", ["open.window"]);
                 frozenRemainingMs = Math.Max(0,
-                    open.Window.Seconds!.Value * 1000 - open.Window.ElapsedMs(input.Now));
+                    seconds * 1000 - open.Window.ElapsedMs(input.Now));
             }
             openList.Add(new Dictionary<string, object?>
             {
