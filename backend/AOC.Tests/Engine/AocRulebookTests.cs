@@ -1,4 +1,4 @@
-using AOC.Domain.Engine;
+using AOC.Domain.Gameplay;
 using Xunit;
 
 namespace AOC.Tests.Engine;
@@ -35,32 +35,32 @@ public class AocRulebookTests
     public void CanonicalRules_ResolveToEngineDefaults()
     {
         var khoiDong = RoundRules.ResolveKhoiDong(AocRulebook.AocRoundConfig("khoi-dong"));
-        Assert.Equal(RoundRules.Defaults.KhoiDong.Phase1Questions, khoiDong.Phase1Questions);
-        Assert.Equal(RoundRules.Defaults.KhoiDong.Phase1BudgetS, khoiDong.Phase1BudgetS);
-        Assert.Equal(RoundRules.Defaults.KhoiDong.Phase2Questions, khoiDong.Phase2Questions);
-        Assert.Equal(RoundRules.Defaults.KhoiDong.Phase2WindowS, khoiDong.Phase2WindowS);
-        Assert.Equal(RoundRules.Defaults.KhoiDong.PointsPerCorrect, khoiDong.PointsPerCorrect);
+        Assert.Equal(RuleBatches.KhoiDong.Phase1Questions, khoiDong.Phase1Questions);
+        Assert.Equal(RuleBatches.KhoiDong.Phase1BudgetS, khoiDong.Phase1BudgetS);
+        Assert.Equal(RuleBatches.KhoiDong.Phase2Questions, khoiDong.Phase2Questions);
+        Assert.Equal(RuleBatches.KhoiDong.Phase2WindowS, khoiDong.Phase2WindowS);
+        Assert.Equal(RuleBatches.KhoiDong.PointsPerCorrect, khoiDong.PointsPerCorrect);
 
         var giaiMa = RoundRules.ResolveGiaiMa(AocRulebook.AocRoundConfig("giai-ma"));
-        Assert.Equal(RoundRules.Defaults.GiaiMa.HintCount, giaiMa.HintCount);
-        Assert.Equal(RoundRules.Defaults.GiaiMa.HintWindowS, giaiMa.HintWindowS);
-        Assert.Equal(RoundRules.Defaults.GiaiMa.Start, giaiMa.Start);
-        Assert.Equal(RoundRules.Defaults.GiaiMa.DropPerHint, giaiMa.DropPerHint);
-        Assert.Equal(RoundRules.Defaults.GiaiMa.Floor, giaiMa.Floor);
+        Assert.Equal(RuleBatches.GiaiMa.HintCount, giaiMa.HintCount);
+        Assert.Equal(RuleBatches.GiaiMa.HintWindowS, giaiMa.HintWindowS);
+        Assert.Equal(RuleBatches.GiaiMa.Start, giaiMa.Start);
+        Assert.Equal(RuleBatches.GiaiMa.DropPerHint, giaiMa.DropPerHint);
+        Assert.Equal(RuleBatches.GiaiMa.Floor, giaiMa.Floor);
 
         var butPha = RoundRules.ResolveButPha(AocRulebook.AocRoundConfig("but-pha"));
-        Assert.Equal(RoundRules.Defaults.ButPha.QuestionCount, butPha.QuestionCount);
-        Assert.Equal(RoundRules.Defaults.ButPha.QuestionLimitS, butPha.QuestionLimitS);
-        Assert.Equal(RoundRules.Defaults.ButPha.Bands, butPha.Bands);
-        Assert.Equal(RoundRules.Defaults.ButPha.Multipliers, butPha.Multipliers);
-        Assert.Equal(RoundRules.Defaults.ButPha.LateMultiplier, butPha.LateMultiplier);
+        Assert.Equal(RuleBatches.ButPha.QuestionCount, butPha.QuestionCount);
+        Assert.Equal(RuleBatches.ButPha.QuestionLimitS, butPha.QuestionLimitS);
+        Assert.Equal(RuleBatches.ButPha.Bands, butPha.Bands);
+        Assert.Equal(RuleBatches.ButPha.Multipliers, butPha.Multipliers);
+        Assert.Equal(RuleBatches.ButPha.LateMultiplier, butPha.LateMultiplier);
 
         var veDich = RoundRules.ResolveVeDich(AocRulebook.AocRoundConfig("ve-dich"));
-        Assert.Equal(RoundRules.Defaults.VeDich.CorrectPct, veDich.CorrectPct);
-        Assert.Equal(RoundRules.Defaults.VeDich.IncorrectPct, veDich.IncorrectPct);
-        Assert.Equal(RoundRules.Defaults.VeDich.Star, veDich.Star);
-        Assert.Equal(RoundRules.Defaults.VeDich.BuzzWindowS, veDich.BuzzWindowS);
-        Assert.Equal(RoundRules.Defaults.VeDich.PickCount, veDich.PickCount);
+        Assert.Equal(RuleBatches.VeDich.CorrectPct, veDich.CorrectPct);
+        Assert.Equal(RuleBatches.VeDich.IncorrectPct, veDich.IncorrectPct);
+        Assert.Equal(RuleBatches.VeDich.Star, veDich.Star);
+        Assert.Equal(RuleBatches.VeDich.BuzzWindowS, veDich.BuzzWindowS);
+        Assert.Equal(RuleBatches.VeDich.PickCount, veDich.PickCount);
     }
 
     [Fact]

@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using AOC.Api.Http;
 using AOC.Api.Modules.Questions;
 using AOC.Domain.Contracts;
-using AOC.Domain.Engine;
+using AOC.Domain.Gameplay;
 using AOC.Infrastructure.Data;
 using AOC.Infrastructure.Data.Entities;
 
@@ -87,11 +87,10 @@ public sealed class MatchAssembly(AOCDbContext db)
                         $"{where}: kind {source.Kind} is not allowed in round \"{entry.RoundId}\"",
                         [$"allowed kinds: {string.Join(", ", config.AllowedKinds)}"]);
 
-                var type = source.Type;
                 var conflict = Buckets.SlotConflict(
                     new Buckets.Slot(entry.RoundId, entry.TurnId, entry.Points),
                     new Buckets.SlotConflictSource(
-                        source.Tags, string.IsNullOrEmpty(type) ? null : type,
+                        source.Tags, source.Kind.ToString(),
                         source.KeywordId?.ToString()));
                 if (conflict is not null)
                     throw new MatchError(MatchErrorCode.VALIDATION, $"{where}: {conflict}");
@@ -108,7 +107,6 @@ public sealed class MatchAssembly(AOCDbContext db)
                     Kind = source.Kind,
                     QuestionText = source.QuestionText,
                     Media = source.MediaValue,
-                    TimeLimit = source.TimeLimit,
                     Points = entry.Points ?? BasePoints(config.Scoring),
                     Payload = source.PayloadValue,
                     SourceId = source.Id.ToString()

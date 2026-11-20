@@ -1,17 +1,16 @@
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
-using AOC.Api;
 using AOC.Api.Http;
 using AOC.Api.Modules.Admin;
 using AOC.Api.Modules.Auth;
 using AOC.Api.Modules.GameplayRead;
 using AOC.Api.Modules.Live;
+using AOC.Api.Modules.Live.TieBreak;
 using AOC.Api.Modules.MatchCodes;
 using AOC.Api.Modules.Mcp;
 using AOC.Api.Modules.McpKeys;
 using AOC.Api.Modules.Rtc;
-using AOC.Api.Modules.Bracket;
 using AOC.Api.Modules.Matches;
 using AOC.Api.Modules.Questions;
 using AOC.Api.Modules.Roster;
@@ -29,25 +28,6 @@ var config = AppConfig.Instance;
 if (args.Contains("--seed-admin"))
 {
     await AOC.Infrastructure.Seeding.AdminSeeder.RunAsync(config.DatabaseUrl);
-    return;
-}
-if (args.Contains("--mint-gameplay-session"))
-{
-    var wanted = args.SkipWhile(a => a != "--mint-gameplay-session").Skip(1).FirstOrDefault();
-    await DevTools.MintGameplaySessionAsync(wanted);
-    return;
-}
-if (args.Contains("--mint-portal-session"))
-{
-    var username = args.SkipWhile(a => a != "--mint-portal-session").Skip(1).FirstOrDefault()
-        ?? throw new InvalidOperationException("usage: --mint-portal-session <username>");
-    await DevTools.MintPortalSessionAsync(username);
-    return;
-}
-if (args.Contains("--mint-mcp-key"))
-{
-    var label = args.SkipWhile(a => a != "--mint-mcp-key").Skip(1).FirstOrDefault() ?? "claude-code";
-    await DevTools.MintMcpKeyAsync(label);
     return;
 }
 
@@ -85,7 +65,6 @@ builder.Services.AddScoped<AOC.Api.Modules.Auth.AuthService>();
 builder.Services.AddScoped<TournamentsService>();
 builder.Services.AddScoped<StandingsService>();
 builder.Services.AddScoped<GroupTablesService>();
-builder.Services.AddScoped<BracketService>();
 builder.Services.AddScoped<MatchesService>();
 builder.Services.AddScoped<AssemblePatchService>();
 builder.Services.AddScoped<RosterService>();
@@ -93,8 +72,11 @@ builder.Services.AddScoped<MatchCodesService>();
 builder.Services.AddScoped<SubmitService>();
 builder.Services.AddScoped<LiveService>();
 builder.Services.AddScoped<LiveReader>();
+builder.Services.AddScoped<TieBreakService>();
 builder.Services.AddScoped<DraftWriter>();
 builder.Services.AddScoped<QuestionsService>();
+builder.Services.AddScoped<AOC.Api.Modules.Questions.Reads.IQuestionReads>(
+    sp => sp.GetRequiredService<QuestionsService>());
 builder.Services.AddScoped<StagingService>();
 builder.Services.AddScoped<GameplayReadService>();
 builder.Services.AddScoped<McpKeysService>();
@@ -206,6 +188,7 @@ app.MapQuestionRoutes();
 app.MapMatchRoutes();
 app.MapAssemblePatchRoutes();
 app.MapLiveRoutes();
+app.MapTieBreakRoutes();
 app.MapRosterRoutes();
 app.MapMatchCodeRoutes();
 app.MapStandingsRoutes();

@@ -449,3 +449,6 @@ prompts/
 bin/
 obj/
 *.user
+
+# Bảng theo dõi công việc — local only, không track
+TODO.md

@@ -1,12 +1,18 @@
-using AOC.Domain.Engine;
-using AOC.Domain.Engine.Turns;
+using AOC.Domain.Contracts;
+using AOC.Domain.Gameplay.Turns;
 using Xunit;
 
 namespace AOC.Tests.Engine;
 
 public class TieBreakTests
 {
-    private static readonly string[] Questions = ["tb1", "tb2"];
+    private const string T0 = "2026-01-01T00:00:00.000Z";
+
+    private static readonly string[] Questions = ["tb1", "tb2", "tb3"];
+
+    private static string At(double sec) =>
+        DateTimeOffset.Parse(T0).AddMilliseconds((long)(sec * 1000)).UtcDateTime
+            .ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'");
 
     private static string CodeOf(Action fn)
     {
@@ -21,134 +27,160 @@ public class TieBreakTests
         return "NO_ERROR";
     }
 
+    private static TieBreakState Started() => TieBreakTurn.StartTieBreak(["a", "b"], Questions);
+
+    private static TieBreakState Open() => TieBreakTurn.OpenBuzz(Started(), T0);
+
+    private static TieBreakState Started3() => TieBreakTurn.StartTieBreak(["a", "b", "c"], Questions);
+
+    private static TieBreakState Open3() => TieBreakTurn.OpenBuzz(Started3(), T0);
+
     [Fact]
     public void NeedsAtLeastTwoDistinctPlayersAndOneQuestion()
     {
         Assert.Equal("VALIDATION", CodeOf(() => TieBreakTurn.StartTieBreak(["a"], Questions)));
         Assert.Equal("VALIDATION", CodeOf(() => TieBreakTurn.StartTieBreak(["a", "a"], Questions)));
         Assert.Equal("VALIDATION", CodeOf(() => TieBreakTurn.StartTieBreak(["a", "b"], [])));
-        Assert.Equal(new List<string> { "a", "b" },
-            TieBreakTurn.StartTieBreak(["a", "b"], Questions).Players);
+
+        var state = Started();
+        Assert.Equal(new List<string> { "a", "b" }, state.Players);
+        Assert.Equal("tb1", TieBreakTurn.CurrentQuestionId(state));
+        Assert.False(state.Window.HasStarted);
     }
 
     [Fact]
-    public void SubmitsOnlyThroughAnOpenWindowForTiedPlayers()
+    public void BuzzNeedsAnOpenWindow()
     {
-        var s = TieBreakTurn.StartTieBreak(["a", "b"], Questions);
-        Assert.Equal("WINDOW_CLOSED", CodeOf(() => TieBreakTurn.Submit(s, "a", "42")));
-
-        s = TieBreakTurn.OpenWindow(s);
-        s = TieBreakTurn.Submit(s, "a", "42");
-        Assert.Equal("NOT_A_TIED_PLAYER", CodeOf(() => TieBreakTurn.Submit(s, "c", "x")));
-
-        s = TieBreakTurn.CloseWindow(s);
-        Assert.Equal("WINDOW_CLOSED", CodeOf(() => TieBreakTurn.Submit(s, "a", "43")));
-        Assert.Equal("42", s.Answers["a"]["tb1"].Text);
-        Assert.Null(s.Answers["a"]["tb1"].Correct);
+        Assert.Equal("WINDOW_NOT_OPEN", CodeOf(() => TieBreakTurn.Buzz(Started(), "a", T0)));
+        Assert.Equal("tb1", TieBreakTurn.CurrentQuestionId(Open()));
     }
 
     [Fact]
-    public void FinalizingClosesTheWindowAndRecordsVerdicts()
+    public void OpeningTwiceIsRefused()
     {
-        var s = TieBreakTurn.StartTieBreak(["a", "b"], Questions);
-        s = TieBreakTurn.OpenWindow(s);
-        s = TieBreakTurn.Submit(s, "a", "42");
-        s = TieBreakTurn.Submit(s, "b", "41");
-        s = TieBreakTurn.Finalize(s, [("a", true), ("b", false)]);
-
-        Assert.False(s.Open);
-        Assert.Equal(10, TieBreakTurn.TieBreakScore(s, "a"));
-        Assert.Equal(0, TieBreakTurn.TieBreakScore(s, "b"));
-        Assert.Equal("WINDOW_CLOSED", CodeOf(() => TieBreakTurn.Finalize(s, [])));
+        Assert.Equal("ALREADY_OPEN", CodeOf(() => TieBreakTurn.OpenBuzz(Open(), T0)));
     }
 
     [Fact]
-    public void WalksQuestionsInOrderThenEnds()
+    public void FirstBuzzWinsAndTheSecondIsBlocked()
     {
-        var s = TieBreakTurn.StartTieBreak(["a", "b"], Questions);
-        Assert.Equal("tb1", TieBreakTurn.CurrentQuestionId(s));
-        Assert.Equal("QUESTION_IN_PLAY", CodeOf(() => TieBreakTurn.NextQuestion(s)));
-
-        s = TieBreakTurn.OpenWindow(s);
-        Assert.Equal("QUESTION_IN_PLAY", CodeOf(() => TieBreakTurn.NextQuestion(s)));
-
-        s = TieBreakTurn.Finalize(s, [("a", true), ("b", true)]);
-        s = TieBreakTurn.NextQuestion(s);
-        Assert.Equal("tb2", TieBreakTurn.CurrentQuestionId(s));
-
-        s = TieBreakTurn.OpenWindow(s);
-        s = TieBreakTurn.CloseWindow(s);
-        Assert.Equal("QUESTIONS_UNJUDGED", CodeOf(() => TieBreakTurn.EndTieBreak(s)));
-
-        s = TieBreakTurn.OpenWindow(s);
-        s = TieBreakTurn.Finalize(s, [("a", false), ("b", true)]);
-        s = TieBreakTurn.EndTieBreak(s);
-        Assert.True(s.Ended);
-        Assert.Equal(10, TieBreakTurn.TieBreakScore(s, "a"));
-        Assert.Equal(20, TieBreakTurn.TieBreakScore(s, "b"));
-        Assert.Equal("ENDED", CodeOf(() => TieBreakTurn.Submit(TieBreakTurn.OpenWindow(s), "a", "x")));
+        var buzzed = TieBreakTurn.Buzz(Open(), "a", At(1.24));
+        Assert.Equal("a", buzzed.Window.Buzzer);
+        Assert.Equal(1240, buzzed.Window.BuzzerMs);
+        Assert.Equal("ALREADY_BUZZED", CodeOf(() => TieBreakTurn.Buzz(buzzed, "b", At(2))));
     }
 
     [Fact]
-    public void EmptyVerdictSetLeavesQuestionUnjudged()
+    public void BuzzAfterTheWindowIsTooLate()
     {
-        var s = TieBreakTurn.StartTieBreak(["a", "b"], Questions);
-        s = TieBreakTurn.OpenWindow(s);
-        s = TieBreakTurn.Finalize(s, []);
-        Assert.Equal("QUESTION_IN_PLAY", CodeOf(() => TieBreakTurn.NextQuestion(s)));
-        Assert.Equal("QUESTIONS_UNJUDGED", CodeOf(() => TieBreakTurn.EndTieBreak(s)));
+        Assert.Equal("TOO_LATE", CodeOf(() => TieBreakTurn.Buzz(Open(), "a", At(6))));
     }
 
-    private static readonly List<RankedEntry> Entries =
-    [
-        new("a", 100),
-        new("b", 100),
-        new("c", 90)
-    ];
+    [Fact]
+    public void OnlyTiedPlayersMayBuzz()
+    {
+        Assert.Equal("NOT_A_TIED_PLAYER", CodeOf(() => TieBreakTurn.Buzz(Open(), "z", At(1))));
+    }
 
     [Fact]
-    public void RankWithoutTieBreak_SharesTiedRank()
+    public void LockedWindowRefusesBuzzes()
     {
-        var ranks = TieBreakTurn.RankWithTieBreak(Entries, null);
-        Assert.Equal(1, ranks["a"]);
+        var locked = TieBreakTurn.LockBuzz(Open());
+        Assert.Equal("WINDOW_CLOSED", CodeOf(() => TieBreakTurn.Buzz(locked, "a", At(1))));
+    }
+
+    [Fact]
+    public void CorrectBuzzScoresAndMovesOn()
+    {
+        var judged = TieBreakTurn.Judge(TieBreakTurn.Buzz(Open(), "a", At(1)), correct: true);
+        Assert.Equal(10, TieBreakTurn.TieBreakScore(judged, "a"));
+        Assert.Equal(0, TieBreakTurn.TieBreakScore(judged, "b"));
+        Assert.Equal("tb2", TieBreakTurn.CurrentQuestionId(judged));
+        Assert.Null(judged.Window.Buzzer);
+        Assert.False(judged.Window.HasStarted);
+    }
+
+    [Fact]
+    public void CorrectBuzzUsesTheConfiguredPoints()
+    {
+        var state = TieBreakTurn.StartTieBreak(
+            ["a", "b"], Questions, new TieBreakRules(PointsPerCorrect: 25));
+
+        var judged = TieBreakTurn.Judge(
+            TieBreakTurn.Buzz(TieBreakTurn.OpenBuzz(state, T0), "a", At(1)), correct: true);
+
+        Assert.Equal(25, TieBreakTurn.TieBreakScore(judged, "a"));
+        Assert.Equal(0, TieBreakTurn.TieBreakScore(judged, "b"));
+    }
+
+    [Fact]
+    public void JudgingNeedsABuzzer()
+    {
+        Assert.Equal("NO_BUZZER", CodeOf(() => TieBreakTurn.Judge(Open(), correct: true)));
+    }
+
+    [Fact]
+    public void WrongBuzzLeavesTheTieBreakAndTheQuestionStays()
+    {
+        var judged = TieBreakTurn.Judge(TieBreakTurn.Buzz(Open3(), "a", At(1)), correct: false);
+        Assert.Contains("a", judged.Eliminated);
+        Assert.Null(judged.Window.Buzzer);
+        Assert.False(judged.Ended);
+        Assert.Equal("tb1", TieBreakTurn.CurrentQuestionId(judged));
+        Assert.Equal(new List<string> { "b", "c" }, TieBreakTurn.ActivePlayers(judged));
+    }
+
+    [Fact]
+    public void AfterAWrongBuzzTheRemainderMayBuzzAgain()
+    {
+        var judged = TieBreakTurn.Judge(TieBreakTurn.Buzz(Open3(), "a", At(1)), correct: false);
+        Assert.Equal("ELIMINATED", CodeOf(() => TieBreakTurn.Buzz(
+            TieBreakTurn.OpenBuzz(judged, T0), "a", At(1))));
+
+        var b = TieBreakTurn.Buzz(TieBreakTurn.OpenBuzz(judged, T0), "b", At(1));
+        Assert.Equal("b", b.Window.Buzzer);
+    }
+
+    [Fact]
+    public void TieBreakEndsAsSoonAsOnePlayerRemains()
+    {
+        var one = TieBreakTurn.Judge(TieBreakTurn.Buzz(Open(), "a", At(1)), correct: false);
+        Assert.True(one.Ended);
+        Assert.Equal(new List<string> { "b" }, TieBreakTurn.ActivePlayers(one));
+        Assert.Equal("ENDED", CodeOf(() => TieBreakTurn.OpenBuzz(one, T0)));
+    }
+
+    [Fact]
+    public void RunningOutOfQuestionsEndsTheTieBreak()
+    {
+        var state = Started();
+        for (var i = 0; i < Questions.Length; i += 1)
+            state = TieBreakTurn.Judge(
+                TieBreakTurn.Buzz(TieBreakTurn.OpenBuzz(state, T0), "a", At(1)), correct: true);
+
+        Assert.True(state.Ended);
+        Assert.Equal(30, TieBreakTurn.TieBreakScore(state, "a"));
+        Assert.Null(TieBreakTurn.CurrentQuestionId(state));
+    }
+
+    [Fact]
+    public void RankWithTieBreakBreaksEqualTotals()
+    {
+        var ranks = TieBreakTurn.RankWithTieBreak(
+            [new RankedEntry("a", 100), new RankedEntry("b", 100), new RankedEntry("c", 90)],
+            new Dictionary<string, int> { ["a"] = 0, ["b"] = 10 });
+
         Assert.Equal(1, ranks["b"]);
-        Assert.Equal(2, ranks["c"]);
-    }
-
-    [Fact]
-    public void RankWithScores_OrdersTheTiedPair()
-    {
-        var ranks = TieBreakTurn.RankWithTieBreak(Entries,
-            new Dictionary<string, int> { ["a"] = 10, ["b"] = 0 });
-        Assert.Equal(1, ranks["a"]);
-        Assert.Equal(2, ranks["b"]);
+        Assert.Equal(2, ranks["a"]);
         Assert.Equal(3, ranks["c"]);
     }
 
     [Fact]
-    public void UnresolvedTie_StaysShared()
+    public void WithoutATieBreakEqualTotalsShareTheRank()
     {
-        var ranks = TieBreakTurn.RankWithTieBreak(Entries,
-            new Dictionary<string, int> { ["a"] = 10, ["b"] = 10 });
-        Assert.Equal(1, ranks["a"]);
-        Assert.Equal(1, ranks["b"]);
-        Assert.Equal(2, ranks["c"]);
-    }
+        var ranks = TieBreakTurn.RankWithTieBreak(
+            [new RankedEntry("a", 100), new RankedEntry("b", 100)], null);
 
-    [Fact]
-    public void AbsentPlayersScoreZero()
-    {
-        var ranks = TieBreakTurn.RankWithTieBreak(Entries,
-            new Dictionary<string, int> { ["a"] = 5 });
-        Assert.Equal(1, ranks["a"]);
-        Assert.Equal(2, ranks["b"]);
-        Assert.Equal(3, ranks["c"]);
-    }
-
-    [Fact]
-    public void TotalsAreReadNeverRewritten()
-    {
-        TieBreakTurn.RankWithTieBreak(Entries, new Dictionary<string, int> { ["b"] = 999 });
-        Assert.Equal(new[] { 100, 100, 90 }, Entries.Select(e => e.TotalScore));
+        Assert.Equal(ranks["a"], ranks["b"]);
     }
 }

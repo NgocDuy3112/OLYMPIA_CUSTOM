@@ -76,7 +76,6 @@ public sealed class McpTools(
         status = row.Status,
         usable = row.Status == QuestionStatus.PUBLISHED,
         media = row.Media,
-        timeLimit = row.TimeLimit,
         payload = row.Payload,
         createdAt = row.CreatedAt,
         updatedAt = row.UpdatedAt

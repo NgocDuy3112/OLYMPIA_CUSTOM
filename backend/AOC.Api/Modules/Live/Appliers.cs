@@ -1,9 +1,9 @@
 using System.Text.Json;
 using AOC.Api.Http;
 using AOC.Domain.Contracts;
-using AOC.Domain.Engine;
-using AOC.Domain.Engine.Scoring;
-using AOC.Domain.Engine.Turns;
+using AOC.Domain.Gameplay;
+using AOC.Domain.Gameplay.Scoring;
+using AOC.Domain.Gameplay.Turns;
 
 namespace AOC.Api.Modules.Live;
 
@@ -278,7 +278,7 @@ public static class VeDichApplier
                 {
                     Id = p.Id,
                     Score = p.Score,
-                    PowersLeft = [Power.STAR, Power.ASSIGN]
+                    PowersLeft = [PowerKind.STAR, PowerKind.ASSIGN]
                 }).ToList();
                 var created = VeDichTurn.CreateVeDich(ctx.Questions, players, ctx.Rules);
                 if (start.Phase == 2)
@@ -303,6 +303,9 @@ public static class VeDichApplier
                     .ToList();
                 return (next, facts);
             }
+
+            case LiveAction.VeDichConfirmPicks:
+                return (VeDichTurn.ConfirmPicks(state), []);
 
             case LiveAction.VeDichDeclarePower declare:
                 return (VeDichTurn.DeclarePower(state, declare.PlayerId, declare.PowerValue, declare.TargetId), []);
@@ -345,6 +348,8 @@ public static class VeDichApplier
             {
                 if (state.Phase != 1) throw new RuleError("WRONG_PHASE", "judge only applies in phase 1");
                 var open = state.Open ?? throw new RuleError("NOTHING_OPEN", "no question is open");
+                if (!ctx.Drafts.Any(d => d.UserId == judge.PlayerId))
+                    throw new RuleError("NO_ANSWER", $"no submitted answer from {judge.PlayerId} to judge");
                 var points = VeDichScoring.Points(open.Question.Value, judge.Correct, ctx.Rules);
                 return (state, [new JudgeFact(open.Question.Id, judge.PlayerId,
                     judge.Correct ? Verdict.CORRECT : Verdict.INCORRECT, points)]);
@@ -384,7 +389,7 @@ public static class VeDichApplier
 
                     if (open.Buzzer is null)
                     {
-                        var payout = VeDichScoring.Assign(face, null);
+                        var payout = VeDichScoring.Assign(face, null, ctx.Rules.Assign);
                         facts.Add(Teammate(open.Question.Id, open.Answerer, false, payout.Buzzer));
                         facts.Add(Teammate(open.Question.Id, assignedTo, false, payout.Partner));
                     }
@@ -392,7 +397,7 @@ public static class VeDichApplier
                     {
                         var buzzerCorrect = resolve.Buzzer == true;
                         var other = open.Buzzer == open.Answerer ? assignedTo : open.Answerer;
-                        var payout = VeDichScoring.Assign(face, buzzerCorrect);
+                        var payout = VeDichScoring.Assign(face, buzzerCorrect, ctx.Rules.Assign);
                         facts.Add(Teammate(open.Question.Id, open.Buzzer, buzzerCorrect, payout.Buzzer));
                         facts.Add(Teammate(open.Question.Id, other, false, payout.Partner));
                     }
@@ -400,7 +405,7 @@ public static class VeDichApplier
                 }
 
                 var answererPoints = VeDichScoring.Points(face, resolve.Answerer, ctx.Rules,
-                    open.Power == Power.STAR);
+                    open.Power == PowerKind.STAR);
                 var verdict = resolve.Answerer ? Verdict.CORRECT : Verdict.INCORRECT;
 
                 if (state.Phase == 1)

@@ -9,20 +9,30 @@ public static class MatchScoring
     public sealed record MatchResultInput(
         IReadOnlyList<string> Competitors,
         IReadOnlyList<AnswerForScoring> Answers,
-        IReadOnlyDictionary<string, int>? Adjustments = null);
+        IReadOnlyDictionary<string, int>? Adjustments = null,
+        IReadOnlyDictionary<string, int>? TieBreak = null);
 
-    public static Dictionary<string, int> DenseRanks(IEnumerable<(string Key, int Total)> entries)
+    public static Dictionary<string, int> DenseRanks(
+        IEnumerable<(string Key, int Total)> entries,
+        IReadOnlyDictionary<string, int>? tieBreak = null)
     {
-        var sorted = entries.OrderByDescending(e => e.Total).ToList();
+        int TieOf((string Key, int Total) entry)
+            => tieBreak is not null && tieBreak.TryGetValue(entry.Key, out var points) ? points : 0;
+
+        var sorted = entries
+            .OrderByDescending(e => e.Total)
+            .ThenByDescending(TieOf)
+            .ToList();
         var ranks = new Dictionary<string, int>();
         var rank = 0;
-        int? lastTotal = null;
+        (int Total, int Tie)? last = null;
         foreach (var entry in sorted)
         {
-            if (lastTotal is null || entry.Total != lastTotal.Value)
+            var key = (entry.Total, TieOf(entry));
+            if (last is null || key != last.Value)
             {
                 rank += 1;
-                lastTotal = entry.Total;
+                last = key;
             }
             ranks[entry.Key] = rank;
         }
@@ -52,7 +62,7 @@ public static class MatchScoring
                 byUser[userId] = bucket;
             }
 
-        var ranks = DenseRanks(byUser.Select(kv => (kv.Key, kv.Value.Total)));
+        var ranks = DenseRanks(byUser.Select(kv => (kv.Key, kv.Value.Total)), input.TieBreak);
 
         return byUser
             .Select(kv => new ResultEntry

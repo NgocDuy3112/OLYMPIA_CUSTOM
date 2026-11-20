@@ -94,7 +94,7 @@ public static class Facts
         return new EventFact(questionId, userId, roundId, MatchEventKind.BUZZ, payload);
     }
 
-    public static EventFact Power(string questionId, string userId, string roundId, Power power, string? targetId)
+    public static EventFact Power(string questionId, string userId, string roundId, PowerKind power, string? targetId)
     {
         JsonElement payload;
         if (targetId is null)

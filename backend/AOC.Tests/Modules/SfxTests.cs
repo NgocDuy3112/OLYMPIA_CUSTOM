@@ -1,7 +1,7 @@
 using System.Text.Json;
 using AOC.Api.Modules.Live;
 using AOC.Domain.Contracts;
-using AOC.Domain.Engine.Turns;
+using AOC.Domain.Gameplay.Turns;
 using Xunit;
 
 namespace AOC.Tests.Modules;
@@ -10,12 +10,12 @@ public class SfxTests
 {
     private static readonly JsonElement Empty = JsonSerializer.SerializeToElement(new { });
 
-    private static OpenQuestion Open(int seconds, string stage = "current",
-        Power? power = null, string? openedAt = "2026-01-01T00:00:00.000Z") => new()
+    private static OpenQuestion Open(int value, string stage = "current",
+        PowerKind? power = null, string? openedAt = "2026-01-01T00:00:00.000Z") => new()
     {
-        Question = new VeDichQuestion { Id = "q1", Value = 30, TimeLimit = seconds },
+        Question = new VeDichQuestion { Id = "q1", Value = value },
         Answerer = "a",
-        Stage = stage,
+        Step = stage,
         Power = power,
         Revealed = true,
         OpenedAt = openedAt
@@ -87,11 +87,18 @@ public class SfxTests
     public void VeDich_Powers_AreTheirOwnFanfares()
     {
         Assert.Equal("vd_ngoi_sao_hy_vong.mp3", Sfx.FileFor(
-            new LiveAction.VeDichDeclarePower("u1", Power.STAR, null), Empty, "ve-dich"));
+            new LiveAction.VeDichDeclarePower("u1", PowerKind.STAR, null), Empty, "ve-dich"));
         Assert.Equal("vd_chi_dinh_doi_khang.mp3", Sfx.FileFor(
-            new LiveAction.VeDichDeclarePower("u1", Power.ASSIGN, "u2"), Empty, "ve-dich"));
+            new LiveAction.VeDichDeclarePower("u1", PowerKind.ASSIGN, "u2"), Empty, "ve-dich"));
         Assert.Null(Sfx.FileFor(
             new LiveAction.VeDichDeclarePower("u1", null, null), Empty, "ve-dich"));
+    }
+
+    [Fact]
+    public void VeDich_BuzzRingsItsOwnCue()
+    {
+        Assert.Equal("vd_buzz.mp3", Sfx.FileFor(
+            new LiveAction.VeDichBuzz("u1"), Empty, "ve-dich"));
     }
 
     [Fact]
@@ -106,10 +113,10 @@ public class SfxTests
     [Fact]
     public void VeDich_ClockAnnouncesItsOwnSeconds()
     {
-        Assert.Equal("vd_20s.mp3", Sfx.FileFor(
+        Assert.Equal("vd_15s.mp3", Sfx.FileFor(
             new LiveAction.VeDichStartClock(), StateFor(Open(20)), "ve-dich"));
         Assert.Equal("vd_45s.mp3", Sfx.FileFor(
-            new LiveAction.VeDichPick("u1", "q1"), StateFor(Open(45)), "ve-dich"));
+            new LiveAction.VeDichPick("u1", "q1"), StateFor(Open(50)), "ve-dich"));
 
         Assert.Null(Sfx.FileFor(
             new LiveAction.VeDichOpenQuestion("q1"), StateFor(Open(20, openedAt: null)), "ve-dich"));
@@ -129,10 +136,10 @@ public class SfxTests
     {
         Assert.Equal("vd_30s.mp3", Sfx.FileFor(
             new LiveAction.VeDichStartClock(),
-            StateFor(Open(30, stage: "buzz", power: Power.ASSIGN)), "ve-dich"));
+            StateFor(Open(40, stage: "buzz", power: PowerKind.ASSIGN)), "ve-dich"));
         Assert.Equal("vd_30s.mp3", Sfx.FileFor(
             new LiveAction.VeDichReveal(),
-            StateFor(Open(30, stage: "buzz", power: Power.ASSIGN, openedAt: null),
+            StateFor(Open(40, stage: "buzz", power: PowerKind.ASSIGN, openedAt: null),
                 buzzOpenedAt: "2026-01-01T00:00:00.000Z"), "ve-dich"));
     }
 

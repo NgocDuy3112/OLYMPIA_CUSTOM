@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using AOC.Api.Http;
 using AOC.Domain.Contracts;
-using AOC.Domain.Engine.Scoring;
-using StandingsBuilder = AOC.Domain.Engine.Scoring.Standings;
+using AOC.Domain.Tournament;
+using StandingsBuilder = AOC.Domain.Tournament.Standings;
 using AOC.Infrastructure.Data;
 using AOC.Infrastructure.Data.Entities;
 
@@ -166,21 +166,21 @@ public sealed class GroupTablesService(AOCDbContext db)
         var roster = await RosterWithGroupsAsync(id);
         var names = roster.ToDictionary(r => r.UserId, r => r.DisplayName);
 
-        var drawn = new Dictionary<string, GroupStage.GroupLabel>();
+        var drawn = new Dictionary<string, PlayerGroup>();
         foreach (var row in roster)
             if (row.Group is { } g)
-                drawn[row.UserId] = g == PlayerGroup.A ? GroupStage.GroupLabel.A : GroupStage.GroupLabel.B;
+                drawn[row.UserId] = g;
 
         var standings = GroupStage.Build(drawn, await GroupMatchesAsync(id));
         string LineOf(string userId) => names.GetValueOrDefault(userId, "Unknown");
 
         var groups = new List<GroupBlock>();
-        foreach (var groupId in new[] { GroupStage.GroupLabel.A, GroupStage.GroupLabel.B })
+        foreach (var groupId in new[] { PlayerGroup.A, PlayerGroup.B })
         {
             var block = standings.ByGroup[groupId];
             groups.Add(new GroupBlock(
-                groupId == GroupStage.GroupLabel.A ? "A" : "B",
-                block.TeamPoints,
+                groupId.ToString(),
+                block.GroupPoints,
                 block.Contestants.Select(line => new GroupRow(
                     line.UserId,
                     LineOf(line.UserId),
@@ -210,7 +210,7 @@ public sealed record GroupRow(
     string UserId, string DisplayName, int MatchesPlayed, int BankedPoints,
     GroupStage.Averages Averages);
 
-public sealed record GroupBlock(string Id, int TeamPoints, List<GroupRow> Rows);
+public sealed record GroupBlock(string Id, int GroupPoints, List<GroupRow> Rows);
 
 public sealed record UnassignedRow(string UserId, string DisplayName);
 

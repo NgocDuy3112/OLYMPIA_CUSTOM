@@ -1,7 +1,7 @@
 using System.Text.Json;
 using AOC.Api.Http;
 using AOC.Infrastructure.Data;
-using AOC.Domain.Engine.Turns;
+using AOC.Domain.Gameplay.Turns;
 
 namespace AOC.Api.Modules.Live;
 
@@ -53,7 +53,7 @@ public static class LiveState
 
     public static GiaiMaState ParseGiaiMa(JsonElement raw) => Parse<GiaiMaState>(raw, (obj, details) =>
     {
-        StateGuard.RequireOneOf(obj, "stage", ["hints", "ended"], details);
+        StateGuard.RequireOneOf(obj, "step", ["hints", "ended"], details);
         if (!obj.TryGetProperty("players", out var players) || players.ValueKind != JsonValueKind.Array)
         {
             details.Add("players: expected array");
@@ -120,7 +120,7 @@ public static class LiveState
 
     public static KhoiDongState ParseKhoiDong(JsonElement raw) => Parse<KhoiDongState>(raw, (obj, details) =>
     {
-        StateGuard.RequireOneOf(obj, "stage", ["phase1", "phase2"], details);
+        StateGuard.RequireOneOf(obj, "step", ["phase1", "phase2"], details);
         StateGuard.RequireBoolean(obj, "ended", details);
         StateGuard.RequireArray(obj, "order", details);
         StateGuard.RequireInteger(obj, "activeIndex", details);
@@ -234,7 +234,7 @@ public static class LiveState
             if (!open.TryGetProperty("power", out var power)
                 || (power.ValueKind != JsonValueKind.String && power.ValueKind != JsonValueKind.Null))
                 details.Add("open.power: expected string or null");
-            StateGuard.RequireOneOf(open, "stage", ["current", "buzz"], details, "open");
+            StateGuard.RequireOneOf(open, "step", ["current", "buzz"], details, "open");
             StateGuard.RequireNullableString(open, "openedAt", details, "open");
             StateGuard.RequireNullableString(open, "buzzer", details, "open");
             if (open.TryGetProperty("buzzerMs", out var buzzerMs)
@@ -275,6 +275,10 @@ public static class LiveState
             && tpu.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
             details.Add("turnPowerUsed: expected boolean");
 
+        if (obj.TryGetProperty("picksConfirmed", out var picksConfirmed)
+            && picksConfirmed.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+            details.Add("picksConfirmed: expected boolean");
+
         OptionalRevealedAnswer(obj, details);
     });
 
@@ -282,10 +286,6 @@ public static class LiveState
     {
         StateGuard.RequireString(q, "id", details, path);
         StateGuard.RequireInteger(q, "value", details, path);
-        if (q.TryGetProperty("timeLimit", out var tl)
-            && tl.ValueKind != JsonValueKind.Null
-            && (tl.ValueKind != JsonValueKind.Number || !tl.TryGetInt32(out _)))
-            details.Add($"{path}.timeLimit: expected integer or null");
     }
 
     public static object ParseRoundState(string roundId, JsonElement raw) => roundId switch

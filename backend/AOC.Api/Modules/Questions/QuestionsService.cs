@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using AOC.Api.Http;
+using AOC.Api.Modules.Questions.Reads;
 using AOC.Api.Shared;
 using AOC.Domain.Contracts;
 using AOC.Infrastructure.Configuration;
@@ -15,13 +16,12 @@ public static class Transitions
 {
     private static readonly Dictionary<QuestionStatus, QuestionStatus[]> Edges = new()
     {
-        [QuestionStatus.DRAFT] = [QuestionStatus.PENDING, QuestionStatus.ARCHIVED],
-        [QuestionStatus.PENDING] = [QuestionStatus.DRAFT, QuestionStatus.PUBLISHED, QuestionStatus.ARCHIVED],
-        [QuestionStatus.PUBLISHED] = [QuestionStatus.PENDING, QuestionStatus.ARCHIVED],
+        [QuestionStatus.DRAFT] = [QuestionStatus.PUBLISHED, QuestionStatus.ARCHIVED],
+        [QuestionStatus.PUBLISHED] = [QuestionStatus.DRAFT, QuestionStatus.ARCHIVED],
         [QuestionStatus.ARCHIVED] = []
     };
 
-    private static readonly HashSet<string> AdminOnly = ["PENDING→PUBLISHED"];
+    private static readonly HashSet<string> AdminOnly = ["DRAFT→PUBLISHED"];
 
     public static void AssertTransition(QuestionStatus from, QuestionStatus to, UserRole role)
     {
@@ -97,7 +97,7 @@ public static class PayloadGuards
         => new(QuestionErrorCode.VALIDATION, message, details ?? []);
 }
 
-public sealed class QuestionsService(AOCDbContext db)
+public sealed class QuestionsService(AOCDbContext db) : IQuestionReads
 {
     public const int MaxBatchSize = 500;
     private const int MaxPageSize = 500;
@@ -117,16 +117,6 @@ public sealed class QuestionsService(AOCDbContext db)
            ?? throw new QuestionError(QuestionErrorCode.NOT_FOUND, $"question {id} not found");
 
 
-    private static QuestionType DeriveType(QuestionKind kind, JsonElement payload)
-    {
-        if (payload.ValueKind == JsonValueKind.Object
-            && payload.TryGetProperty("type", out var declared)
-            && declared.ValueKind == JsonValueKind.String
-            && Enum.TryParse<QuestionType>(declared.GetString(), out var parsed))
-            return parsed;
-        return kind == QuestionKind.HINT ? QuestionType.TEXT : (QuestionType)(int)kind;
-    }
-
     private static List<string>? NormalizeTags(List<string>? tags)
     {
         if (tags is null) return null;
@@ -135,29 +125,20 @@ public sealed class QuestionsService(AOCDbContext db)
         return tags;
     }
 
-    private static JsonElement ScopedPayload(QuestionType type, JsonElement payload, List<string>? tags)
-    {
-        var stamped = Buckets.PayloadWithType(type, payload);
-        if (Buckets.BucketOfTags(tags) is null) return stamped;
-
-        var dict = stamped.Deserialize<Dictionary<string, JsonElement>>()!;
-        dict.Remove("bucket");
-        return JsonSerializer.SerializeToElement(dict, JsonApi.Options);
-    }
+    private static JsonElement ScopedPayload(JsonElement payload, List<string>? tags)
+        => Buckets.StripBucketKey(payload);
 
     private QuestionBankEntity QuestionValues(WriteContext ctx, CreateQuestionDto input)
     {
-        var type = DeriveType(input.Kind, input.Payload);
         var tags = NormalizeTags(input.Tags) ?? [];
         return new QuestionBankEntity
         {
             Kind = input.Kind,
             QuestionText = input.QuestionText,
             KeywordId = input.KeywordId is null ? null : Guid.Parse(input.KeywordId),
-            Payload = ScopedPayload(type, input.Payload, tags),
+            Payload = ScopedPayload(input.Payload, tags),
             Tags = tags.ToArray(),
             Media = input.Media is null ? null : JsonDefaults.Serialize(input.Media),
-            TimeLimit = input.TimeLimit,
             Status = QuestionStatus.DRAFT,
             ImportBatchId = ctx.ImportBatchId,
             CreatedBy = ctx.ActorId
@@ -169,9 +150,6 @@ public sealed class QuestionsService(AOCDbContext db)
         if (string.IsNullOrEmpty(input.QuestionText))
             throw new QuestionError(QuestionErrorCode.VALIDATION,
                 "Question payload failed validation", ["/questionText: String must have at least 1 characters"]);
-        if (input.TimeLimit is not null && input.TimeLimit < 1)
-            throw new QuestionError(QuestionErrorCode.VALIDATION,
-                "Question payload failed validation", ["/timeLimit: Number must be >= 1"]);
         if (input.Tags is { Count: > 8 })
             throw new QuestionError(QuestionErrorCode.VALIDATION,
                 "Question payload failed validation", ["/tags: Array must have at most 8 items"]);
@@ -179,7 +157,7 @@ public sealed class QuestionsService(AOCDbContext db)
             throw new QuestionError(QuestionErrorCode.VALIDATION,
                 "Question payload failed validation", ["/keywordId: Expected string with format 'uuid'"]);
 
-        Buckets.AssertPayloadForType(DeriveType(input.Kind, input.Payload), input.Payload);
+        Buckets.AssertPayloadForKind(input.Kind, input.Payload);
         NormalizeTags(input.Tags);
     }
 
@@ -237,7 +215,6 @@ public sealed class QuestionsService(AOCDbContext db)
             KeywordId = source.KeywordId,
             Payload = source.Payload,
             Media = source.Media,
-            TimeLimit = source.TimeLimit,
             Tags = source.Tags,
             Status = QuestionStatus.DRAFT,
             CreatedBy = ctx.ActorId
@@ -298,9 +275,8 @@ public sealed class QuestionsService(AOCDbContext db)
         JsonElement? payloadPatch = null;
         if (patchInput.TryGetProperty("payload", out var payloadEl) && payloadEl.ValueKind != JsonValueKind.Null)
         {
-            var type = DeriveType(kindPatch ?? existing.Kind, payloadEl);
-            Buckets.AssertPayloadForType(type, payloadEl);
-            payloadPatch = Buckets.PayloadWithType(type, payloadEl);
+            Buckets.AssertPayloadForKind(kindPatch ?? existing.Kind, payloadEl);
+            payloadPatch = Buckets.StripBucketKey(payloadEl);
         }
 
         List<string>? tagsPatch = null;
@@ -346,13 +322,6 @@ public sealed class QuestionsService(AOCDbContext db)
             tracked.Media = mediaEl.ValueKind == JsonValueKind.Null
                 ? null
                 : JsonDefaults.Serialize(mediaEl);
-        if (patchInput.TryGetProperty("timeLimit", out var tl))
-            tracked.TimeLimit = tl.ValueKind switch
-            {
-                JsonValueKind.Null => null,
-                JsonValueKind.Number when tl.TryGetInt32(out var n) && n >= 1 => n,
-                _ => throw QuestionPayloadInvalid("/timeLimit: Number must be >= 1")
-            };
         tracked.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
         return tracked;
@@ -390,245 +359,189 @@ public sealed class QuestionsService(AOCDbContext db)
     {
         var clauses = new List<string>
         {
-            "tags && @bucketValues::text[]",
-            "payload ->> 'bucket' = ANY(@bucketValues)"
+            "tags && string_to_array({0}, ',')",
+            "payload ->> 'bucket' = ANY(string_to_array({0}, ','))"
         };
         if (Buckets.ExpandBucketParam(bucket).Contains("giai-ma"))
             clauses.Add("kind IN ('KEYWORD', 'HINT')");
-        clauses.Add("(tags = '{}' AND payload ->> 'bucket' IS NULL AND kind NOT IN ('KEYWORD', 'HINT'))");
+        clauses.Add("(cardinality(tags) = 0 AND payload ->> 'bucket' IS NULL AND kind NOT IN ('KEYWORD', 'HINT'))");
         return string.Join(" OR ", clauses.Select(c => $"({c})"));
     }
 
-    public sealed record ListFilters(
-        QuestionStatus? Status = null,
-        QuestionKind? Kind = null,
-        Guid? KeywordId = null,
-        string? Search = null,
-        List<Guid>? Ids = null,
-        string? Cursor = null,
-        string? Bucket = null);
-
-    private static string Escape(string value) => value.Replace("'", "''");
-
-    private sealed record SqlFilter(List<string> Where, List<(string Name, object Value)> Params)
+    private sealed class SqlWhere
     {
-        public void Add(string clause, params (string Name, object Value)[] parameters)
+        private readonly List<string> clauses = [];
+        private readonly List<object> args = [];
+
+        public void Add(string template, params object[] values)
         {
-            Where.Add(clause);
-            Params.AddRange(parameters);
+            var start = args.Count;
+            var placed = template;
+            for (var i = values.Length - 1; i >= 0; i--)
+                placed = placed.Replace("{" + i + "}", "{" + (start + i) + "}");
+
+            clauses.Add(placed);
+            args.AddRange(values);
         }
+
+        public string Text()
+        {
+            if (clauses.Count == 0) return "";
+            return " WHERE " + string.Join(" AND ", clauses);
+        }
+
+        public object[] Args() => [.. args];
     }
 
-    private static string OrderClause(string? searchTs, bool cursor)
+    private const string SelectRows = "SELECT * FROM question_bank";
+    private const string OrderRows = "ORDER BY created_at DESC, id DESC";
+
+    private async Task<List<QuestionBankEntity>> QueryRowsAsync(SqlWhere where, Page page)
     {
-        if (searchTs is not null)
-            return "ORDER BY ts_rank(search_vector, to_tsquery('simple', immutable_unaccent(@tsq))) DESC, created_at DESC, id DESC";
-        return cursor
-            ? "ORDER BY created_at DESC, id DESC"
-            : "ORDER BY created_at DESC, id DESC";
+        var args = where.Args();
+        var limitIndex = args.Length;
+        var offsetIndex = args.Length + 1;
+
+        var sql = SelectRows + where.Text() + " " + OrderRows
+            + " LIMIT {" + limitIndex + "} OFFSET {" + offsetIndex + "}";
+
+        var all = new object[args.Length + 2];
+        args.CopyTo(all, 0);
+        all[limitIndex] = page.Limit;
+        all[offsetIndex] = page.Offset;
+
+        return await db.Database.SqlQueryRaw<QuestionBankEntity>(sql, all).ToListAsync();
     }
 
-    private static QuestionBankEntity Materialize(System.Data.Common.DbDataReader reader) => new()
+    private Task<int> CountRowsAsync(SqlWhere where)
+        => db.Database
+            .SqlQueryRaw<int>("SELECT count(*) AS \"Value\" FROM question_bank" + where.Text(), where.Args())
+            .SingleAsync();
+
+    private static SqlWhere BuildFilter(QuestionFilter filters)
     {
-        Id = reader.GetGuid(0),
-        Kind = Enum.Parse<QuestionKind>(reader.GetString(1)),
-        QuestionText = reader.GetString(2),
-        KeywordId = reader.IsDBNull(3) ? null : reader.GetGuid(3),
-        Media = reader.IsDBNull(4) ? null : reader.GetFieldValue<JsonElement>(4),
-        Payload = reader.GetFieldValue<JsonElement>(5),
-        TimeLimit = reader.IsDBNull(6) ? null : reader.GetInt32(6),
-        Status = Enum.Parse<QuestionStatus>(reader.GetString(7)),
-        Tags = reader.GetFieldValue<string[]>(8),
-        Type = reader.IsDBNull(9) ? "" : reader.GetString(9),
-        CreatedBy = reader.GetGuid(10),
-        ImportBatchId = reader.IsDBNull(11) ? null : reader.GetGuid(11),
-        CreatedAt = reader.GetDateTime(12),
-        UpdatedAt = reader.GetDateTime(13)
-    };
+        var where = new SqlWhere();
 
-    private const string SelectColumns = """
-        SELECT id, kind::text, question_text, keyword_id, media, payload, time_limit, status::text,
-               tags, type, created_by, import_batch_id, created_at, updated_at
-          FROM question_bank
-        """;
-
-    private async Task<List<QuestionBankEntity>> QueryRowsAsync(
-        SqlFilter filter, string order, int limit, int offset, Dictionary<string, object>? extra = null)
-    {
-        var sql = SelectColumns;
-        if (filter.Where.Count > 0) sql += " WHERE " + string.Join(" AND ", filter.Where);
-        sql += $" {order} LIMIT @limit OFFSET @offset";
-
-        await using var connection = await RawSql.OpenAsync(db);
-        await using var command = connection.CreateCommand();
-        command.CommandText = sql;
-        AddParam(command, "limit", limit);
-        AddParam(command, "offset", offset);
-        foreach (var (name, value) in filter.Params) AddParam(command, name, value);
-        if (extra is not null)
-            foreach (var (name, value) in extra) AddParam(command, name, value);
-
-        var rows = new List<QuestionBankEntity>();
-        await using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync()) rows.Add(Materialize(reader));
-        return rows;
-    }
-
-    private async Task<int> CountRowsAsync(SqlFilter filter, Dictionary<string, object>? extra = null)
-    {
-        var sql = "SELECT count(*)::int FROM question_bank";
-        if (filter.Where.Count > 0) sql += " WHERE " + string.Join(" AND ", filter.Where);
-
-        await using var connection = await RawSql.OpenAsync(db);
-        await using var command = connection.CreateCommand();
-        command.CommandText = sql;
-        foreach (var (name, value) in filter.Params) AddParam(command, name, value);
-        if (extra is not null)
-            foreach (var (name, value) in extra) AddParam(command, name, value);
-        return Convert.ToInt32(await command.ExecuteScalarAsync());
-    }
-
-    private static void AddParam(System.Data.Common.DbCommand command, string name, object value)
-    {
-        var parameter = command.CreateParameter();
-        parameter.ParameterName = name;
-        parameter.Value = value;
-        command.Parameters.Add(parameter);
-    }
-
-    private async Task<(SqlFilter Filter, string? SearchTs, string Order)> BuildFilterAsync(ListFilters filters)
-    {
-        string? searchTs;
-        string order;
-        var filter = new SqlFilter([], []);
         if (filters.Status is { } status)
-            filter.Add("status = @status::question_status", ("status", status.ToString()));
-        if (filters.Kind is { } kind)
-            filter.Add("kind = @kind::question_kind", ("kind", kind.ToString()));
-        if (filters.KeywordId is { } kw) filter.Add("keyword_id = @keywordId", ("keywordId", kw));
-        if (filters.Ids is { Count: > 0 } ids)
-            filter.Add("id::text = ANY(@ids)", ("ids", ids.Select(g => g.ToString()).ToArray()));
+            where.Add("status = {0}::question_status", status.ToString());
 
-        searchTs = filters.Search is { } term ? QuestionSearchQuery(term) : null;
+        if (filters.Kind is { } kind)
+            where.Add("kind = {0}::question_kind", kind.ToString());
+
+        if (filters.KeywordId is { } keywordId)
+            where.Add("keyword_id = {0}", keywordId);
+
+        var ids = filters.Ids;
+        if (ids is { Count: > 0 })
+            where.Add("id = ANY({0})", ids.ToArray());
+
+        var searchTs = filters.Search is { } term ? QuestionSearchQuery(term) : null;
         if (searchTs is not null)
-            filter.Add("search_vector @@ to_tsquery('simple', immutable_unaccent(@tsq))", ("tsq", searchTs));
+            where.Add("search_vector @@ to_tsquery('simple', immutable_unaccent({0}))", searchTs);
 
         if (filters.Bucket is not null)
-        {
-            var list = Buckets.ExpandBucketParam(filters.Bucket);
-            filter.Add($"({BucketConditionSql(filters.Bucket)})",
-                ("bucketValues", list.ToArray()));
-        }
+            where.Add($"({BucketConditionSql(filters.Bucket)})", string.Join(",", Buckets.ExpandBucketParam(filters.Bucket)));
 
-        if (filters.Cursor is not null && searchTs is null)
-        {
-            var cursor = Guid.Parse(filters.Cursor);
-            var row = await db.QuestionBank.AsNoTracking()
-                .Where(x => x.Id == cursor)
-                .Select(x => new { x.CreatedAt, x.Id })
-                .FirstOrDefaultAsync();
-            if (row is not null)
-            {
-                filter.Add("(created_at < @cursorAt OR (created_at = @cursorAt AND id < @cursorId))",
-                    ("cursorAt", row.CreatedAt), ("cursorId", row.Id));
-            }
-        }
-
-        order = OrderClause(searchTs, filters.Cursor is not null);
-        return (filter, searchTs, order);
+        return where;
     }
 
-    public async Task<PageResult<QuestionBankEntity>> ListQuestionsAsync(ListFilters filters, Page page)
+    public async Task<PageResult<QuestionRow>> ListAsync(QuestionFilter filters, Page page)
     {
-        var (filter, searchTs, order) = await BuildFilterAsync(filters);
-        var extra = searchTs is not null ? new Dictionary<string, object> { ["tsq"] = searchTs } : null;
-
-        var countFilter = new SqlFilter(filter.Where.Where(w => !w.Contains("cursorAt")).ToList(),
-            filter.Params.Where(p => p.Name is not ("cursorAt" or "cursorId")).ToList());
-        var total = await CountRowsAsync(countFilter, extra);
-        var items = await QueryRowsAsync(filter, order, page.Limit, page.Offset, extra);
-        return Pagination.Result(items, total, page);
+        var where = BuildFilter(filters);
+        var total = await CountRowsAsync(where);
+        var rows = await QueryRowsAsync(where, page);
+        return Pagination.Result(rows.Select(QuestionRow.Of).ToList(), total, page);
     }
+
+    public async Task<QuestionRow> RequireAsync(string id)
+        => QuestionRow.Of(await RequireQuestionAsync(id));
 
     public async Task<PageResult<QuestionBankEntity>> ListForAssemblyAsync(
         List<QuestionKind>? kinds, string? bucket, string? search, Page page)
     {
-        var filter = new SqlFilter([], []);
-        filter.Add("status = 'PUBLISHED'");
+        var where = new SqlWhere();
+        where.Add("status = 'PUBLISHED'");
+
         if (kinds is { Count: > 0 })
-            filter.Add("kind::text = ANY(@kinds)", ("kinds", kinds.Select(k => k.ToString()).ToArray()));
+            where.Add("kind = ANY({0})", kinds.ToArray());
+
         if (bucket is not null)
-            filter.Add($"({BucketConditionSql(bucket)})", ("bucketValues", Buckets.ExpandBucketParam(bucket).ToArray()));
+            where.Add($"({BucketConditionSql(bucket)})", string.Join(",", Buckets.ExpandBucketParam(bucket)));
 
         var searchTs = search is { } s ? QuestionSearchQuery(s) : null;
         if (searchTs is not null)
-            filter.Add("search_vector @@ to_tsquery('simple', immutable_unaccent(@tsq))", ("tsq", searchTs));
+            where.Add("search_vector @@ to_tsquery('simple', immutable_unaccent({0}))", searchTs);
 
-        var extra = searchTs is not null ? new Dictionary<string, object> { ["tsq"] = searchTs } : null;
-        var total = await CountRowsAsync(filter, extra);
-        var items = await QueryRowsAsync(filter, OrderClause(searchTs, false), page.Limit, page.Offset, extra);
-        return Pagination.Result(items, total, page);
+        var total = await CountRowsAsync(where);
+        var rows = await QueryRowsAsync(where, page);
+        return Pagination.Result(rows, total, page);
     }
 
     public async Task<PageResult<QuestionBankEntity>> ListForAgentAsync(
         QuestionKind? kind, string? search, Page page)
     {
-        var filter = new SqlFilter([], []);
-        filter.Add("status IN ('PUBLISHED', 'ARCHIVED')");
-        if (kind is { } k) filter.Add("kind = @kind::question_kind", ("kind", k.ToString()));
+        var where = new SqlWhere();
+        where.Add("status IN ('PUBLISHED', 'ARCHIVED')");
+
+        if (kind is { } k)
+            where.Add("kind = {0}::question_kind", k.ToString());
 
         var searchTs = search is { } s ? QuestionSearchQuery(s) : null;
         if (searchTs is not null)
-            filter.Add("search_vector @@ to_tsquery('simple', immutable_unaccent(@tsq))", ("tsq", searchTs));
+            where.Add("search_vector @@ to_tsquery('simple', immutable_unaccent({0}))", searchTs);
 
-        var extra = searchTs is not null ? new Dictionary<string, object> { ["tsq"] = searchTs } : null;
-        var total = await CountRowsAsync(filter, extra);
-        var items = await QueryRowsAsync(filter, OrderClause(searchTs, false), page.Limit, page.Offset, extra);
-        return Pagination.Result(items, total, page);
+        var total = await CountRowsAsync(where);
+        var rows = await QueryRowsAsync(where, page);
+        return Pagination.Result(rows, total, page);
     }
 
     public async Task<QuestionBankEntity> GetForAgentAsync(string questionId)
     {
-        var id = Guid.Parse(questionId);
-        var filter = new SqlFilter([], []);
-        filter.Add("id = @id", ("id", id));
-        filter.Add("status IN ('PUBLISHED', 'ARCHIVED')");
-        var rows = await QueryRowsAsync(filter, "", 1, 0);
+        var where = new SqlWhere();
+        where.Add("id = {0}", Guid.Parse(questionId));
+        where.Add("status IN ('PUBLISHED', 'ARCHIVED')");
+        var rows = await QueryRowsAsync(where, new Page(1, 0));
         return rows.FirstOrDefault()
             ?? throw new QuestionError(QuestionErrorCode.NOT_FOUND, $"question {questionId} not found");
     }
 
+    public const string TieBreakBucket = "cau-hoi-phu";
+
+    public async Task<List<QuestionBankEntity>> TieBreakQuestionsAsync(int limit)
+    {
+        var where = new SqlWhere();
+        where.Add("tags && string_to_array({0}, ',')", TieBreakBucket);
+        where.Add("status = {0}::question_status", QuestionStatus.PUBLISHED.ToString());
+        return await QueryRowsAsync(where, new Page(limit, 0));
+    }
+
+    public sealed record BucketCount(string Bucket, int N);
+
     public async Task<Dictionary<string, int>> BucketCountsAsync(QuestionStatus? status, string? search)
     {
+        var where = new SqlWhere();
+        if (status is { } st)
+            where.Add("status = {0}::question_status", st.ToString());
+
         var searchTs = search is { } term ? QuestionSearchQuery(term) : null;
-
-        await using var connection = await RawSql.OpenAsync(db);
-        await using var command = connection.CreateCommand();
-        var where = new List<string>();
-        if (status is { } st) where.Add($"status = '{st}'");
         if (searchTs is not null)
-            where.Add($"search_vector @@ to_tsquery('simple', immutable_unaccent('{searchTs.Replace("'", "''")}'))");
-        var values = string.Join(", ", Buckets.AllBuckets.Select(b => $"'{b}'"));
-        command.CommandText = $"""
-            SELECT bucket, count(*)::int AS n
-              FROM (
-                SELECT COALESCE(
-                    (SELECT t FROM unnest(tags) AS t WHERE t IN ({values}) LIMIT 1),
-                    payload ->> 'bucket',
-                    CASE WHEN kind IN ('KEYWORD', 'HINT') THEN 'giai-ma' END
-                  ) AS bucket
-                  FROM question_bank
-                 WHERE {(where.Count > 0 ? string.Join(" AND ", where) : "TRUE")}
-              ) AS rows
-             WHERE bucket IS NOT NULL
-             GROUP BY bucket
-            """;
+            where.Add("search_vector @@ to_tsquery('simple', immutable_unaccent({0}))", searchTs);
 
-        var counts = new Dictionary<string, int>();
-        await using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
-            counts[reader.GetString(0)] = reader.GetInt32(1);
-        return counts;
+        var args = where.Args().ToList();
+        var bucketIndex = args.Count;
+        args.Add(string.Join(",", Buckets.AllBuckets));
+
+        var sql = "SELECT bucket, count(*)::int AS n FROM ("
+            + "SELECT COALESCE("
+            + "(SELECT t FROM unnest(tags) AS t WHERE t = ANY(string_to_array({" + bucketIndex + "}, ',')) LIMIT 1), "
+            + "payload ->> 'bucket', "
+            + "CASE WHEN kind IN ('KEYWORD', 'HINT') THEN 'giai-ma' END"
+            + ") AS bucket FROM question_bank"
+            + where.Text()
+            + ") AS rows WHERE bucket IS NOT NULL GROUP BY bucket";
+
+        var items = await db.Database.SqlQueryRaw<BucketCount>(sql, args.ToArray()).ToListAsync();
+        return items.ToDictionary(item => item.Bucket, item => item.N);
     }
 
     public sealed record QuestionUsage(Guid Id, Guid TournamentId, string Label, string StageId, string Status);
@@ -636,29 +549,19 @@ public sealed class QuestionsService(AOCDbContext db)
     public async Task<List<QuestionUsage>> QuestionUsageAsync(string questionId)
     {
         var needle = JsonSerializer.Serialize(new[] { new { sourceId = questionId } });
-        await using var connection = await RawSql.OpenAsync(db);
-        await using var command = connection.CreateCommand();
-        command.CommandText = """
-            SELECT id, tournament_id, label, stage_id, status::text
-              FROM matches
-             WHERE deleted_at IS NULL
-               AND questions @> @needle::jsonb
-             ORDER BY updated_at DESC
-             LIMIT 20
-            """;
-        var parameter = command.CreateParameter();
-        parameter.ParameterName = "needle";
-        parameter.Value = needle;
-        command.Parameters.Add(parameter);
-
-        var items = new List<QuestionUsage>();
-        await using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
-            items.Add(new QuestionUsage(reader.GetGuid(0), reader.GetGuid(1),
-                reader.GetString(2), reader.GetString(3), reader.GetString(4)));
-        return items;
+        return await db.Database
+            .SqlQueryRaw<QuestionUsage>(
+                """
+                SELECT id, tournament_id, label, stage_id, status::text
+                  FROM matches
+                 WHERE deleted_at IS NULL
+                   AND questions @> {0}::jsonb
+                 ORDER BY updated_at DESC
+                 LIMIT 20
+                """,
+                needle)
+            .ToListAsync();
     }
-
 
     public sealed record CreateQuestionDto(
         QuestionKind Kind,
@@ -666,7 +569,6 @@ public sealed class QuestionsService(AOCDbContext db)
         string? KeywordId,
         JsonElement Payload,
         Media? Media,
-        int? TimeLimit,
         List<string>? Tags);
 
     public static CreateQuestionDto ParseCreate(JsonElement input)
@@ -697,8 +599,6 @@ public sealed class QuestionsService(AOCDbContext db)
             }
         }
 
-        var timeLimit = Validate.OptionalInt(input, "timeLimit", min: 1);
-
         List<string>? tags = null;
         if (input.TryGetProperty("tags", out var tagsEl) && tagsEl.ValueKind != JsonValueKind.Null)
         {
@@ -715,7 +615,7 @@ public sealed class QuestionsService(AOCDbContext db)
                 throw QuestionPayloadInvalid("/tags: Array must have at most 8 items");
         }
 
-        return new CreateQuestionDto(kind, questionText, keywordId, payloadClone, media, timeLimit, tags);
+        return new CreateQuestionDto(kind, questionText, keywordId, payloadClone, media, tags);
     }
 
     public static string Fingerprint(string kind, string questionText, JsonElement payload, IReadOnlyList<string>? tags)
@@ -730,11 +630,7 @@ public sealed class QuestionsService(AOCDbContext db)
         JsonElement canonicalPayload = payload;
         if (raw is not null)
         {
-            var typed = DeriveType(Enum.Parse<QuestionKind>(kind), payload);
-            var stamped = Buckets.PayloadWithType(typed, payload);
-            var dict = stamped.Deserialize<Dictionary<string, JsonElement>>()!;
-            dict.Remove("bucket");
-            canonicalPayload = JsonSerializer.SerializeToElement(dict, JsonApi.Options);
+            canonicalPayload = Buckets.StripBucketKey(payload);
         }
 
         var canonical = Canonicalize(canonicalPayload);

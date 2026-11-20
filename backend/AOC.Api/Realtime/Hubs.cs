@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.SignalR;
 using AOC.Api.Http;
 using AOC.Api.Modules.Live;
+using AOC.Api.Modules.Live.TieBreak;
 using AOC.Api.Modules.Matches;
 using AOC.Infrastructure.Data;
 using AOC.Infrastructure.Data.Entities;
@@ -9,6 +10,7 @@ using AOC.Api.Realtime;
 using AOC.Infrastructure.Auth;
 using AOC.Infrastructure.Configuration;
 
+using AOC.Domain.Contracts;
 namespace AOC.Api.Realtime;
 
 public abstract class LiveHubBase(MatchHubRegistry registry) : Hub
@@ -44,6 +46,7 @@ public abstract class LiveHubBase(MatchHubRegistry registry) : Hub
 public sealed class PlayerLiveHub(
     MatchHubRegistry registry,
     SubmitService submit,
+    TieBreakService tieBreak,
     SessionTokens tokens,
     IHubContext<PlayerLiveHub> self,
     IServiceScopeFactory scopes)
@@ -207,6 +210,13 @@ public sealed class PlayerLiveHub(
                 }
                 case "buzz":
                 {
+                    var state = await tieBreak.GetStateAsync(Guid.Parse(MatchId));
+                    if (state is { Ended: false })
+                    {
+                        var tieResult = await tieBreak.BuzzAsync(Guid.Parse(MatchId), user.Id);
+                        await PushAsync(Protocol.Ack("buzz", tieResult, requestId));
+                        break;
+                    }
                     var result = await submit.SubmitVeDichCommandAsync(
                         Guid.Parse(MatchId), user.Id, "buzz");
                     await PushAsync(Protocol.Ack("buzz", result, requestId));
@@ -218,7 +228,11 @@ public sealed class PlayerLiveHub(
         {
             await PushAsync(Protocol.Error(error.Code, error.Message, requestId));
         }
-        catch (Domain.Engine.VeDichRuleError error)
+        catch (VeDichRuleError error)
+        {
+            await PushAsync(Protocol.Error(error.Code, error.Message, requestId));
+        }
+        catch (RuleError error)
         {
             await PushAsync(Protocol.Error(error.Code, error.Message, requestId));
         }

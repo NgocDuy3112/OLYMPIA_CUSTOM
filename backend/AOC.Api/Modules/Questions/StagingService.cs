@@ -370,7 +370,7 @@ public sealed class StagingService(AOCDbContext db, QuestionsService questions, 
             var created = await db.QuestionBank.Where(q => inserted.Ids.Contains(q.Id)).ToListAsync();
             foreach (var row in created)
             {
-                row.Status = QuestionStatus.PUBLISHED;
+                row.Status = QuestionStatus.DRAFT;
                 row.UpdatedAt = DateTime.UtcNow;
             }
             await db.SaveChangesAsync();

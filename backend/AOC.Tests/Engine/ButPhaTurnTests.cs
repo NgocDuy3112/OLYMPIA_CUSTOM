@@ -1,5 +1,6 @@
-using AOC.Domain.Engine;
-using AOC.Domain.Engine.Turns;
+using AOC.Domain.Gameplay;
+using AOC.Domain.Contracts;
+using AOC.Domain.Gameplay.Turns;
 using Xunit;
 
 namespace AOC.Tests.Engine;
@@ -27,27 +28,27 @@ public class ButPhaTurnTests
     }
 
     [Fact]
-    public void WorkedExample_60_30_20()
+    public void WorkedExample_60_45_20()
     {
-        var s = ButPhaTurn.StartButPha(Ids, RoundRules.DefaultButPha());
+        var s = ButPhaTurn.StartButPha(Ids, RuleBatches.ButPha);
         s = ButPhaTurn.SubmitAnswer(s, new ButPhaAnswer { PlayerId = "a", Correct = true, AtS = 3 });
         s = ButPhaTurn.SubmitAnswer(s, new ButPhaAnswer { PlayerId = "b", Correct = true, AtS = 7 });
         s = ButPhaTurn.SubmitAnswer(s, new ButPhaAnswer { PlayerId = "c", Correct = true, AtS = 12 });
         Assert.Equal(60, ButPhaTurn.ButPhaTotal(s, "a"));
-        Assert.Equal(30, ButPhaTurn.ButPhaTotal(s, "b"));
+        Assert.Equal(45, ButPhaTurn.ButPhaTotal(s, "b"));
         Assert.Equal(20, ButPhaTurn.ButPhaTotal(s, "c"));
     }
 
     [Fact]
     public void Sequencing_RequiresExactlyFourQuestions()
     {
-        Assert.Equal("VALIDATION", CodeOf(() => ButPhaTurn.StartButPha(["a"], RoundRules.DefaultButPha())));
+        Assert.Equal("VALIDATION", CodeOf(() => ButPhaTurn.StartButPha(["a"], RuleBatches.ButPha)));
     }
 
     [Fact]
     public void Sequencing_MovesThroughFourThenEnds()
     {
-        var s = ButPhaTurn.StartButPha(Ids, RoundRules.DefaultButPha());
+        var s = ButPhaTurn.StartButPha(Ids, RuleBatches.ButPha);
         for (var i = 0; i < 4; i++)
             s = ButPhaTurn.CloseQuestion(s);
         Assert.True(s.Ended);
@@ -56,7 +57,7 @@ public class ButPhaTurnTests
     [Fact]
     public void Sequencing_CannotAnswerAfterEnded()
     {
-        var s = ButPhaTurn.StartButPha(Ids, RoundRules.DefaultButPha());
+        var s = ButPhaTurn.StartButPha(Ids, RuleBatches.ButPha);
         for (var i = 0; i < 4; i++)
             s = ButPhaTurn.CloseQuestion(s);
         Assert.Equal("ENDED", CodeOf(() =>
@@ -66,7 +67,7 @@ public class ButPhaTurnTests
     [Fact]
     public void SpeedOrder_ResetsForEachQuestion()
     {
-        var s = ButPhaTurn.StartButPha(Ids, RoundRules.DefaultButPha());
+        var s = ButPhaTurn.StartButPha(Ids, RuleBatches.ButPha);
         s = ButPhaTurn.SubmitAnswer(s, new ButPhaAnswer { PlayerId = "a", Correct = true, AtS = 3 });
         s = ButPhaTurn.CloseQuestion(s);
         s = ButPhaTurn.SubmitAnswer(s, new ButPhaAnswer { PlayerId = "b", Correct = true, AtS = 3 });
@@ -77,7 +78,7 @@ public class ButPhaTurnTests
     [Fact]
     public void WrongAnswer_ScoresZeroAndTakesNoOrder()
     {
-        var s = ButPhaTurn.StartButPha(Ids, RoundRules.DefaultButPha());
+        var s = ButPhaTurn.StartButPha(Ids, RuleBatches.ButPha);
         s = ButPhaTurn.SubmitAnswer(s, new ButPhaAnswer { PlayerId = "a", Correct = false, AtS = 1 });
         s = ButPhaTurn.SubmitAnswer(s, new ButPhaAnswer { PlayerId = "b", Correct = true, AtS = 3 });
         Assert.Equal(0, ButPhaTurn.ButPhaTotal(s, "a"));
@@ -87,7 +88,7 @@ public class ButPhaTurnTests
     [Fact]
     public void FourthCorrectAnswerEarnsBaseTimesOne()
     {
-        var s = ButPhaTurn.StartButPha(Ids, RoundRules.DefaultButPha());
+        var s = ButPhaTurn.StartButPha(Ids, RuleBatches.ButPha);
         s = ButPhaTurn.SubmitAnswer(s, new ButPhaAnswer { PlayerId = "a", Correct = true, AtS = 1 });
         s = ButPhaTurn.SubmitAnswer(s, new ButPhaAnswer { PlayerId = "b", Correct = true, AtS = 1 });
         s = ButPhaTurn.SubmitAnswer(s, new ButPhaAnswer { PlayerId = "c", Correct = true, AtS = 1 });
@@ -98,7 +99,7 @@ public class ButPhaTurnTests
     [Fact]
     public void AnswerAfter30sScoresZero()
     {
-        var s = ButPhaTurn.StartButPha(Ids, RoundRules.DefaultButPha());
+        var s = ButPhaTurn.StartButPha(Ids, RuleBatches.ButPha);
         s = ButPhaTurn.SubmitAnswer(s, new ButPhaAnswer { PlayerId = "late", Correct = true, AtS = 30.5 });
         s = ButPhaTurn.SubmitAnswer(s, new ButPhaAnswer { PlayerId = "b", Correct = true, AtS = 3 });
         Assert.Equal(0, ButPhaTurn.ButPhaTotal(s, "late"));
@@ -108,7 +109,7 @@ public class ButPhaTurnTests
     [Fact]
     public void AnswerAtExactly30sIsInTime()
     {
-        var s = ButPhaTurn.StartButPha(Ids, RoundRules.DefaultButPha());
+        var s = ButPhaTurn.StartButPha(Ids, RuleBatches.ButPha);
         s = ButPhaTurn.SubmitAnswer(s, new ButPhaAnswer { PlayerId = "edge", Correct = true, AtS = 30 });
         Assert.Equal(20, ButPhaTurn.ButPhaTotal(s, "edge"));
     }
@@ -116,7 +117,7 @@ public class ButPhaTurnTests
     [Fact]
     public void EachPlayerAnswersAQuestionOnlyOnce()
     {
-        var s = ButPhaTurn.StartButPha(Ids, RoundRules.DefaultButPha());
+        var s = ButPhaTurn.StartButPha(Ids, RuleBatches.ButPha);
         s = ButPhaTurn.SubmitAnswer(s, new ButPhaAnswer { PlayerId = "a", Correct = true, AtS = 2 });
         Assert.Equal("ALREADY_ANSWERED", CodeOf(() =>
             ButPhaTurn.SubmitAnswer(s, new ButPhaAnswer { PlayerId = "a", Correct = true, AtS = 3 })));
@@ -125,7 +126,7 @@ public class ButPhaTurnTests
     [Fact]
     public void UnansweredCorrectlyAwardsNothing()
     {
-        var s = ButPhaTurn.StartButPha(Ids, RoundRules.DefaultButPha());
+        var s = ButPhaTurn.StartButPha(Ids, RuleBatches.ButPha);
         s = ButPhaTurn.SubmitAnswer(s, new ButPhaAnswer { PlayerId = "a", Correct = false, AtS = 2 });
         Assert.Equal(0, ButPhaTurn.ButPhaTotal(s, "a"));
     }
@@ -133,13 +134,13 @@ public class ButPhaTurnTests
     [Fact]
     public void Clock_FreshRoundHasNoClock()
     {
-        Assert.Null(ButPhaTurn.StartButPha(Ids, RoundRules.DefaultButPha()).QuestionOpenedAt);
+        Assert.Null(ButPhaTurn.StartButPha(Ids, RuleBatches.ButPha).QuestionOpenedAt);
     }
 
     [Fact]
     public void Clock_OpeningRevealsAndTheClockWaitsForStartClock()
     {
-        var open = ButPhaTurn.OpenCurrentQuestion(ButPhaTurn.StartButPha(Ids, RoundRules.DefaultButPha()), Now);
+        var open = ButPhaTurn.OpenCurrentQuestion(ButPhaTurn.StartButPha(Ids, RuleBatches.ButPha), Now);
         Assert.Equal(Now, open.QuestionRevealedAt);
         Assert.Null(open.QuestionOpenedAt);
         Assert.Equal("QUESTION_OPEN", CodeOf(() => ButPhaTurn.OpenCurrentQuestion(open, Now)));
@@ -147,13 +148,13 @@ public class ButPhaTurnTests
         var running = ButPhaTurn.StartClock(open, Now);
         Assert.Equal(Now, running.QuestionOpenedAt);
         Assert.Equal("QUESTION_NOT_REVEALED", CodeOf(() => ButPhaTurn.StartClock(
-            ButPhaTurn.StartButPha(Ids, RoundRules.DefaultButPha()), Now)));
+            ButPhaTurn.StartButPha(Ids, RuleBatches.ButPha), Now)));
     }
 
     [Fact]
     public void Clock_ElapsedMeasuredFromStartClock()
     {
-        var open = ButPhaTurn.OpenCurrentQuestion(ButPhaTurn.StartButPha(Ids, RoundRules.DefaultButPha()), Now);
+        var open = ButPhaTurn.OpenCurrentQuestion(ButPhaTurn.StartButPha(Ids, RuleBatches.ButPha), Now);
         Assert.Equal("QUESTION_NOT_OPEN", CodeOf(() => ButPhaTurn.ElapsedSeconds(open, Now)));
 
         var running = ButPhaTurn.StartClock(open, Now);
@@ -167,20 +168,20 @@ public class ButPhaTurnTests
     public void Clock_ElapsedBeforeOpenIsAnError()
     {
         Assert.Equal("QUESTION_NOT_OPEN", CodeOf(() =>
-            ButPhaTurn.ElapsedSeconds(ButPhaTurn.StartButPha(Ids, RoundRules.DefaultButPha()), Now)));
+            ButPhaTurn.ElapsedSeconds(ButPhaTurn.StartButPha(Ids, RuleBatches.ButPha), Now)));
     }
 
     [Fact]
     public void Clock_ClosingClearsIt()
     {
-        var open = ButPhaTurn.OpenCurrentQuestion(ButPhaTurn.StartButPha(Ids, RoundRules.DefaultButPha()), Now);
+        var open = ButPhaTurn.OpenCurrentQuestion(ButPhaTurn.StartButPha(Ids, RuleBatches.ButPha), Now);
         Assert.Null(ButPhaTurn.CloseQuestion(open).QuestionOpenedAt);
     }
 
     [Fact]
     public void Clock_Exactly30sAcceptedPastIsNot()
     {
-        var open = ButPhaTurn.OpenCurrentQuestion(ButPhaTurn.StartButPha(Ids, RoundRules.DefaultButPha()), Now);
+        var open = ButPhaTurn.OpenCurrentQuestion(ButPhaTurn.StartButPha(Ids, RuleBatches.ButPha), Now);
         var onTime = ButPhaTurn.SubmitAnswer(open, new ButPhaAnswer { PlayerId = "a", Correct = true, AtS = 30 });
         Assert.Equal(5 * 4, ButPhaTurn.ButPhaTotal(onTime, "a"));
         var late = ButPhaTurn.SubmitAnswer(open, new ButPhaAnswer { PlayerId = "b", Correct = true, AtS = 30.5 });

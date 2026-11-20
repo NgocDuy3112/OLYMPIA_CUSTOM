@@ -3,16 +3,11 @@ using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using AOC.Api.Modules.Tournaments;
+using AOC.Domain.Contracts;
 using AOC.Infrastructure.Data;
 using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.Roster;
-
-public enum GroupLabel
-{
-    A,
-    B
-}
 
 public sealed class RosterService(AOCDbContext db)
 {
@@ -114,7 +109,7 @@ public sealed class RosterService(AOCDbContext db)
         string Username,
         string? Email,
         string? DiscordId,
-        GroupLabel? Group,
+        PlayerGroup? Group,
         DateTime EnrolledAt);
 
     public async Task<List<EnrolledRow>> ListEnrolledAsync(string tournamentId)
@@ -142,7 +137,7 @@ public sealed class RosterService(AOCDbContext db)
             row.Username,
             row.Email is not null && !row.Email.EndsWith(PlaceholderDomain) ? row.Email : null,
             row.DiscordId,
-            ToGroupLabel(row.Group),
+            row.Group,
             row.EnrolledAt)).ToList();
     }
 
@@ -260,35 +255,17 @@ public sealed class RosterService(AOCDbContext db)
         }
     }
 
-    public async Task<bool> AssignGroupAsync(string tournamentId, string userId, GroupLabel? group)
+    public async Task<bool> AssignGroupAsync(string tournamentId, string userId, PlayerGroup? group)
     {
         var row = await db.TournamentPlayers
             .FirstOrDefaultAsync(p => p.TournamentId == Guid.Parse(tournamentId)
                 && p.UserId == Guid.Parse(userId));
         if (row is null) return false;
 
-        if (group is null)
-        {
-            row.Group = null;
-        }
-        else if (group == GroupLabel.A)
-        {
-            row.Group = PlayerGroup.A;
-        }
-        else
-        {
-            row.Group = PlayerGroup.B;
-        }
+        row.Group = group;
 
         await db.SaveChangesAsync();
         return true;
-    }
-
-    private static GroupLabel? ToGroupLabel(PlayerGroup? group)
-    {
-        if (group is null) return null;
-        if (group == PlayerGroup.A) return GroupLabel.A;
-        return GroupLabel.B;
     }
 
     private Task<TournamentPlayerEntity?> EnrolledRowAsync(Guid tournamentId, Guid userId)

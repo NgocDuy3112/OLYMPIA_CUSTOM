@@ -42,7 +42,7 @@ public class AOCDbContext(DbContextOptions<AOCDbContext> options) : DbContext(op
         modelBuilder.HasPostgresEnum<PlayerGroup>(name: "player_group");
         modelBuilder.HasPostgresEnum<QuestionKind>(name: "question_kind");
         modelBuilder.HasPostgresEnum<Verdict>(name: "verdict");
-        modelBuilder.HasPostgresEnum<Power>(name: "power");
+        modelBuilder.HasPostgresEnum<PowerKind>(name: "power");
         Debug_EnumAnnotationsDuringBuild = modelBuilder.Model.GetAnnotations()
             .Where(a => a.Name.Contains("Enum"))
             .Select(a => a.Name)
@@ -150,9 +150,6 @@ public class AOCDbContext(DbContextOptions<AOCDbContext> options) : DbContext(op
             e.Property(x => x.Payload).HasColumnType("jsonb").IsRequired();
             e.Property(x => x.Media).HasColumnType("jsonb");
             e.Property(x => x.Tags).HasColumnType("text[]").HasDefaultValue(new string[0]);
-            e.Property(x => x.Type)
-                .HasComputedColumnSql("(payload ->> 'type')")
-                .IsRequired();
             e.Property(x => x.Status).HasDefaultValue(QuestionStatus.DRAFT);
             e.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
             e.Property(x => x.UpdatedAt).HasDefaultValueSql("now()");
@@ -279,6 +276,7 @@ public class AOCDbContext(DbContextOptions<AOCDbContext> options) : DbContext(op
             e.Property(x => x.State).HasColumnType("jsonb").IsRequired();
             e.Property(x => x.Archive).HasColumnType("jsonb").IsRequired()
                 .HasDefaultValueSql("'{}'::jsonb");
+            e.Property(x => x.Tiebreak).HasColumnType("jsonb");
             e.Property(x => x.UpdatedAt).HasDefaultValueSql("now()");
             e.ToTable(t => t.HasCheckConstraint(
                 "match_live_version_check",

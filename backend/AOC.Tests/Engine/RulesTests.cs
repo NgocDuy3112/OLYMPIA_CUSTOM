@@ -1,5 +1,5 @@
 using AOC.Domain.Contracts;
-using AOC.Domain.Engine;
+using AOC.Domain.Gameplay;
 using Xunit;
 
 namespace AOC.Tests.Engine;
@@ -19,7 +19,7 @@ public class RulesTests
         public ScoringRule Scoring { get; set; } = new ScoringRule.Constant(10);
         public List<TurnConfig> Turns { get; set; } =
         [
-            new TurnConfig { Id = "phase1", Mode = QuestionMode.text, Delivery = DeliveryMode.batch }
+            new TurnConfig { Id = "rieng", Flow = Flow.rieng, Mode = QuestionMode.text, Delivery = DeliveryMode.batch }
         ];
 
         public RoundConfig Build() => new()
@@ -58,8 +58,8 @@ public class RulesTests
         var rules = RoundRules.ResolveButPha(null);
         Assert.Equal(4, rules.QuestionCount);
         Assert.Equal(30, rules.QuestionLimitS);
-        Assert.Equal(new List<SpeedBand> { new(5, 15), new(15, 10), new(30, 5) }, rules.Bands);
-        Assert.Equal(new List<int> { 4, 3, 2 }, rules.Multipliers);
+        Assert.Equal(new List<SpeedBand> { new(10, 15), new(20, 10), new(30, 5) }, rules.Bands);
+        Assert.Equal(new List<int> { 4, 3, 2, 1 }, rules.Multipliers);
         Assert.Equal(1, rules.LateMultiplier);
     }
 
@@ -83,12 +83,12 @@ public class RulesTests
             [
                 new TurnConfig
                 {
-                    Id = "phase1", Mode = QuestionMode.oral, Delivery = DeliveryMode.sequential,
+                    Id = "rieng", Flow = Flow.rieng, Mode = QuestionMode.oral, Delivery = DeliveryMode.sequential,
                     QuestionCount = 8, TimeBudgetSeconds = 30
                 },
                 new TurnConfig
                 {
-                    Id = "phase2", Mode = QuestionMode.text, Delivery = DeliveryMode.batch,
+                    Id = "chung", Flow = Flow.chung, Mode = QuestionMode.text, Delivery = DeliveryMode.batch,
                     QuestionCount = 10, TimeLimitSeconds = 7, BuzzWindowSeconds = 99
                 }
             ];
@@ -142,7 +142,7 @@ public class RulesTests
             [
                 new TurnConfig
                 {
-                    Id = "phase1", Mode = QuestionMode.text, Delivery = DeliveryMode.sequential,
+                    Id = "sprint", Flow = Flow.chung, Mode = QuestionMode.text, Delivery = DeliveryMode.sequential,
                     QuestionCount = 6, TimeLimitSeconds = 20
                 }
             ];
@@ -165,12 +165,12 @@ public class RulesTests
             [
                 new TurnConfig
                 {
-                    Id = "phase1", Mode = QuestionMode.text, Delivery = DeliveryMode.pick,
+                    Id = "chung", Flow = Flow.chung, Mode = QuestionMode.text, Delivery = DeliveryMode.pick,
                     QuestionCount = 24
                 },
                 new TurnConfig
                 {
-                    Id = "phase2", Mode = QuestionMode.oral, Delivery = DeliveryMode.pick,
+                    Id = "rieng", Flow = Flow.rieng, Mode = QuestionMode.oral, Delivery = DeliveryMode.pick,
                     QuestionCount = 24, PickCount = 5, BuzzWindowSeconds = 8
                 }
             ];
@@ -210,8 +210,8 @@ public class RulesTests
             [
                 new TurnConfig
                 {
-                    Id = "phase1", Mode = QuestionMode.text, Delivery = DeliveryMode.pick,
-                    SecondsByValue = new() { ["20"] = 7 }
+                    Id = "chung", Flow = Flow.chung, Mode = QuestionMode.text, Delivery = DeliveryMode.pick,
+                    SecondsByValue = new() { [20] = 7 }
                 }
             ]));
         Assert.Equal(7, RoundRules.VeDichClockSeconds(custom, 20));

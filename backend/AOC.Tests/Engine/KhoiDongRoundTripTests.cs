@@ -2,8 +2,8 @@ using System.Text.Json;
 using AOC.Api.Http;
 using AOC.Api.Modules.Live;
 using AOC.Domain.Contracts;
-using AOC.Domain.Engine;
-using AOC.Domain.Engine.Turns;
+using AOC.Domain.Gameplay;
+using AOC.Domain.Gameplay.Turns;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -17,7 +17,7 @@ public class KhoiDongRoundTripTests
     [Fact]
     public void ChungState_RoundTripsThroughStoreSerializer()
     {
-        var rules = new RoundRules.KhoiDongRules(3, 40, 3, 10, 10);
+        var rules = new RoundRules.KhoiDongRules("test", 3, 40, 3, 10, 10);
         var qids = new[] { "q1", "q2", "q3" };
         var state = KhoiDongRound.BeginPhase2(
             KhoiDongRound.StartKhoiDong(["p0"], qids, rules),

@@ -46,4 +46,26 @@ public class RankTableTests
         Assert.Empty(LiveView.RankTable(null));
         Assert.Empty(LiveView.RankTable([]));
     }
+
+    [Fact]
+    public void TieBreakBreaksEqualPoints_WithoutMovingCards()
+    {
+        var table = new List<ScoreRow> { Row("a", 100), Row("b", 100), Row("c", 90) };
+
+        var ranked = LiveView.RankTable(table, new Dictionary<string, int> { ["a"] = 0, ["b"] = 10 });
+
+        Assert.Equal(new[] { "a", "b", "c" }, ranked.Select(r => r.Id));
+        Assert.Equal(new[] { 2, 1, 3 }, ranked.Select(r => r.Rank));
+        Assert.Equal(new[] { 100, 100, 90 }, ranked.Select(r => r.Points));
+    }
+
+    [Fact]
+    public void TieBreakDoesNotReorderDifferentPoints()
+    {
+        var table = new List<ScoreRow> { Row("a", 100), Row("b", 90) };
+
+        var ranked = LiveView.RankTable(table, new Dictionary<string, int> { ["a"] = 0, ["b"] = 99 });
+
+        Assert.Equal(new[] { 1, 2 }, ranked.Select(r => r.Rank));
+    }
 }

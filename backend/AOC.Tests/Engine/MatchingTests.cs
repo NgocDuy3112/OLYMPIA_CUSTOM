@@ -1,5 +1,5 @@
 using AOC.Domain.Contracts;
-using AOC.Domain.Engine;
+using AOC.Domain.Gameplay;
 using Xunit;
 
 namespace AOC.Tests.Engine;

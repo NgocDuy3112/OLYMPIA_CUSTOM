@@ -6,7 +6,7 @@ using AOC.Api.Http;
 using AOC.Api.Modules.Matches;
 using AOC.Api.Modules.Standings;
 using AOC.Api.Modules.Tournaments;
-using StandingsBuilder = AOC.Domain.Engine.Scoring.Standings;
+using StandingsBuilder = AOC.Domain.Tournament.Standings;
 using AOC.Domain.Contracts;
 using AOC.Infrastructure.Data;
 using AOC.Infrastructure.Data.Entities;

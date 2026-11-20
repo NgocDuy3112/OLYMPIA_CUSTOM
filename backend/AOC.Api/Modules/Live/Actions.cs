@@ -209,6 +209,11 @@ public abstract record LiveAction
         public override string Kind => "ve-dich.pickRound";
     }
 
+    public sealed record VeDichConfirmPicks : LiveAction
+    {
+        public override string Kind => "ve-dich.confirmPicks";
+    }
+
     public sealed record VeDichOpenPending(string QuestionId) : LiveAction
     {
         public override string Kind => "ve-dich.openPending";
@@ -239,7 +244,7 @@ public abstract record LiveAction
         public override string Kind => "ve-dich.judge";
     }
 
-    public sealed record VeDichDeclarePower(string PlayerId, Power? PowerValue, string? TargetId) : LiveAction
+    public sealed record VeDichDeclarePower(string PlayerId, PowerKind? PowerValue, string? TargetId) : LiveAction
     {
         public override string Kind => "ve-dich.declarePower";
     }
@@ -410,6 +415,7 @@ public sealed class LiveActionConverter : JsonConverter<LiveAction>
             "ve-dich.pick" => new LiveAction.VeDichPick(Str("playerId"), Str("questionId")),
             "ve-dich.pickBatch" => new LiveAction.VeDichPickBatch(Str("playerId"), StrList("questionIds")),
             "ve-dich.pickRound" => new LiveAction.VeDichPickRound(StrList("questionIds")),
+            "ve-dich.confirmPicks" => new LiveAction.VeDichConfirmPicks(),
             "ve-dich.openPending" => new LiveAction.VeDichOpenPending(Str("questionId")),
             "ve-dich.switchQuestion" => new LiveAction.VeDichSwitchQuestion(Str("questionId")),
             "ve-dich.closeQuestion" => new LiveAction.VeDichCloseQuestion(),
@@ -419,7 +425,7 @@ public sealed class LiveActionConverter : JsonConverter<LiveAction>
             "ve-dich.declarePower" => new LiveAction.VeDichDeclarePower(
                 Str("playerId"),
                 root.TryGetProperty("power", out var pw) && pw.ValueKind == JsonValueKind.String
-                    ? Enum.Parse<Power>(pw.GetString()!)
+                    ? Enum.Parse<PowerKind>(pw.GetString()!)
                     : null,
                 OptStr("targetId")),
             "ve-dich.buzz" => new LiveAction.VeDichBuzz(Str("playerId")),

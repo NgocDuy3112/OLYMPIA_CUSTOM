@@ -1,5 +1,6 @@
-using AOC.Domain.Engine;
-using AOC.Domain.Engine.Turns;
+using AOC.Domain.Gameplay;
+using AOC.Domain.Contracts;
+using AOC.Domain.Gameplay.Turns;
 using Xunit;
 
 namespace AOC.Tests.Engine;
@@ -35,7 +36,7 @@ public class GiaiMaTurnTests
         var s = GiaiMaTurn.StartGiaiMa(ids, H);
         foreach (var hint in hintOrder)
         {
-            if (s.Stage != "hints") break;
+            if (s.Step != "hints") break;
             s = OpenHint(s, hint, Now);
             var byPlayer = s.Players
                 .Where(p => !p.KeywordLocked)
@@ -146,7 +147,7 @@ public class GiaiMaTurnTests
     public void Resolution_RoundEndsOnceAllHintsResolved()
     {
         var s = PlayHints(["a", "b"], H, (_, _) => false);
-        Assert.Equal("ended", s.Stage);
+        Assert.Equal("ended", s.Step);
         Assert.Empty(GiaiMaTurn.RemainingHints(s));
     }
 
@@ -205,13 +206,13 @@ public class GiaiMaTurnTests
     public void Keyword_SubmittingDoesNotEndTheRound()
     {
         var s = GiaiMaTurn.LockKeyword(GiaiMaTurn.StartGiaiMa(["a", "b"], H), "a");
-        Assert.Equal("hints", s.Stage);
+        Assert.Equal("hints", s.Step);
         s = GiaiMaTurn.LockKeyword(s, "b");
-        Assert.Equal("hints", s.Stage);
+        Assert.Equal("hints", s.Step);
         s = GiaiMaTurn.JudgeKeyword(s, "a", true);
         s = GiaiMaTurn.JudgeKeyword(s, "b", false);
-        Assert.Equal("hints", s.Stage);
-        Assert.Equal("ended", GiaiMaTurn.EndGiaiMa(s).Stage);
+        Assert.Equal("hints", s.Step);
+        Assert.Equal("ended", GiaiMaTurn.EndGiaiMa(s).Step);
     }
 
     [Fact]
@@ -239,7 +240,7 @@ public class GiaiMaTurnTests
     {
         var s = OpenHint(GiaiMaTurn.StartGiaiMa(["a"], H), "h1", Now);
         Assert.True(GiaiMaTurn.IsWindowOpen(s, Now));
-        Assert.True(GiaiMaTurn.IsWindowOpen(s, At(RoundRules.Defaults.GiaiMa.HintWindowS)));
+        Assert.True(GiaiMaTurn.IsWindowOpen(s, At(RuleBatches.GiaiMa.HintWindowS)));
     }
 
     [Fact]
@@ -247,7 +248,7 @@ public class GiaiMaTurnTests
     {
         var s = OpenHint(GiaiMaTurn.StartGiaiMa(["a"], H), "h1", Now);
         var past = DateTimeOffset.Parse(Now)
-            .AddSeconds(RoundRules.Defaults.GiaiMa.HintWindowS)
+            .AddSeconds(RuleBatches.GiaiMa.HintWindowS)
             .AddMilliseconds(1)
             .UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
         Assert.False(GiaiMaTurn.IsWindowOpen(s, past));

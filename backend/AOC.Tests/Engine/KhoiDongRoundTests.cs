@@ -1,5 +1,6 @@
-using AOC.Domain.Engine;
-using AOC.Domain.Engine.Turns;
+using AOC.Domain.Gameplay;
+using AOC.Domain.Contracts;
+using AOC.Domain.Gameplay.Turns;
 using Xunit;
 
 namespace AOC.Tests.Engine;
@@ -184,7 +185,7 @@ public class KhoiDongRoundTests
     public void Phase2_MayBeginEarlyOnlyWhileNothingWasRecorded()
     {
         var s = KhoiDongRound.BeginPhase2(KhoiDongRound.StartKhoiDong(Players, P1), P2);
-        Assert.Equal("phase2", s.Stage);
+        Assert.Equal("phase2", s.Step);
     }
 
     [Fact]
@@ -201,7 +202,7 @@ public class KhoiDongRoundTests
     {
         var done = FinishRun(KhoiDongRound.TimeOutRun(FinishRun(KhoiDongRound.StartKhoiDong(Players, P1))));
         var s = KhoiDongRound.BeginPhase2(done, P2);
-        Assert.Equal("phase2", s.Stage);
+        Assert.Equal("phase2", s.Step);
         Assert.Equal(P2, s.Phase2!.QuestionIds);
         Assert.Null(KhoiDongRound.ActivePlayerId(s));
     }
@@ -317,7 +318,7 @@ public class KhoiDongRoundTests
         Assert.Equal("WRONG_STAGE", CodeOf(() =>
         {
             var s = KhoiDongRound.StartKhoiDong(Players, P1);
-            KhoiDongRound.StartClock(s with { Stage = "phase2" }, Opened);
+            KhoiDongRound.StartClock(s with { Step = "phase2" }, Opened);
         }));
     }
 }

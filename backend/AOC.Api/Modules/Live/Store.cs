@@ -2,7 +2,8 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using AOC.Api.Http;
 using AOC.Domain.Contracts;
-using AOC.Domain.Engine;
+using AOC.Domain.Gameplay;
+using AOC.Domain.Gameplay.Turns;
 using AOC.Infrastructure.Data;
 using AOC.Infrastructure.Data.Entities;
 
@@ -223,20 +224,24 @@ public sealed class LiveReader(AOCDbContext db)
         int Version,
         string RoundId,
         JsonElement State,
-        Dictionary<string, JsonElement> Archive);
+        Dictionary<string, JsonElement> Archive,
+        TieBreakState? TieBreak);
 
     public async Task<LiveSnapshot?> ReadLiveAsync(Guid matchId)
     {
         var row = await db.MatchLive.AsNoTracking()
             .Where(l => l.MatchId == matchId)
-            .Select(l => new { l.Version, l.RoundId, l.State, l.Archive })
+            .Select(l => new { l.Version, l.RoundId, l.State, l.Archive, l.Tiebreak })
             .FirstOrDefaultAsync();
         if (row is null) return null;
 
         var archive = row.Archive.ValueKind == JsonValueKind.Object
             ? row.Archive.Deserialize<Dictionary<string, JsonElement>>(JsonApi.Options) ?? []
             : [];
-        return new LiveSnapshot(row.Version, row.RoundId, row.State, archive);
+        var tieBreak = row.Tiebreak is { } raw
+            ? raw.Deserialize<TieBreakState>(JsonApi.Options)
+            : null;
+        return new LiveSnapshot(row.Version, row.RoundId, row.State, archive, tieBreak);
     }
 
     public async Task<Dictionary<string, int>> SumPointsByPlayerAsync(Guid matchId)

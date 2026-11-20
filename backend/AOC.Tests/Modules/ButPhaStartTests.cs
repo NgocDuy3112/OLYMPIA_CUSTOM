@@ -1,15 +1,16 @@
 using System.Text.Json;
 using AOC.Api.Http;
 using AOC.Api.Modules.Live;
-using AOC.Domain.Engine;
-using AOC.Domain.Engine.Turns;
+using AOC.Domain.Gameplay;
+using AOC.Domain.Contracts;
+using AOC.Domain.Gameplay.Turns;
 using Xunit;
 
 namespace AOC.Tests.Modules;
 
 public class ButPhaStartTests
 {
-    private static readonly RoundRules.ButPhaRules Rules = RoundRules.DefaultButPha();
+    private static readonly RoundRules.ButPhaRules Rules = RuleBatches.ButPha;
 
     private static readonly List<string> MatchQuestionIds =
         ["bp-1", "bp-2", "bp-3", "bp-4"];

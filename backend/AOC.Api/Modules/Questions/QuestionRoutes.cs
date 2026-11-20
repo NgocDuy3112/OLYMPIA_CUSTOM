@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using AOC.Api.Http;
+using AOC.Api.Modules.Questions.Reads;
 using AOC.Api.Modules.Tournaments;
 using AOC.Api.Shared;
 using AOC.Domain.Contracts;
@@ -252,7 +253,7 @@ public static class QuestionRoutes
             await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
             var query = Validate.Query(http);
 
-            var filters = new QuestionsService.ListFilters(
+            var filters = new QuestionFilter(
                 Status: ParseStatus(query.GetValueOrDefault("status")),
                 Kind: ParseKind(query.GetValueOrDefault("kind")),
                 KeywordId: query.GetValueOrDefault("keywordId") is { } kw && kw.Length > 0
@@ -263,19 +264,18 @@ public static class QuestionRoutes
                     .Where(id => id.Length > 0)
                     .Select(Guid.Parse)
                     .ToList(),
-                Cursor: query.GetValueOrDefault("cursor"),
                 Bucket: query.GetValueOrDefault("bucket"));
 
-            var service = http.RequestServices.GetRequiredService<QuestionsService>();
-            var page = Pagination.ParsePage(query, 500);
-            return Results.Json(await service.ListQuestionsAsync(filters, page), JsonApi.Options);
+            var service = http.RequestServices.GetRequiredService<IQuestionReads>();
+            var page = Pagination.ParsePage(query);
+            return Results.Json(await service.ListAsync(filters, page), JsonApi.Options);
         });
 
         app.MapGet("/portal/questions/bucket-counts", async (HttpContext http) =>
         {
             await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
             var query = Validate.Query(http);
-            var service = http.RequestServices.GetRequiredService<QuestionsService>();
+            var service = http.RequestServices.GetRequiredService<IQuestionReads>();
             var counts = await service.BucketCountsAsync(
                 ParseStatus(query.GetValueOrDefault("status")), query.GetValueOrDefault("search"));
             return Results.Json(counts, JsonApi.Options);
@@ -315,8 +315,8 @@ public static class QuestionRoutes
         {
             await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
             var questionId = Validate.RouteUuid(http, "questionId");
-            var service = http.RequestServices.GetRequiredService<QuestionsService>();
-            return Results.Json(await service.RequireQuestionAsync(questionId), JsonApi.Options);
+            var service = http.RequestServices.GetRequiredService<IQuestionReads>();
+            return Results.Json(await service.RequireAsync(questionId), JsonApi.Options);
         });
 
         app.MapPatch("/portal/questions/{questionId}", async (HttpContext http) =>
@@ -401,7 +401,6 @@ public static class QuestionRoutes
 
     private static readonly Dictionary<string, string> GateActions = new()
     {
-        ["PENDING"] = "question_submitted",
         ["PUBLISHED"] = "question_published",
         ["ARCHIVED"] = "question_archived"
     };

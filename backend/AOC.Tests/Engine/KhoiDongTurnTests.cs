@@ -1,5 +1,6 @@
-using AOC.Domain.Engine;
-using AOC.Domain.Engine.Turns;
+using AOC.Domain.Gameplay;
+using AOC.Domain.Contracts;
+using AOC.Domain.Gameplay.Turns;
 using Xunit;
 
 namespace AOC.Tests.Engine;
@@ -33,13 +34,13 @@ public class KhoiDongTurnTests
     public void Phase1_RequiresExactlySixQuestions()
     {
         Assert.Equal("VALIDATION", CodeOf(() =>
-            KhoiDongTurn.StartPhase1(["a", "b"], RoundRules.DefaultKhoiDong())));
+            KhoiDongTurn.StartPhase1(["a", "b"], RuleBatches.KhoiDong)));
     }
 
     [Fact]
     public void Phase1_SixCorrectWithinBudget_SixtyPoints()
     {
-        var s = KhoiDongTurn.StartPhase1(Ids6, RoundRules.DefaultKhoiDong());
+        var s = KhoiDongTurn.StartPhase1(Ids6, RuleBatches.KhoiDong);
         for (var i = 0; i < 6; i++)
             s = KhoiDongTurn.AnswerPhase1(s, correct: true, elapsedTotalS: 5 * (i + 1));
         Assert.True(s.Ended);
@@ -49,7 +50,7 @@ public class KhoiDongTurnTests
     [Fact]
     public void Phase1_WrongAnswersScoreZeroButUseTheClock()
     {
-        var s = KhoiDongTurn.StartPhase1(Ids6, RoundRules.DefaultKhoiDong());
+        var s = KhoiDongTurn.StartPhase1(Ids6, RuleBatches.KhoiDong);
         s = KhoiDongTurn.AnswerPhase1(s, correct: true, elapsedTotalS: 5);
         s = KhoiDongTurn.AnswerPhase1(s, correct: false, elapsedTotalS: 10);
         Assert.Equal(2, s.Cursor);
@@ -59,7 +60,7 @@ public class KhoiDongTurnTests
     [Fact]
     public void Phase1_BudgetIsSharedAcrossThePhase()
     {
-        var s = KhoiDongTurn.StartPhase1(Ids6, RoundRules.DefaultKhoiDong());
+        var s = KhoiDongTurn.StartPhase1(Ids6, RuleBatches.KhoiDong);
         s = KhoiDongTurn.AnswerPhase1(s, correct: true, elapsedTotalS: 20);
         s = KhoiDongTurn.AnswerPhase1(s, correct: true, elapsedTotalS: 40);
         Assert.Equal(40, s.ElapsedS);
@@ -69,7 +70,7 @@ public class KhoiDongTurnTests
     [Fact]
     public void Phase1_AnswerPastBudgetIsNotCounted()
     {
-        var s = KhoiDongTurn.StartPhase1(Ids6, RoundRules.DefaultKhoiDong());
+        var s = KhoiDongTurn.StartPhase1(Ids6, RuleBatches.KhoiDong);
         s = KhoiDongTurn.AnswerPhase1(s, correct: true, elapsedTotalS: 30);
         s = KhoiDongTurn.AnswerPhase1(s, correct: true, elapsedTotalS: 50);
         Assert.True(s.Ended);
@@ -79,7 +80,7 @@ public class KhoiDongTurnTests
     [Fact]
     public void Phase1_TimeOutEndsThePhase()
     {
-        var s = KhoiDongTurn.StartPhase1(Ids6, RoundRules.DefaultKhoiDong());
+        var s = KhoiDongTurn.StartPhase1(Ids6, RuleBatches.KhoiDong);
         s = KhoiDongTurn.AnswerPhase1(s, correct: true, elapsedTotalS: 5);
         s = KhoiDongTurn.TimeOutPhase1(s);
         Assert.True(s.Ended);
@@ -90,7 +91,7 @@ public class KhoiDongTurnTests
     public void Phase1_CannotAnswerAfterEnded()
     {
         var s = KhoiDongTurn.TimeOutPhase1(
-            KhoiDongTurn.StartPhase1(Ids6, RoundRules.DefaultKhoiDong()));
+            KhoiDongTurn.StartPhase1(Ids6, RuleBatches.KhoiDong));
         Assert.Equal("PHASE_ENDED", CodeOf(() =>
             KhoiDongTurn.AnswerPhase1(s, correct: true, elapsedTotalS: 1)));
     }
@@ -100,16 +101,16 @@ public class KhoiDongTurnTests
     public void Phase2_IsSixQuestionsAndRefusesAnythingElse()
     {
         Assert.Equal("VALIDATION", CodeOf(() =>
-            KhoiDongTurn.StartPhase2(["x"], RoundRules.DefaultKhoiDong())));
+            KhoiDongTurn.StartPhase2(["x"], RuleBatches.KhoiDong)));
         Assert.Equal("VALIDATION", CodeOf(() =>
-            KhoiDongTurn.StartPhase2(Ids6.Take(3), RoundRules.DefaultKhoiDong())));
-        Assert.Equal(6, KhoiDongTurn.StartPhase2(Ids6, RoundRules.DefaultKhoiDong()).QuestionIds.Count);
+            KhoiDongTurn.StartPhase2(Ids6.Take(3), RuleBatches.KhoiDong)));
+        Assert.Equal(6, KhoiDongTurn.StartPhase2(Ids6, RuleBatches.KhoiDong).QuestionIds.Count);
     }
 
     [Fact]
     public void Phase2_NothingRunsBeforeBangGio()
     {
-        var s = KhoiDongTurn.StartPhase2(Ids6, RoundRules.DefaultKhoiDong());
+        var s = KhoiDongTurn.StartPhase2(Ids6, RuleBatches.KhoiDong);
         Assert.Null(s.OpenedAt);
         Assert.False(KhoiDongTurn.IsPhase2WindowOpen(s, T0));
         Assert.Equal(-1, s.Index);
@@ -124,7 +125,7 @@ public class KhoiDongTurnTests
     public void Phase2_BangGioOpensTheWindowOnce()
     {
         var s = KhoiDongTurn.OpenPhase2Window(
-            Picked(KhoiDongTurn.StartPhase2(Ids6, RoundRules.DefaultKhoiDong())), T0);
+            Picked(KhoiDongTurn.StartPhase2(Ids6, RuleBatches.KhoiDong)), T0);
         Assert.Equal(T0, s.OpenedAt);
         Assert.True(KhoiDongTurn.IsPhase2WindowOpen(s, At(1)));
         Assert.Equal("ALREADY_OPEN", CodeOf(() => KhoiDongTurn.OpenPhase2Window(s, At(1))));
@@ -134,7 +135,7 @@ public class KhoiDongTurnTests
     public void Phase2_WindowIsExactlyTenSeconds()
     {
         var s = KhoiDongTurn.OpenPhase2Window(
-            Picked(KhoiDongTurn.StartPhase2(Ids6, RoundRules.DefaultKhoiDong())), T0);
+            Picked(KhoiDongTurn.StartPhase2(Ids6, RuleBatches.KhoiDong)), T0);
         Assert.True(KhoiDongTurn.IsPhase2WindowOpen(s, At(10)));
         Assert.False(KhoiDongTurn.IsPhase2WindowOpen(s,
             DateTimeOffset.Parse(T0).AddMilliseconds(10001).UtcDateTime
@@ -145,7 +146,7 @@ public class KhoiDongTurnTests
     public void Phase2_ConsoleMayGiveAnotherWindow()
     {
         var s = KhoiDongTurn.OpenPhase2Window(
-            Picked(KhoiDongTurn.StartPhase2(Ids6, RoundRules.DefaultKhoiDong())), T0);
+            Picked(KhoiDongTurn.StartPhase2(Ids6, RuleBatches.KhoiDong)), T0);
         s = KhoiDongTurn.OpenPhase2Window(s, At(12));
         Assert.Equal(At(12), s.OpenedAt);
         Assert.True(KhoiDongTurn.IsPhase2WindowOpen(s, At(15)));
@@ -155,7 +156,7 @@ public class KhoiDongTurnTests
     public void Phase2_JudgingPaysIndependently()
     {
         var s = KhoiDongTurn.OpenPhase2Window(
-            Picked(KhoiDongTurn.StartPhase2(Ids6, RoundRules.DefaultKhoiDong())), T0);
+            Picked(KhoiDongTurn.StartPhase2(Ids6, RuleBatches.KhoiDong)), T0);
         s = KhoiDongTurn.JudgePhase2Card(s, "a", true);
         s = KhoiDongTurn.JudgePhase2Card(s, "b", true);
         s = KhoiDongTurn.JudgePhase2Card(s, "c", false);
@@ -168,7 +169,7 @@ public class KhoiDongTurnTests
     public void Phase2_RemarkingCorrectsInsteadOfPayingTwice()
     {
         var s = KhoiDongTurn.OpenPhase2Window(
-            Picked(KhoiDongTurn.StartPhase2(Ids6, RoundRules.DefaultKhoiDong())), T0);
+            Picked(KhoiDongTurn.StartPhase2(Ids6, RuleBatches.KhoiDong)), T0);
         s = KhoiDongTurn.JudgePhase2Card(s, "a", true);
         s = KhoiDongTurn.JudgePhase2Card(s, "a", false);
         Assert.Equal(0, KhoiDongTurn.Phase2Points(s, "a"));
@@ -180,7 +181,7 @@ public class KhoiDongTurnTests
     public void Phase2_JudgingAfterCloseIsRefused()
     {
         var done = KhoiDongTurn.ClosePhase2(
-            KhoiDongTurn.StartPhase2(Ids6, RoundRules.DefaultKhoiDong()));
+            KhoiDongTurn.StartPhase2(Ids6, RuleBatches.KhoiDong));
         Assert.Equal("PHASE_ENDED", CodeOf(() => KhoiDongTurn.JudgePhase2Card(done, "a", true)));
     }
 
@@ -188,7 +189,7 @@ public class KhoiDongTurnTests
     public void Phase2_AdvancingMovesCursorAndKillsWindow()
     {
         var s = KhoiDongTurn.OpenPhase2Window(
-            Picked(KhoiDongTurn.StartPhase2(Ids6, RoundRules.DefaultKhoiDong())), T0);
+            Picked(KhoiDongTurn.StartPhase2(Ids6, RuleBatches.KhoiDong)), T0);
         s = KhoiDongTurn.NextPhase2(s);
         Assert.Equal(1, s.Index);
         Assert.Null(s.OpenedAt);
@@ -199,7 +200,7 @@ public class KhoiDongTurnTests
     [Fact]
     public void Phase2_AdvancingPastLastCompletes()
     {
-        var s = KhoiDongTurn.StartPhase2(Ids6, RoundRules.DefaultKhoiDong());
+        var s = KhoiDongTurn.StartPhase2(Ids6, RuleBatches.KhoiDong);
         for (var i = 0; i < 7; i++)
             s = KhoiDongTurn.NextPhase2(s);
         Assert.True(KhoiDongTurn.Phase2Complete(s));
@@ -214,7 +215,7 @@ public class KhoiDongTurnTests
     public void Phase2_ClosingEndsIt()
     {
         var s = KhoiDongTurn.ClosePhase2(
-            KhoiDongTurn.OpenPhase2Window(Picked(KhoiDongTurn.StartPhase2(Ids6, RoundRules.DefaultKhoiDong())), T0));
+            KhoiDongTurn.OpenPhase2Window(Picked(KhoiDongTurn.StartPhase2(Ids6, RuleBatches.KhoiDong)), T0));
         Assert.True(KhoiDongTurn.Phase2Complete(s));
         Assert.Equal("PHASE_ENDED", CodeOf(() => KhoiDongTurn.NextPhase2(s)));
     }

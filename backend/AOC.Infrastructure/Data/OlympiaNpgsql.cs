@@ -25,7 +25,7 @@ public static class AOCNpgsql
             npgsql.MapEnum<PlayerGroup>("player_group", nameTranslator: verbatim);
             npgsql.MapEnum<QuestionKind>("question_kind", nameTranslator: verbatim);
             npgsql.MapEnum<Verdict>("verdict", nameTranslator: verbatim);
-            npgsql.MapEnum<Power>("power", nameTranslator: verbatim);
+            npgsql.MapEnum<PowerKind>("power", nameTranslator: verbatim);
         });
         builder.UseSnakeCaseNamingConvention();
         return builder;

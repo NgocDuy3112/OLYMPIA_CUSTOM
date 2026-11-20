@@ -19,7 +19,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\AOC.Domain\AOC.Domain.csproj" />
+    <ProjectReference Include="..\AOC.Domain.Contracts\AOC.Domain.Contracts.csproj" />
+    <ProjectReference Include="..\AOC.Domain.Gameplay\AOC.Domain.Gameplay.csproj" />
+    <ProjectReference Include="..\AOC.Domain.Tournament\AOC.Domain.Tournament.csproj" />
     <ProjectReference Include="..\AOC.Api\AOC.Api.csproj" />
     <ProjectReference Include="..\AOC.Infrastructure\AOC.Infrastructure.csproj" />
   </ItemGroup>

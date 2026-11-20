@@ -1,7 +1,7 @@
 using System.Text.Json;
 using AOC.Api.Http;
 using AOC.Api.Modules.Live;
-using AOC.Domain.Engine.Turns;
+using AOC.Domain.Gameplay.Turns;
 using Xunit;
 
 namespace AOC.Tests.Modules;

@@ -134,6 +134,48 @@
    "when": 1794713467709,
    "tag": "0018_match_controller",
    "breakpoints": true
+  },
+  {
+   "idx": 19,
+   "version": "7",
+   "when": 1794800000000,
+   "tag": "0019_question_bank_created_idx",
+   "breakpoints": true
+  },
+  {
+   "idx": 20,
+   "version": "7",
+   "when": 1794900000000,
+   "tag": "0020_drop_question_time_limit",
+   "breakpoints": true
+  },
+  {
+   "idx": 21,
+   "version": "7",
+   "when": 1795000000000,
+   "tag": "0021_drop_question_status_pending",
+   "breakpoints": true
+  },
+  {
+   "idx": 22,
+   "version": "7",
+   "when": 1795100000000,
+   "tag": "0022_drop_question_type",
+   "breakpoints": true
+  },
+  {
+   "idx": 23,
+   "version": "7",
+   "when": 1795200000000,
+   "tag": "0023_turn_flow_window_buckets",
+   "breakpoints": true
+  },
+  {
+   "idx": 24,
+   "version": "7",
+   "when": 1795300000000,
+   "tag": "0024_match_live_tiebreak",
+   "breakpoints": true
   }
  ]
 }

@@ -1,12 +1,13 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using AOC.Api.Http;
+using AOC.Api.Modules.Live.TieBreak;
 using AOC.Api.Modules.Matches;
 using AOC.Api.Realtime;
 using AOC.Api.Shared;
 using AOC.Domain.Contracts;
-using AOC.Domain.Engine;
-using AOC.Domain.Engine.Turns;
+using AOC.Domain.Gameplay;
+using AOC.Domain.Gameplay.Turns;
 using AOC.Infrastructure.Data;
 using AOC.Infrastructure.Data.Entities;
 
@@ -17,9 +18,12 @@ public sealed class LiveService(
     LiveReader reader,
     MatchHubRegistry hub,
     MatchesService matches,
+    TieBreakService tieBreak,
     ILogger<LiveService> logger)
 {
-    public async Task<List<ScoreRow>> ScoreTableAsync(MatchEntity match)
+    public sealed record ScoreBoard(List<ScoreRow> Rows, IReadOnlyDictionary<string, int>? TieBreak);
+
+    public async Task<ScoreBoard> ScoreTableAsync(MatchEntity match)
     {
         var userIds = match.PlayersList
             .Where(seat => seat.Kind == "user")
@@ -35,10 +39,12 @@ public sealed class LiveService(
             .Select(u => new { u.Id, u.DisplayName })
             .ToDictionaryAsync(u => u.Id.ToString(), u => u.DisplayName);
 
-        return userIds.Select(id => new ScoreRow(
+        var rows = userIds.Select(id => new ScoreRow(
             id,
             names.GetValueOrDefault(id, id),
             sums.GetValueOrDefault(id) + adjustments.GetValueOrDefault(id))).ToList();
+        var tieBreak = (await reader.ReadLiveAsync(match.Id))?.TieBreak;
+        return new ScoreBoard(rows, tieBreak?.Correct);
     }
 
     private async Task<List<object>> AnswerRowsOfAsync(MatchEntity match, string roundId, Dictionary<string, object?> view)
@@ -83,7 +89,7 @@ public sealed class LiveService(
         Dictionary<string, object?> projection;
         if (started && waiting)
         {
-            var waitingTable = await ScoreTableAsync(match);
+            var waitingBoard = await ScoreTableAsync(match);
             projection = new Dictionary<string, object?>
             {
                 ["matchId"] = matchId.ToString(),
@@ -91,14 +97,14 @@ public sealed class LiveService(
                 ["version"] = live.Version,
                 ["stage"] = "lobby",
                 ["open"] = new List<object?>(),
-                ["table"] = LiveView.RankTable(waitingTable),
+                ["table"] = LiveView.RankTable(waitingBoard.Rows, waitingBoard.TieBreak),
                 ["answers"] = new List<object>()
             };
         }
         else if (started)
         {
             var state = LiveState.ParseRoundState(live.RoundId, live.State);
-            var table = await ScoreTableAsync(match);
+            var board = await ScoreTableAsync(match);
             var view = LiveView.BuildPlayerView(new LiveView.ViewInput(
                 matchId.ToString(),
                 live.RoundId,
@@ -109,16 +115,17 @@ public sealed class LiveService(
                 [],
                 null,
                 match.QuestionsList,
-                table,
+                board.Rows,
                 revealAll,
-                await RevealedAnswersAsync(matchId, state)));
+                await RevealedAnswersAsync(matchId, state),
+                board.TieBreak));
             view.Remove("me");
             view["answers"] = await AnswerRowsOfAsync(match, live.RoundId, view);
             projection = view;
         }
         else
         {
-            var table = await ScoreTableAsync(match);
+            var board = await ScoreTableAsync(match);
             projection = new Dictionary<string, object?>
             {
                 ["matchId"] = matchId.ToString(),
@@ -126,10 +133,13 @@ public sealed class LiveService(
                 ["version"] = live.Version,
                 ["stage"] = "pending",
                 ["open"] = new List<object?>(),
-                ["table"] = LiveView.RankTable(table),
+                ["table"] = LiveView.RankTable(board.Rows, board.TieBreak),
                 ["me"] = new Dictionary<string, object?>()
             };
         }
+
+        var tieBreakView = await tieBreak.ViewAsync(matchId, null);
+        if (tieBreakView is not null) projection["tiebreak"] = tieBreakView;
 
         return new ConsoleView(
             live.Version,
@@ -210,7 +220,7 @@ public sealed class LiveService(
         var tournament = await db.Tournaments.AsNoTracking()
             .FirstAsync(t => t.Id == match.TournamentId && t.DeletedAt == null);
 
-        var table = await ScoreTableAsync(match);
+        var board = await ScoreTableAsync(match);
         var live = await reader.ReadLiveAsync(matchId);
 
         var ordered = MatchRounds.OrderedMatchRounds(tournament.RoundsList, match.RoundConfigsMap);
@@ -259,7 +269,7 @@ public sealed class LiveService(
             match.Status.ToString(),
             live?.RoundId ?? (ordered.Count > 0 ? ordered[0] : null),
             rounds,
-            LiveView.RankTable(table),
+            LiveView.RankTable(board.Rows, board.TieBreak),
             hub.ConnectedUsers(matchId.ToString()));
     }
 
@@ -271,37 +281,37 @@ public sealed class LiveService(
 
         if (live.State.ValueKind != JsonValueKind.Object || !live.State.EnumerateObject().Any())
         {
-            var pendingTable = await ScoreTableAsync(match);
-            return new Dictionary<string, object?>
+            var pendingBoard = await ScoreTableAsync(match);
+            return await WithTieBreakAsync(matchId, userId, new Dictionary<string, object?>
             {
                 ["matchId"] = matchId.ToString(),
                 ["roundId"] = live.RoundId,
                 ["version"] = live.Version,
                 ["stage"] = "pending",
                 ["open"] = new List<object?>(),
-                ["table"] = LiveView.RankTable(pendingTable),
+                ["table"] = LiveView.RankTable(pendingBoard.Rows, pendingBoard.TieBreak),
                 ["me"] = new Dictionary<string, object?>()
-            };
+            });
         }
 
         if (LiveFacts.IsWaitingState(live.State))
         {
-            var waitingTable = await ScoreTableAsync(match);
-            return new Dictionary<string, object?>
+            var waitingBoard = await ScoreTableAsync(match);
+            return await WithTieBreakAsync(matchId, userId, new Dictionary<string, object?>
             {
                 ["matchId"] = matchId.ToString(),
                 ["roundId"] = live.RoundId,
                 ["version"] = live.Version,
                 ["stage"] = "lobby",
                 ["open"] = new List<object?>(),
-                ["table"] = LiveView.RankTable(waitingTable),
+                ["table"] = LiveView.RankTable(waitingBoard.Rows, waitingBoard.TieBreak),
                 ["me"] = new Dictionary<string, object?>()
-            };
+            });
         }
 
         var state = LiveState.ParseRoundState(live.RoundId, live.State);
-        var table = await ScoreTableAsync(match);
-        return LiveView.BuildPlayerView(new LiveView.ViewInput(
+        var board = await ScoreTableAsync(match);
+        return await WithTieBreakAsync(matchId, userId, LiveView.BuildPlayerView(new LiveView.ViewInput(
             matchId.ToString(),
             live.RoundId,
             live.Version,
@@ -313,8 +323,17 @@ public sealed class LiveService(
             (await reader.ReadJudgedAnswersAsync(matchId))
                 .Select(a => new JudgedRow(a.QuestionId, a.UserId, a.Verdict, a.AnsweredMs)).ToList(),
             match.QuestionsList,
-            table,
-            RevealedAnswers: await RevealedAnswersAsync(matchId, state)));
+            board.Rows,
+            RevealedAnswers: await RevealedAnswersAsync(matchId, state),
+            TieBreak: board.TieBreak)));
+    }
+
+    private async Task<Dictionary<string, object?>> WithTieBreakAsync(
+        Guid matchId, Guid userId, Dictionary<string, object?> view)
+    {
+        var tieBreakView = await tieBreak.ViewAsync(matchId, userId);
+        if (tieBreakView is not null) view["tiebreak"] = tieBreakView;
+        return view;
     }
 
 
@@ -371,7 +390,7 @@ public sealed class LiveService(
                 if (current.RoundId == "khoi-dong")
                 {
                     var kd = LiveState.ParseKhoiDong(current.State);
-                    if (kd.Stage == "phase1")
+                    if (kd.Step == "phase1")
                     {
                         var runs = new Dictionary<string, Phase1State>(kd.Runs);
                         foreach (var pair in kd.Runs)
@@ -647,8 +666,12 @@ public sealed class LiveService(
                     }
 
                     var drafts = new List<AnswerDraft>();
-                    if (action is LiveAction.VeDichResolve && engine.Open is not null)
-                        drafts = await tx.ReadAnswerDrafts(Guid.Parse(engine.Open.Question.Id));
+                    var needsDrafts = action is LiveAction.VeDichResolve or LiveAction.VeDichJudge;
+                    if (engine.Open is not null)
+                    {
+                        if (needsDrafts)
+                            drafts = await tx.ReadAnswerDrafts(Guid.Parse(engine.Open.Question.Id));
+                    }
 
                     Dictionary<string, int> sums;
                     if (action is LiveAction.VeDichStart)
@@ -666,8 +689,7 @@ public sealed class LiveService(
                         .Select(q => new VeDichQuestion
                         {
                             Id = q.Id,
-                            Value = q.Points,
-                            TimeLimit = q.TimeLimit
+                            Value = q.Points
                         })
                         .ToList();
 

@@ -71,14 +71,10 @@ Notes:
   `env_file`. The Vite dev proxy targets `http://localhost:3000` — if another process ever
   holds that port, point it elsewhere with `API_PROXY_TARGET`.
 - `docker compose` works identically if you prefer Docker.
-- Dev sign-in for the gameplay app without Google OIDC:
-  `cd backend && set -a && source ../configs/.env && set +a && dotnet run -- --mint-gameplay-session`
-  (prints a session cookie + the URL to open; pass a name/email to pick the seat).
-  Google sign-in activates once
+- Google sign-in activates once
   `GOOGLE_OIDC_ISSUER / _CLIENT_ID / _CLIENT_SECRET / _REDIRECT_URI` are set — the local
   redirect URI is `http://localhost:5176/auth/google/callback` (results app).
 - Seed the first admin: `cd backend && set -a && source ../configs/.env && set +a && dotnet run -- --seed-admin`.
-- Other CLI helpers: `--mint-portal-session <username>`, `--mint-mcp-key [label]`.
 - Run the engine test suite: `cd backend && dotnet test`.
 
 ## Backups

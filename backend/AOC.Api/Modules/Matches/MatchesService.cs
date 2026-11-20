@@ -1,11 +1,10 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using AOC.Api.Http;
-using AOC.Api.Modules.Bracket;
 using AOC.Api.Modules.Questions;
 using AOC.Api.Modules.Standings;
 using AOC.Domain.Contracts;
-using AOC.Domain.Engine;
+using AOC.Domain.Gameplay;
 using AOC.Infrastructure.Data;
 using AOC.Infrastructure.Data.Entities;
 
@@ -13,7 +12,6 @@ namespace AOC.Api.Modules.Matches;
 
 public sealed class MatchesService(
     AOCDbContext db,
-    BracketService bracket,
     StandingsService standings,
     ILogger<MatchesService> logger)
 {
@@ -94,20 +92,6 @@ public sealed class MatchesService(
             throw new MatchError(MatchErrorCode.VALIDATION, "seat seeds must be unique");
     }
 
-    private async Task AssertFollowsFormatAsync(string tournamentId, string stageId, int? slot, List<Seat> players)
-    {
-        var playerIds = players
-            .Where(s => s.Kind == "user" && Guid.TryParse(s.UserId, out _))
-            .Select(s => s.UserId)
-            .ToList();
-
-        var check = await bracket.CheckMatchAgainstFormatAsync(tournamentId, stageId, slot, playerIds);
-        if (check.Checked && check.Problems.Count > 0)
-            throw new MatchError(MatchErrorCode.VALIDATION,
-                $"this match breaks the format of stage \"{stageId}\"",
-                check.Problems);
-    }
-
 
     private async Task ScoreMatchAsync(Guid matchId, MatchEntity match)
     {
@@ -137,13 +121,22 @@ public sealed class MatchesService(
             .GroupBy(a => a.UserId)
             .ToDictionary(g => g.Key, g => g.Sum(a => a.Delta));
 
+        var tieBreakRow = await db.MatchLive.AsNoTracking()
+            .Where(l => l.MatchId == matchId)
+            .Select(l => l.Tiebreak)
+            .FirstOrDefaultAsync();
+        var tieBreak = tieBreakRow is { } raw
+            ? JsonDefaults.Deserialize<AOC.Domain.Gameplay.Turns.TieBreakState>(raw)
+            : null;
+
         var results = MatchScoring.BuildMatchResults(new MatchScoring.MatchResultInput(
             competitors,
             rows.Select(r => new MatchScoring.AnswerForScoring(
                 r.UserId.ToString(),
                 questionById.TryGetValue(r.QuestionId.ToString(), out var q) ? q.RoundId : "unknown",
                 r.PointsAwarded ?? 0)).ToList(),
-            adjustments.ToDictionary(kv => kv.Key.ToString(), kv => kv.Value)));
+            adjustments.ToDictionary(kv => kv.Key.ToString(), kv => kv.Value),
+            tieBreak?.Correct));
 
         if (!already)
         {
@@ -230,8 +223,6 @@ public sealed class MatchesService(
 
         if (roundConfigs.Count > 0) AssertRoundConfigKeys(tournament, roundConfigs);
         if (input.Players is not null) AssertSeats(input.Players, tournament.FormatValue);
-        if (input.Players is not null)
-            await AssertFollowsFormatAsync(tournamentId, input.StageId, input.Slot, input.Players);
 
         var assembly = new MatchAssembly(db);
         var questions = await assembly.BuildQuestionCopiesAsync(
@@ -290,9 +281,6 @@ public sealed class MatchesService(
 
         var tournament = await RequireTournamentAsync(Guid.Parse(tournamentId));
         if (patch.Players is not null) AssertSeats(patch.Players, tournament.FormatValue);
-        if (patch.Players is not null)
-            await AssertFollowsFormatAsync(tournamentId,
-                patch.StageId ?? existing.StageId, existing.Slot, patch.Players);
         if (patch.RoundConfigs is not null) AssertRoundConfigKeys(tournament, patch.RoundConfigs);
 
         var tracked = await db.Matches.FirstAsync(m => m.Id == Guid.Parse(matchId));
@@ -442,12 +430,13 @@ public sealed class MatchesService(
 
             if (tournament.RoundsList.Any(r => r.Id == "khoi-dong"))
             {
+                var riengTurnId = Buckets.SlotForBucket("khoi-dong:rieng").TurnId;
                 var perPlayer = existing.RoundConfigsMap.GetValueOrDefault("khoi-dong") is { } cfg
-                    ? cfg.Turns.FirstOrDefault(t => t.Id == "phase1")?.QuestionCount ?? 6
+                    ? cfg.Turns.FirstOrDefault(t => t.Id == riengTurnId)?.QuestionCount ?? 6
                     : 6;
                 var seats = existing.PlayersList.Count;
                 var assembled = existing.QuestionsList
-                    .Count(q => q.RoundId == "khoi-dong" && q.TurnId == "phase1");
+                    .Count(q => q.RoundId == "khoi-dong" && q.TurnId == riengTurnId);
                 var needed = perPlayer * seats;
                 if (assembled != needed)
                     shortfalls.Add(
@@ -456,8 +445,9 @@ public sealed class MatchesService(
 
             if (tournament.RoundsList.Any(r => r.Id == "but-pha"))
             {
+                var butPhaTurnId = Buckets.SlotForBucket("but-pha").TurnId;
                 var butPhaCount = existing.RoundConfigsMap.GetValueOrDefault("but-pha") is { } bpCfg
-                    ? bpCfg.Turns.FirstOrDefault(t => t.Id == "phase1")?.QuestionCount ?? 4
+                    ? bpCfg.Turns.FirstOrDefault(t => t.Id == butPhaTurnId)?.QuestionCount ?? 4
                     : 4;
                 var butPhaAssembled = existing.QuestionsList
                     .Count(q => q.RoundId == "but-pha");

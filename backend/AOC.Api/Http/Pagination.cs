@@ -17,7 +17,12 @@ public static class Pagination
         if (raw is null or "") return fallback;
         if (!raw.All(char.IsDigit))
             throw new PaginationError($"{field} must be a non-negative integer");
-        return int.Parse(raw);
+
+        var parsed = 0;
+        if (!int.TryParse(raw, out parsed))
+            throw new PaginationError($"{field} must fit in a 32-bit integer");
+
+        return parsed;
     }
 
     public static Page ParsePage(IReadOnlyDictionary<string, string?> query, int maxLimit = MaxLimit)

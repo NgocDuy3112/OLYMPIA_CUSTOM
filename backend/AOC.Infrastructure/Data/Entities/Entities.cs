@@ -176,11 +176,8 @@ public class QuestionBankEntity
 
     public JsonElement Payload { get; set; }
 
-    public int? TimeLimit { get; set; }
     public QuestionStatus Status { get; set; } = QuestionStatus.DRAFT;
     public string[] Tags { get; set; } = [];
-
-    public string Type { get; set; } = "";
 
     public Guid CreatedBy { get; set; }
     public Guid? ImportBatchId { get; set; }
@@ -349,7 +346,7 @@ public class MatchStatEntity
     public int? PickOrder { get; set; }
     public int? BuzzMs { get; set; }
     public bool? BuzzWon { get; set; }
-    public Power? Power { get; set; }
+    public PowerKind? Power { get; set; }
 }
 
 public class MatchEventEntity
@@ -375,6 +372,8 @@ public class MatchLiveEntity
     public JsonElement State { get; set; }
 
     public JsonElement Archive { get; set; }
+
+    public JsonElement? Tiebreak { get; set; }
 
     public DateTime UpdatedAt { get; set; }
 }

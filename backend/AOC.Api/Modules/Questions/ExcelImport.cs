@@ -166,7 +166,7 @@ public static class ExcelImport
         }
 
         var input = new QuestionsService.CreateQuestionDto(
-            Enum.Parse<QuestionKind>(kind), question, null, payload, null, null, [bucket]);
+            Enum.Parse<QuestionKind>(kind), question, null, payload, null, [bucket]);
 
         if (OralBuckets.Contains(bucket))
             return new BuiltRow(input,

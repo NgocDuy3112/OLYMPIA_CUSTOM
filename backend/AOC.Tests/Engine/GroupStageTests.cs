@@ -1,4 +1,6 @@
-using AOC.Domain.Engine.Scoring;
+using AOC.Domain.Gameplay.Scoring;
+using AOC.Domain.Tournament;
+using AOC.Domain.Contracts;
 using Xunit;
 
 namespace AOC.Tests.Engine;
@@ -16,24 +18,24 @@ public class GroupStageTests
     }
 
     [Fact]
-    public void TeamPointsFor_PaysExactlyTheDrawnScale()
+    public void GroupPointsFor_PaysExactlyTheDrawnScale()
     {
-        Assert.Equal(2, GroupStage.TeamPointsFor(GroupStage.GroupPhase.Phase1, 3, 1));
-        Assert.Equal(0, GroupStage.TeamPointsFor(GroupStage.GroupPhase.Phase1, 3, 2));
-        Assert.Equal(3, GroupStage.TeamPointsFor(GroupStage.GroupPhase.Phase1, 4, 1));
-        Assert.Equal(1, GroupStage.TeamPointsFor(GroupStage.GroupPhase.Phase1, 4, 2));
-        Assert.Equal(0, GroupStage.TeamPointsFor(GroupStage.GroupPhase.Phase1, 4, 3));
-        Assert.Equal(1, GroupStage.TeamPointsFor(GroupStage.GroupPhase.Phase2, 3, 1));
-        Assert.Equal(2, GroupStage.TeamPointsFor(GroupStage.GroupPhase.Phase2, 4, 1));
-        Assert.Equal(0, GroupStage.TeamPointsFor(GroupStage.GroupPhase.Phase2, 4, 2));
+        Assert.Equal(2, GroupStage.GroupPointsFor(GroupStage.GroupPhase.Phase1, 3, 1));
+        Assert.Equal(0, GroupStage.GroupPointsFor(GroupStage.GroupPhase.Phase1, 3, 2));
+        Assert.Equal(3, GroupStage.GroupPointsFor(GroupStage.GroupPhase.Phase1, 4, 1));
+        Assert.Equal(1, GroupStage.GroupPointsFor(GroupStage.GroupPhase.Phase1, 4, 2));
+        Assert.Equal(0, GroupStage.GroupPointsFor(GroupStage.GroupPhase.Phase1, 4, 3));
+        Assert.Equal(1, GroupStage.GroupPointsFor(GroupStage.GroupPhase.Phase2, 3, 1));
+        Assert.Equal(2, GroupStage.GroupPointsFor(GroupStage.GroupPhase.Phase2, 4, 1));
+        Assert.Equal(0, GroupStage.GroupPointsFor(GroupStage.GroupPhase.Phase2, 4, 2));
     }
 
     [Fact]
-    public void TeamPointsFor_PaysNothingOutsideTheTable()
+    public void GroupPointsFor_PaysNothingOutsideTheTable()
     {
-        Assert.Equal(0, GroupStage.TeamPointsFor(GroupStage.GroupPhase.Phase1, 2, 1));
-        Assert.Equal(0, GroupStage.TeamPointsFor(GroupStage.GroupPhase.Phase1, 4, 0));
-        Assert.Equal(0, GroupStage.TeamPointsFor(GroupStage.GroupPhase.Phase1, 4, 9));
+        Assert.Equal(0, GroupStage.GroupPointsFor(GroupStage.GroupPhase.Phase1, 2, 1));
+        Assert.Equal(0, GroupStage.GroupPointsFor(GroupStage.GroupPhase.Phase1, 4, 0));
+        Assert.Equal(0, GroupStage.GroupPointsFor(GroupStage.GroupPhase.Phase1, 4, 9));
     }
 
     [Fact]
@@ -71,13 +73,13 @@ public class GroupStageTests
         Assert.Null(phase2Only.Phase1);
     }
 
-    private static readonly Dictionary<string, GroupStage.GroupLabel> Roster = new()
+    private static readonly Dictionary<string, PlayerGroup> Roster = new()
     {
-        ["u1"] = GroupStage.GroupLabel.A,
-        ["u2"] = GroupStage.GroupLabel.A,
-        ["u3"] = GroupStage.GroupLabel.B,
-        ["u4"] = GroupStage.GroupLabel.B,
-        ["idle"] = GroupStage.GroupLabel.A
+        ["u1"] = PlayerGroup.A,
+        ["u2"] = PlayerGroup.A,
+        ["u3"] = PlayerGroup.B,
+        ["u4"] = PlayerGroup.B,
+        ["idle"] = PlayerGroup.A
     };
 
     private static readonly List<GroupStage.GroupMatchInput> Matches =
@@ -96,13 +98,13 @@ public class GroupStageTests
     public void Standings_BanksPointsByFinishingOrder()
     {
         var t = GroupStage.Build(Roster, Matches);
-        Assert.Equal(4, t.ByGroup[GroupStage.GroupLabel.A].TeamPoints);
-        Assert.Equal(1, t.ByGroup[GroupStage.GroupLabel.B].TeamPoints);
+        Assert.Equal(4, t.ByGroup[PlayerGroup.A].GroupPoints);
+        Assert.Equal(1, t.ByGroup[PlayerGroup.B].GroupPoints);
 
-        var u1 = t.ByGroup[GroupStage.GroupLabel.A].Contestants.First(c => c.UserId == "u1");
+        var u1 = t.ByGroup[PlayerGroup.A].Contestants.First(c => c.UserId == "u1");
         Assert.Equal(3, u1.BankedPoints);
         Assert.Equal(2, u1.MatchesPlayed);
-        Assert.Equal(1, t.ByGroup[GroupStage.GroupLabel.A].Contestants
+        Assert.Equal(1, t.ByGroup[PlayerGroup.A].Contestants
             .First(c => c.UserId == "u2").BankedPoints);
     }
 
@@ -111,7 +113,7 @@ public class GroupStageTests
     {
         var t = GroupStage.Build(Roster, Matches);
         Assert.Equal(["u1", "u2", "idle"],
-            t.ByGroup[GroupStage.GroupLabel.A].Contestants.Select(c => c.UserId));
+            t.ByGroup[PlayerGroup.A].Contestants.Select(c => c.UserId));
     }
 
     [Fact]
@@ -119,8 +121,8 @@ public class GroupStageTests
     {
         var t = GroupStage.Build(Roster,
             [new(GroupStage.GroupPhase.Phase1, [new("stranger", 1, 99)])]);
-        Assert.Equal(0, t.ByGroup[GroupStage.GroupLabel.A].TeamPoints);
-        Assert.Equal(0, t.ByGroup[GroupStage.GroupLabel.B].TeamPoints);
+        Assert.Equal(0, t.ByGroup[PlayerGroup.A].GroupPoints);
+        Assert.Equal(0, t.ByGroup[PlayerGroup.B].GroupPoints);
     }
 
     [Fact]

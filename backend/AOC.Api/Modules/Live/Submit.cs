@@ -4,8 +4,8 @@ using AOC.Api.Http;
 using AOC.Api.Modules.Matches;
 using AOC.Api.Realtime;
 using AOC.Domain.Contracts;
-using AOC.Domain.Engine;
-using AOC.Domain.Engine.Turns;
+using AOC.Domain.Gameplay;
+using AOC.Domain.Gameplay.Turns;
 using AOC.Infrastructure.Data;
 using AOC.Infrastructure.Data.Entities;
 
@@ -157,7 +157,7 @@ public sealed class SubmitService(
             {
                 value = TextOfChoice(loaded, ctx, value, "a chung answer must be text");
                 var state = LiveState.ParseKhoiDong(loaded.Live.State);
-                if (state.Stage != "phase2" || state.Phase2 is null)
+                if (state.Step != "phase2" || state.Phase2 is null)
                     throw new SubmitError(409, "NO_WINDOW",
                         "khởi động riêng is oral — there is nothing to type yet");
                 var questionId = KhoiDongTurn.Phase2QuestionId(state.Phase2);
@@ -199,7 +199,7 @@ public sealed class SubmitService(
                     throw new SubmitError(409, "NOT_OPEN", "that question is not open");
                 if (open.OpenedAt is null)
                     throw new SubmitError(409, "NO_CLOCK", "the clock has not started yet");
-                if (open.Stage != "current")
+                if (open.Step != "current")
                     throw new SubmitError(409, "WINDOW_CLOSED", "the answer window has closed");
 
                 var clock = RoundRules.VeDichClockSeconds(state.Rules, open.Question.Value);
@@ -296,19 +296,22 @@ public sealed class SubmitService(
         var now = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
 
         var store = new PgLiveStore(db, matchId);
-        await Apply.MutateLive(store, async tx =>
+        var applied = await Apply.MutateLive(store, async tx =>
         {
             var current = await tx.Load();
             var state = LiveState.ParseVeDich(current.State);
             var (nextState, facts) = VeDichApplier.Apply(state, action,
                 new VeDichApplier.VeDichContext(
                     userId.ToString(), current.RoundId, now,
-                    RoundRules.DefaultVeDich(), [], [], []));
+                    RoundRules.ResolveVeDich(
+                        loaded.Match.RoundConfigsMap.GetValueOrDefault(loaded.Live.RoundId)),
+                    [], [], []));
             return new Transition<JsonElement>(
                 JsonSerializer.SerializeToElement(nextState, JsonDefaults.Options), facts);
         });
 
-        await Sfx.BroadcastAsync(hub, matchId.ToString(), "ping.mp3");
+        await Sfx.BroadcastAsync(hub, matchId.ToString(),
+            Sfx.FileFor(action, applied.State, applied.RoundId));
         await hub.PublishAsync(matchId.ToString());
         return new { applied = command };
     }

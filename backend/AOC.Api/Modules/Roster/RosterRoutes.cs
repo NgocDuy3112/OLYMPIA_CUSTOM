@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using AOC.Api.Http;
 using AOC.Api.Modules.Tournaments;
+using AOC.Domain.Contracts;
 using AOC.Infrastructure.Configuration;
 
 namespace AOC.Api.Modules.Roster;
@@ -111,14 +112,14 @@ public static class RosterRoutes
             await TournamentGuards.AssertWriteAsync(http, tournamentId);
 
             var body = Validate.Object(await Validate.ReadJsonBodyAsync(http));
-            GroupLabel? group;
+            PlayerGroup? group;
             if (!body.TryGetProperty("group", out var g))
                 throw ApiException.BadRequest("body must have required property 'group'");
             group = g.ValueKind switch
             {
                 JsonValueKind.Null => null,
-                JsonValueKind.String when g.GetString() == "A" => GroupLabel.A,
-                JsonValueKind.String when g.GetString() == "B" => GroupLabel.B,
+                JsonValueKind.String when g.GetString() == "A" => PlayerGroup.A,
+                JsonValueKind.String when g.GetString() == "B" => PlayerGroup.B,
                 _ => throw ApiException.BadRequest("/group: Expected enum value")
             };
 

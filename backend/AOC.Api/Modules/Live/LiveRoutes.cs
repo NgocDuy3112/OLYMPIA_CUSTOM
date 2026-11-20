@@ -5,7 +5,7 @@ using AOC.Api.Http;
 using AOC.Api.Modules.Matches;
 using AOC.Api.Realtime;
 using AOC.Domain.Contracts;
-using AOC.Domain.Engine;
+using AOC.Domain.Gameplay;
 using AOC.Infrastructure.Configuration;
 using AOC.Infrastructure.Data;
 
@@ -67,6 +67,40 @@ public static class LiveRoutes
                         ["roundId"] = next.RoundId,
                         ["playerId"] = judge.PlayerId,
                         ["correct"] = judge.Correct
+                    }
+                });
+            }
+            if (action is LiveAction.VeDichJudge vdJudge)
+            {
+                await audit.AuditAsync(new AOC.Infrastructure.Audit.AuditEvent
+                {
+                    Action = "answer_judged",
+                    ActorId = user.Id,
+                    MatchId = Guid.Parse(matchId),
+                    Ip = http.Connection.RemoteIpAddress?.ToString(),
+                    UserAgent = http.Request.Headers.UserAgent.ToString(),
+                    Details = new Dictionary<string, object?>
+                    {
+                        ["roundId"] = next.RoundId,
+                        ["playerId"] = vdJudge.PlayerId,
+                        ["correct"] = vdJudge.Correct
+                    }
+                });
+            }
+            if (action is LiveAction.VeDichResolve vdResolve)
+            {
+                await audit.AuditAsync(new AOC.Infrastructure.Audit.AuditEvent
+                {
+                    Action = "ve_dich_resolved",
+                    ActorId = user.Id,
+                    MatchId = Guid.Parse(matchId),
+                    Ip = http.Connection.RemoteIpAddress?.ToString(),
+                    UserAgent = http.Request.Headers.UserAgent.ToString(),
+                    Details = new Dictionary<string, object?>
+                    {
+                        ["roundId"] = next.RoundId,
+                        ["answerer"] = vdResolve.Answerer,
+                        ["buzzer"] = vdResolve.Buzzer
                     }
                 });
             }

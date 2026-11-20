@@ -1,32 +1,27 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using AOC.Api.Http;
+using AOC.Domain.Contracts;
+using AOC.Domain.Gameplay;
 
 namespace AOC.Api.Modules.Questions;
 
-public enum QuestionType
-{
-    TEXT,
-    ORAL,
-    CHOICE,
-    KEYWORD
-}
-
 public static class Buckets
 {
-    public static readonly Dictionary<string, QuestionType> BucketType = new()
+    public static readonly Dictionary<string, QuestionKind> BucketKind = new()
     {
-        ["khoi-dong:rieng"] = QuestionType.ORAL,
-        ["khoi-dong:chung"] = QuestionType.TEXT,
-        ["giai-ma"] = QuestionType.KEYWORD,
-        ["but-pha"] = QuestionType.TEXT,
-        ["ve-dich:20"] = QuestionType.TEXT,
-        ["ve-dich:30"] = QuestionType.TEXT,
-        ["ve-dich:40"] = QuestionType.ORAL,
-        ["ve-dich:50"] = QuestionType.ORAL
+        ["khoi-dong:rieng"] = QuestionKind.TEXT,
+        ["khoi-dong:chung"] = QuestionKind.TEXT,
+        ["giai-ma"] = QuestionKind.KEYWORD,
+        ["but-pha"] = QuestionKind.TEXT,
+        ["ve-dich:20"] = QuestionKind.TEXT,
+        ["ve-dich:30"] = QuestionKind.TEXT,
+        ["ve-dich:40"] = QuestionKind.TEXT,
+        ["ve-dich:50"] = QuestionKind.TEXT,
+        ["cau-hoi-phu"] = QuestionKind.TEXT
     };
 
-    public static readonly List<string> AllBuckets = BucketType.Keys.ToList();
+    public static readonly List<string> AllBuckets = BucketKind.Keys.ToList();
 
     private static readonly HashSet<string> BucketKeys = AllBuckets.ToHashSet();
 
@@ -65,45 +60,79 @@ public static class Buckets
         return matches;
     }
 
-    public static Slot SlotForBucket(string bucket) => bucket switch
+    private static IEnumerable<(string RoundId, TurnConfig Turn)> TurnsOf()
     {
-        "khoi-dong:rieng" => new Slot("khoi-dong", "phase1"),
-        "khoi-dong:chung" => new Slot("khoi-dong", "phase2"),
-        "giai-ma" => new Slot("giai-ma", "phase1"),
-        "but-pha" => new Slot("but-pha", "phase1"),
-        "ve-dich:20" => new Slot("ve-dich", "phase1", 20),
-        "ve-dich:30" => new Slot("ve-dich", "phase1", 30),
-        "ve-dich:40" => new Slot("ve-dich", "phase2", 40),
-        "ve-dich:50" => new Slot("ve-dich", "phase2", 50),
-        _ => throw new QuestionError(QuestionErrorCode.VALIDATION, $"no match slot for bucket \"{bucket}\"",
-            [$"expected one of: {string.Join(", ", AllBuckets)}"])
-    };
+        foreach (var round in AocRulebook.AocRounds)
+        {
+            var config = AocRulebook.AocRoundConfig(round.Id);
+            if (config is null) continue;
+            foreach (var turn in config.Turns) yield return (round.Id, turn);
+        }
+    }
 
-    public static string ExpectedBucketForSlot(Slot slot) => slot.RoundId switch
+    private static int? PointsOf(string bucket)
     {
-        "khoi-dong" when slot.TurnId == "phase1" => "khoi-dong:rieng",
-        "khoi-dong" when slot.TurnId == "phase2" => "khoi-dong:chung",
-        "khoi-dong" => throw new QuestionError(QuestionErrorCode.VALIDATION,
-            $"no bucket mapping for khoi-dong turn \"{slot.TurnId ?? "?"}\""),
-        "giai-ma" => "giai-ma",
-        "but-pha" => "but-pha",
-        "ve-dich" when slot.Points is 20 or 30 or 40 or 50 => $"ve-dich:{slot.Points}",
-        "ve-dich" => throw new QuestionError(QuestionErrorCode.VALIDATION,
-            "a ve-dich entry needs its cell points (20, 30, 40 or 50)"),
-        _ => throw new QuestionError(QuestionErrorCode.VALIDATION,
-            $"round \"{slot.RoundId}\" has no bucket mapping")
-    };
+        var colon = bucket.IndexOf(':');
+        if (colon < 0) return null;
+        var suffix = bucket[(colon + 1)..];
+        return int.TryParse(suffix, out var points) ? points : null;
+    }
 
-    public static List<QuestionType> ExpectedTypesForSlot(string bucket, bool keywordLinked = false)
-        => bucket == "giai-ma"
-            ? keywordLinked ? [QuestionType.TEXT] : [QuestionType.KEYWORD]
-            : [BucketType[bucket]];
+    public static Slot SlotForBucket(string bucket)
+    {
+        if (bucket == QuestionsService.TieBreakBucket)
+            throw new QuestionError(QuestionErrorCode.VALIDATION,
+                "tiebreak questions are not assembled into rounds");
+
+        foreach (var (roundId, turn) in TurnsOf())
+            if (turn.Buckets is not null && turn.Buckets.Contains(bucket))
+                return new Slot(roundId, turn.Id, PointsOf(bucket));
+
+        throw new QuestionError(QuestionErrorCode.VALIDATION, $"no match slot for bucket \"{bucket}\"",
+            [$"expected one of: {string.Join(", ", AllBuckets)}"]);
+    }
+
+    public static string ExpectedBucketForSlot(Slot slot)
+    {
+        var config = AocRulebook.AocRoundConfig(slot.RoundId)
+            ?? throw new QuestionError(QuestionErrorCode.VALIDATION,
+                $"round \"{slot.RoundId}\" has no bucket mapping");
+
+        foreach (var turn in config.Turns)
+        {
+            if (turn.Id != slot.TurnId) continue;
+            if (turn.Buckets is null)
+                throw new QuestionError(QuestionErrorCode.VALIDATION,
+                    $"turn \"{turn.Id}\" of round \"{slot.RoundId}\" declares no buckets");
+
+            foreach (var bucket in turn.Buckets)
+                if (PointsOf(bucket) == slot.Points && bucket != QuestionsService.TieBreakBucket)
+                    return bucket;
+
+            throw new QuestionError(QuestionErrorCode.VALIDATION,
+                $"turn \"{turn.Id}\" of round \"{slot.RoundId}\" has no bucket for {slot.Points?.ToString() ?? "no points"}");
+        }
+
+        throw new QuestionError(QuestionErrorCode.VALIDATION,
+            $"round \"{slot.RoundId}\" has no turn \"{slot.TurnId ?? "?"}\"");
+    }
+
+    public static List<QuestionKind> ExpectedKindsForBucket(string bucket, bool keywordLinked = false)
+    {
+        if (bucket == "giai-ma") return keywordLinked ? [QuestionKind.HINT] : [QuestionKind.KEYWORD];
+        return [BucketKind[bucket]];
+    }
+
+    public sealed record SlotConflictSource(
+        IReadOnlyList<string>? Tags = null,
+        string? Kind = null,
+        string? KeywordId = null);
 
 
     private static QuestionError Fail(string message, List<string>? details = null)
         => new(QuestionErrorCode.VALIDATION, message, details ?? []);
 
-    private static void RequireAccepted(JsonElement p, QuestionType type)
+    private static void RequireAccepted(JsonElement p, string type)
     {
         if (!p.TryGetProperty("acceptedAnswers", out var accepted)
             || accepted.ValueKind != JsonValueKind.Array || accepted.GetArrayLength() == 0)
@@ -118,7 +147,7 @@ public static class Buckets
         if (!p.TryGetProperty("options", out var options) || options.ValueKind != JsonValueKind.Array
             || options.GetArrayLength() < minOptions)
             throw Fail($"payload.options needs at least {minOptions} entries" +
-                       (exactlyOneCorrect ? " — the audience picks exactly one" : ""));
+            (exactlyOneCorrect ? " — the audience picks exactly one" : ""));
 
         var ids = options.EnumerateArray()
             .Select(o => o.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.String
@@ -142,31 +171,25 @@ public static class Buckets
                 unknown.Select(id => $"unknown option id \"{id}\"").ToList());
     }
 
-    public static void AssertPayloadForType(QuestionType type, JsonElement payload)
+    public static void AssertPayloadForKind(QuestionKind kind, JsonElement payload)
     {
         var p = payload.ValueKind == JsonValueKind.Object ? payload : default;
         if (p.ValueKind == JsonValueKind.Undefined)
             p = JsonSerializer.SerializeToElement(new { });
 
-        if (p.TryGetProperty("type", out var declared) && declared.ValueKind == JsonValueKind.String
-            && declared.GetString() != type.ToString())
-            throw Fail($"payload.type \"{declared.GetString()}\" does not match the question type \"{type}\"");
-
-        switch (type)
+        switch (kind)
         {
-            case QuestionType.TEXT:
-                RequireAccepted(p, type);
-                return;
-            case QuestionType.ORAL:
-                RequireAccepted(p, type);
+            case QuestionKind.TEXT:
+            case QuestionKind.HINT:
+                RequireAccepted(p, kind.ToString());
                 if (p.TryGetProperty("options", out var opts) && opts.ValueKind == JsonValueKind.Array
                     && opts.GetArrayLength() > 0)
                     RequireChoices(p, 2, exactlyOneCorrect: true);
                 return;
-            case QuestionType.CHOICE:
+            case QuestionKind.CHOICE:
                 RequireChoices(p, 1, exactlyOneCorrect: false);
                 return;
-            case QuestionType.KEYWORD:
+            case QuestionKind.KEYWORD:
                 if (!p.TryGetProperty("code", out var code) || code.ValueKind != JsonValueKind.String
                     || string.IsNullOrWhiteSpace(code.GetString()))
                     throw Fail("KEYWORD questions require a non-empty payload.code");
@@ -174,20 +197,14 @@ public static class Buckets
         }
     }
 
-    public static JsonElement PayloadWithType(QuestionType type, JsonElement payload)
+    public static JsonElement StripBucketKey(JsonElement payload)
     {
         if (payload.ValueKind != JsonValueKind.Object) return payload;
-        var clone = payload.Clone();
-        var dict = clone.Deserialize<Dictionary<string, JsonElement>>()!;
-        dict["type"] = JsonSerializer.SerializeToElement(type.ToString());
+        var dict = payload.Clone().Deserialize<Dictionary<string, JsonElement>>()!;
+        dict.Remove("type");
+        dict.Remove("bucket");
         return JsonSerializer.SerializeToElement(dict, JsonApi.Options);
     }
-
-
-    public sealed record SlotConflictSource(
-        IReadOnlyList<string>? Tags = null,
-        string? Type = null,
-        string? KeywordId = null);
 
     public static string? SlotConflict(Slot slot, SlotConflictSource source)
     {
@@ -218,14 +235,14 @@ public static class Buckets
         if (bucket != expected)
             return $"bucket {bucket} does not fit slot {where} (expected {expected})";
 
-        var rawType = source.Type;
-        if (rawType is null) return null;
+        var rawKind = source.Kind;
+        if (rawKind is null) return null;
 
-        var types = ExpectedTypesForSlot(bucket, keywordLinked: !string.IsNullOrEmpty(source.KeywordId));
-        if (!Enum.TryParse<QuestionType>(rawType, out var parsed))
-            return $"unknown question type \"{rawType}\"";
-        if (!types.Contains(parsed))
-            return $"type {rawType} does not fit slot {where} (expected {string.Join(" or ", types)})";
+        var kinds = ExpectedKindsForBucket(bucket, keywordLinked: !string.IsNullOrEmpty(source.KeywordId));
+        if (!Enum.TryParse<QuestionKind>(rawKind, out var parsedKind))
+            return $"unknown question kind \"{rawKind}\"";
+        if (!kinds.Contains(parsedKind))
+            return $"kind {rawKind} does not fit slot {where} (expected {string.Join(" or ", kinds)})";
         return null;
     }
 

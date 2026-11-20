@@ -2,8 +2,8 @@ using System.Text.Json;
 using AOC.Api.Shared;
 using AOC.Infrastructure.Data;
 using AOC.Domain.Contracts;
-using AOC.Domain.Engine;
-using AOC.Domain.Engine.Turns;
+using AOC.Domain.Gameplay;
+using AOC.Domain.Gameplay.Turns;
 
 namespace AOC.Api.Modules.Live;
 
@@ -33,7 +33,8 @@ public static class LiveView
         List<MatchQuestion>? Questions = null,
         List<ScoreRow>? Table = null,
         bool RevealAll = false,
-        List<RevealedAnswerRow>? RevealedAnswers = null);
+        List<RevealedAnswerRow>? RevealedAnswers = null,
+        IReadOnlyDictionary<string, int>? TieBreak = null);
 
     private static string PlusSeconds(string iso, double seconds)
     {
@@ -65,20 +66,28 @@ public static class LiveView
         return question is null ? null : QuestionView.Sanitize(question);
     }
 
-    public static List<RankedScore> RankTable(List<ScoreRow>? table)
+    public static List<RankedScore> RankTable(
+        List<ScoreRow>? table, IReadOnlyDictionary<string, int>? tieBreak = null)
     {
         table ??= [];
-        var byPoints = table.OrderByDescending(r => r.Points).ToList();
+        int TieOf(ScoreRow row)
+            => tieBreak is not null && tieBreak.TryGetValue(row.Id, out var points) ? points : 0;
+
+        var sorted = table
+            .OrderByDescending(r => r.Points)
+            .ThenByDescending(TieOf)
+            .ToList();
         var rankById = new Dictionary<string, int>();
         var rank = 0;
-        int? lastPoints = null;
-        for (var index = 0; index < byPoints.Count; index++)
+        (int Points, int Tie)? last = null;
+        for (var index = 0; index < sorted.Count; index++)
         {
-            var row = byPoints[index];
-            if (row.Points != lastPoints)
+            var row = sorted[index];
+            var key = (row.Points, TieOf(row));
+            if (last is null || key != last.Value)
             {
                 rank = index + 1;
-                lastPoints = row.Points;
+                last = key;
             }
             rankById[row.Id] = rank;
         }
@@ -180,7 +189,7 @@ public static class LiveView
             ? PlusSeconds(state.KeywordOpenedAt!, state.Rules.HintWindowS)
             : null;
         var view = Base(input.MatchId, input.RoundId, input.Version,
-            state.Stage, open, RankTable(input.Table), me);
+            state.Step, open, RankTable(input.Table, input.TieBreak), me);
         view["keywordDeadlineAt"] = keywordDeadlineAt;
         view["keywordLength"] = keywordCompact.Length;
         view["keywordKind"] = keywordKind;
@@ -254,12 +263,12 @@ public static class LiveView
         };
 
         return Base(input.MatchId, input.RoundId, input.Version,
-            state.Ended ? "ended" : "question", open, RankTable(input.Table), me);
+            state.Ended ? "ended" : "question", open, RankTable(input.Table, input.TieBreak), me);
     }
 
     private static Dictionary<string, object?> KhoiDongView(ViewInput input, KhoiDongState state)
     {
-        if (state.Stage == "phase1")
+        if (state.Step == "phase1")
         {
             var activeId = KhoiDongRound.ActivePlayerId(state);
             var run = activeId is not null ? state.Runs[activeId] : null;
@@ -275,7 +284,7 @@ public static class LiveView
             };
 
             var view = Base(input.MatchId, input.RoundId, input.Version,
-                state.Ended ? "ended" : "phase1", [], RankTable(input.Table), me);
+                state.Ended ? "ended" : "phase1", [], RankTable(input.Table, input.TieBreak), me);
             if (run is not null && currentId is not null)
             {
                 view["oral"] = new Dictionary<string, object?>
@@ -326,14 +335,14 @@ public static class LiveView
         };
 
         return Base(input.MatchId, input.RoundId, input.Version,
-            state.Ended ? "ended" : "phase2", open, RankTable(input.Table), p2me);
+            state.Ended ? "ended" : "phase2", open, RankTable(input.Table, input.TieBreak), p2me);
     }
 
     private static string? VeDichDeadline(VeDichState state, OpenQuestion open)
     {
-        if (open.Stage == "buzz" && state.BuzzOpenedAt is not null)
+        if (open.Step == "buzz" && state.BuzzOpenedAt is not null)
             return PlusSeconds(state.BuzzOpenedAt, VeDichTurn.BuzzWindowSeconds(state));
-        if (open.Stage == "current" && open.OpenedAt is not null)
+        if (open.Step == "current" && open.OpenedAt is not null)
         {
             var seconds = RoundRules.VeDichClockSeconds(state.Rules, open.Question.Value);
             if (seconds is not null) return PlusSeconds(open.OpenedAt, seconds.Value);
@@ -349,7 +358,7 @@ public static class LiveView
         var openList = new List<object?>();
         if (open is not null)
         {
-            var frozenRemainingMs = open.Stage == "buzz"
+            var frozenRemainingMs = open.Step == "buzz"
                 && open.Buzzer is not null
                 && state.BuzzOpenedAt is not null
                 ? Math.Max(0,
@@ -429,9 +438,9 @@ public static class LiveView
             ["isMyTurn"] = isMyTurn,
             ["pendingPicks"] = state.PendingPicks.Select(q => q.Id).ToList(),
             ["isAnswerer"] = open?.Answerer == input.UserId,
-            ["canAnswer"] = open is not null && open.Stage == "current"
+            ["canAnswer"] = open is not null && open.Step == "current"
                 && (state.Phase == 1 || open.Answerer == input.UserId),
-            ["canBuzz"] = open is not null && open.Stage == "buzz" && open.Buzzer is null
+            ["canBuzz"] = open is not null && open.Step == "buzz" && open.Buzzer is null
                 && VeDichTurn.MayBuzz(state, input.UserId) && VeDichTurn.IsBuzzOpen(state, input.Now),
             ["power"] = open?.Power,
             ["buzzer"] = open?.Buzzer,
@@ -441,9 +450,24 @@ public static class LiveView
         };
 
         var view = Base(input.MatchId, input.RoundId, input.Version,
-            state.Ended ? "ended" : $"phase{state.Phase}", openList, RankTable(input.Table), me);
+            state.Ended ? "ended" : $"phase{state.Phase}", openList, RankTable(input.Table, input.TieBreak), me);
         view["board"] = board;
         if (audioGate is not null) view["audioGate"] = audioGate;
+        string? turnPlayerId = null;
+        if (state.TurnIndex < state.Players.Count) turnPlayerId = state.Players[state.TurnIndex].Id;
+        view["turnPlayerId"] = turnPlayerId;
+        view["answererId"] = state.Open?.Answerer;
+        view["assignedToId"] = state.Open?.AssignedTo;
+        Dictionary<string, object?>? stagedPower = null;
+        if (state.StagedPower is { } staged)
+        {
+            stagedPower = new Dictionary<string, object?>
+            {
+                ["power"] = staged.Power,
+                ["targetId"] = staged.TargetId
+            };
+        }
+        view["stagedPower"] = stagedPower;
         return view;
     }
 
@@ -473,7 +497,7 @@ public static class LiveView
         "khoi-dong" => KhoiDongView(input, (KhoiDongState)input.State),
         "ve-dich" => VeDichView(input, (VeDichState)input.State),
         _ => Base(input.MatchId, input.RoundId, input.Version, "unknown", [],
-            RankTable(input.Table), [])
+            RankTable(input.Table, input.TieBreak), [])
     };
 
     public static string? RevealedIdOf(object state) => state switch
@@ -492,7 +516,7 @@ public static class LiveView
 
         bool KhoiDongStillShowing(KhoiDongState state)
         {
-            if (state.Stage == "phase2")
+            if (state.Step == "phase2")
             {
                 if (state.Phase2 is null) return false;
                 return KhoiDongTurn.Phase2QuestionId(state.Phase2) == questionId;
@@ -564,7 +588,7 @@ public static class LiveFacts
         if (raw.ValueKind != JsonValueKind.Object || !raw.EnumerateObject().Any()) return false;
         return roundId switch
         {
-            "giai-ma" => LiveState.ParseGiaiMa(raw).Stage == "ended",
+            "giai-ma" => LiveState.ParseGiaiMa(raw).Step == "ended",
             "but-pha" => LiveState.ParseButPha(raw).Ended,
             "khoi-dong" => LiveState.ParseKhoiDong(raw).Ended,
             "ve-dich" => LiveState.ParseVeDich(raw).Ended,
@@ -605,10 +629,10 @@ public static class LiveFacts
                     ["phase"] = state.Phase,
                     ["turnPlayerId"] = state.TurnIndex < state.Players.Count
                         ? state.Players[state.TurnIndex].Id : null,
-                    ["openStage"] = state.Open?.Stage,
+                    ["openStage"] = state.Open?.Step,
                     ["revealed"] = state.Open?.Revealed ?? false,
                     ["clockStarted"] = state.Open is not null
-                        && (state.Open.Stage == "buzz"
+                        && (state.Open.Step == "buzz"
                             ? state.BuzzOpenedAt is not null
                             : state.Open.OpenedAt is not null),
                     ["answererId"] = state.Open?.Answerer,
@@ -619,6 +643,7 @@ public static class LiveFacts
                     ["pendingQuestionId"] = state.PendingPicks.Count > 0 ? state.PendingPicks[0].Id : null,
                     ["pendingValues"] = state.PendingPicks.Select(q => q.Value).ToList(),
                     ["turnPicked"] = state.TurnPicked,
+                    ["picksConfirmed"] = state.PicksConfirmed,
                     ["stagedPower"] = state.StagedPower is { } sp
                         ? new Dictionary<string, object?> { ["power"] = sp.Power, ["targetId"] = sp.TargetId }
                         : null,
@@ -631,7 +656,7 @@ public static class LiveFacts
                 var p2 = state.Phase2;
                 return new Dictionary<string, object?>
                 {
-                    ["stage"] = state.Stage,
+                    ["stage"] = state.Step,
                     ["ended"] = state.Ended,
                     ["phase2Begun"] = p2 is not null,
                     ["phase2Closed"] = p2?.Closed ?? false,

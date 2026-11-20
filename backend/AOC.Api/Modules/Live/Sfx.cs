@@ -1,6 +1,8 @@
 using System.Text.Json;
 using AOC.Api.Realtime;
 using AOC.Domain.Contracts;
+using AOC.Domain.Gameplay;
+using AOC.Domain.Gameplay.Turns;
 using AOC.Infrastructure.Media;
 
 namespace AOC.Api.Modules.Live;
@@ -59,8 +61,8 @@ public static class Sfx
             case LiveAction.VeDichDeclarePower declare:
                 return declare.PowerValue switch
                 {
-                    Power.STAR => "vd_ngoi_sao_hy_vong.mp3",
-                    Power.ASSIGN => "vd_chi_dinh_doi_khang.mp3",
+                    PowerKind.STAR => "vd_ngoi_sao_hy_vong.mp3",
+                    PowerKind.ASSIGN => "vd_chi_dinh_doi_khang.mp3",
                     _ => null
                 };
             case LiveAction.VeDichResolve resolveAnswer:
@@ -93,22 +95,24 @@ public static class Sfx
 
     private static string? VeDichClockFile(LiveAction action, JsonElement nextState)
     {
-        var open = LiveState.ParseVeDich(nextState).Open;
+        var state = LiveState.ParseVeDich(nextState);
+        var open = state.Open;
         if (open is null) return null;
 
-        var budget = open.Question.TimeLimit is int seconds ? $"vd_{seconds}s.mp3" : null;
+        var seconds = ClockSecondsOf(state, open);
+        var budget = seconds is null ? null : $"vd_{seconds.Value}s.mp3";
 
         if (action is LiveAction.VeDichCloseCurrentAnswer) return "vd_5s.mp3";
 
         if (action is LiveAction.VeDichStartClock)
         {
-            if (open.Stage != "buzz") return budget;
+            if (open.Step != "buzz") return budget;
             return open.Power is not null ? budget : "vd_5s.mp3";
         }
 
         if (action is LiveAction.VeDichReveal)
         {
-            return open.Stage == "buzz" && open.Power is not null && open.OpenedAt is null
+            return open.Step == "buzz" && open.Power is not null && open.OpenedAt is null
                 ? budget
                 : null;
         }
@@ -116,8 +120,15 @@ public static class Sfx
         return open.OpenedAt is not null ? budget : null;
     }
 
-    public static async Task BroadcastAsync(MatchHubRegistry hub, string matchId, string file)
+    private static int? ClockSecondsOf(VeDichState state, OpenQuestion open)
     {
+        if (open.Step == "buzz") return VeDichTurn.BuzzWindowSeconds(state);
+        return RoundRules.VeDichClockSeconds(state.Rules, open.Question.Value);
+    }
+
+    public static async Task BroadcastAsync(MatchHubRegistry hub, string matchId, string? file)
+    {
+        if (file is null) return;
         var url = UrlFor(file);
         if (url is null) return;
         await hub.BroadcastAsync(matchId, Protocol.Sfx(file, url), "console", "spectate");

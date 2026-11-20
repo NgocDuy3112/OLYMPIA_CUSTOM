@@ -157,4 +157,35 @@ public class MatchScoringTests
         Assert.Equal("a", results[0].UserId);
         Assert.Equal(0, results[0].TotalScore);
     }
+
+    [Fact]
+    public void DenseRanks_TieBreakSeparatesEqualTotals()
+    {
+        var ranks = MatchScoring.DenseRanks(
+            [("a", 100), ("b", 100), ("c", 90)],
+            new Dictionary<string, int> { ["a"] = 0, ["b"] = 10 });
+
+        Assert.Equal(1, ranks["b"]);
+        Assert.Equal(2, ranks["a"]);
+        Assert.Equal(3, ranks["c"]);
+    }
+
+    [Fact]
+    public void Build_TieBreakBreaksRankWithoutChangingTotals()
+    {
+        var results = MatchScoring.BuildMatchResults(new MatchScoring.MatchResultInput(
+            ["a", "b"],
+            [
+                new MatchScoring.AnswerForScoring("a", "giai-ma", 100),
+                new MatchScoring.AnswerForScoring("b", "giai-ma", 100)
+            ],
+            TieBreak: new Dictionary<string, int> { ["a"] = 10, ["b"] = 0 }));
+
+        var a = results.First(r => r.UserId == "a");
+        var b = results.First(r => r.UserId == "b");
+        Assert.Equal(100, a.TotalScore);
+        Assert.Equal(100, b.TotalScore);
+        Assert.Equal(1, a.Rank);
+        Assert.Equal(2, b.Rank);
+    }
 }

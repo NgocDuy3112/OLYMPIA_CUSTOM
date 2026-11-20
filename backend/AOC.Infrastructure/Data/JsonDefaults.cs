@@ -15,9 +15,8 @@ public enum MatchEventKind { PICK, BUZZ, POWER }
 
 public enum Visibility { PUBLIC, PRIVATE }
 
-public enum QuestionStatus { DRAFT, PENDING, PUBLISHED, ARCHIVED }
+public enum QuestionStatus { DRAFT, PUBLISHED, ARCHIVED }
 
-public enum PlayerGroup { A, B }
 
 public static class JsonDefaults
 {
