@@ -17,7 +17,10 @@ public static class LiveState
         return false;
     }
 
-    private static T Parse<T>(JsonElement raw, Action<JsonElement, List<string>> validate)
+    private static T Parse<T>(
+        JsonElement raw,
+        Action<JsonElement, List<string>> validate,
+        Func<JsonElement, T, T>? upgrade = null)
     {
         var details = new List<string>();
         if (IsWaitingMarker(raw))
@@ -35,7 +38,8 @@ public static class LiveState
 
         try
         {
-            return JsonSerializer.Deserialize<T>(raw, JsonApi.Options)!;
+            var state = JsonSerializer.Deserialize<T>(raw, JsonApi.Options)!;
+            return upgrade is null ? state : upgrade(raw, state);
         }
         catch (JsonException ex)
         {
@@ -51,38 +55,73 @@ public static class LiveState
     }
 
 
-    public static GiaiMaState ParseGiaiMa(JsonElement raw) => Parse<GiaiMaState>(raw, (obj, details) =>
-    {
-        StateGuard.RequireOneOf(obj, "step", ["hints", "ended"], details);
-        if (!obj.TryGetProperty("players", out var players) || players.ValueKind != JsonValueKind.Array)
+    public static GiaiMaState ParseGiaiMa(JsonElement raw)
+        => Parse<GiaiMaState>(raw, (obj, details) =>
         {
-            details.Add("players: expected array");
-        }
-        else
-        {
-            foreach (var p in players.EnumerateArray())
+            StateGuard.RequireOneOf(obj, "step", ["hints", "ended"], details);
+            if (!obj.TryGetProperty("players", out var players) || players.ValueKind != JsonValueKind.Array)
             {
-                StateGuard.RequireString(p, "id", details, "players[]");
-                StateGuard.RequireInteger(p, "hintsRevealed", details, "players[]");
-                StateGuard.RequireArray(p, "revealed", details, "players[]");
-                StateGuard.RequireBoolean(p, "keywordLocked", details, "players[]");
-                StateGuard.RequireInteger(p, "keywordPoints", details, "players[]");
-                StateGuard.RequireBoolean(p, "eliminated", details, "players[]");
+                details.Add("players: expected array");
             }
-        }
-        StateGuard.RequireArray(obj, "hintIds", details);
-        StateGuard.RequireArray(obj, "picked", details);
-        StateGuard.RequireNullableString(obj, "openHint", details);
-        StateGuard.RequireNullableString(obj, "openHintAt", details);
-        OptionalRevealedAnswer(obj, details);
-    });
+            else
+            {
+                foreach (var p in players.EnumerateArray())
+                {
+                    StateGuard.RequireString(p, "id", details, "players[]");
+                    StateGuard.RequireInteger(p, "hintsRevealed", details, "players[]");
+                    StateGuard.RequireArray(p, "revealed", details, "players[]");
+                    StateGuard.RequireBoolean(p, "keywordLocked", details, "players[]");
+                    StateGuard.RequireInteger(p, "keywordPoints", details, "players[]");
+                    StateGuard.RequireBoolean(p, "eliminated", details, "players[]");
+                }
+            }
+            StateGuard.RequireArray(obj, "hintIds", details);
+            StateGuard.RequireArray(obj, "picked", details);
+            StateGuard.RequireNullableString(obj, "openHint", details);
+            StateGuard.RequireOptionalString(obj, "openHintAt", details);
+            StateGuard.RequireOptionalBoolean(obj, "openHintLocked", details);
+            StateGuard.RequireOptionalString(obj, "keywordOpenedAt", details);
+            StateGuard.RequireOptionalString(obj, "keywordClosesAt", details);
+            OptionalRevealedAnswer(obj, details);
+        }, UpgradeGiaiMa);
+
+    private static GiaiMaState UpgradeGiaiMa(JsonElement raw, GiaiMaState state)
+    {
+        var next = state;
+        if (!raw.TryGetProperty("hintWindow", out _))
+            next = next with { HintWindow = HintWindowFrom(raw, state) };
+        if (!raw.TryGetProperty("keywordClosesAt", out _))
+            next = next with { KeywordClosesAt = KeywordClosesAtFrom(raw, state) };
+        return next;
+    }
+
+    private static AnswerWindow HintWindowFrom(JsonElement raw, GiaiMaState state)
+    {
+        var window = AnswerWindow.TypedEveryone(state.Rules.HintWindowS);
+        if (raw.TryGetProperty("openHintAt", out var at))
+            if (at.ValueKind == JsonValueKind.String)
+                window = window.OpenFor(at.GetString()!, state.Rules.HintWindowS);
+        if (raw.TryGetProperty("openHintLocked", out var locked))
+            if (locked.ValueKind == JsonValueKind.True && window.HasStarted)
+                window = window.Lock();
+        return window;
+    }
+
+    private static string? KeywordClosesAtFrom(JsonElement raw, GiaiMaState state)
+    {
+        if (!raw.TryGetProperty("keywordOpenedAt", out var opened)) return null;
+        if (opened.ValueKind != JsonValueKind.String) return null;
+        return DateTimeOffset.Parse(opened.GetString()!)
+            .AddSeconds(state.Rules.HintWindowS)
+            .UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+    }
 
 
     public static ButPhaState ParseButPha(JsonElement raw) => Parse<ButPhaState>(raw, (obj, details) =>
     {
         StateGuard.RequireArray(obj, "questionIds", details);
         StateGuard.RequireInteger(obj, "cursor", details);
-        StateGuard.RequireNullableString(obj, "questionOpenedAt", details);
+        StateGuard.RequireOptionalString(obj, "questionOpenedAt", details);
         if (!obj.TryGetProperty("answers", out var answers) || answers.ValueKind != JsonValueKind.Object)
         {
             details.Add("answers: expected object");
@@ -115,7 +154,17 @@ public static class LiveState
         }
         StateGuard.RequireBoolean(obj, "ended", details);
         OptionalRevealedAnswer(obj, details);
-    });
+    }, UpgradeButPha);
+
+    private static ButPhaState UpgradeButPha(JsonElement raw, ButPhaState state)
+    {
+        if (raw.TryGetProperty("window", out _)) return state;
+        var window = AnswerWindow.TypedEveryone(state.Rules.QuestionLimitS);
+        if (raw.TryGetProperty("questionOpenedAt", out var opened))
+            if (opened.ValueKind == JsonValueKind.String)
+                window = window.OpenFor(opened.GetString()!, state.Rules.QuestionLimitS);
+        return state with { Window = window };
+    }
 
 
     public static KhoiDongState ParseKhoiDong(JsonElement raw) => Parse<KhoiDongState>(raw, (obj, details) =>

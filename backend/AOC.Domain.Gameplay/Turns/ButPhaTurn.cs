@@ -16,8 +16,10 @@ public sealed record ButPhaState
     [JsonPropertyName("rules")] public RoundRules.ButPhaRules Rules { get; init; } = RuleBatches.ButPha;
     [JsonPropertyName("questionIds")] public List<string> QuestionIds { get; init; } = [];
     [JsonPropertyName("cursor")] public int Cursor { get; init; }
-    [JsonPropertyName("questionOpenedAt")] public string? QuestionOpenedAt { get; init; }
     [JsonPropertyName("questionRevealedAt")] public string? QuestionRevealedAt { get; init; }
+
+    [JsonPropertyName("window")]
+    public AnswerWindow Window { get; init; } = AnswerWindow.TypedEveryone(RuleBatches.ButPha.QuestionLimitS);
     [JsonPropertyName("answers")] public Dictionary<string, List<ButPhaAnswer>> Answers { get; init; } = new();
     [JsonPropertyName("points")] public Dictionary<string, Dictionary<string, int>> Points { get; init; } = new();
     [JsonPropertyName("ended")] public bool Ended { get; init; }
@@ -39,29 +41,30 @@ public static class ButPhaTurn
         var ids = questionIds.ToList();
         if (ids.Count != rules.QuestionCount)
             throw Err("VALIDATION", $"but-pha needs exactly {rules.QuestionCount} questions — got {ids.Count} assembled into this match");
-        return new ButPhaState { QuestionIds = ids, Rules = rules };
+        return new ButPhaState
+        {
+            QuestionIds = ids,
+            Rules = rules,
+            Window = AnswerWindow.TypedEveryone(rules.QuestionLimitS)
+        };
     }
 
     public static ButPhaState OpenCurrentQuestion(ButPhaState state, string openedAt)
     {
         if (state.Ended) throw Err("ENDED", "but-pha is over");
         if (state.QuestionRevealedAt is not null) throw Err("QUESTION_OPEN", "the question is already open");
-        return state with { QuestionRevealedAt = openedAt, QuestionOpenedAt = null };
+        return state with { QuestionRevealedAt = openedAt, Window = FreshWindow(state) };
     }
 
     public static ButPhaState StartClock(ButPhaState state, string nowIso)
     {
         if (state.Ended) throw Err("ENDED", "but-pha is over");
         if (state.QuestionRevealedAt is null) throw Err("QUESTION_NOT_REVEALED", "reveal the question first");
-        return state with { QuestionOpenedAt = nowIso };
+        return state with { Window = state.Window.OpenFor(nowIso, state.Rules.QuestionLimitS) };
     }
 
     public static double ElapsedSeconds(ButPhaState state, string nowIso)
-    {
-        if (state.QuestionOpenedAt is null) throw Err("QUESTION_NOT_OPEN", "no question is open");
-        return (DateTimeOffset.Parse(nowIso).ToUnixTimeMilliseconds()
-            - DateTimeOffset.Parse(state.QuestionOpenedAt).ToUnixTimeMilliseconds()) / 1000.0;
-    }
+        => state.Window.ElapsedMs(nowIso) / 1000.0;
 
     public static string? OpenQuestionId(ButPhaState state)
     {
@@ -79,7 +82,7 @@ public static class ButPhaTurn
         if (existing.Any(a => a.PlayerId == answer.PlayerId))
             throw Err("ALREADY_ANSWERED", "this player already answered this question");
 
-        var late = answer.AtS > state.Rules.QuestionLimitS || answer.AtS < 0;
+        var late = IsLate(state, answer.AtS);
         var effective = late ? answer with { Correct = false } : answer;
 
         var answers = new Dictionary<string, List<ButPhaAnswer>>(state.Answers)
@@ -114,8 +117,8 @@ public static class ButPhaTurn
         return state with
         {
             Cursor = cursor,
-            QuestionOpenedAt = null,
             QuestionRevealedAt = null,
+            Window = FreshWindow(state),
             Ended = cursor >= state.Rules.QuestionCount
         };
     }
@@ -137,7 +140,7 @@ public static class ButPhaTurn
 
         foreach (var result in ordered)
         {
-            var late = result.AtS > state.Rules.QuestionLimitS || result.AtS < 0;
+            var late = IsLate(state, result.AtS);
             var correct = result.Correct && !late;
             if (correct)
             {
@@ -158,7 +161,18 @@ public static class ButPhaTurn
     }
 
     public static ButPhaState EndButPha(ButPhaState state)
-        => state.Ended ? state : state with { Ended = true, QuestionOpenedAt = null, QuestionRevealedAt = null };
+        => state.Ended ? state : state with { Ended = true, QuestionRevealedAt = null, Window = FreshWindow(state) };
+
+    private static AnswerWindow FreshWindow(ButPhaState state)
+        => AnswerWindow.TypedEveryone(state.Rules.QuestionLimitS);
+
+    private static bool IsLate(ButPhaState state, double atS)
+    {
+        if (atS < 0) return true;
+        var limit = state.Window.Seconds
+            ?? throw Err("WINDOW_NOT_OPEN", "the answer window has no clock");
+        return atS > limit;
+    }
 
     public static int ButPhaTotal(ButPhaState state, string playerId)
         => state.Points.Values.Sum(byPlayer => byPlayer.GetValueOrDefault(playerId));

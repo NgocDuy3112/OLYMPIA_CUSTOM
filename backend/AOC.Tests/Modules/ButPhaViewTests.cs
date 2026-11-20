@@ -12,7 +12,9 @@ public class ButPhaViewTests
     {
         QuestionIds = ["bp-1", "bp-2", "bp-3", "bp-4"],
         QuestionRevealedAt = revealedAt,
-        QuestionOpenedAt = openedAt,
+        Window = openedAt is null
+            ? AnswerWindow.TypedEveryone(30)
+            : AnswerWindow.TypedEveryone(30).OpenFor(openedAt, 30),
     };
 
     private static Dictionary<string, object?> View(ButPhaState state) =>

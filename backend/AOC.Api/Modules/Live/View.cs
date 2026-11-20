@@ -113,10 +113,9 @@ public static class LiveView
     private static Dictionary<string, object?> GiaiMaView(ViewInput input, GiaiMaState state)
     {
         var player = state.Players.FirstOrDefault(p => p.Id == input.UserId);
-        var windowOpen = state.OpenHint is not null && state.OpenHintAt is not null
-            && GiaiMaTurn.IsWindowOpen(state, input.Now);
+        var windowOpen = state.HintWindow.IsOpen(input.Now);
         var open = new List<object?>();
-        var hintsLocked = state.OpenHintLocked;
+        var hintsLocked = state.HintWindow.Locked;
         var openHintContent = QuestionOf(input, state.OpenHint!);
         if (hintsLocked && !string.IsNullOrEmpty(input.UserId))
         {
@@ -130,7 +129,7 @@ public static class LiveView
             open.Add(new Dictionary<string, object?>
             {
                 ["questionId"] = state.OpenHint,
-                ["deadlineAt"] = windowOpen ? PlusSeconds(state.OpenHintAt!, 15) : null,
+                ["deadlineAt"] = windowOpen ? state.HintWindow.Deadline() : null,
                 ["question"] = openHintContent
             });
         }
@@ -185,8 +184,8 @@ public static class LiveView
             ["answerState"] = answerState
         };
 
-        var keywordDeadlineAt = GiaiMaTurn.IsKeywordWindowOpen(state, input.Now)
-            ? PlusSeconds(state.KeywordOpenedAt!, state.Rules.HintWindowS)
+        var keywordDeadlineAt = GiaiMaTurn.KeywordWindowRunning(state, input.Now)
+            ? state.KeywordClosesAt
             : null;
         var view = Base(input.MatchId, input.RoundId, input.Version,
             state.Step, open, RankTable(input.Table, input.TieBreak), me);
@@ -242,15 +241,10 @@ public static class LiveView
 
         if (questionId is not null && state.QuestionRevealedAt is not null)
         {
-            string? deadlineAt = null;
-            if (state.QuestionOpenedAt is not null)
-            {
-                deadlineAt = PlusSeconds(state.QuestionOpenedAt, state.Rules.QuestionLimitS);
-            }
             open.Add(new Dictionary<string, object?>
             {
                 ["questionId"] = questionId,
-                ["deadlineAt"] = deadlineAt,
+                ["deadlineAt"] = state.Window.Deadline(),
                 ["question"] = QuestionOf(input, questionId)
             });
         }
@@ -612,7 +606,7 @@ public static class LiveFacts
                     ["hintsPicked"] = state.Picked,
                     ["openHintId"] = state.OpenHint,
                     ["windowOpen"] = GiaiMaTurn.IsWindowOpen(state, now),
-                    ["hintsLocked"] = state.OpenHintLocked && state.OpenHint is not null,
+                    ["hintsLocked"] = state.HintWindow.Locked && state.OpenHint is not null,
                     ["players"] = state.Players.Select(p => (object)new Dictionary<string, object?>
                     {
                         ["id"] = p.Id,
@@ -673,7 +667,7 @@ public static class LiveFacts
                 {
                     ["questionId"] = ButPhaTurn.OpenQuestionId(state),
                     ["opened"] = state.QuestionRevealedAt is not null,
-                    ["clockStarted"] = state.QuestionOpenedAt is not null
+                    ["clockStarted"] = state.Window.OpenedAt is not null
                 };
             }
             default:

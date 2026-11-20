@@ -106,7 +106,7 @@ public class ButPhaResubmitTests
         {
             QuestionIds = questions.Select(q => q.Id).ToList(),
             QuestionRevealedAt = Iso(clockStartedAt),
-            QuestionOpenedAt = Iso(clockStartedAt)
+            Window = AnswerWindow.TypedEveryone(30).OpenFor(Iso(clockStartedAt), 30)
         }, JsonApi.Options);
 
         db.MatchLive.Add(new MatchLiveEntity

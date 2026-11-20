@@ -134,7 +134,7 @@ public class ButPhaTurnTests
     [Fact]
     public void Clock_FreshRoundHasNoClock()
     {
-        Assert.Null(ButPhaTurn.StartButPha(Ids, RuleBatches.ButPha).QuestionOpenedAt);
+        Assert.Null(ButPhaTurn.StartButPha(Ids, RuleBatches.ButPha).Window.OpenedAt);
     }
 
     [Fact]
@@ -142,11 +142,11 @@ public class ButPhaTurnTests
     {
         var open = ButPhaTurn.OpenCurrentQuestion(ButPhaTurn.StartButPha(Ids, RuleBatches.ButPha), Now);
         Assert.Equal(Now, open.QuestionRevealedAt);
-        Assert.Null(open.QuestionOpenedAt);
+        Assert.Null(open.Window.OpenedAt);
         Assert.Equal("QUESTION_OPEN", CodeOf(() => ButPhaTurn.OpenCurrentQuestion(open, Now)));
 
         var running = ButPhaTurn.StartClock(open, Now);
-        Assert.Equal(Now, running.QuestionOpenedAt);
+        Assert.Equal(Now, running.Window.OpenedAt);
         Assert.Equal("QUESTION_NOT_REVEALED", CodeOf(() => ButPhaTurn.StartClock(
             ButPhaTurn.StartButPha(Ids, RuleBatches.ButPha), Now)));
     }
@@ -155,7 +155,7 @@ public class ButPhaTurnTests
     public void Clock_ElapsedMeasuredFromStartClock()
     {
         var open = ButPhaTurn.OpenCurrentQuestion(ButPhaTurn.StartButPha(Ids, RuleBatches.ButPha), Now);
-        Assert.Equal("QUESTION_NOT_OPEN", CodeOf(() => ButPhaTurn.ElapsedSeconds(open, Now)));
+        Assert.Equal("WINDOW_NOT_OPEN", CodeOf(() => ButPhaTurn.ElapsedSeconds(open, Now)));
 
         var running = ButPhaTurn.StartClock(open, Now);
         Assert.Equal(0, ButPhaTurn.ElapsedSeconds(running, Now));
@@ -167,7 +167,7 @@ public class ButPhaTurnTests
     [Fact]
     public void Clock_ElapsedBeforeOpenIsAnError()
     {
-        Assert.Equal("QUESTION_NOT_OPEN", CodeOf(() =>
+        Assert.Equal("WINDOW_NOT_OPEN", CodeOf(() =>
             ButPhaTurn.ElapsedSeconds(ButPhaTurn.StartButPha(Ids, RuleBatches.ButPha), Now)));
     }
 
@@ -175,7 +175,7 @@ public class ButPhaTurnTests
     public void Clock_ClosingClearsIt()
     {
         var open = ButPhaTurn.OpenCurrentQuestion(ButPhaTurn.StartButPha(Ids, RuleBatches.ButPha), Now);
-        Assert.Null(ButPhaTurn.CloseQuestion(open).QuestionOpenedAt);
+        Assert.Null(ButPhaTurn.CloseQuestion(open).Window.OpenedAt);
     }
 
     [Fact]

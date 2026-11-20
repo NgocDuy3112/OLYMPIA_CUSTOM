@@ -319,7 +319,7 @@ public class GiaiMaTurnTests
         var s = GiaiMaTurn.PickHint(GiaiMaTurn.StartGiaiMa(["a"], H), "h1");
 
         Assert.Equal("h1", s.OpenHint);
-        Assert.Null(s.OpenHintAt);
+        Assert.False(s.HintWindow.HasStarted);
         Assert.False(GiaiMaTurn.IsWindowOpen(s, Now));
         Assert.False(GiaiMaTurn.CanPlayerAnswer(s, "a", Now));
     }
@@ -364,7 +364,46 @@ public class GiaiMaTurnTests
     {
         var s = GiaiMaTurn.CloseHintWindow(OpenHint(GiaiMaTurn.StartGiaiMa(["a"], H), "h1", Now));
         Assert.Null(s.OpenHint);
-        Assert.Null(s.OpenHintAt);
+        Assert.False(s.HintWindow.HasStarted);
         Assert.Contains("h1", GiaiMaTurn.RemainingHints(s));
+    }
+
+    [Fact]
+    public void KeywordWindow_OpenByDefaultBeforeTheCountdown()
+    {
+        var s = GiaiMaTurn.StartGiaiMa(["a"], H);
+        Assert.True(GiaiMaTurn.KeywordWindowOpen(s, Now));
+        Assert.False(GiaiMaTurn.KeywordWindowRunning(s, Now));
+    }
+
+    [Fact]
+    public void KeywordWindow_CountdownClosesHintsWhileItRunsAndEverythingAfterIt()
+    {
+        var s = OpenHint(GiaiMaTurn.StartGiaiMa(["a"], H), "h1", Now);
+        s = GiaiMaTurn.StartKeywordCountdown(s, At(10));
+
+        Assert.True(GiaiMaTurn.KeywordWindowRunning(s, At(12)));
+        Assert.True(GiaiMaTurn.KeywordWindowOpen(s, At(12)));
+        Assert.False(GiaiMaTurn.IsWindowOpen(s, At(12)));
+        Assert.False(GiaiMaTurn.CanPlayerAnswer(s, "a", At(12)));
+
+        Assert.False(GiaiMaTurn.KeywordWindowOpen(s, At(26)));
+        Assert.False(GiaiMaTurn.IsWindowOpen(s, At(26)));
+    }
+
+    [Fact]
+    public void KeywordWindow_CountdownStartsOnlyOnce()
+    {
+        var s = GiaiMaTurn.StartKeywordCountdown(GiaiMaTurn.StartGiaiMa(["a"], H), Now);
+        Assert.Equal("WINDOW_OPEN", CodeOf(() => GiaiMaTurn.StartKeywordCountdown(s, At(20))));
+        Assert.Equal("WINDOW_OPEN", CodeOf(() => GiaiMaTurn.StartKeywordCountdown(s, At(40))));
+    }
+
+    [Fact]
+    public void StartWindow_IsRefusedWhileTheKeywordCountdownRuns()
+    {
+        var s = OpenHint(GiaiMaTurn.StartGiaiMa(["a"], H), "h1", Now);
+        s = GiaiMaTurn.StartKeywordCountdown(s, At(10));
+        Assert.Equal("WINDOW_OPEN", CodeOf(() => GiaiMaTurn.StartWindow(s, At(16))));
     }
 }

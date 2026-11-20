@@ -32,7 +32,7 @@ public static class GiaiMaApplier
             }
 
             case LiveAction.GiaiMaStartKeywordWindow:
-                return (GiaiMaTurn.StartKeywordWindow(state, ctx.Now), []);
+                return (GiaiMaTurn.StartKeywordCountdown(state, ctx.Now), []);
 
             case LiveAction.GiaiMaLockHints:
             {

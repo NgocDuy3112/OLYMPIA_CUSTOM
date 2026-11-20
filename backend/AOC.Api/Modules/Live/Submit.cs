@@ -104,13 +104,7 @@ public sealed class SubmitService(
                 var question = loaded.Match.QuestionsList.FirstOrDefault(q => q.Id == ctx.QuestionId.ToString())
                     ?? throw new SubmitError(400, "NOT_IN_MATCH", "question is not part of this match");
                 var suggestion = Suggestion(question, value);
-                int? answeredMs = null;
-                if (state.OpenHintAt is not null)
-                {
-                    answeredMs = Math.Max(0,
-                        (int)(DateTimeOffset.Parse(loaded.Now).ToUnixTimeMilliseconds()
-                            - DateTimeOffset.Parse(state.OpenHintAt!).ToUnixTimeMilliseconds()));
-                }
+                var answeredMs = state.HintWindow.ElapsedMs(loaded.Now);
                 await drafts.WriteDraftAsync(ctx.MatchId, ctx.QuestionId, ctx.UserId,
                     ctx.Value, suggestion, answeredMs: answeredMs);
                 await DraftAuditAsync(ctx, loaded.Live.RoundId, suggestion);
@@ -128,18 +122,12 @@ public sealed class SubmitService(
                 if (openId is null) throw new SubmitError(409, "NO_QUESTION", "no question is open");
                 if (openId != ctx.QuestionId.ToString())
                     throw new SubmitError(409, "NOT_OPEN", "that question is not open");
-
-                double atS;
-                try
-                {
-                    atS = ButPhaTurn.ElapsedSeconds(state, loaded.Now);
-                }
-                catch (RuleError)
-                {
+                if (state.Window.OpenedAt is null)
                     throw new SubmitError(409, "NO_CLOCK", "the question's clock has not started");
-                }
-                if (atS > state.Rules.QuestionLimitS)
+                if (!state.Window.IsOpen(loaded.Now))
                     throw new SubmitError(409, "WINDOW_CLOSED", "the answer window has closed");
+
+                var atS = ButPhaTurn.ElapsedSeconds(state, loaded.Now);
 
                 var question = loaded.Match.QuestionsList.FirstOrDefault(q => q.Id == ctx.QuestionId.ToString())
                     ?? throw new SubmitError(400, "NOT_IN_MATCH", "question is not part of this match");
@@ -260,9 +248,9 @@ public sealed class SubmitService(
             var state = LiveState.ParseGiaiMa(current.State);
             if (state.Players.FirstOrDefault(p => p.Id == ctx.UserId.ToString())?.KeywordLocked == true)
                 throw new RuleError("ALREADY_SUBMITTED", "you already submitted a keyword");
-            if (!GiaiMaTurn.IsKeywordWindowOpen(state, loaded.Now))
+            if (!GiaiMaTurn.KeywordWindowOpen(state, loaded.Now))
                 throw new RuleError("NO_WINDOW",
-                    "the keyword window is not open — wait for Đếm giờ từ khoá");
+                    "the keyword window has closed — the countdown ran out");
 
             var (nextState, facts) = GiaiMaApplier.Apply(state,
                 new LiveAction.GiaiMaSubmitKeyword(

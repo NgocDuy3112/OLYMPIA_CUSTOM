@@ -45,5 +45,7 @@ public class ButPhaStateParseTests
         Assert.Equal(0, parsed.Cursor);
         Assert.Equal(60, parsed.Points["83ada138-859b-47a1-adf7-a672881d9466"]["01a1eccc-999e-767e-8d9c-c2d6d13e2359"]);
         Assert.Equal("83ada138-859b-47a1-adf7-a672881d9466", parsed.QuestionIds[0]);
+        Assert.Equal("2026-11-18T07:40:17.170Z", parsed.Window.OpenedAt);
+        Assert.Equal(30, parsed.Window.Seconds);
     }
 }

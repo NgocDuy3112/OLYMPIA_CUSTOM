@@ -22,9 +22,13 @@ public sealed record GiaiMaState
     [JsonPropertyName("hintIds")] public List<string> HintIds { get; init; } = [];
     [JsonPropertyName("picked")] public List<string> Picked { get; init; } = [];
     [JsonPropertyName("openHint")] public string? OpenHint { get; init; }
-    [JsonPropertyName("openHintAt")] public string? OpenHintAt { get; init; }
-    [JsonPropertyName("keywordOpenedAt")] public string? KeywordOpenedAt { get; init; }
-    [JsonPropertyName("openHintLocked")] public bool OpenHintLocked { get; init; }
+
+    [JsonPropertyName("hintWindow")]
+    public AnswerWindow HintWindow { get; init; } = AnswerWindow.TypedEveryone(RuleBatches.GiaiMa.HintWindowS);
+
+    [JsonPropertyName("keywordClosesAt")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? KeywordClosesAt { get; init; }
 
     [JsonPropertyName("revealedAnswer")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -45,7 +49,8 @@ public static class GiaiMaTurn
         {
             Rules = rules,
             Players = playerIds.Select(id => new GiaiMaPlayer { Id = id }).ToList(),
-            HintIds = [.. hintIds]
+            HintIds = [.. hintIds],
+            HintWindow = AnswerWindow.TypedEveryone(rules.HintWindowS)
         };
     }
 
@@ -77,7 +82,7 @@ public static class GiaiMaTurn
         if (state.OpenHint is not null) throw Err("WINDOW_OPEN", $"hint {state.OpenHint} is already open");
         if (!RemainingHints(state).Contains(hintId))
             throw Err("HINT_CONSUMED", $"hint {hintId} is not available");
-        return state with { OpenHint = hintId, OpenHintAt = null };
+        return state with { OpenHint = hintId, HintWindow = FreshHintWindow(state) };
     }
 
     public static GiaiMaState StartWindow(GiaiMaState state, string nowIso)
@@ -85,47 +90,62 @@ public static class GiaiMaTurn
         if (state.Step != "hints") throw Err("WRONG_STAGE", "hints are over");
         if (state.OpenHint is null)
             throw Err("NO_OPEN_HINT", "no hint is open — pick a hint first");
-        if (IsWindowOpen(state, nowIso))
+        if (state.HintWindow.IsOpen(nowIso))
             throw Err("WINDOW_OPEN", "the answer window is already running");
-        return state with { OpenHintAt = nowIso };
+        if (KeywordWindowRunning(state, nowIso))
+            throw Err("WINDOW_OPEN", "the keyword countdown is running");
+        return state with
+        {
+            HintWindow = FreshHintWindow(state).OpenFor(nowIso, state.Rules.HintWindowS)
+        };
     }
 
-    public static bool IsKeywordWindowOpen(GiaiMaState state, string nowIso)
+    public static bool KeywordWindowRunning(GiaiMaState state, string nowIso)
     {
-        if (state.KeywordOpenedAt is null) return false;
-        var elapsed = DateTimeOffset.Parse(nowIso).ToUnixTimeMilliseconds()
-            - DateTimeOffset.Parse(state.KeywordOpenedAt).ToUnixTimeMilliseconds();
-        return elapsed >= 0 && elapsed <= state.Rules.HintWindowS * 1000;
+        if (state.KeywordClosesAt is null) return false;
+        return DateTimeOffset.Parse(nowIso) <= DateTimeOffset.Parse(state.KeywordClosesAt);
     }
 
-    public static GiaiMaState StartKeywordWindow(GiaiMaState state, string nowIso)
+    public static bool KeywordWindowOpen(GiaiMaState state, string nowIso)
+    {
+        if (state.KeywordClosesAt is null) return true;
+        return KeywordWindowRunning(state, nowIso);
+    }
+
+    public static GiaiMaState StartKeywordCountdown(GiaiMaState state, string nowIso)
     {
         if (state.Step != "hints") throw Err("WRONG_STAGE", "hints are over");
-        if (IsKeywordWindowOpen(state, nowIso))
-            throw Err("WINDOW_OPEN", "the keyword window is already running");
-        return state with { KeywordOpenedAt = nowIso };
+        if (state.KeywordClosesAt is not null)
+            throw Err("WINDOW_OPEN", "the keyword countdown has already run");
+        return state with
+        {
+            KeywordClosesAt = DateTimeOffset.Parse(nowIso)
+                .AddSeconds(state.Rules.HintWindowS)
+                .UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+        };
     }
 
     public static bool IsWindowOpen(GiaiMaState state, string nowIso)
     {
-        if (state.OpenHint is null || state.OpenHintAt is null) return false;
-        var elapsed = DateTimeOffset.Parse(nowIso).ToUnixTimeMilliseconds()
-            - DateTimeOffset.Parse(state.OpenHintAt).ToUnixTimeMilliseconds();
-        return elapsed >= 0 && elapsed <= state.Rules.HintWindowS * 1000;
+        if (!state.HintWindow.IsOpen(nowIso)) return false;
+        if (KeywordWindowRunning(state, nowIso)) return false;
+        return true;
     }
 
     public static bool CanPlayerAnswer(GiaiMaState state, string playerId, string nowIso)
     {
-        if (IsKeywordWindowOpen(state, nowIso)) return false;
         if (!IsWindowOpen(state, nowIso)) return false;
         var player = state.Players.FirstOrDefault(p => p.Id == playerId);
-        return player is not null && !player.KeywordLocked && !player.Eliminated;
+        if (player is null) return false;
+        if (player.KeywordLocked) return false;
+        if (player.Eliminated) return false;
+        return true;
     }
 
     public static GiaiMaState CloseHintWindow(GiaiMaState state)
     {
         if (state.OpenHint is null) throw Err("NO_OPEN_HINT", "no hint window is open");
-        return state with { OpenHint = null, OpenHintAt = null, OpenHintLocked = false };
+        return state with { OpenHint = null, HintWindow = FreshHintWindow(state) };
     }
 
     public static GiaiMaState ResolveOpenHint(GiaiMaState state, IReadOnlyDictionary<string, bool> answers)
@@ -145,7 +165,7 @@ public static class GiaiMaTurn
         }).ToList();
 
         var picked = new List<string>(state.Picked) { hint };
-        var next = state with { Players = players, Picked = picked, OpenHint = null, OpenHintAt = null, OpenHintLocked = false };
+        var next = state with { Players = players, Picked = picked, OpenHint = null, HintWindow = FreshHintWindow(state) };
         return RemainingHints(next).Count == 0 ? next with { Step = "ended" } : next;
     }
 
@@ -185,4 +205,7 @@ public static class GiaiMaTurn
 
     public static GiaiMaState EndGiaiMa(GiaiMaState state)
         => state.Step == "ended" ? state : state with { Step = "ended" };
+
+    private static AnswerWindow FreshHintWindow(GiaiMaState state)
+        => AnswerWindow.TypedEveryone(state.Rules.HintWindowS);
 }
