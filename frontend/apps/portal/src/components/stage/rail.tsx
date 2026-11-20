@@ -3,6 +3,7 @@ import type { RemoteVideoTrack } from "livekit-client"
 import { RailAnswerLine } from "@shared/deck/rail-answer"
 import { initialsOf, pt } from "@shared/deck/geometry"
 import { railCardClass, railCardState, railScoreClass } from "@shared/deck/rail-card"
+import { TurnIcon } from "@shared/deck/stage"
 
 export interface CardData {
     id: string
@@ -11,7 +12,8 @@ export interface CardData {
     answer?: string        
     answeredMs?: number | null
     value?: string         
-    badge?: { text: string; tone: "primary" | "amber" | "emerald" }  
+    badge?: { text: string; tone: "primary" | "amber" | "emerald" }
+    icon?: "star" | "swords"
     ring?: "selected" | "active"
     dimmed?: boolean       
     video?: RemoteVideoTrack | null
@@ -49,9 +51,11 @@ function CardVideo({ track }: { track: RemoteVideoTrack }) {
     return <span ref={holder} className="absolute inset-0 overflow-hidden rounded-lg" aria-hidden />
 }
 
-export function Rail({ cards, onSelect, onScoreClick }: { cards: CardData[]; onSelect?: (id: string) => void; onScoreClick?: (id: string) => void }) {
+export function Rail({ cards, onSelect, onScoreClick, selectHint }: { cards: CardData[]; onSelect?: (id: string) => void; onScoreClick?: (id: string) => void; selectHint?: boolean }) {
     let Interactive: "button" | "div" = "div"
     if (onSelect) Interactive = "button"
+    let hintTitle: string | undefined = undefined
+    if (selectHint) hintTitle = "Bấm thẻ để chỉ định thí sinh"
     const scoreSize = 34
     return (
         <>
@@ -64,13 +68,17 @@ export function Rail({ cards, onSelect, onScoreClick }: { cards: CardData[]; onS
                 if (c.badge) {
                     badgeNode = <span className={badgePill(c.badge.tone)} style={{ fontSize: pt(9) }}>{c.badge.text}</span>
                 }
+                let iconNode: ReactNode = null
+                if (c.icon) iconNode = <TurnIcon kind={c.icon} />
                 const hasAnswer = typeof c.answer === "string" && c.answer !== "" && c.answer !== "—"
                 let showStatus = hasAnswer
                 if (c.badge) showStatus = true
+                if (c.icon) showStatus = true
                 let statusLine: ReactNode = null
                 if (showStatus) {
                     statusLine = (
                         <div className="flex min-w-0 flex-col items-center justify-center gap-[0.2cqw] font-sans leading-none text-foreground/85">
+                            {iconNode}
                             <RailAnswerLine answer={c.answer} answeredMs={c.answeredMs ?? null} />
                             {!c.badge && typeof c.value === "string" && c.value !== "" && c.value !== "—" && (
                                 <span className={`font-semibold tabular-nums ${railScoreClass(state)}`} style={{ fontSize: pt(12) }}>
@@ -95,11 +103,17 @@ export function Rail({ cards, onSelect, onScoreClick }: { cards: CardData[]; onS
                     hoverCls = "cursor-pointer hover:ring-sky-400 active:ring-sky-600"
                     if (c.ring === "selected") hoverCls = "cursor-pointer"
                 }
+                let ringCls = cardRing(c.ring)
+                if (selectHint) {
+                    hoverCls = "cursor-pointer hover:ring-emerald-400 active:ring-emerald-600"
+                    ringCls = "ring-2 ring-emerald-400"
+                }
                 return (
                 <Interactive
                     key={c.id}
                     {...(interactiveProps ?? {})}
-                    className={`flex ${cardHeight} w-full shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl p-[0.9cqw] text-left shadow-sm ${railCardClass(state)} ${hoverCls} ${cardRing(c.ring)}`}
+                    title={hintTitle}
+                    className={`flex ${cardHeight} w-full shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl p-[0.9cqw] text-left shadow-sm ${railCardClass(state)} ${hoverCls} ${ringCls}`}
                 >
                     <div className="flex min-h-0 flex-1 gap-[0.7cqw]">
                         <div className="relative w-[52%] shrink-0">

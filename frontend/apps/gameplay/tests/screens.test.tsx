@@ -18,7 +18,6 @@ const question = (id: string, kind: "CHOICE" | "TEXT" | "KEYWORD" = "TEXT") => (
     position: 1,
     questionText: `Câu hỏi ${id}`,
     media: null,
-    timeLimit: 30,
     payload: kind === "CHOICE" ? { options: [{ id: "a", text: "A" }, { id: "b", text: "B" }] } : {},
 })
 
@@ -86,7 +85,6 @@ const openQ = {
         position: 1,
         questionText: "Câu hỏi mở",
         media: null,
-        timeLimit: 30,
         payload: { options: [{ id: "a", text: "A" }, { id: "b", text: "B" }] },
     },
 }

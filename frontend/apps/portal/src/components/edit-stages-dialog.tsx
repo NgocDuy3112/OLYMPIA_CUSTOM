@@ -6,12 +6,11 @@ import {
 import { Input } from "@shared/ui/input"
 import { useUpdateTournament, type TournamentDetail } from "@/lib/tournament"
 import { slugify } from "@/lib/slug"
-import { STAGE_ROLES, type Stage, type StageRole } from "@/lib/tournaments"
+import { type Stage } from "@/lib/tournaments"
 
 interface StageDraft {
     id: string
     title: string
-    role: StageRole | ""
     start: string
     end: string
 }
@@ -25,7 +24,6 @@ function toDraft(stage: Stage): StageDraft {
     return {
         id: stage.id,
         title: stage.title,
-        role: stage.role ?? "",
         start,
         end,
     }
@@ -65,7 +63,7 @@ export function EditStagesDialog({
         })
 
     const add = () =>
-        setDraft((current) => [...current, { id: "", title: "", role: "", start: "", end: "" }])
+        setDraft((current) => [...current, { id: "", title: "", start: "", end: "" }])
 
     const remove = (index: number) =>
         setDraft((current) => current.filter((_, i) => i !== index))
@@ -81,7 +79,6 @@ export function EditStagesDialog({
                 return {
                     id: stage.id.trim(),
                     title: stage.title.trim(),
-                    role: stage.role || undefined,
                     start,
                     end,
                 }
@@ -140,24 +137,6 @@ export function EditStagesDialog({
                                         placeholder="playoff"
                                         onChange={(event) => patch(index, { id: event.target.value })}
                                     />
-                                </label>
-
-                                <label className="flex flex-col gap-1">
-                                    <span className="text-xs text-muted-foreground">Rule</span>
-                                    <select
-                                        className="h-8 rounded-lg border border-input bg-transparent px-2 text-sm"
-                                        value={stage.role}
-                                        onChange={(event) =>
-                                            patch(index, { role: event.target.value as StageRole | "" })
-                                        }
-                                    >
-                                        <option value="">none — not checked</option>
-                                        {STAGE_ROLES.map((role) => (
-                                            <option key={role.value} value={role.value}>
-                                                {role.label}
-                                            </option>
-                                        ))}
-                                    </select>
                                 </label>
 
                                 <label className="flex flex-col gap-1">

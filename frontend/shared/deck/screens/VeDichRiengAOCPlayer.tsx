@@ -64,7 +64,7 @@ export function VeDichRiengAOCPlayer({ ctx }: { ctx: VeDichRiengPlayerCtx }) {
             <QuestionCard
                 round="Về đích"
                 mode="Lượt cá nhân"
-                mid={<VeDichStripCells cells={stripCellsOf(v.board)} phase2 />}
+                mid={<VeDichStripCells cells={stripCellsOf(v.board)} />}
                 right={<Timer remaining={timerRemaining} />}
                 question={openQ.question?.questionText ?? null}
                 media={openQ.question?.media ?? null}

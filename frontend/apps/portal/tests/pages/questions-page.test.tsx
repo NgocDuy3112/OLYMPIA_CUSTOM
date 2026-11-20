@@ -14,7 +14,6 @@ const draftRow = {
     kind: "TEXT",
     questionText: "Sự kiện nào diễn ra vào cuối tháng 4 năm 1975?",
     status: "DRAFT",
-    timeLimit: null,
     payload: {
         acceptedAnswers: ["Giải phóng miền Nam"],
     },
@@ -28,13 +27,13 @@ function stubBank() {
         "GET /portal/auth/me": {
             body: { id: "u1", username: "ada", displayName: "Ada", role: "ADMIN", emailVerified: true, totpEnabled: true, avatarUrl: null },
         },
-        "GET /portal/questions?limit=500&bucket=khoi-dong": list([draftRow]),
+        "GET /portal/questions?limit=25&offset=0&bucket=khoi-dong": list([draftRow]),
         "GET /portal/questions/bucket-counts": { body: {} },
         "POST /portal/questions/media": {
             body: { url: "https://cdn.example/anh.png", type: "image" },
         },
         "POST /portal/questions": { body: { id: "q2" } },
-        "PATCH /portal/questions/q1/status": { body: { ...draftRow, status: "PENDING" } },
+        "PATCH /portal/questions/q1/status": { body: { ...draftRow, status: "PUBLISHED" } },
     })
 }
 
@@ -47,10 +46,10 @@ describe("QuestionsPage", () => {
         const row = screen.getByText(draftRow.questionText).closest("tr")!
         expect(within(row).getByText("TEXT")).toBeInTheDocument()
         expect(within(row).getByText("Draft")).toBeInTheDocument()
-        expect(within(row).getByRole("button", { name: /Submit/ })).toBeInTheDocument()
+        expect(within(row).getByRole("button", { name: /Publish/ })).toBeInTheDocument()
         expect(within(row).getByRole("button", { name: /Archive/ })).toBeInTheDocument()
         expect(within(row).getByRole("button", { name: /Edit/ })).toBeInTheDocument()
-        expect(screen.queryByRole("button", { name: /Publish/ })).toBeNull() 
+        expect(screen.queryByRole("button", { name: /Submit/ })).toBeNull() 
     })
 
     it("creates a TEXT question: dialog draft becomes the POST payload", async () => {
@@ -77,7 +76,6 @@ describe("QuestionsPage", () => {
             media: null,
             questionText: "Thủ đô của Việt Nam là?",
             payload: {
-                type: "TEXT",
                 acceptedAnswers: ["Hà Nội", "Ha Noi"],
             },
             tags: ["khoi-dong:chung"],
@@ -133,18 +131,18 @@ describe("QuestionsPage", () => {
         expect(within(dialog).getByText("Pick the round group this question lives in.")).toBeInTheDocument()
     })
 
-    it("moves a draft on with Submit → PATCH status", async () => {
+    it("publishes a draft with Publish → PATCH status", async () => {
         const user = userEvent.setup()
         const fetchMock = stubBank()
         renderWithProviders(<QuestionsPage />)
 
-        await user.click(await screen.findByRole("button", { name: /Submit/ }))
+        await user.click(await screen.findByRole("button", { name: /Publish/ }))
 
         const patch = fetchMock.mock.calls.find(
             ([url, init]) => url === "/portal/questions/q1/status" && init?.method === "PATCH"
         )
         expect(patch).toBeTruthy()
-        expect(JSON.parse(patch![1]?.body as string)).toEqual({ status: "PENDING" })
+        expect(JSON.parse(patch![1]?.body as string)).toEqual({ status: "PUBLISHED" })
         expect(await screen.findByText(draftRow.questionText)).toBeInTheDocument()
     })
 })

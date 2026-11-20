@@ -45,7 +45,7 @@ export function GroupsTab({ tournamentId }: { tournamentId: string }) {
                             <CardAction>
                                 <span className="text-sm text-muted-foreground">
                                     Tổng điểm nhóm{" "}
-                                    <b className="tabular-nums text-foreground">{block.teamPoints}</b>
+                                    <b className="tabular-nums text-foreground">{block.groupPoints}</b>
                                 </span>
                             </CardAction>
                         </CardHeader>

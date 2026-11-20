@@ -6,6 +6,7 @@ import type { LiveAction } from "@/lib/live-actions"
 import { formatDurationMs } from "@shared/lib/clock"
 
 import type { VeDichConsole } from "@/lib/live"
+import { stripCellsOf } from "@shared/deck/ve-dich-board"
 import type { ScreenCore } from "../types"
 
 export type VeDichRiengCtx = ScreenCore & {
@@ -22,14 +23,11 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
     const { v, remaining, baseCards, consoleVeDich, flash } = ctx
     const projection = v.projection
 
-    const openNow = projection.open[0]
+    const openNow = projection.open[0] ?? null
     const boardCells = projection.board ?? []
-    const openCell = openNow ? boardCells.find((c) => c.questionId === openNow.questionId) ?? null : null
-    const nextPendingId = consoleVeDich?.pendingQuestionId ?? null
-    const nextPendingCell = nextPendingId ? boardCells.find((c) => c.questionId === nextPendingId) ?? null : null
-    const stripCells = [openCell, nextPendingCell].filter((c): c is NonNullable<typeof c> => c !== null)
+    const stripCells = stripCellsOf(boardCells)
     const revealed = consoleVeDich?.revealed ?? false
-    const qid = openNow.questionId
+    const qid = openNow ? openNow.questionId : ""
     let needsVerdict = true
     if (consoleVeDich?.answererId) needsVerdict = ctx.verdictOf(qid, consoleVeDich.answererId) === null
     let buzzerMissing = false
@@ -42,28 +40,31 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
     let counting = false
     if (openNow?.deadlineAt && (remaining ?? 0) > 0) counting = true
 
-    const powerStorable = consoleVeDich?.phase === 2
-        && consoleVeDich?.openStage === "current"
-        && revealed === false
-        && counting === false
-        && consoleVeDich?.turnPowerUsed === false
-        && consoleVeDich?.turnPlayerId !== null
+    let powerStorable = true
+    if (consoleVeDich?.phase !== 2) powerStorable = false
+    if (openNow !== null) powerStorable = false
+    if (consoleVeDich?.turnPowerUsed !== false) powerStorable = false
+    if (consoleVeDich?.turnPlayerId === null) powerStorable = false
     const [assignArmed, setAssignArmed] = useState(false)
+    let armed = assignArmed
+    if (!powerStorable) armed = false
     const declarePower = (power: "STAR" | "ASSIGN", targetId?: string) => {
         const playerId = consoleVeDich?.turnPlayerId
         if (!playerId) return
         ctx.send({ kind: "ve-dich.declarePower", playerId, power, targetId })
         setAssignArmed(false)
     }
-    const stageStar: (() => void) | undefined = powerStorable
-        ? () => declarePower("STAR")
-        : undefined
-    const armAssign: (() => void) | undefined = powerStorable
-        ? () => setAssignArmed(true)
-        : undefined
+    let stageStar: (() => void) | undefined
+    if (powerStorable) stageStar = () => declarePower("STAR")
+    let toggleAssign: (() => void) | undefined
+    if (powerStorable) toggleAssign = () => setAssignArmed((was) => !was)
+    let starSpent = false
+    if (!powerStorable && consoleVeDich?.turnPowerUsed === true) starSpent = true
+    let starContent: string | undefined
+    if (starSpent) starContent = "đã chốt"
 
     const railSelect = (id: string) => {
-        if (assignArmed) {
+        if (armed) {
             declarePower("ASSIGN", id)
             return
         }
@@ -81,7 +82,21 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
 
     let closeCurrent: (() => void) | undefined = undefined
     if (consoleVeDich?.openStage === "current") {
-        if (!racing) closeCurrent = () => ctx.send({ kind: "ve-dich.closeCurrentAnswer" })
+        if (!racing) {
+            let clockDone = false
+            if (consoleVeDich.clockStarted) {
+                if (!counting) clockDone = true
+            }
+            if (clockDone) closeCurrent = () => ctx.send({ kind: "ve-dich.closeCurrentAnswer" })
+        }
+    }
+    let clearPicks: (() => void) | undefined = undefined
+    if (openNow === null) {
+        clearPicks = () => {
+            const playerId = consoleVeDich?.turnPlayerId
+            if (!playerId) return
+            ctx.send({ kind: "ve-dich.pickBatch", playerId, questionIds: [] })
+        }
     }
     let lockBuzz: (() => void) | undefined = undefined
     if (canLockBuzz) lockBuzz = () => ctx.send({ kind: "ve-dich.lockBuzz" })
@@ -93,24 +108,34 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
     if (openNow?.deadlineAt) timerRemaining = remaining
     else if (typeof openNow?.frozenRemainingMs === "number") timerRemaining = openNow.frozenRemainingMs
 
+    let canVerdict = false
+    if (openNow !== null) {
+        if (ctx.target !== null) canVerdict = true
+        if (ctx.selectedIds.size > 0) canVerdict = true
+    }
+
     return (
         <ConsoleStage
-            rail={<Rail cards={baseCards} onSelect={railSelect} onScoreClick={ctx.openRegrade} />}
+            rail={<Rail cards={baseCards} onSelect={railSelect} onScoreClick={ctx.openRegrade} selectHint={armed} />}
             actions={[
                 {
                     label: COPY.powerStar,
                     onClick: stageStar,
-                    content: !powerStorable && consoleVeDich?.turnPowerUsed === true ? "đã chốt" : undefined,
+                    content: starContent,
                     muted: !powerStorable,
                 },
                 {
                     label: COPY.powerAssign,
-                    onClick: armAssign,
-                    content: assignArmed ? "chọn thẻ để chỉ định" : undefined,
+                    onClick: toggleAssign,
                     muted: !powerStorable,
                 },
                 {
-                    label: COPY.startClock,
+                    label: "chọn thẻ để chỉ định",
+                    muted: true,
+                    empty: !armed,
+                },
+                {
+                    label: "Đếm giờ",
                     onClick: startClock,
                 },
                 {
@@ -124,12 +149,16 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
                 {
                     label: "Chuông",
                     content: buzzText,
-                    muted: true
+                    muted: true,
                 },
                 ...verdictActions({
-                    canVerdict: ctx.target !== null || ctx.selectedIds.size > 0,
+                    canVerdict,
                     onVerdict: ctx.setVerdict,
                 }),
+                {
+                    label: "Chọn lại",
+                    onClick: clearPicks,
+                },
                 { label: COPY.endTurn, onClick: endTurn },
                 backToLobbyAction(ctx.backToLobby),
             ]}
@@ -145,11 +174,12 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
                                 id: cell.questionId,
                                 label: String(cell.value),
                                 active: cell.where === "open",
-                                clickable: cell.where === "open" && !revealed,
+                                clickable: !revealed,
                             }))}
                             onSelect={(id: string) => {
                                 const actions: LiveAction[] = []
                                 if (openNow === null) {
+                                    setAssignArmed(false)
                                     actions.push({ kind: "ve-dich.openQuestion", questionId: id })
                                 } else if (id !== openNow.questionId) {
                                     actions.push({ kind: "ve-dich.switchQuestion", questionId: id })
@@ -161,8 +191,8 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
                         <Timer remaining={timerRemaining} />
                     </span>
                 }
-                question={openNow.question?.questionText ?? ""}
-                media={openNow.question?.media ?? null}
+                question={openNow?.question?.questionText ?? ""}
+                media={openNow?.question?.media ?? null}
             />
         </ConsoleStage>
     )

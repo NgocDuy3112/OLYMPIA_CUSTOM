@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Archive, Copy, Download, ExternalLink, EyeOff, FileText, Globe, Lightbulb, ListPlus, Pencil, Plus, Search, Send, Undo2, X } from "lucide-react"
+import { Archive, Copy, Download, ExternalLink, EyeOff, FileText, Globe, Lightbulb, ListPlus, Pencil, Plus, Search, X } from "lucide-react"
 import { cn } from "cn"
 import { ApiError, api } from "@shared/lib/api"
 import { Badge } from "@shared/ui/badge"
@@ -24,7 +24,7 @@ import { useTournaments } from "@/lib/tournaments"
 
 
 type Kind = "CHOICE" | "TEXT" | "KEYWORD" | "HINT"
-type Status = "DRAFT" | "PENDING" | "PUBLISHED" | "ARCHIVED"
+type Status = "DRAFT" | "PUBLISHED" | "ARCHIVED"
 
 interface BankQuestion {
     id: string
@@ -32,7 +32,6 @@ interface BankQuestion {
     questionText: string
     keywordId?: string | null
     status: Status
-    timeLimit: number | null
     tags?: string[]
     payload: Record<string, unknown>
     updatedAt: string
@@ -43,21 +42,19 @@ interface Paged {
     total: number
 }
 
-const WINDOW = 500
+const PAGE_SIZE = 25
 const HINT_MAX = 8
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" })
 
 
 const STATUS_LABEL: Record<Status, string> = {
     DRAFT: "Draft",
-    PENDING: "In review",
     PUBLISHED: "Published",
     ARCHIVED: "Archived",
 }
 
 function StatusBadge({ status }: { status: Status }) {
     let variant: "default" | "secondary" | "outline" = "outline"
-    if (status === "PENDING") variant = "secondary"
     if (status === "PUBLISHED") variant = "default"
     if (status === "ARCHIVED") {
         return <Badge variant="outline" className="line-through opacity-60">Archived</Badge>
@@ -67,25 +64,18 @@ function StatusBadge({ status }: { status: Status }) {
 
 const TRANSITIONS: Record<Status, Array<{ to: Status; label: string; adminOnly?: boolean }>> = {
     DRAFT: [
-        { to: "PENDING", label: "Submit" },
-        { to: "ARCHIVED", label: "Archive" },
-    ],
-    PENDING: [
         { to: "PUBLISHED", label: "Publish", adminOnly: true },
-        { to: "DRAFT", label: "Return" },
         { to: "ARCHIVED", label: "Archive" },
     ],
     PUBLISHED: [
-        { to: "PENDING", label: "Unpublish" },
+        { to: "DRAFT", label: "Unpublish" },
         { to: "ARCHIVED", label: "Archive" },
     ],
     ARCHIVED: [],
 }
 
 const TRANSITION_ICON: Record<string, typeof Pencil> = {
-    Submit: Send,
     Publish: Globe,
-    Return: Undo2,
     Unpublish: EyeOff,
     Archive: Archive,
 }
@@ -97,7 +87,6 @@ type TabId = "khoi-dong" | "giai-ma" | "but-pha" | "ve-dich"
 interface GroupDef {
     bucket: string | null
     label: string
-    typeLabel?: string
 }
 
 interface TabDef {
@@ -111,28 +100,28 @@ const TABS: TabDef[] = [
         id: "khoi-dong",
         label: "Khởi động",
         groups: [
-            { bucket: "khoi-dong:rieng", label: "Riêng", typeLabel: "ORAL" },
-            { bucket: "khoi-dong:chung", label: "Chung", typeLabel: "TEXT" },
+            { bucket: "khoi-dong:rieng", label: "Riêng" },
+            { bucket: "khoi-dong:chung", label: "Chung" },
         ],
     },
     {
         id: "giai-ma",
         label: "Giải mã",
-        groups: [{ bucket: "giai-ma", label: "Từ khóa", typeLabel: "KEYWORD" }],
+        groups: [{ bucket: "giai-ma", label: "Từ khóa" }],
     },
     {
         id: "but-pha",
         label: "Bứt phá",
-        groups: [{ bucket: "but-pha", label: "Bứt phá", typeLabel: "TEXT" }],
+        groups: [{ bucket: "but-pha", label: "Bứt phá" }],
     },
     {
         id: "ve-dich",
         label: "Về đích",
         groups: [
-            { bucket: "ve-dich:20", label: "20 điểm", typeLabel: "TEXT" },
-            { bucket: "ve-dich:30", label: "30 điểm", typeLabel: "TEXT" },
-            { bucket: "ve-dich:40", label: "40 điểm", typeLabel: "ORAL" },
-            { bucket: "ve-dich:50", label: "50 điểm", typeLabel: "ORAL" },
+            { bucket: "ve-dich:20", label: "20 điểm" },
+            { bucket: "ve-dich:30", label: "30 điểm" },
+            { bucket: "ve-dich:40", label: "40 điểm" },
+            { bucket: "ve-dich:50", label: "50 điểm" },
         ],
     },
 ]
@@ -158,11 +147,11 @@ function bucketOf(row: BankQuestion): string | null {
     return null
 }
 
-function typeOf(row: BankQuestion): string {
-    const declared = (row.payload as { type?: unknown }).type
-    if (typeof declared === "string" && declared.length > 0) return declared
-    if (row.kind === "HINT") return "TEXT"
-    return row.kind
+function shapeOf(row: BankQuestion): string {
+    const payload = row.payload as { options?: unknown; code?: unknown }
+    if (Array.isArray(payload.options)) return "CHOICE"
+    if (typeof payload.code === "string") return "KEYWORD"
+    return "TEXT"
 }
 
 function belongsToTab(bucket: string | null, tab: TabId): boolean {
@@ -170,16 +159,17 @@ function belongsToTab(bucket: string | null, tab: TabId): boolean {
     return bucket === tab || bucket.startsWith(`${tab}:`)
 }
 
-const STATUSES: Status[] = ["DRAFT", "PENDING", "PUBLISHED", "ARCHIVED"]
+const STATUSES: Status[] = ["DRAFT", "PUBLISHED", "ARCHIVED"]
 
 interface UrlState {
     tab: TabId
     status: Status | "ALL"
     search: string
+    page: number
 }
 
 function readUrlState(): UrlState {
-    const fallback: UrlState = { tab: "khoi-dong", status: "ALL", search: "" }
+    const fallback: UrlState = { tab: "khoi-dong", status: "ALL", search: "", page: 1 }
     if (typeof window === "undefined") return fallback
     const params = new URLSearchParams(window.location.search)
     const tab = params.get("tab") ?? params.get("kind") ?? "khoi-dong"
@@ -189,18 +179,52 @@ function readUrlState(): UrlState {
     if ((TABS as TabDef[]).some((entry) => entry.id === tab)) mapped = tab as TabId
     let initialStatus: Status | "ALL" = "ALL"
     if ((STATUSES as string[]).includes(status)) initialStatus = status as Status
+    let page = Number(params.get("page") ?? "1")
+    if (!Number.isInteger(page)) page = 1
+    if (page < 1) page = 1
     return {
         tab: mapped,
         status: initialStatus,
         search: params.get("search") ?? "",
+        page,
     }
 }
 
 function listParams(state: UrlState): URLSearchParams {
-    const params = new URLSearchParams({ limit: String(WINDOW), bucket: state.tab })
+    const params = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        offset: String((state.page - 1) * PAGE_SIZE),
+        bucket: state.tab,
+    })
     if (state.status !== "ALL") params.set("status", state.status)
     if (state.search) params.set("search", state.search)
     return params
+}
+
+
+function Pagination({ total, page, busy, onChange }: {
+    total: number
+    page: number
+    busy: boolean
+    onChange: (page: number) => void
+}) {
+    const pages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+    if (pages <= 1) return null
+    const atStart = page <= 1
+    const atEnd = page >= pages
+    return (
+        <div className="flex items-center justify-end gap-2">
+            <p className="text-xs text-muted-foreground">
+                Trang {page} / {pages} · {total} câu
+            </p>
+            <Button variant="outline" size="sm" disabled={atStart || busy} onClick={() => onChange(page - 1)}>
+                Trước
+            </Button>
+            <Button variant="outline" size="sm" disabled={atEnd || busy} onClick={() => onChange(page + 1)}>
+                Sau
+            </Button>
+        </div>
+    )
 }
 
 
@@ -537,7 +561,7 @@ function QuestionTable({
                                     )}
                                 </TableCell>
                                 {showKind && (
-                                    <TableCell><Badge variant="outline">{typeOf(row)}</Badge></TableCell>
+                                    <TableCell><Badge variant="outline">{shapeOf(row)}</Badge></TableCell>
                                 )}
                                 <TableCell><StatusBadge status={row.status} /></TableCell>
                                 <TableCell className="text-sm text-muted-foreground">
@@ -745,8 +769,7 @@ function KeywordSetCard({
                     <ol className="grid gap-1.5">
                         {shown.map((hint, index) => {
                             const answer = answerSummary(hint)
-                            let limitText = "no limit"
-                            if (hint.timeLimit != null) limitText = `${hint.timeLimit}s`
+                            const limitText = "no limit"
                             let hintAnswerCls = "text-muted-foreground"
                             if (answer) {
                                 if (answer.includes("⚠")) hintAnswerCls = "text-destructive"
@@ -865,8 +888,6 @@ function InspectorDrawer({ row, onClose }: { row: BankQuestion | null; onClose: 
     const correct = new Set(payload.correctSet ?? [])
     const items = usage.data?.items ?? []
     const bucket = bucketLabel(bucketOf(row))
-    let timeLimitText = " · không giới hạn thời gian"
-    if (row.timeLimit != null) timeLimitText = ` · ${row.timeLimit}s`
     let audienceLabel = ""
     if (payload.acceptedAnswers) audienceLabel = " · mặt khán giả nhìn thấy"
     let usageText = `${items.length} trận`
@@ -882,7 +903,7 @@ function InspectorDrawer({ row, onClose }: { row: BankQuestion | null; onClose: 
             >
                 <div className="flex items-start justify-between gap-3">
                     <div className="flex flex-wrap items-center gap-1.5">
-                        <Badge variant="outline">{typeOf(row)}</Badge>
+                        <Badge variant="outline">{shapeOf(row)}</Badge>
                         <StatusBadge status={row.status} />
                         {bucket && <Badge variant="secondary">{bucket}</Badge>}
                     </div>
@@ -894,7 +915,6 @@ function InspectorDrawer({ row, onClose }: { row: BankQuestion | null; onClose: 
                 <h3 className="mt-3 text-base font-semibold">{row.questionText}</h3>
                 <p className="mt-1 text-xs text-muted-foreground">
                     Cập nhật {dateFormat.format(new Date(row.updatedAt))}
-                    {timeLimitText}
                 </p>
 
                 <div className="mt-4 grid gap-4 text-sm">
@@ -1057,22 +1077,17 @@ function QuestionDialog({
 
     const save = useMutation({
         mutationFn: (input: AuthorSave) => {
-            let kind: Kind = "TEXT"
-            if (input.keywordId) kind = "HINT"
-            if (input.type === "CHOICE") kind = "CHOICE"
-            if (input.type === "KEYWORD") kind = "KEYWORD"
+            const kind: Kind = input.kind
             const body: Record<string, unknown> = {
                 questionText: input.questionText,
                 payload: input.payload,
                 tags: input.tags,
                 media: input.media,
             }
-            if (input.timeLimit != null) body.timeLimit = input.timeLimit
             if (input.keywordId) body.keywordId = input.keywordId
             if (row) {
                 if (kind !== row.kind) body.kind = kind
                 body.keywordId = input.keywordId 
-                body.timeLimit = input.timeLimit 
                 return api(`/portal/questions/${row.id}`, {
                     method: "PATCH",
                     body: JSON.stringify(body),
@@ -1149,7 +1164,6 @@ function GroupSection({
         <section className="grid gap-3" aria-label={`Nhóm ${group.label}`}>
             <header className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-4 py-2.5">
                 <span className="text-sm font-semibold">{group.label}</span>
-                {group.typeLabel && <Badge variant="secondary">{group.typeLabel}</Badge>}
                 <span className="text-xs text-muted-foreground">{count ?? rows.length} câu</span>
                 {group.bucket && (
                     <Button
@@ -1304,7 +1318,11 @@ export function QuestionsPage() {
     const [searchInput, setSearchInput] = useState(() => state.search)
 
     const update = (patch: Partial<UrlState>) =>
-        setState((current) => ({ ...current, ...patch }))
+        setState((current) => {
+            const next = { ...current, ...patch }
+            if (!("page" in patch)) next.page = 1
+            return next
+        })
 
     useEffect(() => {
         if (searchInput.trim() === state.search) return
@@ -1317,6 +1335,7 @@ export function QuestionsPage() {
         params.set("tab", state.tab)
         if (state.status !== "ALL") params.set("status", state.status)
         if (state.search) params.set("search", state.search)
+        if (state.page > 1) params.set("page", String(state.page))
         const query = params.toString()
         let searchPart = ""
         if (query) searchPart = `?${query}`
@@ -1330,6 +1349,7 @@ export function QuestionsPage() {
     const list = useQuery({
         queryKey: ["questions", listParams(state).toString()],
         queryFn: () => api<Paged>(`/portal/questions?${listParams(state).toString()}`),
+        placeholderData: keepPreviousData,
     })
 
     const countFilters = JSON.stringify({ status: state.status, search: state.search })
@@ -1533,16 +1553,6 @@ export function QuestionsPage() {
                             className="ml-auto"
                             size="sm"
                             variant="outline"
-                            aria-label="Nộp duyệt"
-                            title="Nộp duyệt"
-                            disabled={bulkBusy}
-                            onClick={() => bulkStatus("PENDING")}
-                        >
-                            <Send className="size-4" aria-hidden />
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant="outline"
                             aria-label="Đăng"
                             title="Đăng"
                             disabled={bulkBusy || !isAdmin}
@@ -1623,7 +1633,6 @@ export function QuestionsPage() {
                     >
                         <option value="ALL">All</option>
                         <option value="DRAFT">Draft</option>
-                        <option value="PENDING">In review</option>
                         <option value="PUBLISHED">Published</option>
                         <option value="ARCHIVED">Archived</option>
                     </select>
@@ -1706,11 +1715,13 @@ export function QuestionsPage() {
                 />
             )}
 
-            {list.data && list.data.total > rows.length && (
-                <p className="text-xs text-muted-foreground">
-                    Đang hiển thị {rows.length} của {list.data.total} câu khớp bộ lọc — thu hẹp
-                    tìm kiếm để xem thêm.
-                </p>
+            {list.data && (
+                <Pagination
+                    total={list.data.total}
+                    page={state.page}
+                    busy={list.isFetching}
+                    onChange={(page) => update({ page })}
+                />
             )}
 
             {editing.open && (

@@ -11,7 +11,6 @@ const question = (over: Partial<ConsoleQuestion>): ConsoleQuestion => ({
     turnId: "t",
     position: 0,
     questionText: "?",
-    timeLimit: null,
     points: 10,
     payload: {},
     ...over,

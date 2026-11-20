@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { ConsoleStage, QuestionCard, Rail, Timer, ValueCells } from "@/components/stage/deck"
+import { ConsoleStage, QuestionCard, QuestionChips, Rail, Timer, ValueCells } from "@/components/stage/deck"
 import { backToLobbyAction } from "@/components/stage/actions"
 
 import type { ConsoleQuestion, VeDichConsole } from "@/lib/live"
@@ -41,6 +41,20 @@ function VeDichRiengPickBoard({ ctx }: { ctx: VeDichRiengPickCtx }) {
         ctx.send({ kind: "ve-dich.pickBatch", playerId: turnPlayer, questionIds: ids })
     }
 
+    const boardCells = projection.board ?? []
+    const stagedCells: Array<{ questionId: string; value: number }> = []
+    for (const id of chosen) {
+        const cell = boardCells.find((c) => c.questionId === id)
+        if (cell) stagedCells.push({ questionId: cell.questionId, value: cell.value })
+    }
+    const dropPick = (id: string) => {
+        const next = chosen.filter((picked) => picked !== id)
+        setChosen(next)
+        sendPicks(next)
+    }
+    let clearPicks: (() => void) | undefined
+    if (chosen.length > 0) clearPicks = () => sendPicks([])
+
     const pickRandomOf = (value: number) => {
         if (!picking || chosen.length >= need) return
         const pool = (projection.board ?? []).filter(
@@ -55,10 +69,11 @@ function VeDichRiengPickBoard({ ctx }: { ctx: VeDichRiengPickCtx }) {
 
 
 
-    let openPicks: (() => void) | undefined = undefined
-    if (pickedThisTurn && consoleVeDich?.pendingQuestionId != null) {
-        const pendingId = consoleVeDich.pendingQuestionId
-        openPicks = () => ctx.send({ kind: "ve-dich.openQuestion", questionId: pendingId })
+    let confirmPicks: (() => void) | undefined = undefined
+    if (pickedThisTurn) {
+        if (consoleVeDich?.pendingQuestionId != null) {
+            confirmPicks = () => ctx.send({ kind: "ve-dich.confirmPicks" })
+        }
     }
 
 
@@ -70,10 +85,14 @@ function VeDichRiengPickBoard({ ctx }: { ctx: VeDichRiengPickCtx }) {
             actions={[
                 {
                     label: "Xác nhận",
-                    onClick: openPicks,
+                    onClick: confirmPicks,
                 },
                 {
                     label: "Chọn lại",
+                    onClick: clearPicks,
+                },
+                {
+                    label: "Sang lượt",
                     onClick: () => ctx.send({ kind: "ve-dich.advanceTurn" }),
                 },
                 backToLobbyAction(ctx.backToLobby),
@@ -83,18 +102,37 @@ function VeDichRiengPickBoard({ ctx }: { ctx: VeDichRiengPickCtx }) {
             <QuestionCard
                 round="Về đích"
                 mode="Lượt cá nhân"
-                right={<Timer remaining={null} />}
+                right={
+                    <span className="flex items-center gap-[1.2cqw]">
+                        <QuestionChips
+                            chips={stagedCells.map((cell) => ({
+                                id: cell.questionId,
+                                label: String(cell.value),
+                                active: true,
+                                clickable: picking,
+                                title: `Bỏ câu ${cell.value} điểm`,
+                            }))}
+                            onSelect={(id: string) => dropPick(id)}
+                        />
+                        <Timer remaining={null} />
+                    </span>
+                }
             >
                 <ValueCells
-                    cells={[20, 30, 40, 50].map((value) => ({
-                        value,
-                        remaining: (projection.board ?? []).filter(
-                            (c) => c.value === value && c.where === "free" && !chosen.includes(c.questionId),
-                        ).length,
-                        chosen: chosen.filter(
-                            (id) => (projection.board ?? []).find((c) => c.questionId === id)?.value === value,
-                        ).length,
-                    }))}
+                    cells={[20, 30, 40, 50].map((value) => {
+                        const picked = chosen
+                        return {
+                            value,
+                            remaining: (projection.board ?? []).filter(
+                                (c) => c.value === value && c.where === "free" && !picked.includes(c.questionId),
+                            ).length,
+                            chosen: picked.filter((id) => {
+                                const cell = (projection.board ?? []).find((c) => c.questionId === id)
+                                if (!cell) return false
+                                return cell.value === value
+                            }).length,
+                        }
+                    })}
                     onPick={picking ? pickRandomOf : undefined}
                 />
             </QuestionCard>

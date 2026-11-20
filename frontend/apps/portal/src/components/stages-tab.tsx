@@ -3,7 +3,6 @@ import { Button } from "@shared/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
 import type { TournamentDetail } from "@/lib/tournament"
-import { STAGE_ROLES } from "@/lib/tournaments"
 import { EditStagesDialog } from "./edit-stages-dialog"
 
 
@@ -39,9 +38,6 @@ export function StagesTab({
                             <TableCell className="font-medium">{stage.title}</TableCell>
                             <TableCell className="font-mono text-xs text-muted-foreground">
                                 {stage.id}
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
-                                {STAGE_ROLES.find((role) => role.value === stage.role)?.label ?? "—"}
                             </TableCell>
                             <TableCell className="pr-6 text-sm text-muted-foreground">
                                 {dateText}

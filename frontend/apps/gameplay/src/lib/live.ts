@@ -28,7 +28,6 @@ export interface LiveQuestion {
     position: number
     questionText: string
     media: { url: string; type: "image" | "audio" | "video" } | null
-    timeLimit: number | null
     payload: { options?: Array<{ id: string; text: string }> }
 }
 

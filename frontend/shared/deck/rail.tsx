@@ -1,10 +1,11 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, type ReactNode } from "react"
 import type { LocalVideoTrack } from "livekit-client"
 import { useSelfCam } from "@shared/lib/rtc"
 import { initialsOf, pt } from "./geometry"
 import { railCardClass, railCardState, railScoreClass } from "./rail-card"
 import { RailAnswerLine } from "./rail-answer"
 import { SelfCamControls } from "./cam-controls"
+import { TurnIcon, type TurnIconKind } from "./turn-icon"
 import type { PlayerView } from "./types"
 
 function SelfVideo({ track }: { track: LocalVideoTrack }) {
@@ -72,6 +73,25 @@ export function Rail({ view, myId, currentQid }: {
                 }
                 let rowTitle: string | undefined = undefined
                 if (mine) rowTitle = "Bạn"
+                let turnIcon: TurnIconKind | undefined = undefined
+                const staged = view.stagedPower
+                if (staged) {
+                    if (staged.power === "STAR") {
+                        if (view.turnPlayerId === row.id) turnIcon = "star"
+                    }
+                    if (staged.power === "ASSIGN") {
+                        if (view.turnPlayerId === row.id) turnIcon = "swords"
+                    }
+                }
+                if (view.me.power === "STAR") {
+                    if (view.answererId === row.id) turnIcon = "star"
+                }
+                if (view.me.power === "ASSIGN") {
+                    if (view.answererId === row.id) turnIcon = "swords"
+                    if (view.assignedToId === row.id) turnIcon = "swords"
+                }
+                let turnIconNode: ReactNode = null
+                if (turnIcon) turnIconNode = <TurnIcon kind={turnIcon} />
                 const rowHeight = "h-[9.3cqw]"
                 return (
                     <div
@@ -95,6 +115,7 @@ export function Rail({ view, myId, currentQid }: {
                                 <span className={`font-display font-bold leading-none tabular-nums ${railScoreClass(state)}`} style={{ fontSize: pt(scoreFontSize) }}>
                                     {row.points}
                                 </span>
+                                {turnIconNode}
                                 <RailAnswerLine
                                     answer={revealedAnswer}
                                     answeredMs={answeredMs}

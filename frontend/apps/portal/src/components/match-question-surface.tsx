@@ -24,7 +24,6 @@ interface FrozenQuestion {
     kind?: string
     questionText: string
     points?: number
-    timeLimit?: number | null
     payload?: Record<string, unknown>
     sourceId?: string
 }

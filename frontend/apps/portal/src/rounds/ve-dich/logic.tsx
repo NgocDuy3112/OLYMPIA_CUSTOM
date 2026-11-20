@@ -53,7 +53,12 @@ export const veDichAOC: RoundModule = {
         const pendingStaged = (f.v.projection.board ?? []).filter((c) => c.where === "pending").length > 0
         if (f.v.projection.open.length === 0) {
             const consoleView = f.v.console as VeDichConsole | null
-            if (consoleView?.phase === 2) return <VeDichRiengPickAOCController ctx={pickCtx(f)} />
+            if (consoleView?.phase === 2) {
+                if (consoleView.picksConfirmed) {
+                    if (pendingStaged) return <VeDichRiengAOCController ctx={riengCtx(f)} />
+                }
+                return <VeDichRiengPickAOCController ctx={pickCtx(f)} />
+            }
             if (pendingStaged) return <VeDichChungAOCController ctx={chungCtx(f)} />
             return <VeDichChungPickAOCController ctx={pickCtx(f)} />
         }

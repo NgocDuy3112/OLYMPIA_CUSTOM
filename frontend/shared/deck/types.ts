@@ -7,7 +7,6 @@ export interface PlayerQuestion {
     position: number
     questionText: string
     media: { url: string; type: "image" | "audio" | "video" } | null
-    timeLimit: number | null
     payload: { options?: Array<{ id: string; text: string }>; codeLength?: number }
 }
 
@@ -75,6 +74,10 @@ export interface PlayerView {
         value: number
         where: "free" | "pending" | "open" | "taken" | "deferred"
     }>
+    turnPlayerId?: string | null
+    answererId?: string | null
+    assignedToId?: string | null
+    stagedPower?: { power: "STAR" | "ASSIGN"; targetId?: string } | null
     keyword?: { questionId: string; question: PlayerQuestion | null } | null
     keywordCode?: string | null
     hintAnswers: Record<string, string>

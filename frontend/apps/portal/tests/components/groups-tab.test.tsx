@@ -26,8 +26,8 @@ const tables = (over: Partial<{
     bPoints: number
 }> = {}) => ({
     groups: [
-        { id: "A", teamPoints: over.aPoints ?? 4, rows: over.a ?? [line("u1", "An", 3), line("u2", "Bình", 1)] },
-        { id: "B", teamPoints: over.bPoints ?? 0, rows: over.b ?? [] },
+        { id: "A", groupPoints: over.aPoints ?? 4, rows: over.a ?? [line("u1", "An", 3), line("u2", "Bình", 1)] },
+        { id: "B", groupPoints: over.bPoints ?? 0, rows: over.b ?? [] },
     ],
     unassigned: over.unassigned ?? [{ userId: "u3", displayName: "Cường" }],
     wildcard: [],

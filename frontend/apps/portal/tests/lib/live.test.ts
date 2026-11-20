@@ -9,7 +9,6 @@ const question = (over: Partial<ConsoleQuestion>): ConsoleQuestion => ({
     turnId: "hints",
     position: 0,
     questionText: "text",
-    timeLimit: null,
     points: 10,
     payload: {},
     ...over,

@@ -1,6 +1,7 @@
 import { ConsoleStage, QuestionCard, QuestionChips, Rail, Timer } from "@/components/stage/deck"
-import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
+import { backToLobbyAction } from "@/components/stage/actions"
 import { COPY } from "@shared/deck/copy"
+import { stripCellsOf } from "@shared/deck/ve-dich-board"
 import type { LiveAction } from "@/lib/live-actions"
 
 import type { QuestionAnswerRow, VeDichConsole } from "@/lib/live"
@@ -23,10 +24,7 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
 
     const openNow = projection.open[0] ?? null
     const boardCells = projection.board ?? []
-    const openCell = openNow ? boardCells.find((c) => c.questionId === openNow.questionId) ?? null : null
-    const nextPendingId = consoleVeDich?.pendingQuestionId ?? null
-    const nextPendingCell = nextPendingId ? boardCells.find((c) => c.questionId === nextPendingId) ?? null : null
-    const stripCells = [openCell, nextPendingCell].filter((c): c is NonNullable<typeof c> => c !== null)
+    const stripCells = stripCellsOf(boardCells)
     const revealed = consoleVeDich?.revealed ?? false
     const needsVerdict = rows.some((r) => r.verdict === null)
     const gradeableIds = () => {
@@ -39,11 +37,18 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
     }
     const canMark = gradeableIds().length > 0
 
-    const mark = (correct: boolean) => {
+    const grade = () => {
         const ids = gradeableIds()
         if (ids.length === 0) return
-        ctx.sendChain(ids.map((playerId) => ({ kind: "ve-dich.judge" as const, playerId, correct })))
+        const actions = rows.map((row) => {
+            let correct = false
+            if (ids.includes(row.userId)) correct = true
+            return { kind: "ve-dich.judge" as const, playerId: row.userId, correct }
+        })
+        ctx.sendChain(actions)
     }
+    let gradeClick: (() => void) | undefined
+    if (canMark) gradeClick = grade
 
     let counting = false
     if (openNow?.deadlineAt && (remaining ?? 0) > 0) counting = true
@@ -55,10 +60,15 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
     }
     let revealAnswer: (() => void) | undefined = undefined
     if (openNow) {
-        revealAnswer = () => ctx.send({ kind: "reveal.answer", questionId: openNow.questionId })
+        let clockDone = false
+        if (consoleVeDich?.clockStarted) {
+            if (!counting) clockDone = true
+        }
+        if (clockDone) revealAnswer = () => ctx.send({ kind: "reveal.answer", questionId: openNow.questionId })
     }
     let endTurn: (() => void) | undefined = () => ctx.hetLuot()
     if (needsVerdict) endTurn = undefined
+    if (openNow === null) endTurn = undefined
     let timerRemaining: number | null = null
     if (openNow?.deadlineAt) timerRemaining = remaining
 
@@ -67,13 +77,16 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
             rail={<Rail cards={baseCards} onSelect={ctx.toggleSelect} onScoreClick={ctx.openRegrade} />}
             actions={[
                 {
-                    label: "Tính giờ",
+                    label: "Đếm giờ",
                     onClick: startClock,
                 },
-                ...verdictActions({ canVerdict: canMark, onVerdict: mark }),
                 {
-                    label: "Đáp án thí sinh",
+                    label: "Hiện trả lời",
                     onClick: revealAnswer,
+                },
+                {
+                    label: "Chấm điểm",
+                    onClick: gradeClick,
                 },
                 { label: COPY.endTurn, onClick: endTurn },
                 backToLobbyAction(ctx.backToLobby),
@@ -90,7 +103,7 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
                                 id: cell.questionId,
                                 label: String(cell.value),
                                 active: cell.where === "open",
-                                clickable: cell.where === "open" && !revealed,
+                                clickable: !revealed,
                             }))}
                             onSelect={(id: string) => {
                                 const actions: LiveAction[] = []

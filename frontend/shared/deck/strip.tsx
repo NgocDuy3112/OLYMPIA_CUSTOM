@@ -56,21 +56,18 @@ export function Strip({ items }: { items: StripItem[] }) {
     )
 }
 
-export function VeDichStripCells({ cells, phase2 }: {
+export function VeDichStripCells({ cells }: {
     cells: Array<{ questionId: string; value: number; where: string }>
-    phase2: boolean
 }) {
-    let cellCount = 4
-    if (phase2) cellCount = 3
     return (
         <>
-            {cells.slice(0, cellCount).map((c) => {
+            {cells.map((c) => {
                 let cellTone = "bg-muted ring-border"
                 if (c.where === "open") cellTone = "bg-primary text-primary-foreground ring-primary"
                 return (
                     <span
                         key={c.questionId}
-                        className={`flex h-[4.43cqw] w-[10cqw] shrink-0 flex-col items-center justify-center rounded-lg shadow-sm ring-1 ${cellTone}`}
+                        className={`flex h-[4.43cqw] min-w-0 max-w-[10cqw] flex-1 flex-col items-center justify-center rounded-lg shadow-sm ring-1 ${cellTone}`}
                         style={DECK_PAD}
                     >
                         <b className="font-display leading-none" style={{ fontSize: pt(20) }}>{c.value}</b>
@@ -107,7 +104,7 @@ export function Chip({ value, tone = "gray", clickable, onClick, title }: {
 }
 
 export function QuestionChips({ chips, onSelect }: {
-    chips: Array<{ id: string; label: string; active: boolean; clickable?: boolean }>
+    chips: Array<{ id: string; label: string; active: boolean; clickable?: boolean; title?: string }>
     onSelect?: (id: string) => void
 }) {
     return (
@@ -122,6 +119,7 @@ export function QuestionChips({ chips, onSelect }: {
                         tone={chip.active ? "purple" : "gray"}
                         clickable={Boolean(click)}
                         onClick={click}
+                        title={chip.title}
                     />
                 )
             })}

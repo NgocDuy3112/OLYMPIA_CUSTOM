@@ -5,14 +5,15 @@ import { railCardClass, railCardState, railScoreClass } from "@shared/deck/rail-
 describe("railCardState", () => {
     it("locked-out looks grey, no hue", () => {
         expect(railCardState({ locked: true })).toBe("wrong")
-        expect(railCardClass("wrong")).toContain("bg-muted")
-        expect(railCardClass("wrong")).toContain("opacity-70")
+        expect(railCardClass("wrong")).toContain("bg-[#101116]")
+        expect(railCardClass("wrong")).toContain("text-muted-foreground")
         expect(railScoreClass("wrong")).toContain("muted")
     })
 
-    it("the live answerer is purple with a DASHED WHITE outline", () => {
+    it("the buzzed seat has a THICK DASHED WHITE outline", () => {
         expect(railCardState({ buzzing: true })).toBe("buzzing")
-        expect(railCardClass("buzzing")).toContain("bg-primary")
+        expect(railCardClass("buzzing")).toContain("bg-[#2a2f38]")
+        expect(railCardClass("buzzing")).toContain("outline-4")
         expect(railCardClass("buzzing")).toContain("outline-dashed")
         expect(railCardClass("buzzing")).toContain("outline-white")
     })
@@ -21,11 +22,11 @@ describe("railCardState", () => {
         expect(railCardState({ buzzing: true, locked: true })).toBe("wrong")
     })
 
-    it("everything else waits: the card is purple too, only tinted", () => {
+    it("everything else waits: dark tint, no outline", () => {
         expect(railCardState({})).toBe("waiting")
-        expect(railCardClass("waiting")).toContain("bg-primary/10")
-        expect(railCardClass("waiting")).toContain("ring-border")
+        expect(railCardClass("waiting")).toContain("bg-[#16181e]")
+        expect(railCardClass("waiting")).toContain("ring-white/10")
         expect(railCardClass("waiting")).not.toContain("outline-dashed")
-        expect(railCardClass("buzzing")).toContain("bg-primary ")
+        expect(railCardClass("buzzing")).toContain("bg-[#2a2f38]")
     })
 })

@@ -65,28 +65,26 @@ function applyGiaiMa(card: CardData, input: RailCardsInput): void {
     if (player?.eliminated) card.dimmed = true
 }
 
-function applyStagedPower(card: CardData, input: RailCardsInput): void {
-    const staged = input.veDich?.stagedPower
-    if (!staged || input.veDich?.turnPlayerId !== card.id) return
-    let badgeText = "Chỉ định"
-    let badgeTone: "emerald" | "amber" = "emerald"
-    if (staged.power === "STAR") {
-        badgeText = "Ngôi sao"
-        badgeTone = "amber"
+function applyTurnIcon(card: CardData, input: RailCardsInput): void {
+    if (input.roundId !== "ve-dich") return
+    const veDich = input.veDich
+    if (!veDich) return
+    const staged = veDich.stagedPower
+    if (staged) {
+        if (staged.power === "STAR") {
+            if (veDich.turnPlayerId === card.id) card.icon = "star"
+        }
+        if (staged.power === "ASSIGN") {
+            if (veDich.turnPlayerId === card.id) card.icon = "swords"
+        }
+        return
     }
-    card.badge = { text: badgeText, tone: badgeTone }
-}
-
-function applyPower(card: CardData, input: RailCardsInput): void {
-    const veDichPower = input.veDich?.power
-    let power: typeof veDichPower = null
-    if (input.roundId === "ve-dich") power = veDichPower
-    if (!power || !input.veDich) return
-    if (power === "STAR" && input.veDich.answererId === card.id) {
-        card.badge = { text: "Ngôi sao", tone: "amber" }
+    if (veDich.power === "STAR") {
+        if (veDich.answererId === card.id) card.icon = "star"
     }
-    if (power === "ASSIGN" && input.veDich.assignedToId === card.id) {
-        card.badge = { text: "Được chỉ định", tone: "emerald" }
+    if (veDich.power === "ASSIGN") {
+        if (veDich.answererId === card.id) card.icon = "swords"
+        if (veDich.assignedToId === card.id) card.icon = "swords"
     }
 }
 
@@ -125,8 +123,7 @@ export function railCardsOf(input: RailCardsInput): CardData[] {
         }
         applyAnswer(card, rowsFor(seat.id), input)
         applyGiaiMa(card, input)
-        applyStagedPower(card, input)
-        applyPower(card, input)
+        applyTurnIcon(card, input)
         applyBuzz(card, input)
         if (input.roundId === "giai-ma") {
             const kRow = keywordRowFor(seat.id)

@@ -13,7 +13,8 @@ import {
 } from "@shared/ui/dialog"
 import { Input } from "@shared/ui/input"
 
-export type QuestionType = "TEXT" | "ORAL" | "CHOICE" | "KEYWORD"
+export type PayloadShape = "choice" | "keyword" | "text"
+export type QuestionKind = "TEXT" | "KEYWORD" | "HINT"
 
 export interface QuestionMedia {
     url: string
@@ -23,7 +24,6 @@ export interface QuestionMedia {
 export interface AuthorDraft {
     bucket: string
     questionText: string
-    timeLimit: string 
     accepted: string 
     options: Array<{ id: string; text: string }>
     correct: string[] 
@@ -33,9 +33,8 @@ export interface AuthorDraft {
 }
 
 export interface AuthorSave {
-    type: QuestionType
+    kind: QuestionKind
     questionText: string
-    timeLimit: number | null
     keywordId: string | null
     payload: Record<string, unknown>
     tags: string[]
@@ -43,10 +42,8 @@ export interface AuthorSave {
 }
 
 export interface AuthorRow {
-    type?: string 
     kind?: string 
     questionText: string
-    timeLimit?: number | null
     keywordId?: string | null
     payload?: Record<string, unknown>
     tags?: string[]
@@ -70,44 +67,53 @@ const HINT_MAX = 8
 interface BucketChoice {
     value: string
     label: string
-    typeLabel: string
 }
 
 const BUCKET_GROUPS: Array<{ group: string; choices: BucketChoice[] }> = [
     {
         group: "Khởi động",
         choices: [
-            { value: "khoi-dong:rieng", label: "Riêng", typeLabel: "ORAL · khán giả chọn" },
-            { value: "khoi-dong:chung", label: "Chung", typeLabel: "TEXT" },
+            { value: "khoi-dong:rieng", label: "Riêng" },
+            { value: "khoi-dong:chung", label: "Chung" },
         ],
     },
-    { group: "Giải mã", choices: [{ value: "giai-ma", label: "Từ khóa", typeLabel: "KEYWORD" }] },
-    { group: "Bứt phá", choices: [{ value: "but-pha", label: "Bứt phá", typeLabel: "TEXT" }] },
+    { group: "Giải mã", choices: [{ value: "giai-ma", label: "Từ khóa" }] },
+    { group: "Bứt phá", choices: [{ value: "but-pha", label: "Bứt phá" }] },
+    {
+        group: "Câu hỏi phụ",
+        choices: [{ value: "cau-hoi-phu", label: "Câu hỏi phụ" }],
+    },
     {
         group: "Về đích",
         choices: [
-            { value: "ve-dich:20", label: "20 điểm", typeLabel: "TEXT" },
-            { value: "ve-dich:30", label: "30 điểm", typeLabel: "TEXT" },
-            { value: "ve-dich:40", label: "40 điểm", typeLabel: "ORAL · khán giả chọn" },
-            { value: "ve-dich:50", label: "50 điểm", typeLabel: "ORAL · khán giả chọn" },
+            { value: "ve-dich:20", label: "20 điểm" },
+            { value: "ve-dich:30", label: "30 điểm" },
+            { value: "ve-dich:40", label: "40 điểm" },
+            { value: "ve-dich:50", label: "50 điểm" },
         ],
     },
 ]
 
 const BUCKET_VALUES = new Set(BUCKET_GROUPS.flatMap((g) => g.choices.map((c) => c.value)))
 
-function typeForBucket(bucket: string, linked: boolean): QuestionType {
-    if (linked) return "TEXT" 
+function payloadShapeOf(bucket: string, linked: boolean): PayloadShape {
+    if (linked) return "text" 
     switch (bucket) {
         case "khoi-dong:rieng":
         case "ve-dich:40":
         case "ve-dich:50":
-            return "ORAL"
+            return "choice"
         case "giai-ma":
-            return "KEYWORD"
+            return "keyword"
         default:
-            return "TEXT"
+            return "text"
     }
+}
+
+function kindFor(shape: PayloadShape, keywordId: string): QuestionKind {
+    if (keywordId) return "HINT"
+    if (shape === "keyword") return "KEYWORD"
+    return "TEXT"
 }
 
 
@@ -120,12 +126,9 @@ function nextOptionId(existing: string[]): string {
 }
 
 function draftFrom(row: AuthorRow | null | undefined, bucket?: string, presetKeywordId?: string): AuthorDraft {
-    let timeLimit = ""
-    if (row?.timeLimit != null) timeLimit = String(row.timeLimit)
     const base: AuthorDraft = {
         bucket: bucket ?? "",
         questionText: row?.questionText ?? "",
-        timeLimit,
         accepted: "",
         options: [
             { id: "a", text: "" },
@@ -164,35 +167,25 @@ function draftFrom(row: AuthorRow | null | undefined, bucket?: string, presetKey
     return base
 }
 
-function buildPayload(type: QuestionType, draft: AuthorDraft): Record<string, unknown> | null {
-    if (type === "TEXT" || type === "ORAL") {
-        const acceptedAnswers = draft.accepted
-            .split("\n")
-            .map((line) => line.trim())
-            .filter(Boolean)
-        if (acceptedAnswers.length === 0) return null
-        if (type === "TEXT") return { type, acceptedAnswers }
-        const options = draft.options
-            .filter((o) => o.text.trim())
-            .map((o) => ({ id: o.id, text: o.text.trim() }))
-        if (options.length < 2) return null
-        const ids = new Set(options.map((o) => o.id))
-        const correct = draft.correct.filter((id) => ids.has(id))
-        if (correct.length !== 1) return null
-        return { type, acceptedAnswers, options, correctSet: correct }
+function buildPayload(shape: PayloadShape, draft: AuthorDraft): Record<string, unknown> | null {
+    if (shape === "keyword") {
+        if (!draft.code.trim()) return null
+        return { code: draft.code.trim() }
     }
-    if (type === "CHOICE") {
-        const options = draft.options
-            .filter((o) => o.text.trim())
-            .map((o) => ({ id: o.id, text: o.text.trim() }))
-        if (options.length === 0) return null
-        const ids = new Set(options.map((o) => o.id))
-        const correctSet = draft.correct.filter((id) => ids.has(id))
-        if (correctSet.length === 0) return null
-        return { type, options, correctSet }
-    }
-    if (!draft.code.trim()) return null
-    return { type, code: draft.code.trim() }
+    const acceptedAnswers = draft.accepted
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean)
+    if (acceptedAnswers.length === 0) return null
+    if (shape === "text") return { acceptedAnswers }
+    const options = draft.options
+        .filter((o) => o.text.trim())
+        .map((o) => ({ id: o.id, text: o.text.trim() }))
+    if (options.length < 2) return null
+    const ids = new Set(options.map((o) => o.id))
+    const correct = draft.correct.filter((id) => ids.has(id))
+    if (correct.length !== 1) return null
+    return { acceptedAnswers, options, correctSet: correct }
 }
 
 function stripBridge(value: Record<string, unknown>): Record<string, unknown> {
@@ -202,21 +195,20 @@ function stripBridge(value: Record<string, unknown>): Record<string, unknown> {
     return rest
 }
 
-function reasonFor(type: QuestionType): string {
-    if (type === "ORAL") {
-        return "ORAL needs an answer line, at least 2 options and exactly one correct choice (the audience face)."
+function reasonFor(shape: PayloadShape): string {
+    if (shape === "choice") {
+        return "This group needs an answer line, at least 2 options and exactly one correct choice (the audience face)."
     }
-    if (type === "CHOICE") return "CHOICE needs at least one option with a ticked correct answer."
-    if (type === "KEYWORD") return "KEYWORD needs its code."
-    return "TEXT needs at least one accepted answer (one per line)."
+    if (shape === "keyword") return "A keyword needs its code."
+    return "This group needs at least one accepted answer (one per line)."
 }
 
 
-function AudiencePreview({ type, draft }: { type: QuestionType; draft: AuthorDraft }) {
+function AudiencePreview({ shape, draft }: { shape: PayloadShape; draft: AuthorDraft }) {
     const options = draft.options.filter((o) => o.text.trim())
-    const showsChoice = options.length > 0 && (type === "ORAL" || type === "CHOICE")
+    const showsChoice = options.length > 0 && shape === "choice"
     let audienceNote = " — ô nhập như thí sinh"
-    if (showsChoice) audienceNote = " — CHOICE"
+    if (showsChoice) audienceNote = " — trắc nghiệm"
     let previewSlot: ReactNode = (
         <div className="rounded-md border border-input bg-background px-2 py-1 text-xs text-muted-foreground">
             Câu trả lời của bạn
@@ -285,7 +277,7 @@ export function QuestionAuthorDialog({
         onError: (cause) => setUploadError(messageOf(cause)),
     })
 
-    const type = typeForBucket(draft.bucket, linking)
+    const shape = payloadShapeOf(draft.bucket, linking)
     const showLink = draft.bucket === "giai-ma" && (linking || hintMode)
 
     const keywordList = useQuery({
@@ -344,7 +336,7 @@ export function QuestionAuthorDialog({
 
     const toggleCorrect = (id: string) => {
         const included = draft.correct.includes(id)
-        if (type === "ORAL") {
+        if (shape === "choice") {
             if (included) {
                 patch({ correct: [] })
             } else {
@@ -359,16 +351,12 @@ export function QuestionAuthorDialog({
         }
     }
 
-    const builtPayload = buildPayload(type, draft)
+    const builtPayload = buildPayload(shape, draft)
 
     const problem: string | null = (() => {
         if (!draft.bucket) return "Pick the round group this question lives in."
         if (!draft.questionText.trim()) return "The question needs its text."
-        const limit = draft.timeLimit.trim()
-        if (limit !== "" && (!/^\d+$/.test(limit) || Number(limit) < 1)) {
-            return "Time limit must be a positive whole number of seconds."
-        }
-        if (builtPayload === null) return reasonFor(type)
+        if (builtPayload === null) return reasonFor(shape)
         if (showLink) {
             if (!draft.keywordId) return "Choose the keyword set this hint joins."
             if (hintCapFull) {
@@ -376,11 +364,8 @@ export function QuestionAuthorDialog({
             }
         }
         if (row) {
-            let draftLimit: number | null = null
-            if (draft.timeLimit) draftLimit = Number(draft.timeLimit)
             const changed =
                 draft.questionText.trim() !== row.questionText ||
-                draftLimit !== (row.timeLimit ?? null) ||
                 (draft.keywordId || null) !== (row.keywordId ?? null) ||
                 JSON.stringify(stripBridge(builtPayload)) !==
                     JSON.stringify(stripBridge(row.payload ?? {})) ||
@@ -393,12 +378,9 @@ export function QuestionAuthorDialog({
 
     const save = () => {
         if (problem !== null || busy || builtPayload === null) return
-        let timeLimit: number | null = null
-        if (draft.timeLimit) timeLimit = Number(draft.timeLimit)
         void onSave({
-            type,
+            kind: kindFor(shape, draft.keywordId),
             questionText: draft.questionText.trim(),
-            timeLimit,
             keywordId: draft.keywordId || null,
             payload: builtPayload,
             tags: [...(row?.tags ?? []).filter((tag) => !BUCKET_VALUES.has(tag)), draft.bucket],
@@ -410,13 +392,13 @@ export function QuestionAuthorDialog({
     if (hintBorn) dialogTitle = "New hint"
     if (row) dialogTitle = "Edit question"
 
-    let typeHint = " — gõ câu trả lời"
-    if (type === "KEYWORD") typeHint = " — ô nhập bí mật cho Giải mã"
-    if (type === "ORAL") typeHint = " — thí sinh trả lời miệng, khán giả chọn ô trả lời"
+    let shapeHint = " — gõ câu trả lời"
+    if (shape === "keyword") shapeHint = " — ô nhập bí mật cho Giải mã"
+    if (shape === "choice") shapeHint = " — thí sinh trả lời miệng, khán giả chọn ô trả lời"
     let acceptedLabel = "Accepted answers (one per line)"
-    if (type === "ORAL") acceptedLabel = "Accepted answers — the judge's reference (one per line)"
+    if (shape === "choice") acceptedLabel = "Accepted answers — the judge's reference (one per line)"
     let optionsLabel = "Options · tick the correct one(s)"
-    if (type === "ORAL") optionsLabel = "Options — the audience face, pick exactly one correct"
+    if (shape === "choice") optionsLabel = "Options — the audience face, pick exactly one correct"
     let hintCapCls = "text-muted-foreground"
     if (hintCapFull) hintCapCls = "text-destructive"
     let capNote = ""
@@ -501,32 +483,17 @@ export function QuestionAuthorDialog({
                                     <optgroup key={group.group} label={group.group}>
                                         {group.choices.map((choice) => (
                                             <option key={choice.value} value={choice.value}>
-                                                {choice.label} · {choice.typeLabel}
+                                                {choice.label}
                                             </option>
                                         ))}
                                     </optgroup>
                                 ))}
                             </select>
                             {draft.bucket && (
-                                <p className="text-xs text-muted-foreground">
-                                    Dạng trả lời:{" "}
-                                    <Badge variant="outline">{type}</Badge>
-                                    {typeHint}
-                                </p>
+                                <p className="text-xs text-muted-foreground">{shapeHint}</p>
                             )}
                         </div>
 
-                        <div className="grid gap-2">
-                            <label className="text-sm font-medium" htmlFor="q-limit">Time limit (s, optional)</label>
-                            <Input
-                                id="q-limit"
-                                type="number"
-                                min={1}
-                                value={draft.timeLimit}
-                                onChange={(event) => patch({ timeLimit: event.target.value })}
-                                placeholder="—"
-                            />
-                        </div>
                     </div>
 
                     <div className="grid gap-2">
@@ -541,7 +508,7 @@ export function QuestionAuthorDialog({
                     </div>
 
                     
-                    {(type === "TEXT" || type === "ORAL") && (
+                    {shape !== "keyword" && (
                         <div className="grid gap-2">
                             <label className="text-sm font-medium" htmlFor="q-accepted">
                                 {acceptedLabel}
@@ -557,21 +524,17 @@ export function QuestionAuthorDialog({
                         </div>
                     )}
 
-                    {(type === "ORAL" || type === "CHOICE") && (
+                    {shape === "choice" && (
                         <div className="grid gap-2">
                             <span className="text-sm font-medium">
                                 {optionsLabel}
                             </span>
                             {draft.options.map((option, index) => {
-                                let inputType: "radio" | "checkbox" = "checkbox"
-                                if (type === "ORAL") inputType = "radio"
-                                let inputName: string | undefined = undefined
-                                if (type === "ORAL") inputName = "oral-correct"
                                 return (
                                     <div key={option.id} className="flex items-center gap-2">
                                         <input
-                                            type={inputType}
-                                            name={inputName}
+                                            type="radio"
+                                            name="oral-correct"
                                             checked={draft.correct.includes(option.id)}
                                             onChange={() => toggleCorrect(option.id)}
                                             aria-label={`Option ${String.fromCharCode(65 + index)} correct`}
@@ -588,7 +551,7 @@ export function QuestionAuthorDialog({
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            disabled={type === "ORAL" && draft.options.length <= 2}
+                                            disabled={draft.options.length <= 2}
                                             aria-label={`Remove option ${String.fromCharCode(65 + index)}`}
                                             onClick={() => removeOption(option.id)}
                                         >
@@ -610,7 +573,7 @@ export function QuestionAuthorDialog({
                         </div>
                     )}
 
-                    {type === "KEYWORD" && (
+                    {shape === "keyword" && (
                         <div className="grid gap-2">
                             <label className="text-sm font-medium" htmlFor="q-code">Keyword code</label>
                             <Input
@@ -688,7 +651,7 @@ export function QuestionAuthorDialog({
                         )}
                     </div>
 
-                    <AudiencePreview type={type} draft={draft} />
+                    <AudiencePreview shape={shape} draft={draft} />
 
                     {saveError && (
                         <p role="alert" className="text-sm text-destructive">{saveError}</p>

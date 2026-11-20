@@ -14,7 +14,6 @@ export interface ConsoleQuestion {
     turnId: string
     position: number
     questionText: string
-    timeLimit: number | null
     points: number
     payload: { options?: Array<{ id: string; text: string }>; [key: string]: unknown }
 }
@@ -25,7 +24,6 @@ export interface SanitizedQuestion {
     position: number
     questionText: string
     media: { url: string; type: string } | null
-    timeLimit: number | null
     payload: { options?: Array<{ id: string; text: string }> }
 }
 
@@ -91,6 +89,7 @@ export interface VeDichConsole {
     pendingQuestionId: string | null
     pendingValues?: number[]
     turnPicked?: number
+    picksConfirmed?: boolean
     stagedPower: { power: "STAR" | "ASSIGN"; targetId?: string } | null
     turnPowerUsed: boolean
 }

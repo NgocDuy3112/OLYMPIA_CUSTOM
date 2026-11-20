@@ -45,6 +45,7 @@ export type LiveAction =
     | { kind: "ve-dich.pick"; playerId: string; questionId: string }
     | { kind: "ve-dich.pickBatch"; playerId: string; questionIds: string[] }
     | { kind: "ve-dich.pickRound"; questionIds: string[] }
+    | { kind: "ve-dich.confirmPicks" }
     | { kind: "ve-dich.openPending"; questionId: string }
     | { kind: "ve-dich.switchQuestion"; questionId: string }
     | { kind: "ve-dich.closeQuestion" }

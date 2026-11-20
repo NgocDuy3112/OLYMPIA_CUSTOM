@@ -26,18 +26,9 @@ export function seatsPhrase(counts: number[]): string {
 }
 
 
-export type StageRole = "splitting" | "playoff" | "finale"
-
-export const STAGE_ROLES: Array<{ value: StageRole; label: string; hint: string }> = [
-    { value: "splitting", label: "Splitting", hint: "one player from each tier, per match" },
-    { value: "playoff", label: "Playoff", hint: "the winner climbs, the losers drop" },
-    { value: "finale", label: "Finale", hint: "the ladder winners, and the places 1–4" }
-]
-
 export interface Stage {
     id: string
     title: string
-    role?: StageRole
     start?: string
     end?: string
 }

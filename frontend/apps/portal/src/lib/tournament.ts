@@ -239,7 +239,7 @@ export interface GroupRow {
 }
 
 interface GroupTables {
-    groups: Array<{ id: "A" | "B"; teamPoints: number; rows: GroupRow[] }>
+    groups: Array<{ id: "A" | "B"; groupPoints: number; rows: GroupRow[] }>
     unassigned: Array<{ userId: string; displayName: string }>
     wildcard: Array<GroupRow & { avg: number }>
 }

@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { ConsoleStage, QuestionCard, Rail, Timer, ValueCells } from "@/components/stage/deck"
+import { ConsoleStage, QuestionCard, QuestionChips, Rail, Timer, ValueCells } from "@/components/stage/deck"
 import { backToLobbyAction } from "@/components/stage/actions"
 
 import type { ConsoleQuestion, VeDichConsole } from "@/lib/live"
@@ -29,6 +29,16 @@ export function VeDichChungPickAOCController({ ctx }: { ctx: VeDichChungPickCtx 
         setChosen([...chosen, random.questionId])
     }
 
+    const boardCells = projection.board ?? []
+    const stagedCells: Array<{ questionId: string; value: number }> = []
+    for (const id of chosen) {
+        const cell = boardCells.find((c) => c.questionId === id)
+        if (cell) stagedCells.push({ questionId: cell.questionId, value: cell.value })
+    }
+    const dropPick = (id: string) => {
+        setChosen(chosen.filter((picked) => picked !== id))
+    }
+
 
 
 
@@ -38,7 +48,7 @@ export function VeDichChungPickAOCController({ ctx }: { ctx: VeDichChungPickCtx 
             actions={[
                 {
                     label: "Xác nhận",
-                    onClick: chosen.length > 0
+                    onClick: chosen.length >= need
                         ? () => ctx.send({ kind: "ve-dich.pickRound", questionIds: chosen })
                         : undefined,
                 },
@@ -58,7 +68,21 @@ export function VeDichChungPickAOCController({ ctx }: { ctx: VeDichChungPickCtx 
             <QuestionCard
                 round="Về đích"
                 mode="Lượt chung"
-                right={<Timer remaining={null} />}
+                right={
+                    <span className="flex items-center gap-[1.2cqw]">
+                        <QuestionChips
+                            chips={stagedCells.map((cell) => ({
+                                id: cell.questionId,
+                                label: String(cell.value),
+                                active: true,
+                                clickable: true,
+                                title: `Bỏ câu ${cell.value} điểm`,
+                            }))}
+                            onSelect={(id: string) => dropPick(id)}
+                        />
+                        <Timer remaining={null} />
+                    </span>
+                }
             />
             <ValueCells
                 cells={[20, 30].map((value) => ({

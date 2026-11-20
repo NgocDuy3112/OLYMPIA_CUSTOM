@@ -44,6 +44,8 @@ const ringOf = (cards: ReturnType<typeof railCardsOf>, id: string) =>
     cards.find((c) => c.id === id)?.ring
 const badgeOf = (cards: ReturnType<typeof railCardsOf>, id: string) =>
     cards.find((c) => c.id === id)?.badge?.text
+const iconOf = (cards: ReturnType<typeof railCardsOf>, id: string) =>
+    cards.find((c) => c.id === id)?.icon
 
 describe("railCardsOf — one card per score row", () => {
     it("keeps the table order and copies id/name/points", () => {
@@ -186,19 +188,29 @@ describe("railCardsOf — badges belong to the round", () => {
         expect(cards.find((c) => c.id === "u2")?.dimmed).toBe(true)
     })
 
-    it("puts STAR on the answerer and ASSIGN on the handed-to player (ve-dich)", () => {
+    it("puts the star on the answerer and swords on both halves (ve-dich)", () => {
         const star = { power: "STAR", answererId: "u1", assignedToId: null } as unknown as VeDichConsole
-        expect(badgeOf(railCardsOf(input({ roundId: "ve-dich", veDich: star })), "u1")).toBe("Ngôi sao")
+        expect(iconOf(railCardsOf(input({ roundId: "ve-dich", veDich: star })), "u1")).toBe("star")
 
         const assign = { power: "ASSIGN", answererId: "u1", assignedToId: "u2" } as unknown as VeDichConsole
         const cards = railCardsOf(input({ roundId: "ve-dich", veDich: assign }))
-        expect(badgeOf(cards, "u2")).toBe("Được chỉ định")
-        expect(badgeOf(cards, "u1")).toBeUndefined()
+        expect(iconOf(cards, "u1")).toBe("swords")
+        expect(iconOf(cards, "u2")).toBe("swords")
     })
 
-    it("does not read a ve-dich badge on another round", () => {
+    it("a staged power marks only the turn player (ve-dich)", () => {
+        const veDich = {
+            power: null, answererId: null, assignedToId: null,
+            turnPlayerId: "u2", stagedPower: { power: "ASSIGN", targetId: "u1" },
+        } as unknown as VeDichConsole
+        const cards = railCardsOf(input({ roundId: "ve-dich", veDich }))
+        expect(iconOf(cards, "u2")).toBe("swords")
+        expect(iconOf(cards, "u1")).toBeUndefined()
+    })
+
+    it("does not read a ve-dich icon on another round", () => {
         const veDich = { power: "STAR", answererId: "u1", assignedToId: null } as unknown as VeDichConsole
         const cards = railCardsOf(input({ roundId: "giai-ma", veDich }))
-        expect(cards.every((c) => c.badge === undefined)).toBe(true)
+        expect(cards.every((c) => c.icon === undefined)).toBe(true)
     })
 })
