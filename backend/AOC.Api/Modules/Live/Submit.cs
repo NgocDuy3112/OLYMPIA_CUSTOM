@@ -65,6 +65,35 @@ public sealed class SubmitService(
             ? Verdict.CORRECT
             : Verdict.INCORRECT;
 
+    private static void AssertWindow(AnswerWindow window, string playerId, string nowIso,
+        string notStartedCode, string notStartedMessage, string closedMessage)
+    {
+        try
+        {
+            window.AssertCanAnswer(playerId, nowIso);
+        }
+        catch (RuleError error)
+        {
+            if (error.Code == "WINDOW_NOT_OPEN")
+                throw new SubmitError(409, notStartedCode, notStartedMessage);
+            throw new SubmitError(409, "WINDOW_CLOSED", closedMessage);
+        }
+    }
+
+    private async Task<AnswerResult> DraftAsync(
+        Loaded loaded, SubmitContext ctx, SubmittedAnswerValue value, int answeredMs)
+    {
+        var question = loaded.Match.QuestionsList.FirstOrDefault(q => q.Id == ctx.QuestionId.ToString())
+            ?? throw new SubmitError(400, "NOT_IN_MATCH", "question is not part of this match");
+        var suggestion = Suggestion(question, value);
+        await drafts.WriteDraftAsync(ctx.MatchId, ctx.QuestionId, ctx.UserId,
+            ctx.Value, suggestion, answeredMs: answeredMs);
+        await DraftAuditAsync(ctx, loaded.Live.RoundId, suggestion);
+
+        await hub.PublishAsync(ctx.MatchId.ToString());
+        return new AnswerResult();
+    }
+
     private async Task DraftAuditAsync(SubmitContext ctx, string roundId, Verdict suggestion)
     {
         await audit.AuditAsync(new AOC.Infrastructure.Audit.AuditEvent
@@ -96,21 +125,15 @@ public sealed class SubmitService(
                 var state = LiveState.ParseGiaiMa(loaded.Live.State);
                 if (state.OpenHint != ctx.QuestionId.ToString())
                     throw new SubmitError(409, "NO_WINDOW", "no answer window is open for this question");
-                if (!GiaiMaTurn.IsWindowOpen(state, loaded.Now))
+                AssertWindow(state.HintWindow, ctx.UserId.ToString(), loaded.Now,
+                    "WINDOW_CLOSED", "the answer window has closed",
+                    "the answer window has closed");
+                if (GiaiMaTurn.KeywordWindowRunning(state, loaded.Now))
                     throw new SubmitError(409, "WINDOW_CLOSED", "the answer window has closed");
                 if (!GiaiMaTurn.CanPlayerAnswer(state, ctx.UserId.ToString(), loaded.Now))
                     throw new SubmitError(409, "LOCKED", "you can no longer answer this round");
 
-                var question = loaded.Match.QuestionsList.FirstOrDefault(q => q.Id == ctx.QuestionId.ToString())
-                    ?? throw new SubmitError(400, "NOT_IN_MATCH", "question is not part of this match");
-                var suggestion = Suggestion(question, value);
-                var answeredMs = state.HintWindow.ElapsedMs(loaded.Now);
-                await drafts.WriteDraftAsync(ctx.MatchId, ctx.QuestionId, ctx.UserId,
-                    ctx.Value, suggestion, answeredMs: answeredMs);
-                await DraftAuditAsync(ctx, loaded.Live.RoundId, suggestion);
-
-                await hub.PublishAsync(ctx.MatchId.ToString());
-                return new AnswerResult();
+                return await DraftAsync(loaded, ctx, value, state.HintWindow.ElapsedMs(loaded.Now));
             }
 
             case "but-pha":
@@ -122,23 +145,11 @@ public sealed class SubmitService(
                 if (openId is null) throw new SubmitError(409, "NO_QUESTION", "no question is open");
                 if (openId != ctx.QuestionId.ToString())
                     throw new SubmitError(409, "NOT_OPEN", "that question is not open");
-                if (state.Window.OpenedAt is null)
-                    throw new SubmitError(409, "NO_CLOCK", "the question's clock has not started");
-                if (!state.Window.IsOpen(loaded.Now))
-                    throw new SubmitError(409, "WINDOW_CLOSED", "the answer window has closed");
+                AssertWindow(state.Window, ctx.UserId.ToString(), loaded.Now,
+                    "NO_CLOCK", "the question's clock has not started",
+                    "the answer window has closed");
 
-                var atS = ButPhaTurn.ElapsedSeconds(state, loaded.Now);
-
-                var question = loaded.Match.QuestionsList.FirstOrDefault(q => q.Id == ctx.QuestionId.ToString())
-                    ?? throw new SubmitError(400, "NOT_IN_MATCH", "question is not part of this match");
-                var suggestion = Suggestion(question, value);
-                await drafts.WriteDraftAsync(ctx.MatchId, ctx.QuestionId, ctx.UserId,
-                    ctx.Value, suggestion,
-                    answeredMs: (int)Math.Round(atS * 1000), revise: true);
-                await DraftAuditAsync(ctx, loaded.Live.RoundId, suggestion);
-
-                await hub.PublishAsync(ctx.MatchId.ToString());
-                return new AnswerResult();
+                return await DraftAsync(loaded, ctx, value, state.Window.ElapsedMs(loaded.Now));
             }
 
             case "khoi-dong":
@@ -153,25 +164,14 @@ public sealed class SubmitService(
                     throw new SubmitError(409, "ENDED", "every chung question has been played");
                 if (questionId != ctx.QuestionId.ToString())
                     throw new SubmitError(409, "NOT_OPEN", "that question is not the one in play");
-                if (state.Phase2.Window.OpenedAt is null)
-                    throw new SubmitError(409, "NO_WINDOW",
-                        "the console has not started the clock for this question yet");
-                if (!KhoiDongTurn.IsPhase2WindowOpen(state.Phase2, loaded.Now))
+                AssertWindow(state.Phase2.Window, ctx.UserId.ToString(), loaded.Now,
+                    "NO_WINDOW", "the console has not started the clock for this question yet",
+                    "the clock has run out — the answer window is closed");
+                if (state.Phase2.Closed)
                     throw new SubmitError(409, "WINDOW_CLOSED",
                         "the clock has run out — the answer window is closed");
 
-                var question = loaded.Match.QuestionsList.FirstOrDefault(q => q.Id == ctx.QuestionId.ToString())
-                    ?? throw new SubmitError(400, "NOT_IN_MATCH", "question is not part of this match");
-                var suggestion = Suggestion(question, value);
-                await drafts.WriteDraftAsync(ctx.MatchId, ctx.QuestionId, ctx.UserId,
-                    ctx.Value, suggestion,
-                    answeredMs: Math.Max(0,
-                        (int)(DateTimeOffset.Parse(loaded.Now).ToUnixTimeMilliseconds()
-                            - DateTimeOffset.Parse(state.Phase2.Window.OpenedAt!).ToUnixTimeMilliseconds())));
-                await DraftAuditAsync(ctx, loaded.Live.RoundId, suggestion);
-
-                await hub.PublishAsync(ctx.MatchId.ToString());
-                return new AnswerResult();
+                return await DraftAsync(loaded, ctx, value, state.Phase2.Window.ElapsedMs(loaded.Now));
             }
 
             case "ve-dich":
@@ -185,24 +185,11 @@ public sealed class SubmitService(
                 var open = state.Open;
                 if (open is null || open.Question.Id != ctx.QuestionId.ToString())
                     throw new SubmitError(409, "NOT_OPEN", "that question is not open");
-                if (open.Window.OpenedAt is null)
-                    throw new SubmitError(409, "NO_CLOCK", "the clock has not started yet");
-                if (open.Window.Mode != AnswerMode.Oral)
-                    throw new SubmitError(409, "WINDOW_CLOSED", "the answer window has closed");
-                if (!open.Window.IsOpen(loaded.Now))
-                    throw new SubmitError(409, "WINDOW_CLOSED",
-                        "the answer window for this question has closed");
+                AssertWindow(open.Window, open.Answerer, loaded.Now,
+                    "NO_CLOCK", "the clock has not started yet",
+                    "the answer window for this question has closed");
 
-                var question = loaded.Match.QuestionsList.FirstOrDefault(q => q.Id == ctx.QuestionId.ToString())
-                    ?? throw new SubmitError(400, "NOT_IN_MATCH", "question is not part of this match");
-                var suggestion = Suggestion(question, value);
-                var answeredMs = open.Window.ElapsedMs(loaded.Now);
-                await drafts.WriteDraftAsync(ctx.MatchId, ctx.QuestionId, ctx.UserId,
-                    ctx.Value, suggestion, answeredMs: answeredMs);
-                await DraftAuditAsync(ctx, loaded.Live.RoundId, suggestion);
-
-                await hub.PublishAsync(ctx.MatchId.ToString());
-                return new AnswerResult();
+                return await DraftAsync(loaded, ctx, value, open.Window.ElapsedMs(loaded.Now));
             }
 
             default:
