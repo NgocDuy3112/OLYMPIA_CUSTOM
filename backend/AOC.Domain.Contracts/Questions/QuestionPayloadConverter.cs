@@ -3,41 +3,6 @@ using System.Text.Json.Serialization;
 
 namespace AOC.Domain.Contracts;
 
-public sealed record Media(
-    [property: JsonPropertyName("url")] string Url,
-    [property: JsonPropertyName("type")] MediaKind Type
-);
-
-[JsonConverter(typeof(JsonStringEnumConverter))]
-public enum MediaKind
-{
-    image,
-    audio,
-    video
-}
-
-[JsonConverter(typeof(QuestionPayloadConverter))]
-public abstract record QuestionPayload
-{
-    public sealed record Choice(
-        [property: JsonPropertyName("options")] List<ChoiceOption> Options,
-        [property: JsonPropertyName("correctSet")] List<string> CorrectSet
-    ) : QuestionPayload;
-
-    public sealed record Text(
-        [property: JsonPropertyName("acceptedAnswers")] List<string> AcceptedAnswers
-    ) : QuestionPayload;
-
-    public sealed record Keyword(
-        [property: JsonPropertyName("code")] string Code
-    ) : QuestionPayload;
-}
-
-public sealed record ChoiceOption(
-    [property: JsonPropertyName("id")] string Id,
-    [property: JsonPropertyName("text")] string Text
-);
-
 public sealed class QuestionPayloadConverter : JsonConverter<QuestionPayload>
 {
     public override QuestionPayload? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
@@ -90,20 +55,4 @@ public sealed class QuestionPayloadConverter : JsonConverter<QuestionPayload>
         }
         writer.WriteEndObject();
     }
-}
-
-
-public sealed record MatchQuestion
-{
-    [JsonPropertyName("_id")] public required string Id { get; init; }
-    [JsonPropertyName("roundId")] public required string RoundId { get; init; }
-    [JsonPropertyName("turnId")] public required string TurnId { get; init; }
-    [JsonPropertyName("position")] public required int Position { get; init; }
-    [JsonPropertyName("mode")] public required QuestionMode Mode { get; init; }
-    [JsonPropertyName("kind")] public required QuestionKind Kind { get; init; }
-    [JsonPropertyName("questionText")] public required string QuestionText { get; init; }
-    [JsonPropertyName("media")] public Media? Media { get; init; }
-    [JsonPropertyName("points")] public required int Points { get; init; }
-    [JsonPropertyName("payload")] public required QuestionPayload Payload { get; init; }
-    [JsonPropertyName("sourceId")] public required string SourceId { get; init; }
 }
