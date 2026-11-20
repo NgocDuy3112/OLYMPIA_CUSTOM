@@ -3,15 +3,6 @@ using AOC.Infrastructure.Configuration;
 
 namespace AOC.Infrastructure.Rtc;
 
-public enum RtcRole
-{
-    Player,
-    Operator,
-    Spectator
-}
-
-public sealed record RtcToken(string Url, string Token, string Identity, int ExpiresIn);
-
 public static class RtcTokens
 {
     public const int RtcTokenTtlSeconds = 6 * 60 * 60;

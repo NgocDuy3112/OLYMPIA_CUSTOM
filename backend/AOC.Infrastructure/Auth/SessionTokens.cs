@@ -6,11 +6,6 @@ using AOC.Infrastructure.Configuration;
 
 namespace AOC.Infrastructure.Auth;
 
-public sealed record SessionTokenPayload(string Sub, string Role, int TokenVersion);
-public sealed record PendingMfaToken(string Sub, string Purpose);
-public sealed record OauthPendingToken(string State, string Nonce, string CodeVerifier, string Purpose, string? Next);
-public sealed record InviteToken(string Sub, int TokenVersion, string Purpose);
-
 public sealed class SessionTokens
 {
     private static readonly JwtSecurityTokenHandler Handler = new() { MapInboundClaims = false };

@@ -1,19 +1,5 @@
 namespace AOC.Infrastructure.Configuration;
 
-public enum Surface
-{
-    GAMEPLAY,
-    PORTAL
-}
-
-public static class CookieNames
-{
-    public const string Gameplay = "gameplay_session";
-    public const string Portal = "portal_session";
-
-    public static string For(Surface surface) => surface == Surface.GAMEPLAY ? Gameplay : Portal;
-}
-
 public sealed class AppConfig
 {
     public static AppConfig Instance { get; } = new();
@@ -98,44 +84,4 @@ public sealed class AppConfig
                $"Username={Enc("POSTGRES_USER")};Password={Enc("POSTGRES_PASSWORD")};" +
                $"Database={Enc("POSTGRES_DB")}";
     }
-}
-
-public sealed record SurfaceSecrets(string JwtSecret, string? CookieDomain);
-
-public sealed record GoogleOidcOptions(
-    string? Issuer,
-    string? ClientId,
-    string? ClientSecret,
-    string? RedirectUri)
-{
-    public bool Configured =>
-        !string.IsNullOrEmpty(Issuer) && !string.IsNullOrEmpty(ClientId)
-        && !string.IsNullOrEmpty(ClientSecret) && !string.IsNullOrEmpty(RedirectUri);
-}
-
-public sealed record S3Options(
-    string? Endpoint,
-    string Region,
-    string? Bucket,
-    string? AccessKeyId,
-    string? SecretAccessKey)
-{
-    public bool Configured =>
-        !string.IsNullOrEmpty(Bucket) && !string.IsNullOrEmpty(AccessKeyId)
-        && !string.IsNullOrEmpty(SecretAccessKey);
-}
-
-public sealed record LivekitOptions(
-    string? Url,
-    string? ApiKey,
-    string? ApiSecret,
-    string? InternalUrl)
-{
-    public bool Configured =>
-        !string.IsNullOrEmpty(Url) && !string.IsNullOrEmpty(ApiKey) && !string.IsNullOrEmpty(ApiSecret);
-}
-
-public sealed record DiscordLogOptions(string? WebhookUrl, string Level)
-{
-    public bool Configured => !string.IsNullOrEmpty(WebhookUrl);
 }

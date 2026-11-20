@@ -4,17 +4,6 @@ using AOC.Infrastructure.Configuration;
 
 namespace AOC.Infrastructure.Media;
 
-public enum MediaKind
-{
-    image,
-    audio,
-    video
-}
-
-public sealed record StoredMedia(string Url, MediaKind Type);
-
-public sealed record MediaAttachment(string Filename, string? ContentType, byte[] Content);
-
 public static class MediaStorage
 {
     private static readonly Dictionary<string, MediaKind> KindByExtension = new(StringComparer.OrdinalIgnoreCase)
