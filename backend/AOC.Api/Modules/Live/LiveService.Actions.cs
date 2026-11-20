@@ -182,51 +182,7 @@ public sealed partial class LiveService
                     return await ButPhaTransitionAsync(action, current, tx, match, actorId, now);
 
                 case "khoi-dong":
-                {
-                    var config = match.RoundConfigsMap.GetValueOrDefault(current.RoundId)
-                        ?? AocRulebook.AocRoundConfig(current.RoundId);
-                    var turns = config?.Turns ?? [];
-                    var questions = match.QuestionsList
-                        .Where(q => q.RoundId == current.RoundId)
-                        .OrderBy(q => q.Position)
-                        .ToList();
-                    List<string> IdsFor(string? turnId) => turnId is null
-                        ? []
-                        : questions.Where(q => q.TurnId == turnId).Select(q => q.Id).ToList();
-
-                    KhoiDongState engine;
-                    if (action is LiveAction.KhoiDongStart)
-                    {
-                        engine = new KhoiDongState { Rules = RoundRules.ResolveKhoiDong(config) };
-                    }
-                    else
-                    {
-                        engine = LiveState.ParseKhoiDong(current.State);
-                    }
-
-                    var answerDrafts = new List<AnswerDraft>();
-                    if (action is LiveAction.KhoiDongJudge or LiveAction.KhoiDongNextQuestion)
-                    {
-                        var questionId = engine.Phase2 is null
-                            ? null
-                            : KhoiDongTurn.Phase2QuestionId(engine.Phase2);
-                        if (questionId is not null)
-                            answerDrafts = await tx.ReadAnswerDrafts(Guid.Parse(questionId));
-                    }
-
-                    var ctx = new KhoiDongApplier.KhoiDongContext(
-                        actorId.ToString(), current.RoundId, now,
-                        RoundRules.ResolveKhoiDong(config),
-                        match.PlayersList.Where(s => s.Kind == "user")
-                            .OrderBy(s => s.Seed).Select(s => s.UserId).ToList(),
-                        IdsFor(turns.Count > 0 ? turns[0].Id : null),
-                        IdsFor(turns.Count > 1 ? turns[1].Id : null),
-                        answerDrafts);
-
-                    var (next, facts) = KhoiDongApplier.Apply(engine, action, ctx);
-                    return new Transition<JsonElement>(
-                        JsonSerializer.SerializeToElement(next, JsonDefaults.Options), facts);
-                }
+                    return await KhoiDongTransitionAsync(action, current, tx, match, actorId, now);
 
                 case "ve-dich":
                 {
