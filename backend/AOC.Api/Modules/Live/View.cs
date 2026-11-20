@@ -262,7 +262,7 @@ public static class LiveView
 
     private static Dictionary<string, object?> KhoiDongView(ViewInput input, KhoiDongState state)
     {
-        if (state.Step == "phase1")
+        if (state.Flow == Flow.rieng)
         {
             var activeId = KhoiDongRound.ActivePlayerId(state);
             var run = activeId is not null ? state.Runs[activeId] : null;
@@ -312,7 +312,7 @@ public static class LiveView
             open.Add(new Dictionary<string, object?>
             {
                 ["questionId"] = qid,
-                ["deadlineAt"] = p2.OpenedAt is null ? null : PlusSeconds(p2.OpenedAt, p2.WindowS),
+                ["deadlineAt"] = p2.Window.Deadline(),
                 ["question"] = QuestionOf(input, qid)
             });
         }
@@ -510,7 +510,7 @@ public static class LiveView
 
         bool KhoiDongStillShowing(KhoiDongState state)
         {
-            if (state.Step == "phase2")
+            if (state.Flow == Flow.chung)
             {
                 if (state.Phase2 is null) return false;
                 return KhoiDongTurn.Phase2QuestionId(state.Phase2) == questionId;
@@ -650,7 +650,7 @@ public static class LiveFacts
                 var p2 = state.Phase2;
                 return new Dictionary<string, object?>
                 {
-                    ["stage"] = state.Step,
+                    ["stage"] = StageOf(state.Flow),
                     ["ended"] = state.Ended,
                     ["phase2Begun"] = p2 is not null,
                     ["phase2Closed"] = p2?.Closed ?? false,
@@ -674,6 +674,8 @@ public static class LiveFacts
                 return new Dictionary<string, object?>();
         }
     }
+
+    private static string StageOf(Flow flow) => flow == Flow.rieng ? "phase1" : "phase2";
 
     public static List<MatchQuestion> PublicQuestions(List<MatchQuestion> questions)
         => questions.Select(q =>

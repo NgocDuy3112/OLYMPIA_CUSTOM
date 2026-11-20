@@ -390,7 +390,7 @@ public sealed class LiveService(
                 if (current.RoundId == "khoi-dong")
                 {
                     var kd = LiveState.ParseKhoiDong(current.State);
-                    if (kd.Step == "phase1")
+                    if (kd.Flow == Flow.rieng)
                     {
                         var runs = new Dictionary<string, Phase1State>(kd.Runs);
                         foreach (var pair in kd.Runs)

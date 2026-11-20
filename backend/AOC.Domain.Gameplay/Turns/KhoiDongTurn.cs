@@ -25,10 +25,10 @@ public sealed record Phase2State
 {
     [JsonPropertyName("kind")] public string Kind { get; init; } = "phase2";
     [JsonPropertyName("pointsPerCorrect")] public int PointsPerCorrect { get; init; }
-    [JsonPropertyName("windowS")] public int WindowS { get; init; }
+    [JsonPropertyName("window")]
+    public AnswerWindow Window { get; init; } = AnswerWindow.TypedEveryone(RuleBatches.KhoiDong.Phase2WindowS);
     [JsonPropertyName("questionIds")] public List<string> QuestionIds { get; init; } = [];
     [JsonPropertyName("index")] public int Index { get; init; }
-    [JsonPropertyName("openedAt")] public string? OpenedAt { get; init; }
     [JsonPropertyName("results")] public Dictionary<string, Dictionary<string, int>> Results { get; init; } = new();
     [JsonPropertyName("closed")] public bool Closed { get; init; }
 }
@@ -87,9 +87,9 @@ public static class KhoiDongTurn
         return new Phase2State
         {
             PointsPerCorrect = rules.PointsPerCorrect,
-            WindowS = rules.Phase2WindowS,
             QuestionIds = ids,
-            Index = -1
+            Index = -1,
+            Window = AnswerWindow.TypedEveryone(rules.Phase2WindowS)
         };
     }
 
@@ -103,10 +103,8 @@ public static class KhoiDongTurn
 
     public static bool IsPhase2WindowOpen(Phase2State state, string nowIso)
     {
-        if (state.OpenedAt is null || Phase2QuestionId(state) is null) return false;
-        var elapsed = DateTimeOffset.Parse(nowIso).ToUnixTimeMilliseconds()
-            - DateTimeOffset.Parse(state.OpenedAt).ToUnixTimeMilliseconds();
-        return elapsed >= 0 && elapsed <= state.WindowS * 1000;
+        if (state.Closed) return false;
+        return state.Window.IsOpen(nowIso);
     }
 
     public static Phase2State OpenPhase2Window(Phase2State state, string nowIso)
@@ -115,8 +113,17 @@ public static class KhoiDongTurn
         if (Phase2QuestionId(state) is null)
             Fail("NOT_PICKED", "pick a question number first");
         if (IsPhase2WindowOpen(state, nowIso)) Fail("ALREADY_OPEN", "the window is already running");
-        return state with { OpenedAt = nowIso };
+
+        var windowS = WindowSeconds(state);
+        return state with { Window = AnswerWindow.TypedEveryone(windowS).OpenFor(nowIso, windowS) };
     }
+
+    private static AnswerWindow FreshWindow(Phase2State state)
+        => AnswerWindow.TypedEveryone(WindowSeconds(state));
+
+    private static int WindowSeconds(Phase2State state)
+        => state.Window.Seconds
+            ?? throw new RuleError("WINDOW_NOT_SET", "the chung window has no duration");
 
     public static Phase2State JudgePhase2Card(Phase2State state, string playerId, bool correct)
     {
@@ -138,7 +145,7 @@ public static class KhoiDongTurn
         if (state.Index >= state.QuestionIds.Count) Fail("PHASE_ENDED", "every question has been played");
 
         var index = state.Index < 0 ? 0 : state.Index + 1;
-        return state with { Index = index, OpenedAt = null, Closed = index >= state.QuestionIds.Count };
+        return state with { Index = index, Window = FreshWindow(state), Closed = index >= state.QuestionIds.Count };
     }
 
     public static Phase2State ClosePhase2(Phase2State state) => state with { Closed = true };

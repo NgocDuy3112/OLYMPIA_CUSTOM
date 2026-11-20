@@ -14,6 +14,10 @@ public class KhoiDongTurnTests
         DateTimeOffset.Parse(T0).AddSeconds(seconds).UtcDateTime
             .ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
 
+    private static string AtMs(long milliseconds) =>
+        DateTimeOffset.Parse(T0).AddMilliseconds(milliseconds).UtcDateTime
+            .ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+
     private static Phase2State Picked(Phase2State state) => KhoiDongTurn.NextPhase2(state);
 
     private static string CodeOf(Action fn)
@@ -111,7 +115,7 @@ public class KhoiDongTurnTests
     public void Phase2_NothingRunsBeforeBangGio()
     {
         var s = KhoiDongTurn.StartPhase2(Ids6, RuleBatches.KhoiDong);
-        Assert.Null(s.OpenedAt);
+        Assert.Null(s.Window.OpenedAt);
         Assert.False(KhoiDongTurn.IsPhase2WindowOpen(s, T0));
         Assert.Equal(-1, s.Index);
         Assert.Null(KhoiDongTurn.Phase2QuestionId(s));
@@ -126,7 +130,7 @@ public class KhoiDongTurnTests
     {
         var s = KhoiDongTurn.OpenPhase2Window(
             Picked(KhoiDongTurn.StartPhase2(Ids6, RuleBatches.KhoiDong)), T0);
-        Assert.Equal(T0, s.OpenedAt);
+        Assert.Equal(T0, s.Window.OpenedAt);
         Assert.True(KhoiDongTurn.IsPhase2WindowOpen(s, At(1)));
         Assert.Equal("ALREADY_OPEN", CodeOf(() => KhoiDongTurn.OpenPhase2Window(s, At(1))));
     }
@@ -148,8 +152,20 @@ public class KhoiDongTurnTests
         var s = KhoiDongTurn.OpenPhase2Window(
             Picked(KhoiDongTurn.StartPhase2(Ids6, RuleBatches.KhoiDong)), T0);
         s = KhoiDongTurn.OpenPhase2Window(s, At(12));
-        Assert.Equal(At(12), s.OpenedAt);
+        Assert.Equal(At(12), s.Window.OpenedAt);
         Assert.True(KhoiDongTurn.IsPhase2WindowOpen(s, At(15)));
+    }
+
+    [Fact]
+    public void Phase2_ReopenedWindowClosesExactlyTenSecondsAfterTheNewStart()
+    {
+        var s = KhoiDongTurn.OpenPhase2Window(
+            Picked(KhoiDongTurn.StartPhase2(Ids6, RuleBatches.KhoiDong)), T0);
+        s = KhoiDongTurn.OpenPhase2Window(s, At(12));
+
+        Assert.Equal(At(12), s.Window.OpenedAt);
+        Assert.True(KhoiDongTurn.IsPhase2WindowOpen(s, At(22)));
+        Assert.False(KhoiDongTurn.IsPhase2WindowOpen(s, AtMs(22001)));
     }
 
     [Fact]
@@ -192,7 +208,7 @@ public class KhoiDongTurnTests
             Picked(KhoiDongTurn.StartPhase2(Ids6, RuleBatches.KhoiDong)), T0);
         s = KhoiDongTurn.NextPhase2(s);
         Assert.Equal(1, s.Index);
-        Assert.Null(s.OpenedAt);
+        Assert.Null(s.Window.OpenedAt);
         Assert.Equal("q2", KhoiDongTurn.Phase2QuestionId(s));
         Assert.False(KhoiDongTurn.IsPhase2WindowOpen(s, At(11)));
     }

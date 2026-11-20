@@ -185,7 +185,7 @@ public class KhoiDongRoundTests
     public void Phase2_MayBeginEarlyOnlyWhileNothingWasRecorded()
     {
         var s = KhoiDongRound.BeginPhase2(KhoiDongRound.StartKhoiDong(Players, P1), P2);
-        Assert.Equal("phase2", s.Step);
+        Assert.Equal(Flow.chung, s.Flow);
     }
 
     [Fact]
@@ -202,7 +202,7 @@ public class KhoiDongRoundTests
     {
         var done = FinishRun(KhoiDongRound.TimeOutRun(FinishRun(KhoiDongRound.StartKhoiDong(Players, P1))));
         var s = KhoiDongRound.BeginPhase2(done, P2);
-        Assert.Equal("phase2", s.Step);
+        Assert.Equal(Flow.chung, s.Flow);
         Assert.Equal(P2, s.Phase2!.QuestionIds);
         Assert.Null(KhoiDongRound.ActivePlayerId(s));
     }
@@ -223,7 +223,7 @@ public class KhoiDongRoundTests
     public void BangGioOpensWindowAndJudgesPayOnTopOfRuns()
     {
         var s = KhoiDongRound.OpenWindow(InPhase2(), Opened);
-        Assert.Equal(Opened, s.Phase2!.OpenedAt);
+        Assert.Equal(Opened, s.Phase2!.Window.OpenedAt);
 
         s = KhoiDongRound.JudgeCard(s, "p0", true);
         s = KhoiDongRound.JudgeCard(s, "p1", true);
@@ -248,11 +248,11 @@ public class KhoiDongRoundTests
         var s = KhoiDongRound.OpenWindow(InPhase2(), Opened);
         s = KhoiDongRound.NextQuestion(s);
         Assert.Equal(1, s.Phase2!.Index);
-        Assert.Null(s.Phase2!.OpenedAt);
+        Assert.Null(s.Phase2!.Window.OpenedAt);
 
         var reopened = KhoiDongRound.OpenWindow(s, Opened);
         Assert.Equal(1, reopened.Phase2!.Index);
-        Assert.Equal(Opened, reopened.Phase2!.OpenedAt);
+        Assert.Equal(Opened, reopened.Phase2!.Window.OpenedAt);
     }
 
     [Fact]
@@ -318,7 +318,7 @@ public class KhoiDongRoundTests
         Assert.Equal("WRONG_STAGE", CodeOf(() =>
         {
             var s = KhoiDongRound.StartKhoiDong(Players, P1);
-            KhoiDongRound.StartClock(s with { Step = "phase2" }, Opened);
+            KhoiDongRound.StartClock(s with { Flow = Flow.chung }, Opened);
         }));
     }
 }

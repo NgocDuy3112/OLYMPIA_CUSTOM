@@ -6,7 +6,7 @@ namespace AOC.Domain.Gameplay.Turns;
 public sealed record KhoiDongState
 {
     [JsonPropertyName("rules")] public RoundRules.KhoiDongRules Rules { get; init; } = RuleBatches.KhoiDong;
-    [JsonPropertyName("step")] public string Step { get; init; } = "phase1";
+    [JsonPropertyName("flow")] public Flow Flow { get; init; } = Flow.rieng;
     [JsonPropertyName("ended")] public bool Ended { get; init; }
     [JsonPropertyName("order")] public List<string> Order { get; init; } = [];
     [JsonPropertyName("activeIndex")] public int ActiveIndex { get; init; }
@@ -57,13 +57,13 @@ public static class KhoiDongRound
 
     public static string? ActivePlayerId(KhoiDongState state)
     {
-        if (state.Step != "phase1") return null;
+        if (state.Flow != Flow.rieng) return null;
         return state.ActiveIndex < state.Order.Count ? state.Order[state.ActiveIndex] : null;
     }
 
     public static string? ActiveQuestionId(KhoiDongState state)
     {
-        if (state.Step != "phase1") return null;
+        if (state.Flow != Flow.rieng) return null;
         var id = ActivePlayerId(state);
         if (id is null) return null;
         return QuestionIdOf(state, id);
@@ -71,7 +71,7 @@ public static class KhoiDongRound
 
     public static string? QuestionIdOf(KhoiDongState state, string playerId)
     {
-        if (state.Step != "phase1") return null;
+        if (state.Flow != Flow.rieng) return null;
         if (!state.Runs.TryGetValue(playerId, out var run) || run.Ended) return null;
         return run.Cursor < run.QuestionIds.Count ? run.QuestionIds[run.Cursor] : null;
     }
@@ -88,7 +88,7 @@ public static class KhoiDongRound
     public static KhoiDongState RecordOral(
         KhoiDongState state, bool correct, double spentS, string? playerId = null, string? nowIso = null)
     {
-        if (state.Step != "phase1") Fail("WRONG_STAGE", "phase 1 is over");
+        if (state.Flow != Flow.rieng) Fail("WRONG_STAGE", "phase 1 is over");
 
         if (playerId is not null)
         {
@@ -120,7 +120,7 @@ public static class KhoiDongRound
 
     public static KhoiDongState SetTurn(KhoiDongState state, string playerId)
     {
-        if (state.Step != "phase1") Fail("WRONG_STAGE", "phase 1 is over");
+        if (state.Flow != Flow.rieng) Fail("WRONG_STAGE", "phase 1 is over");
         var index = state.Order.IndexOf(playerId);
         if (index < 0) Fail("NO_ACTIVE_PLAYER", $"{playerId} is not answering");
         return state with { ActiveIndex = index, Engaged = true, ClockStarted = false, ClockStartedAt = null };
@@ -128,14 +128,14 @@ public static class KhoiDongRound
 
     public static KhoiDongState StartClock(KhoiDongState state, string nowIso)
     {
-        if (state.Step != "phase1") Fail("WRONG_STAGE", "phase 1 is over");
+        if (state.Flow != Flow.rieng) Fail("WRONG_STAGE", "phase 1 is over");
         if (state.ClockStarted) Fail("ALREADY_OPEN", "the clock is already running");
         return state with { ClockStarted = true, ClockStartedAt = nowIso };
     }
 
     public static KhoiDongState TimeOutRun(KhoiDongState state)
     {
-        if (state.Step != "phase1") Fail("WRONG_STAGE", "phase 1 is over");
+        if (state.Flow != Flow.rieng) Fail("WRONG_STAGE", "phase 1 is over");
         var id = ActivePlayerId(state);
         if (id is null) Fail("NO_ACTIVE_PLAYER", "no player is answering");
 
@@ -148,19 +148,19 @@ public static class KhoiDongRound
 
     public static KhoiDongState BeginPhase2(KhoiDongState state, IReadOnlyList<string> phase2Ids)
     {
-        if (state.Step != "phase1") Fail("WRONG_STAGE", "phase 1 is over");
+        if (state.Flow != Flow.rieng) Fail("WRONG_STAGE", "phase 1 is over");
         if (!Phase1Complete(state) && !Phase1Untouched(state))
             Fail("PHASE1_INCOMPLETE", "not every player has finished phase 1");
         return state with
         {
-            Step = "phase2",
+            Flow = Flow.chung,
             Phase2 = KhoiDongTurn.StartPhase2(phase2Ids, state.Rules)
         };
     }
 
     private static Phase2State RequirePhase2(KhoiDongState state)
     {
-        if (state.Step != "phase2" || state.Phase2 is null) Fail("WRONG_STAGE", "chung is not open");
+        if (state.Flow != Flow.chung || state.Phase2 is null) Fail("WRONG_STAGE", "chung is not open");
         if (state.Ended) Fail("ENDED", "the round has ended");
         return state.Phase2;
     }

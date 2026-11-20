@@ -145,7 +145,7 @@ public sealed class SubmitService(
             {
                 value = TextOfChoice(loaded, ctx, value, "a chung answer must be text");
                 var state = LiveState.ParseKhoiDong(loaded.Live.State);
-                if (state.Step != "phase2" || state.Phase2 is null)
+                if (state.Flow != Flow.chung || state.Phase2 is null)
                     throw new SubmitError(409, "NO_WINDOW",
                         "khởi động riêng is oral — there is nothing to type yet");
                 var questionId = KhoiDongTurn.Phase2QuestionId(state.Phase2);
@@ -153,7 +153,7 @@ public sealed class SubmitService(
                     throw new SubmitError(409, "ENDED", "every chung question has been played");
                 if (questionId != ctx.QuestionId.ToString())
                     throw new SubmitError(409, "NOT_OPEN", "that question is not the one in play");
-                if (state.Phase2.OpenedAt is null)
+                if (state.Phase2.Window.OpenedAt is null)
                     throw new SubmitError(409, "NO_WINDOW",
                         "the console has not started the clock for this question yet");
                 if (!KhoiDongTurn.IsPhase2WindowOpen(state.Phase2, loaded.Now))
@@ -167,7 +167,7 @@ public sealed class SubmitService(
                     ctx.Value, suggestion,
                     answeredMs: Math.Max(0,
                         (int)(DateTimeOffset.Parse(loaded.Now).ToUnixTimeMilliseconds()
-                            - DateTimeOffset.Parse(state.Phase2.OpenedAt!).ToUnixTimeMilliseconds())));
+                            - DateTimeOffset.Parse(state.Phase2.Window.OpenedAt!).ToUnixTimeMilliseconds())));
                 await DraftAuditAsync(ctx, loaded.Live.RoundId, suggestion);
 
                 await hub.PublishAsync(ctx.MatchId.ToString());
