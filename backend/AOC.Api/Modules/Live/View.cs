@@ -394,10 +394,12 @@ public static class LiveView
                 frozenRemainingMs = Math.Max(0,
                     seconds * 1000 - open.Window.ElapsedMs(input.Now));
             }
-            openList.Add(OpenEntry(open.Question.Id,
+            var entry = OpenEntry(open.Question.Id,
                 frozenRemainingMs is null ? DeadlineOnceStarted(open.Window) : null,
                 open.Revealed || input.RevealAll ? QuestionOf(input, open.Question.Id) : null,
-                frozenRemainingMs));
+                frozenRemainingMs);
+            entry["frozenRemainingMs"] = frozenRemainingMs;
+            openList.Add(entry);
         }
 
         var openId = open?.Question.Id;
