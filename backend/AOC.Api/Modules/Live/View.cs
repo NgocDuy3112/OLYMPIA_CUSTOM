@@ -339,19 +339,19 @@ public static class LiveView
             state.Ended ? "ended" : "phase2", open, RankTable(input.Table, input.TieBreak), p2me);
     }
 
-    private static string? StageOfWindow(OpenQuestion? open)
+    internal static string? StageOfWindow(OpenQuestion? open)
     {
         if (open is null) return null;
         if (open.Window.Mode == AnswerMode.Buzz) return "buzz";
         return "current";
     }
 
-    private static string? AssignedToId(OpenQuestion? open)
+    internal static string? AssignedToId(OpenQuestion? open)
         => open is null || open.Window.Eligibility != AnswerEligibility.Pair
             ? null
             : open.Window.PairB;
 
-    private static Dictionary<string, object?>? StagedPowerOf(VeDichPlayerState? player)
+    internal static Dictionary<string, object?>? StagedPowerOf(VeDichPlayerState? player)
     {
         var staged = player?.Powers.Staged;
         if (staged is null) return null;
@@ -588,28 +588,6 @@ public static class LiveView
 
 public static class LiveFacts
 {
-    private static string? StageOfWindow(OpenQuestion? open)
-    {
-        if (open is null) return null;
-        if (open.Window.Mode == AnswerMode.Buzz) return "buzz";
-        return "current";
-    }
-
-    private static string? AssignedToId(OpenQuestion? open)
-        => open is null || open.Window.Eligibility != AnswerEligibility.Pair
-            ? null
-            : open.Window.PairB;
-
-    private static Dictionary<string, object?>? StagedPowerOf(VeDichPlayerState? player)
-    {
-        var staged = player?.Powers.Staged;
-        if (staged is null) return null;
-        return new Dictionary<string, object?>
-        {
-            ["power"] = staged.Power,
-            ["targetId"] = staged.TargetId
-        };
-    }
     public static JsonElement WaitingMarker() =>
         JsonSerializer.SerializeToElement(new { waiting = true }, JsonApiOptions.Options);
 
@@ -673,19 +651,19 @@ public static class LiveFacts
                 {
                     ["phase"] = state.Phase,
                     ["turnPlayerId"] = turnPlayer?.Id,
-                    ["openStage"] = StageOfWindow(open),
+                    ["openStage"] = LiveView.StageOfWindow(open),
                     ["revealed"] = open?.Revealed ?? false,
                     ["clockStarted"] = open is not null && open.Window.HasStarted,
                     ["answererId"] = open?.Answerer,
                     ["buzzerId"] = open?.Window.Buzzer,
                     ["buzzerMs"] = open?.Window.BuzzerMs,
                     ["power"] = open?.Power,
-                    ["assignedToId"] = AssignedToId(open),
+                    ["assignedToId"] = LiveView.AssignedToId(open),
                     ["pendingQuestionId"] = state.PendingPicks.Count > 0 ? state.PendingPicks[0].Id : null,
                     ["pendingValues"] = state.PendingPicks.Select(q => q.Value).ToList(),
                     ["turnPicked"] = state.TurnPicked,
                     ["picksConfirmed"] = state.PicksConfirmed,
-                    ["stagedPower"] = StagedPowerOf(turnPlayer),
+                    ["stagedPower"] = LiveView.StagedPowerOf(turnPlayer),
                     ["turnPowerUsed"] = turnPlayer?.Powers.UsedThisTurn ?? false
                 };
             }
