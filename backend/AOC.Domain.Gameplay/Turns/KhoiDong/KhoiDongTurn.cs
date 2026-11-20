@@ -1,37 +1,7 @@
-using System.Text.Json.Serialization;
 using AOC.Domain.Contracts;
 using AOC.Domain.Gameplay.Scoring;
 
 namespace AOC.Domain.Gameplay.Turns;
-
-public sealed record Phase1State
-{
-    [JsonPropertyName("kind")] public string Kind { get; init; } = "phase1";
-    [JsonPropertyName("budgetS")] public int BudgetS { get; init; }
-    [JsonPropertyName("pointsPerCorrect")] public int PointsPerCorrect { get; init; }
-    [JsonPropertyName("questionIds")] public List<string> QuestionIds { get; init; } = [];
-    [JsonPropertyName("cursor")] public int Cursor { get; init; }
-    [JsonPropertyName("elapsedS")] public double ElapsedS { get; init; }
-    [JsonPropertyName("results")] public Dictionary<string, Phase1Result> Results { get; init; } = new();
-    [JsonPropertyName("ended")] public bool Ended { get; init; }
-}
-
-public sealed record Phase1Result(
-    [property: JsonPropertyName("correct")] bool Correct,
-    [property: JsonPropertyName("points")] int Points
-);
-
-public sealed record Phase2State
-{
-    [JsonPropertyName("kind")] public string Kind { get; init; } = "phase2";
-    [JsonPropertyName("pointsPerCorrect")] public int PointsPerCorrect { get; init; }
-    [JsonPropertyName("window")]
-    public AnswerWindow Window { get; init; } = AnswerWindow.TypedEveryone(RuleBatches.KhoiDong.Phase2WindowS);
-    [JsonPropertyName("questionIds")] public List<string> QuestionIds { get; init; } = [];
-    [JsonPropertyName("index")] public int Index { get; init; }
-    [JsonPropertyName("results")] public Dictionary<string, Dictionary<string, int>> Results { get; init; } = new();
-    [JsonPropertyName("closed")] public bool Closed { get; init; }
-}
 
 public static class KhoiDongTurn
 {

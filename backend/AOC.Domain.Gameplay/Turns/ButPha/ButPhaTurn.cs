@@ -1,35 +1,7 @@
-using System.Text.Json.Serialization;
 using AOC.Domain.Contracts;
 using AOC.Domain.Gameplay.Scoring;
 
 namespace AOC.Domain.Gameplay.Turns;
-
-public sealed record ButPhaAnswer
-{
-    [JsonPropertyName("playerId")] public required string PlayerId { get; init; }
-    [JsonPropertyName("correct")] public required bool Correct { get; init; }
-    [JsonPropertyName("atS")] public required double AtS { get; init; }
-}
-
-public sealed record ButPhaState
-{
-    [JsonPropertyName("rules")] public RoundRules.ButPhaRules Rules { get; init; } = RuleBatches.ButPha;
-    [JsonPropertyName("questionIds")] public List<string> QuestionIds { get; init; } = [];
-    [JsonPropertyName("cursor")] public int Cursor { get; init; }
-    [JsonPropertyName("questionRevealedAt")] public string? QuestionRevealedAt { get; init; }
-
-    [JsonPropertyName("window")]
-    public AnswerWindow Window { get; init; } = AnswerWindow.TypedEveryone(RuleBatches.ButPha.QuestionLimitS);
-    [JsonPropertyName("answers")] public Dictionary<string, List<ButPhaAnswer>> Answers { get; init; } = new();
-    [JsonPropertyName("points")] public Dictionary<string, Dictionary<string, int>> Points { get; init; } = new();
-    [JsonPropertyName("ended")] public bool Ended { get; init; }
-
-    [JsonPropertyName("revealedAnswer")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? RevealedAnswer { get; init; }
-}
-
-public sealed record FinalResult(string PlayerId, bool Correct, double AtS);
 
 public static class ButPhaTurn
 {
