@@ -1,21 +1,6 @@
 using AOC.Domain.Contracts;
-using AOC.Domain.Gameplay;
 
 namespace AOC.Api.Modules.Live;
-
-public sealed record LiveRecord<S>(int Version, string RoundId, S State, Dictionary<string, S> Archive);
-
-public sealed record Transition<S>(
-    S State,
-    List<LiveFact> Facts,
-    string? RoundId = null,
-    Dictionary<string, S>? Archive = null);
-
-public sealed record AnswerDraft(
-    string UserId,
-    Verdict? Suggestion,
-    int? AnsweredMs,
-    bool Judged);
 
 public interface ILiveTx<S>
 {
@@ -97,12 +82,4 @@ public interface ILiveRecordView<S>
     string RoundId { get; }
     S State { get; }
     Dictionary<string, S> Archive { get; }
-}
-
-internal sealed record RecordView<S>(LiveRecord<S> Inner) : ILiveRecordView<S>
-{
-    public int Version => Inner.Version;
-    public string RoundId => Inner.RoundId;
-    public S State => Inner.State;
-    public Dictionary<string, S> Archive => Inner.Archive;
 }

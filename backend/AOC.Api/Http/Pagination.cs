@@ -1,12 +1,5 @@
 namespace AOC.Api.Http;
 
-public sealed class PaginationError(string message) : Exception(message);
-
-public sealed record Page(int Limit, int Offset);
-
-public sealed record PageResult<T>(List<T> Items, int Total, int Limit, int Offset);
-
-
 public static class Pagination
 {
     public const int DefaultLimit = 20;

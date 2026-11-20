@@ -1,22 +1,7 @@
-using System.Text.Json;
 using AOC.Domain.Contracts;
 using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Shared;
-
-public sealed record SanitizedQuestion(
-    string QuestionId,
-    QuestionKind Kind,
-    int Position,
-    string QuestionText,
-    Media? Media,
-    SanitizedPayload Payload
-);
-
-public sealed record SanitizedPayload(
-    List<ChoiceOption>? Options = null,
-    int? CodeLength = null
-);
 
 public static class QuestionView
 {

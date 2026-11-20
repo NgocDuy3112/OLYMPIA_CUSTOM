@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using AOC.Api.Http;
@@ -14,29 +13,6 @@ using AOC.Infrastructure.Data;
 using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.Mcp;
-
-public sealed class ToolError(string code, string message) : Exception(message)
-{
-    public string Code { get; } = code;
-}
-
-public sealed record McpActor(Guid KeyId, List<string> Scopes, Guid? UserId, string? Role);
-
-public static class McpActorAccessor
-{
-    public const string ItemKey = "mcpActor";
-
-    public static McpActor Require(HttpContext http)
-        => http.Items.TryGetValue(ItemKey, out var value) && value is McpActor actor
-            ? actor
-            : throw new ToolError("UNAUTHORIZED", "Missing MCP authentication context");
-
-    public static void RequireScope(McpActor actor, string scope)
-    {
-        if (!actor.Scopes.Contains(scope))
-            throw new ToolError("FORBIDDEN", $"Missing scope: {scope}");
-    }
-}
 
 public sealed class McpTools(
     QuestionsService questions,
