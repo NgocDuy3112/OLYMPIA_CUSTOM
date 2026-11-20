@@ -185,63 +185,7 @@ public sealed partial class LiveService
                     return await KhoiDongTransitionAsync(action, current, tx, match, actorId, now);
 
                 case "ve-dich":
-                {
-                    VeDichState engine;
-                    if (action is LiveAction.VeDichStart)
-                    {
-                        engine = new VeDichState
-                        {
-                            Rules = RoundRules.ResolveVeDich(
-                                match.RoundConfigsMap.GetValueOrDefault(current.RoundId))
-                        };
-                    }
-                    else
-                    {
-                        engine = LiveState.ParseVeDich(current.State);
-                    }
-
-                    var drafts = new List<AnswerDraft>();
-                    var needsDrafts = action is LiveAction.VeDichResolve or LiveAction.VeDichJudge;
-                    if (engine.Open is not null)
-                    {
-                        if (needsDrafts)
-                            drafts = await tx.ReadAnswerDrafts(Guid.Parse(engine.Open.Question.Id));
-                    }
-
-                    Dictionary<string, int> sums;
-                    if (action is LiveAction.VeDichStart)
-                    {
-                        sums = await reader.SumPointsByPlayerAsync(matchId);
-                    }
-                    else
-                    {
-                        sums = new Dictionary<string, int>();
-                    }
-
-                    var questions = match.QuestionsList
-                        .Where(q => q.RoundId == "ve-dich")
-                        .OrderBy(q => q.Position)
-                        .Select(q => new VeDichQuestion
-                        {
-                            Id = q.Id,
-                            Value = q.Points
-                        })
-                        .ToList();
-
-                    var players = match.PlayersList
-                        .Where(s => s.Kind == "user")
-                        .Select(s => (Id: s.UserId, Score: sums.GetValueOrDefault(s.UserId)))
-                        .ToList();
-
-                    var ctx = new VeDichApplier.VeDichContext(
-                        actorId.ToString(), current.RoundId, now,
-                        RoundRules.ResolveVeDich(match.RoundConfigsMap.GetValueOrDefault(current.RoundId)),
-                        questions, players, drafts);
-
-                    var (next, facts) = VeDichApplier.Apply(engine, action, ctx);
-                    return new Transition<JsonElement>(
-                        JsonSerializer.SerializeToElement(next, JsonDefaults.Options), facts);
-                }
+                    return await VeDichTransitionAsync(action, current, tx, match, matchId, actorId, now);
 
                 default:
                     throw new RuleError("WRONG_ROUND",
