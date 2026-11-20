@@ -13,8 +13,6 @@ public class MfaMessageTests
 {
     private static readonly SessionTokens Tokens = new();
 
-    private static bool Ready => AuthTestDb.DatabaseReady();
-
     private static async Task<(UserEntity User, string? Password)> CreateUserAsync(
         AOCDbContext db, bool withPassword = true, bool disabled = false,
         bool totpEnabled = false)
@@ -81,10 +79,9 @@ public class MfaMessageTests
     }
 
 
-    [Fact]
+    [DbFact]
     public async Task UnknownUsername_UsesTheGenericCredentialsSentence()
     {
-        if (!Ready) return;
         await AuthTestDb.EnsureSchemaAsync();
         using var db = AuthTestDb.OpenDb();
         var auth = new AuthService(db, Tokens);
@@ -96,10 +93,9 @@ public class MfaMessageTests
         Assert.Equal("Invalid username or password", ex.Message);
     }
 
-    [Fact]
+    [DbFact]
     public async Task WrongPassword_SharesTheSameSentenceAsUnknownUser()
     {
-        if (!Ready) return;
         await AuthTestDb.EnsureSchemaAsync();
         using var db = AuthTestDb.OpenDb();
         var (user, password) = await CreateUserAsync(db);
@@ -119,10 +115,9 @@ public class MfaMessageTests
         }
     }
 
-    [Fact]
+    [DbFact]
     public async Task UserWithoutPasswordHash_SharesTheSameSentence()
     {
-        if (!Ready) return;
         await AuthTestDb.EnsureSchemaAsync();
         using var db = AuthTestDb.OpenDb();
         var (user, _) = await CreateUserAsync(db, withPassword: false);
@@ -141,10 +136,9 @@ public class MfaMessageTests
         }
     }
 
-    [Fact]
+    [DbFact]
     public async Task DisabledAccount_IsForbiddenWithItsOwnSentence()
     {
-        if (!Ready) return;
         await AuthTestDb.EnsureSchemaAsync();
         using var db = AuthTestDb.OpenDb();
         var (user, password) = await CreateUserAsync(db, disabled: true);
@@ -163,10 +157,9 @@ public class MfaMessageTests
         }
     }
 
-    [Fact]
+    [DbFact]
     public async Task FirstLogin_ReturnsEnrollStateWithAnOtpauthUri()
     {
-        if (!Ready) return;
         await AuthTestDb.EnsureSchemaAsync();
         using var db = AuthTestDb.OpenDb();
         var (user, password) = await CreateUserAsync(db, totpEnabled: false);
@@ -188,10 +181,9 @@ public class MfaMessageTests
         }
     }
 
-    [Fact]
+    [DbFact]
     public async Task EnrolledLogin_ReturnsMfaStateWithoutAnOtpauthUri()
     {
-        if (!Ready) return;
         await AuthTestDb.EnsureSchemaAsync();
         using var db = AuthTestDb.OpenDb();
         var (user, password) = await CreateUserAsync(db, totpEnabled: true);
@@ -211,10 +203,9 @@ public class MfaMessageTests
     }
 
 
-    [Fact]
+    [DbFact]
     public async Task GarbagePendingToken_SaysTheLoginSessionExpired()
     {
-        if (!Ready) return;
         await AuthTestDb.EnsureSchemaAsync();
         using var db = AuthTestDb.OpenDb();
         var auth = new AuthService(db, Tokens);
@@ -226,10 +217,9 @@ public class MfaMessageTests
         Assert.Equal("Login session expired, start again", ex.Message);
     }
 
-    [Fact]
+    [DbFact]
     public async Task WrongPurposeToken_SaysTheLoginSessionIsInvalid()
     {
-        if (!Ready) return;
         await AuthTestDb.EnsureSchemaAsync();
         using var db = AuthTestDb.OpenDb();
         var auth = new AuthService(db, Tokens);
@@ -243,10 +233,9 @@ public class MfaMessageTests
         Assert.Equal("Invalid login session", ex.Message);
     }
 
-    [Fact]
+    [DbFact]
     public async Task MismatchedCode_SaysThatCodeDidntMatch()
     {
-        if (!Ready) return;
         await AuthTestDb.EnsureSchemaAsync();
         using var db = AuthTestDb.OpenDb();
         var (user, password) = await CreateUserAsync(db, totpEnabled: true);
@@ -271,10 +260,9 @@ public class MfaMessageTests
         }
     }
 
-    [Fact]
+    [DbFact]
     public async Task ReusedCode_SaysItWasAlreadyUsed()
     {
-        if (!Ready) return;
         await AuthTestDb.EnsureSchemaAsync();
         using var db = AuthTestDb.OpenDb();
         var (user, password) = await CreateUserAsync(db, totpEnabled: true);
@@ -302,10 +290,9 @@ public class MfaMessageTests
         }
     }
 
-    [Fact]
+    [DbFact]
     public async Task ValidCode_ReturnsASessionToken()
     {
-        if (!Ready) return;
         await AuthTestDb.EnsureSchemaAsync();
         using var db = AuthTestDb.OpenDb();
         var (user, password) = await CreateUserAsync(db, totpEnabled: true);

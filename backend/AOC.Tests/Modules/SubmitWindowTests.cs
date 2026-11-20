@@ -15,8 +15,6 @@ namespace AOC.Tests.Modules;
 
 public class SubmitWindowTests
 {
-    private static bool Ready => AuthTestDb.DatabaseReady();
-
     private static string Iso(DateTime at) =>
         at.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
 
@@ -175,10 +173,9 @@ public class SubmitWindowTests
         return error.Code;
     }
 
-    [Fact]
+    [DbFact]
     public async Task ClosedWindow_ReturnsTheSameCodeForEveryRound()
     {
-        if (!Ready) return;
 
         var fixtures = await SeedAsync(["giai-ma", "but-pha", "khoi-dong", "ve-dich"]);
 

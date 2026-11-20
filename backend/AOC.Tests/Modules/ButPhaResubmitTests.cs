@@ -17,8 +17,6 @@ namespace AOC.Tests.Modules;
 
 public class ButPhaResubmitTests
 {
-    private static bool Ready => AuthTestDb.DatabaseReady();
-
     private static string Iso(DateTime at) =>
         at.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
 
@@ -149,10 +147,9 @@ public class ButPhaResubmitTests
             JsonSerializer.SerializeToElement(
                 new SubmittedAnswerValue.Text(text), JsonApi.Options));
 
-    [Fact]
+    [DbFact]
     public async Task SecondSubmit_WithinTheWindow_KeepsTheLastAnswer()
     {
-        if (!Ready) return;
         var f = await SeedAsync(DateTime.UtcNow.AddSeconds(-3));
 
         await f.Submit.SubmitAnswerAsync(Ctx(f, "sai hoàn toàn"));
@@ -165,10 +162,9 @@ public class ButPhaResubmitTests
         Assert.True(row.AnsweredMs >= row.FirstAnsweredMs);
     }
 
-    [Fact]
+    [DbFact]
     public async Task SecondSubmit_GetsTheFreshAutoSuggestion()
     {
-        if (!Ready) return;
         var f = await SeedAsync(DateTime.UtcNow.AddSeconds(-3));
 
         await f.Submit.SubmitAnswerAsync(Ctx(f, "sai hoàn toàn"));
@@ -179,10 +175,9 @@ public class ButPhaResubmitTests
         Assert.Equal(Verdict.CORRECT, drafts[DraftWriter.AutoDrafter]);
     }
 
-    [Fact]
+    [DbFact]
     public async Task Submit_AfterTheClockRanOut_IsStillRefused()
     {
-        if (!Ready) return;
         var f = await SeedAsync(DateTime.UtcNow.AddSeconds(-45));
 
         var error = await Assert.ThrowsAsync<SubmitError>(() =>
@@ -190,10 +185,9 @@ public class ButPhaResubmitTests
         Assert.Equal("WINDOW_CLOSED", error.Code);
     }
 
-    [Fact]
+    [DbFact]
     public async Task Submit_AfterTheAnswerWasJudged_IsStillRefused()
     {
-        if (!Ready) return;
         var f = await SeedAsync(DateTime.UtcNow.AddSeconds(-3), judged: true);
 
         var error = await Assert.ThrowsAsync<RuleError>(() =>

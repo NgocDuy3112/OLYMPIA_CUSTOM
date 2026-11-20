@@ -13,8 +13,6 @@ namespace AOC.Tests.Questions;
 
 public class RawSqlRegressionTests
 {
-    private static bool Ready => AuthTestDb.DatabaseReady();
-
     private sealed record Fixture(UserEntity User, QuestionBankEntity Question, TournamentEntity Tournament, MatchEntity Match);
 
     private static async Task<Fixture> SeedAsync(AOCDbContext db)
@@ -100,10 +98,9 @@ public class RawSqlRegressionTests
         await db.SaveChangesAsync();
     }
 
-    [Fact]
+    [DbFact]
     public async Task List_returns_the_seeded_row_with_every_field()
     {
-        if (!Ready) return;
         await AuthTestDb.EnsureSchemaAsync();
         using var db = AuthTestDb.OpenDb();
 
@@ -132,10 +129,9 @@ public class RawSqlRegressionTests
         }
     }
 
-    [Fact]
+    [DbFact]
     public async Task List_pages_by_limit_and_offset()
     {
-        if (!Ready) return;
         await AuthTestDb.EnsureSchemaAsync();
         using var db = AuthTestDb.OpenDb();
 
@@ -159,10 +155,9 @@ public class RawSqlRegressionTests
         }
     }
 
-    [Fact]
+    [DbFact]
     public async Task BucketCounts_reports_the_seeded_bucket()
     {
-        if (!Ready) return;
         await AuthTestDb.EnsureSchemaAsync();
         using var db = AuthTestDb.OpenDb();
 
@@ -181,10 +176,9 @@ public class RawSqlRegressionTests
         }
     }
 
-    [Fact]
+    [DbFact]
     public async Task QuestionUsage_finds_the_seeded_match()
     {
-        if (!Ready) return;
         await AuthTestDb.EnsureSchemaAsync();
         using var db = AuthTestDb.OpenDb();
 
