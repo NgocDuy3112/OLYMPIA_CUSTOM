@@ -185,29 +185,18 @@ public sealed class SubmitService(
                 var open = state.Open;
                 if (open is null || open.Question.Id != ctx.QuestionId.ToString())
                     throw new SubmitError(409, "NOT_OPEN", "that question is not open");
-                if (open.OpenedAt is null)
+                if (open.Window.OpenedAt is null)
                     throw new SubmitError(409, "NO_CLOCK", "the clock has not started yet");
-                if (open.Step != "current")
+                if (open.Window.Mode != AnswerMode.Oral)
                     throw new SubmitError(409, "WINDOW_CLOSED", "the answer window has closed");
-
-                var clock = RoundRules.VeDichClockSeconds(state.Rules, open.Question.Value);
-                if (clock is not null && open.OpenedAt is not null)
-                {
-                    var elapsedMs = DateTimeOffset.Parse(loaded.Now).ToUnixTimeMilliseconds()
-                        - DateTimeOffset.Parse(open.OpenedAt).ToUnixTimeMilliseconds();
-                    if (elapsedMs > clock.Value * 1000)
-                        throw new SubmitError(409, "WINDOW_CLOSED",
-                            $"the {clock}s answer window for this {open.Question.Value}-point question has closed");
-                }
+                if (!open.Window.IsOpen(loaded.Now))
+                    throw new SubmitError(409, "WINDOW_CLOSED",
+                        "the answer window for this question has closed");
 
                 var question = loaded.Match.QuestionsList.FirstOrDefault(q => q.Id == ctx.QuestionId.ToString())
                     ?? throw new SubmitError(400, "NOT_IN_MATCH", "question is not part of this match");
                 var suggestion = Suggestion(question, value);
-                var answeredMs = open.OpenedAt is null
-                    ? (int?) null
-                    : Math.Max(0,
-                        (int)(DateTimeOffset.Parse(loaded.Now).ToUnixTimeMilliseconds()
-                            - DateTimeOffset.Parse(open.OpenedAt).ToUnixTimeMilliseconds()));
+                var answeredMs = open.Window.ElapsedMs(loaded.Now);
                 await drafts.WriteDraftAsync(ctx.MatchId, ctx.QuestionId, ctx.UserId,
                     ctx.Value, suggestion, answeredMs: answeredMs);
                 await DraftAuditAsync(ctx, loaded.Live.RoundId, suggestion);

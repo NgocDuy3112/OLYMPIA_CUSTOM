@@ -31,7 +31,7 @@ public class VeDichApplierTests
             {
                 Id = "a",
                 Score = 0,
-                PowersLeft = [PowerKind.STAR, PowerKind.ASSIGN]
+                Powers = PowerSet.Fresh()
             }]);
         return VeDichTurn.PickPhase1(state, "a", "20-1");
     }

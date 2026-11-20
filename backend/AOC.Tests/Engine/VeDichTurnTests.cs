@@ -33,7 +33,7 @@ public class VeDichTurnTests
     {
         Id = id,
         Score = score,
-        PowersLeft = [PowerKind.STAR, PowerKind.ASSIGN]
+        Powers = PowerSet.Fresh()
     };
 
     private static string CodeOf(Action fn)
@@ -220,7 +220,7 @@ public class VeDichTurnTests
         var (state, a) = RiengOpen();
         var withStar = StageOpen(state, a, PowerKind.STAR);
         Assert.Equal(PowerKind.STAR, withStar.Open!.Power);
-        Assert.Equal([PowerKind.ASSIGN], withStar.Players.First(p => p.Id == a).PowersLeft);
+        Assert.Equal([PowerKind.ASSIGN], withStar.Players.First(p => p.Id == a).Powers.Available);
     }
 
     [Fact]
@@ -241,7 +241,7 @@ public class VeDichTurnTests
         var after = VeDichTurn.ResolveQuestion(
             VeDichTurn.CloseCurrentAnswer(staged, Now), new Verdicts(false, null));
         Assert.Equal(-40, after.Players.First(p => p.Id == a).Score);
-        Assert.Equal([PowerKind.ASSIGN], after.Players.First(p => p.Id == a).PowersLeft);
+        Assert.Equal([PowerKind.ASSIGN], after.Players.First(p => p.Id == a).Powers.Available);
     }
 
 
@@ -273,19 +273,29 @@ public class VeDichTurnTests
     }
 
     [Fact]
-    public void Assign_AllowedWhileOpenButNotStarted()
+    public void Assign_DeclaringAfterTheOpenIsRefused()
     {
         var s = TwoUp();
         var a = s.Players[0].Id;
+        var b = s.Players[1].Id;
         var opened = VeDichTurn.OpenPhase2Question(s, "40-1");
-        var powered = VeDichTurn.DeclarePower(opened, a, PowerKind.STAR);
-        Assert.Equal(PowerKind.STAR, powered.Open!.Power);
-        Assert.True(powered.TurnPowerUsed == true);
-        Assert.Single(powered.Players[0].PowersLeft);
-        Assert.Equal(PowerKind.ASSIGN, powered.Players[0].PowersLeft[0]);
 
-        var revealed = VeDichTurn.RevealQuestion(powered, Now);
-        Assert.Equal("ALREADY_OPEN", CodeOf(() => VeDichTurn.DeclarePower(revealed, a, PowerKind.ASSIGN, s.Players[1].Id)));
+        Assert.Equal("ALREADY_OPEN", CodeOf(() => VeDichTurn.DeclarePower(opened, a, PowerKind.STAR)));
+        Assert.Equal("ALREADY_OPEN", CodeOf(() => VeDichTurn.DeclarePower(opened, a, PowerKind.ASSIGN, b)));
+    }
+
+    [Fact]
+    public void Assign_StagedPowerSurvivesTheOpen()
+    {
+        var s = TwoUp();
+        var a = s.Players[0].Id;
+        var b = s.Players[1].Id;
+        var powered = VeDichTurn.OpenPhase2Question(
+            VeDichTurn.DeclarePower(s, a, PowerKind.ASSIGN, b), "40-1", Now);
+
+        Assert.Equal(PowerKind.ASSIGN, powered.Open!.Power);
+        Assert.True(powered.Players[powered.TurnIndex].Powers.UsedThisTurn);
+        Assert.Equal([PowerKind.STAR], powered.Players.First(p => p.Id == a).Powers.Available);
     }
 
     [Fact]
@@ -297,10 +307,10 @@ public class VeDichTurnTests
         var after = StageOpen(s, a, PowerKind.ASSIGN, b);
 
         Assert.Equal(PowerKind.ASSIGN, after.Open!.Power);
-        Assert.Equal(b, after.Open!.AssignedTo);
-        Assert.Equal("buzz", after.Open!.Step);
-        Assert.Equal(Now, after.BuzzOpenedAt);
-        Assert.Equal([PowerKind.STAR], after.Players.First(p => p.Id == a).PowersLeft);
+        Assert.Equal(b, after.Open!.Window.PairB);
+        Assert.Equal(AnswerMode.Buzz, after.Open!.Window.Mode);
+        Assert.Equal(Now, after.Open!.Window.OpenedAt);
+        Assert.Equal([PowerKind.STAR], after.Players.First(p => p.Id == a).Powers.Available);
     }
 
     [Fact]
@@ -313,11 +323,11 @@ public class VeDichTurnTests
             VeDichTurn.DeclarePower(s, a, PowerKind.ASSIGN, b), "40-1", Now);
 
         Assert.False(opened.Open!.Revealed);
-        Assert.Null(opened.BuzzOpenedAt);
+        Assert.Null(opened.Open!.Window.OpenedAt);
 
         var revealed = VeDichTurn.RevealQuestion(opened, Now);
         Assert.True(revealed.Open!.Revealed);
-        Assert.Equal(Now, revealed.BuzzOpenedAt);
+        Assert.Equal(Now, revealed.Open!.Window.OpenedAt);
     }
 
     [Fact]
@@ -327,11 +337,11 @@ public class VeDichTurnTests
             VeDichTurn.CreateVeDich(Pool, [Player("a", 0)]), "a", "30-1", Now);
 
         Assert.False(picked.Open!.Revealed);
-        Assert.Null(picked.Open!.OpenedAt);
+        Assert.Null(picked.Open!.Window.OpenedAt);
         Assert.Equal("NOT_REVEALED", CodeOf(() => VeDichTurn.StartClock(picked, Now)));
 
         var running = VeDichTurn.StartClock(VeDichTurn.RevealQuestion(picked, Now), Now);
-        Assert.Equal(Now, running.Open!.OpenedAt);
+        Assert.Equal(Now, running.Open!.Window.OpenedAt);
     }
 
     [Fact]
@@ -390,11 +400,11 @@ public class VeDichTurnTests
         var racing = StageOpen(s, a, PowerKind.ASSIGN, b);
 
         var afterA = VeDichTurn.Buzz(racing, a, At(1));
-        Assert.Equal(a, afterA.Open!.Buzzer);
+        Assert.Equal(a, afterA.Open!.Window.Buzzer);
         Assert.Equal("ALREADY_OPEN", CodeOf(() => VeDichTurn.Buzz(afterA, b, At(2))));
 
         var afterB = VeDichTurn.Buzz(racing, b, At(1));
-        Assert.Equal(b, afterB.Open!.Buzzer);
+        Assert.Equal(b, afterB.Open!.Window.Buzzer);
         Assert.Equal("ALREADY_OPEN", CodeOf(() => VeDichTurn.Buzz(afterB, a, At(2))));
     }
 
@@ -505,9 +515,9 @@ public class VeDichTurnTests
         var a = s.Players[0].Id;
         var locked = VeDichTurn.LockBuzzWindow(
             VeDichTurn.CloseCurrentAnswer(VeDichTurn.OpenPhase2Question(s, "40-1"), Now));
-        var nextTurn = VeDichTurn.AdvanceTurn(
-            VeDichTurn.ResolveQuestion(locked, new Verdicts(true, null)));
-        Assert.False(nextTurn.BuzzLocked == true);
+        var nextTurn = VeDichTurn.ResolveQuestion(locked, new Verdicts(true, null));
+        var fresh = VeDichTurn.OpenPhase2Question(nextTurn, "50-1");
+        Assert.False(fresh.Open!.Window.Locked);
     }
 
     [Fact]
@@ -573,7 +583,7 @@ public class VeDichTurnTests
         var state = Picked3();
         state = VeDichTurn.OpenPhase2Question(state, "50-1");
         state = VeDichTurn.CloseCurrentAnswer(state, Now);
-        Assert.Equal("buzz", state.Open!.Step);
+        Assert.Equal(AnswerMode.Buzz, state.Open!.Window.Mode);
     }
 
     [Fact]
@@ -582,7 +592,7 @@ public class VeDichTurnTests
         var state = Picked3();
         state = VeDichTurn.CloseCurrentAnswer(VeDichTurn.OpenPhase2Question(state, "50-1"), Now);
         state = VeDichTurn.Buzz(state, "a", Now);
-        Assert.Equal("a", state.Open!.Buzzer);
+        Assert.Equal("a", state.Open!.Window.Buzzer);
         Assert.Equal("ALREADY_OPEN", CodeOf(() => VeDichTurn.Buzz(state, "b", Now)));
     }
 
@@ -701,11 +711,11 @@ public class VeDichTurnTests
     public void Phase2_SetTurnDropsTheLeavingPlayersStagedPower()
     {
         var s = VeDichTurn.DeclarePower(Picked3(), "c", PowerKind.STAR);
-        Assert.NotNull(s.StagedPower);
+        Assert.NotNull(s.Players[s.TurnIndex].Powers.Staged);
 
         var next = VeDichTurn.SetTurn(s, "a");
-        Assert.Null(next.StagedPower);
-        Assert.False(next.TurnPowerUsed);
+        Assert.Null(next.Players[next.TurnIndex].Powers.Staged);
+        Assert.False(next.Players[next.TurnIndex].Powers.UsedThisTurn);
     }
 
     [Fact]
@@ -761,8 +771,7 @@ public class VeDichTurnTests
                 Question = done.Remaining[0],
                 Answerer = "b",
                 Power = null,
-                Step = "current",
-                Buzzer = null
+                Window = AnswerWindow.OralCurrentTurn("b")
             }
         };
         Assert.False(VeDichTurn.Phase1Complete(withOpen));
@@ -880,13 +889,13 @@ public class VeDichTurnTests
     {
         var (state, a) = RiengOpen();
         var staged = VeDichTurn.DeclarePower(state, a, PowerKind.STAR);
-        Assert.Equal(PowerKind.STAR, staged.StagedPower!.Power);
-        Assert.Equal([PowerKind.STAR, PowerKind.ASSIGN], staged.Players.First(p => p.Id == a).PowersLeft);
+        Assert.Equal(PowerKind.STAR, staged.Players[staged.TurnIndex].Powers.Staged!.Power);
+        Assert.Equal([PowerKind.STAR, PowerKind.ASSIGN], staged.Players.First(p => p.Id == a).Powers.Available);
 
         var opened = VeDichTurn.OpenPhase2Question(staged, "40-1", Now);
         Assert.Equal(PowerKind.STAR, opened.Open!.Power);
-        Assert.Null(opened.StagedPower);
-        Assert.Equal([PowerKind.ASSIGN], opened.Players.First(p => p.Id == a).PowersLeft);
+        Assert.Null(opened.Players[opened.TurnIndex].Powers.Staged);
+        Assert.Equal([PowerKind.ASSIGN], opened.Players.First(p => p.Id == a).Powers.Available);
     }
 
     [Fact]
@@ -894,20 +903,20 @@ public class VeDichTurnTests
     {
         var (state, a, b) = RiengStaged();
         var none = VeDichTurn.DeclarePower(state, a, null);
-        Assert.Null(none.StagedPower);
-        Assert.NotEqual(true, none.TurnPowerUsed);
-        Assert.Equal([PowerKind.STAR, PowerKind.ASSIGN], none.Players.First(p => p.Id == a).PowersLeft);
+        Assert.Null(none.Players[none.TurnIndex].Powers.Staged);
+        Assert.NotEqual(true, none.Players[none.TurnIndex].Powers.UsedThisTurn);
+        Assert.Equal([PowerKind.STAR, PowerKind.ASSIGN], none.Players.First(p => p.Id == a).Powers.Available);
 
         var star = VeDichTurn.DeclarePower(none, a, PowerKind.STAR);
-        Assert.Equal(PowerKind.STAR, star.StagedPower!.Power);
-        Assert.Equal(true, star.TurnPowerUsed);
+        Assert.Equal(PowerKind.STAR, star.Players[star.TurnIndex].Powers.Staged!.Power);
+        Assert.Equal(true, star.Players[star.TurnIndex].Powers.UsedThisTurn);
 
         Assert.Equal("ONE_POWER_PER_TURN", CodeOf(() =>
             VeDichTurn.DeclarePower(star, a, PowerKind.ASSIGN, b)));
 
         var opened = VeDichTurn.OpenPhase2Question(star, "40-1", Now);
         Assert.Equal(PowerKind.STAR, opened.Open!.Power);
-        Assert.Equal([PowerKind.ASSIGN], opened.Players.First(p => p.Id == a).PowersLeft);
+        Assert.Equal([PowerKind.ASSIGN], opened.Players.First(p => p.Id == a).Powers.Available);
     }
 
     private static (VeDichState State, string A, string B) RiengStaged()
@@ -934,14 +943,14 @@ public class VeDichTurnTests
     {
         var (state, a, b) = RiengStaged();
         var star = VeDichTurn.DeclarePower(state, a, PowerKind.STAR);
-        Assert.Equal(true, star.TurnPowerUsed);
+        Assert.Equal(true, star.Players[star.TurnIndex].Powers.UsedThisTurn);
 
         Assert.Equal("ONE_POWER_PER_TURN", CodeOf(() =>
             VeDichTurn.DeclarePower(star, a, PowerKind.ASSIGN, b)));
         var afterNone = VeDichTurn.DeclarePower(star, a, null);
-        Assert.Equal(PowerKind.STAR, afterNone.StagedPower!.Power);
-        Assert.Equal(true, afterNone.TurnPowerUsed);
-        Assert.Equal(PowerKind.STAR, star.StagedPower!.Power);
+        Assert.Equal(PowerKind.STAR, afterNone.Players[afterNone.TurnIndex].Powers.Staged!.Power);
+        Assert.Equal(true, afterNone.Players[afterNone.TurnIndex].Powers.UsedThisTurn);
+        Assert.Equal(PowerKind.STAR, star.Players[star.TurnIndex].Powers.Staged!.Power);
     }
 
     [Fact]
@@ -951,11 +960,11 @@ public class VeDichTurnTests
         var staged = VeDichTurn.DeclarePower(state, a, PowerKind.ASSIGN, b);
         var opened = VeDichTurn.RevealQuestion(
             VeDichTurn.OpenPhase2Question(staged, "40-1", At(5)), At(5));
-        Assert.Equal("buzz", opened.Open!.Step);
+        Assert.Equal(AnswerMode.Buzz, opened.Open!.Window.Mode);
         Assert.Equal(PowerKind.ASSIGN, opened.Open!.Power);
-        Assert.Equal(b, opened.Open!.AssignedTo);
-        Assert.Equal(At(5), opened.BuzzOpenedAt);
-        Assert.Equal([PowerKind.STAR], opened.Players.First(p => p.Id == a).PowersLeft);
+        Assert.Equal(b, opened.Open!.Window.PairB);
+        Assert.Equal(At(5), opened.Open!.Window.OpenedAt);
+        Assert.Equal([PowerKind.STAR], opened.Players.First(p => p.Id == a).Powers.Available);
     }
 
     [Fact]
@@ -963,9 +972,9 @@ public class VeDichTurnTests
     {
         var (state, a) = RiengOpen();
         var moved = VeDichTurn.AdvanceTurn(VeDichTurn.DeclarePower(state, a, PowerKind.STAR));
-        Assert.Null(moved.StagedPower);
-        Assert.NotEqual(true, moved.TurnPowerUsed);
-        Assert.Equal([PowerKind.STAR, PowerKind.ASSIGN], moved.Players.First(p => p.Id == a).PowersLeft);
+        Assert.Null(moved.Players[moved.TurnIndex].Powers.Staged);
+        Assert.NotEqual(true, moved.Players[moved.TurnIndex].Powers.UsedThisTurn);
+        Assert.Equal([PowerKind.STAR, PowerKind.ASSIGN], moved.Players.First(p => p.Id == a).Powers.Available);
     }
 
     [Fact]
@@ -975,7 +984,7 @@ public class VeDichTurnTests
         var spent = state with
         {
             Players = state.Players.Select(p =>
-                p.Id == a ? p with { PowersLeft = [PowerKind.ASSIGN] } : p).ToList()
+                p.Id == a ? p with { Powers = p.Powers.Spend(PowerKind.STAR) } : p).ToList()
         };
         Assert.Equal("POWER_UNAVAILABLE", CodeOf(() =>
             VeDichTurn.DeclarePower(spent, a, PowerKind.STAR)));
@@ -994,7 +1003,7 @@ public class VeDichTurnTests
         Assert.Equal("ONE_POWER_PER_TURN", CodeOf(() =>
             VeDichTurn.DeclarePower(s, a, PowerKind.ASSIGN, b)));
         Assert.Equal("NO_ERROR", CodeOf(() => VeDichTurn.DeclarePower(s, a, null)));
-        Assert.Equal([PowerKind.ASSIGN], s.Players.First(p => p.Id == a).PowersLeft);
+        Assert.Equal([PowerKind.ASSIGN], s.Players.First(p => p.Id == a).Powers.Available);
     }
 
     [Fact]
@@ -1006,8 +1015,8 @@ public class VeDichTurnTests
         s = VeDichTurn.ResolveQuestion(
             VeDichTurn.CloseCurrentAnswer(s, Now), new Verdicts(true, null));
         s = VeDichTurn.AdvanceTurn(s);
-        Assert.Equal(false, s.TurnPowerUsed);
-        Assert.Null(s.StagedPower);
+        Assert.Equal(false, s.Players[s.TurnIndex].Powers.UsedThisTurn);
+        Assert.Null(s.Players[s.TurnIndex].Powers.Staged);
 
         var next = s.Players[s.TurnIndex].Id;
         s = VeDichTurn.PickPhase2(s, next, s.Remaining.Take(3).Select(q => q.Id).ToList());
@@ -1066,7 +1075,7 @@ public class VeDichTurnTests
         Assert.Equal(ids[0], first.Open!.Question.Id);
         Assert.Equal("", first.Open!.Answerer);
         Assert.False(first.Open!.Revealed);
-        Assert.Null(first.Open!.OpenedAt);
+        Assert.Null(first.Open!.Window.OpenedAt);
         Assert.Single(first.PendingPicks);
 
         var second = VeDichTurn.NextQuestion(first);

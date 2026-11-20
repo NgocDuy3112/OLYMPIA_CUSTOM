@@ -106,23 +106,23 @@ public static class Sfx
 
         if (action is LiveAction.VeDichStartClock)
         {
-            if (open.Step != "buzz") return budget;
+            if (open.Window.Mode != AnswerMode.Buzz) return budget;
             return open.Power is not null ? budget : "vd_5s.mp3";
         }
 
         if (action is LiveAction.VeDichReveal)
         {
-            return open.Step == "buzz" && open.Power is not null && open.OpenedAt is null
+            return open.Window.Mode == AnswerMode.Buzz && open.Power is not null && open.Window.OpenedAt is null
                 ? budget
                 : null;
         }
 
-        return open.OpenedAt is not null ? budget : null;
+        return open.Window.OpenedAt is not null ? budget : null;
     }
 
     private static int? ClockSecondsOf(VeDichState state, OpenQuestion open)
     {
-        if (open.Step == "buzz") return VeDichTurn.BuzzWindowSeconds(state);
+        if (open.Window.Mode == AnswerMode.Buzz) return VeDichTurn.BuzzWindowSeconds(state);
         return RoundRules.VeDichClockSeconds(state.Rules, open.Question.Value);
     }
 

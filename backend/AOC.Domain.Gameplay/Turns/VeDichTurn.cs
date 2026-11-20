@@ -13,7 +13,9 @@ public sealed record VeDichPlayerState
 {
     [JsonPropertyName("id")] public required string Id { get; init; }
     [JsonPropertyName("score")] public int Score { get; init; }
-    [JsonPropertyName("powersLeft")] public List<PowerKind> PowersLeft { get; init; } = [];
+
+    [JsonPropertyName("powers")]
+    public PowerSet Powers { get; init; } = PowerSet.Fresh();
 }
 
 public sealed record StagedPower
@@ -30,22 +32,11 @@ public sealed record OpenQuestion
     [JsonPropertyName("question")] public required VeDichQuestion Question { get; init; }
     [JsonPropertyName("answerer")] public required string Answerer { get; init; }
     [JsonPropertyName("power")] public PowerKind? Power { get; init; }
-    [JsonPropertyName("step")] public required string Step { get; init; }
 
-    [JsonPropertyName("openedAt")]
-    public string? OpenedAt { get; init; }
+    [JsonPropertyName("window")]
+    public AnswerWindow Window { get; init; } = AnswerWindow.OralCurrentTurn("");
 
-    [JsonPropertyName("revealed")]
-    public bool Revealed { get; init; }
-
-    [JsonPropertyName("buzzer")] public string? Buzzer { get; init; }
-
-    [JsonPropertyName("buzzerMs")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public int? BuzzerMs { get; init; }
-
-    [JsonPropertyName("assignedTo")]
-    public string? AssignedTo { get; init; }
+    [JsonPropertyName("revealed")] public bool Revealed { get; init; }
 }
 
 public sealed record VeDichState
@@ -62,27 +53,12 @@ public sealed record VeDichState
     [JsonPropertyName("turnIndex")] public int TurnIndex { get; init; }
     [JsonPropertyName("pendingPicks")] public List<VeDichQuestion> PendingPicks { get; init; } = [];
     [JsonPropertyName("open")] public OpenQuestion? Open { get; init; }
-    [JsonPropertyName("buzzOpenedAt")] public string? BuzzOpenedAt { get; init; }
-
-    [JsonPropertyName("buzzLocked")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public bool? BuzzLocked { get; init; }
 
     [JsonPropertyName("ended")] public bool Ended { get; init; }
 
-    [JsonPropertyName("stagedPower")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public StagedPower? StagedPower { get; init; }
+    [JsonPropertyName("turnPicked")] public int TurnPicked { get; init; }
 
-    [JsonPropertyName("turnPowerUsed")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public bool? TurnPowerUsed { get; init; }
-
-    [JsonPropertyName("turnPicked")]
-    public int TurnPicked { get; init; }
-
-    [JsonPropertyName("picksConfirmed")]
-    public bool PicksConfirmed { get; init; }
+    [JsonPropertyName("picksConfirmed")] public bool PicksConfirmed { get; init; }
 
     [JsonPropertyName("revealedAnswer")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -170,8 +146,6 @@ public static class VeDichTurn
             TurnIndex = 0,
             PendingPicks = [],
             Open = null,
-            BuzzOpenedAt = null,
-            BuzzLocked = false,
             TurnPicked = 0
         };
     }
@@ -179,7 +153,7 @@ public static class VeDichTurn
     public static VeDichState EndVeDich(VeDichState state)
         => state.Ended
             ? state
-            : state with { Ended = true, Open = null, BuzzOpenedAt = null, BuzzLocked = false };
+            : state with { Ended = true, Open = null };
 
     public static List<VeDichPlayerState> OrderForPhase(IReadOnlyList<VeDichPlayerState> players, int phase)
     {
@@ -216,14 +190,9 @@ public static class VeDichTurn
                 Question = question,
                 Answerer = playerId,
                 Power = null,
-                Step = "current",
-                OpenedAt = null,
-                Revealed = false,
-                Buzzer = null,
-                AssignedTo = null
-            },
-            BuzzOpenedAt = null,
-            BuzzLocked = false
+                Window = AnswerWindow.OralCurrentTurn(playerId),
+                Revealed = false
+            }
         };
     }
 
@@ -293,9 +262,8 @@ public static class VeDichTurn
 
         if (state.Open is not null)
         {
-            // swapping is allowed only while nothing has started on the open question
             var open = state.Open;
-            if (open.Revealed || open.OpenedAt is not null || open.Buzzer is not null)
+            if (open.Revealed || open.Window.HasStarted || open.Window.Buzzer is not null)
                 throw Err("ALREADY_OPEN", "the question already started — finish it first");
             pending.Insert(0, open.Question);
         }
@@ -308,14 +276,9 @@ public static class VeDichTurn
                 Question = question,
                 Answerer = "",
                 Power = null,
-                Step = "current",
-                OpenedAt = null,
-                Revealed = false,
-                Buzzer = null,
-                AssignedTo = null
-            },
-            BuzzOpenedAt = null,
-            BuzzLocked = false
+                Window = AnswerWindow.OralCurrentTurn(""),
+                Revealed = false
+            }
         };
     }
 
@@ -324,7 +287,7 @@ public static class VeDichTurn
         if (state.Phase != 2) throw Err("WRONG_PHASE", "switchQuestion only applies in Phase 2");
         if (state.Open is null) throw Err("NOTHING_OPEN", "no question is open");
         var open = state.Open;
-        if (open.Revealed || open.OpenedAt is not null || open.Buzzer is not null)
+        if (open.Revealed || open.Window.HasStarted || open.Window.Buzzer is not null)
             throw Err("ALREADY_OPEN", "the question already started — finish it first");
         if (open.Question.Id == questionId) return state;
 
@@ -349,7 +312,7 @@ public static class VeDichTurn
     {
         if (state.Phase != 1) throw Err("WRONG_PHASE", "closeQuestion only applies in Phase 1");
         if (state.Open is null) return state;
-        return state with { Open = null, BuzzOpenedAt = null, BuzzLocked = false };
+        return state with { Open = null };
     }
 
     public static VeDichState NextQuestion(VeDichState state)
@@ -359,7 +322,7 @@ public static class VeDichTurn
             throw Err("NO_PICKS", "no questions are picked");
 
         if (state.PendingPicks.Count == 0)
-            return state with { Open = null, BuzzOpenedAt = null, BuzzLocked = false };
+            return state with { Open = null };
 
         var next = state.PendingPicks[0];
         return state with
@@ -370,14 +333,9 @@ public static class VeDichTurn
                 Question = next,
                 Answerer = "",
                 Power = null,
-                Step = "current",
-                OpenedAt = null,
-                Revealed = false,
-                Buzzer = null,
-                AssignedTo = null
-            },
-            BuzzOpenedAt = null,
-            BuzzLocked = false
+                Window = AnswerWindow.OralCurrentTurn(""),
+                Revealed = false
+            }
         };
     }
 
@@ -402,77 +360,31 @@ public static class VeDichTurn
         if (state.Phase != 2)
             throw Err("WRONG_PHASE_FOR_POWER", "powers only exist in Về đích Riêng (phase 2)");
         if (state.Open is not null)
-        {
-            // phase 2: the power may still be declared while the question is open
-            // but before anything started (no reveal, no clock, no buzz)
-            var open = state.Open;
-            if (open.Step != "current" || open.Revealed || open.OpenedAt is not null || open.Buzzer is not null)
-                throw Err("ALREADY_OPEN", "the question already started — powers are off");
-            if (CurrentPlayer(state).Id != playerId)
-                throw Err("NOT_YOUR_TURN", "only the current player's power may be declared");
-            if (power is null) return state;
-            if (state.TurnPowerUsed == true)
-                throw Err("ONE_POWER_PER_TURN", "the turn has already chosen its power");
-            var owner = state.Players.First(p => p.Id == playerId);
-            if (!owner.PowersLeft.Contains(power.Value))
-                throw Err("POWER_UNAVAILABLE", $"{power} already spent");
-            if (power == PowerKind.ASSIGN)
-            {
-                if (targetId is null) throw Err("INVALID_TARGET", "ASSIGN needs a player to hand the question to");
-                if (targetId == playerId) throw Err("INVALID_TARGET", "you cannot assign the question to yourself");
-                if (!state.Players.Any(p => p.Id == targetId))
-                    throw Err("INVALID_TARGET", $"{targetId} is not playing this round");
-            }
-
-            var spenders = state.Players.Select(p => p.Id == playerId
-                ? p with { PowersLeft = p.PowersLeft.Where(x => x != power!.Value).ToList() }
-                : p).ToList();
-            var powered = open with { Power = power!.Value };
-            if (power == PowerKind.ASSIGN)
-                powered = powered with
-                {
-                    AssignedTo = targetId,
-                    Step = "buzz"
-                };
-            return state with
-            {
-                Players = spenders,
-                TurnPowerUsed = true,
-                StagedPower = null,
-                Open = powered,
-                BuzzOpenedAt = null,
-                BuzzLocked = false
-            };
-        }
+            throw Err("ALREADY_OPEN", "the question already started — powers are off");
         if (CurrentPlayer(state).Id != playerId)
             throw Err("NOT_YOUR_TURN", "only the current player's power may be staged");
         if (state.PendingPicks.Count == 0)
             throw Err("NOTHING_OPEN", "pick the turn's questions first");
         if (power is null) return state;
 
-        if (state.TurnPowerUsed == true)
-            throw Err("ONE_POWER_PER_TURN", "the turn has already chosen its power");
-
-        var player = state.Players.First(p => p.Id == playerId);
-        if (!player.PowersLeft.Contains(power.Value))
-            throw Err("POWER_UNAVAILABLE", $"{power} already spent");
         if (power == PowerKind.ASSIGN)
         {
             if (targetId is null) throw Err("INVALID_TARGET", "ASSIGN needs a player to hand the question to");
             if (targetId == playerId) throw Err("INVALID_TARGET", "you cannot assign the question to yourself");
             if (!state.Players.Any(p => p.Id == targetId))
                 throw Err("INVALID_TARGET", $"{targetId} is not playing this round");
-            return state with
-            {
-                StagedPower = new StagedPower { Power = power.Value, TargetId = targetId },
-                TurnPowerUsed = true
-            };
         }
-        return state with
-        {
-            StagedPower = new StagedPower { Power = power.Value },
-            TurnPowerUsed = true
-        };
+
+        var owner = state.Players.First(p => p.Id == playerId);
+        if (owner.Powers.UsedThisTurn)
+            throw Err("ONE_POWER_PER_TURN", "the turn has already chosen its power");
+        if (!owner.Powers.Available.Contains(power.Value))
+            throw Err("POWER_UNAVAILABLE", $"{power} already spent");
+
+        var players = state.Players.Select(p => p.Id == playerId
+            ? p with { Powers = p.Powers.Stage(power.Value, targetId) }
+            : p).ToList();
+        return state with { Players = players };
     }
 
     public static VeDichState OpenPhase2Question(VeDichState state, string questionId, string? nowIso = null)
@@ -484,36 +396,41 @@ public static class VeDichTurn
         if (question is null)
             throw Err("INVALID_QUESTION", $"question {questionId} is not one of this turn's picks");
 
-        var staged = state.StagedPower;
+        var answerer = CurrentPlayer(state).Id;
+        var staged = state.Players.First(p => p.Id == answerer).Powers.Staged;
         var isAssign = staged?.Power == PowerKind.ASSIGN;
         if (isAssign && nowIso is null) throw Err("INVALID_TARGET", "ASSIGN needs the server clock to open the race");
-        var answerer = CurrentPlayer(state).Id;
+
+        AnswerWindow window;
+        if (isAssign)
+        {
+            var clock = RoundRules.VeDichClockSeconds(state.Rules, question.Value) ?? state.Rules.BuzzWindowS;
+            window = AnswerWindow.BuzzPair(answerer, staged!.TargetId!, clock);
+        }
+        else
+        {
+            window = AnswerWindow.OralCurrentTurn(answerer);
+        }
+
         var players = staged is null
             ? state.Players
             : state.Players.Select(p =>
                 p.Id == answerer
-                    ? p with { PowersLeft = p.PowersLeft.Where(x => x != staged.Power).ToList() }
+                    ? p with { Powers = p.Powers.Spend(staged.Power) with { Staged = null } }
                     : p).ToList();
 
         return state with
         {
             Players = players,
-            StagedPower = null,
-            TurnPowerUsed = staged is not null || state.TurnPowerUsed == true,
             PendingPicks = state.PendingPicks.Where(q => q.Id != questionId).ToList(),
             Open = new OpenQuestion
             {
                 Question = question,
                 Answerer = answerer,
                 Power = staged?.Power,
-                Step = isAssign ? "buzz" : "current",
-                OpenedAt = null,
-                Revealed = false,
-                Buzzer = null,
-                AssignedTo = isAssign ? staged!.TargetId : null
-            },
-            BuzzOpenedAt = null,
-            BuzzLocked = false
+                Window = window,
+                Revealed = false
+            }
         };
     }
 
@@ -523,8 +440,11 @@ public static class VeDichTurn
         if (state.Open.Revealed) return state;
 
         var open = state.Open with { Revealed = true };
-        if (open.Step == "buzz" && state.BuzzOpenedAt is null)
-            return state with { Open = open, BuzzOpenedAt = nowIso };
+        if (open.Window.Mode == AnswerMode.Buzz && !open.Window.HasStarted)
+            return state with
+            {
+                Open = open with { Window = open.Window.OpenFor(nowIso, BuzzWindowSeconds(state)) }
+            };
         return state with { Open = open };
     }
 
@@ -533,113 +453,129 @@ public static class VeDichTurn
         if (state.Open is null) throw Err("NOTHING_OPEN", "no question is open");
         if (!state.Open.Revealed) throw Err("NOT_REVEALED", "reveal the question first");
 
-        if (state.Open.Step == "buzz")
-            return state with { BuzzOpenedAt = nowIso };
-        return state with { Open = state.Open with { OpenedAt = nowIso } };
+        var clock = RoundRules.VeDichClockSeconds(state.Rules, state.Open.Question.Value);
+        AnswerWindow window;
+        if (clock is null)
+        {
+            window = state.Open.Window with { OpenedAt = nowIso, ClosesAt = null, Locked = false };
+        }
+        else
+        {
+            window = state.Open.Window with
+            {
+                OpenedAt = nowIso,
+                Seconds = clock.Value,
+                ClosesAt = null,
+                Locked = false
+            };
+        }
+
+        return state with { Open = state.Open with { Window = window } };
     }
 
     public static VeDichState CloseCurrentAnswer(VeDichState state, string openedAt)
     {
         if (state.Open is null) throw Err("NOTHING_OPEN", "no question is open");
         if (state.Phase != 2) return state;
-        if (state.Open.Step != "current") throw Err("ALREADY_OPEN", "the buzz window already happened");
+        if (state.Open.Window.Mode != AnswerMode.Oral)
+            throw Err("ALREADY_OPEN", "the buzz window already happened");
 
         return state with
         {
-            Open = state.Open with { Step = "buzz" },
-            BuzzOpenedAt = openedAt,
-            BuzzLocked = false
+            Open = state.Open with
+            {
+                Window = state.Open.Window.ReopenAsBuzz(
+                    state.Open.Answerer, state.Rules.BuzzWindowS, openedAt)
+            }
         };
     }
 
     public static int BuzzWindowSeconds(VeDichState state)
     {
-        if (state.Open?.Power == PowerKind.ASSIGN)
-            return RoundRules.VeDichClockSeconds(state.Rules, state.Open.Question.Value)
-                ?? state.Rules.BuzzWindowS;
+        if (state.Open?.Window.Seconds is { } seconds) return seconds;
         return state.Rules.BuzzWindowS;
     }
 
     public static VeDichState LockBuzzWindow(VeDichState state)
     {
         if (state.Open is null) throw Err("NOTHING_OPEN", "no question is open");
-        if (state.Open.Step != "buzz") throw Err("ALREADY_OPEN", "there is no open buzz window");
-        if (state.Open.Buzzer is not null) throw Err("ALREADY_OPEN", "someone already buzzed — the race is settled");
-        return state with { BuzzLocked = true };
+        if (state.Open.Window.Mode != AnswerMode.Buzz)
+            throw Err("ALREADY_OPEN", "there is no open buzz window");
+        if (state.Open.Window.Buzzer is not null)
+            throw Err("ALREADY_OPEN", "someone already buzzed — the race is settled");
+        if (!state.Open.Window.HasStarted)
+            throw Err("ALREADY_OPEN", "the buzz window has not opened yet");
+        return state with { Open = state.Open with { Window = state.Open.Window.Lock() } };
     }
 
     public static bool IsBuzzOpen(VeDichState state, string nowIso)
     {
-        if (state.BuzzLocked == true) return false;
-        if (state.Open is null || state.Open.Step != "buzz" || state.BuzzOpenedAt is null) return false;
-        var elapsed = DateTimeOffset.Parse(nowIso).ToUnixTimeMilliseconds()
-            - DateTimeOffset.Parse(state.BuzzOpenedAt).ToUnixTimeMilliseconds();
-        return elapsed >= 0 && elapsed <= BuzzWindowSeconds(state) * 1000;
-    }
-
-    public static bool MayBuzz(VeDichState state, string playerId)
-    {
         if (state.Open is null) return false;
-        var assignedTo = state.Open.AssignedTo;
-        if (assignedTo is not null)
-            return playerId == state.Open.Answerer || playerId == assignedTo;
-        return playerId != state.Open.Answerer;
+        if (state.Open.Window.Mode != AnswerMode.Buzz) return false;
+        return state.Open.Window.IsOpen(nowIso);
     }
 
     public static VeDichState Buzz(VeDichState state, string playerId, string nowIso)
     {
         if (state.Open is null) throw Err("NOTHING_OPEN", "no question is open");
         if (state.Phase != 2) throw Err("WRONG_PHASE", "buzzing only exists in Phase 2");
-        if (state.Open.Step != "buzz") throw Err("ALREADY_OPEN", "the buzz window is not open");
-        if (!IsBuzzOpen(state, nowIso)) throw Err("WINDOW_CLOSED", "the buzz window has closed");
-        if (state.Open.Buzzer is not null) throw Err("ALREADY_OPEN", "someone already buzzed first");
-        if (!MayBuzz(state, playerId)) throw Err("NOT_YOUR_TURN", "this question is not yours to buzz");
+        if (state.Open.Window.Mode != AnswerMode.Buzz)
+            throw Err("ALREADY_OPEN", "the buzz window is not open");
+        if (!state.Open.Window.IsOpen(nowIso))
+            throw Err("WINDOW_CLOSED", "the buzz window has closed");
+        if (state.Open.Window.Buzzer is not null)
+            throw Err("ALREADY_OPEN", "someone already buzzed first");
+        if (state.Open.Window.Eligibility == AnswerEligibility.Others
+            && playerId == state.Open.Window.TurnPlayerId)
+            throw Err("NOT_YOUR_TURN", "you are answering this question, not buzzing it");
+        if (state.Open.Window.Eligibility == AnswerEligibility.Pair
+            && playerId != state.Open.Window.PairA
+            && playerId != state.Open.Window.PairB)
+            throw Err("NOT_YOUR_TURN", "this race is between the two assigned players");
 
-        var buzzerMs = state.BuzzOpenedAt is null
-            ? 0
-            : Math.Max(0, DateTimeOffset.Parse(nowIso).ToUnixTimeMilliseconds()
-                - DateTimeOffset.Parse(state.BuzzOpenedAt).ToUnixTimeMilliseconds());
-
-        return state with { Open = state.Open with { Buzzer = playerId, BuzzerMs = (int)buzzerMs } };
+        return state with
+        {
+            Open = state.Open with { Window = state.Open.Window.Buzz(playerId, nowIso) }
+        };
     }
 
     public static VeDichState ResolveQuestion(VeDichState state, Verdicts verdicts)
     {
         if (state.Open is null) throw Err("NOTHING_OPEN", "no question is open");
         var open = state.Open;
-        var assignedTo = open.AssignedTo;
+        var partner = PartnerOf(open);
 
-        if (open.Step == "current" && state.Phase == 2)
+        if (open.Window.Mode == AnswerMode.Oral && state.Phase == 2)
             throw Err("ALREADY_OPEN", "the question is still open");
 
-        if (assignedTo is not null)
+        if (partner is not null)
         {
-            if (open.Buzzer is not null && verdicts.Buzzer is null)
+            if (open.Window.Buzzer is not null && verdicts.Buzzer is null)
                 throw Err("NOT_YOUR_TURN", "a buzzer was recorded, a buzzer verdict is required");
             return ResolveAssign(state, verdicts);
         }
-        if (open.Buzzer is not null && verdicts.Buzzer is null)
+        if (open.Window.Buzzer is not null && verdicts.Buzzer is null)
             throw Err("NOT_YOUR_TURN", "a buzzer was recorded, a buzzer verdict is required");
-        if (open.Buzzer is null && verdicts.Buzzer is not null)
+        if (open.Window.Buzzer is null && verdicts.Buzzer is not null)
             throw Err("NOT_YOUR_TURN", "no buzzer was recorded, buzzer verdict not allowed");
 
         var face = open.Question.Value;
         var answererPoints = Scoring.VeDichScoring.Points(
             face, verdicts.Answerer, state.Rules, open.Power == PowerKind.STAR);
-        var buzzerPoints = open.Buzzer is not null
+        var buzzerPoints = open.Window.Buzzer is not null
             ? Scoring.VeDichScoring.Points(face, verdicts.Buzzer!.Value, state.Rules)
             : 0;
 
         var deltas = new List<(string Id, int Delta)> { (open.Answerer, answererPoints) };
-        if (open.Buzzer is not null) deltas.Add((open.Buzzer, buzzerPoints));
+        if (open.Window.Buzzer is not null) deltas.Add((open.Window.Buzzer, buzzerPoints));
         return ApplyDeltas(state, deltas);
     }
 
     private static VeDichState ResolveAssign(VeDichState state, Verdicts verdicts)
     {
         var open = state.Open!;
-        var partner = open.AssignedTo!;
-        var buzzer = open.Buzzer;
+        var partner = PartnerOf(open)!;
+        var buzzer = open.Window.Buzzer;
 
         if (buzzer is null)
         {
@@ -652,6 +588,9 @@ public static class VeDichTurn
         return ApplyDeltas(state, [(buzzer, payout2.Buzzer), (other, payout2.Partner)]);
     }
 
+    private static string? PartnerOf(OpenQuestion open)
+        => open.Window.Eligibility == AnswerEligibility.Pair ? open.Window.PairB : null;
+
     private static VeDichState ApplyDeltas(VeDichState state, IReadOnlyList<(string Id, int Delta)> deltas)
     {
         var scoreDelta = new Dictionary<string, int>();
@@ -662,9 +601,7 @@ public static class VeDichTurn
         {
             Players = state.Players.Select(p =>
                 scoreDelta.TryGetValue(p.Id, out var delta) ? p with { Score = p.Score + delta } : p).ToList(),
-            Open = null,
-            BuzzOpenedAt = null,
-            BuzzLocked = false
+            Open = null
         };
     }
 
@@ -675,8 +612,7 @@ public static class VeDichTurn
         {
             TurnIndex = state.TurnIndex + 1,
             PendingPicks = [],
-            StagedPower = null,
-            TurnPowerUsed = false,
+            Players = state.Players.Select(p => p with { Powers = p.Powers.ClearTurn() }).ToList(),
             TurnPicked = 0,
             PicksConfirmed = false
         };
@@ -696,8 +632,7 @@ public static class VeDichTurn
             TurnIndex = index,
             Remaining = state.Remaining.Concat(state.PendingPicks).ToList(),
             PendingPicks = [],
-            StagedPower = null,
-            TurnPowerUsed = false,
+            Players = state.Players.Select(p => p with { Powers = p.Powers.ClearTurn() }).ToList(),
             TurnPicked = 0,
             PicksConfirmed = false
         };

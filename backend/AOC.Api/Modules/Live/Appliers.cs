@@ -278,7 +278,7 @@ public static class VeDichApplier
                 {
                     Id = p.Id,
                     Score = p.Score,
-                    PowersLeft = [PowerKind.STAR, PowerKind.ASSIGN]
+                    Powers = PowerSet.Fresh()
                 }).ToList();
                 var created = VeDichTurn.CreateVeDich(ctx.Questions, players, ctx.Rules);
                 if (start.Phase == 2)
@@ -312,7 +312,8 @@ public static class VeDichApplier
 
             case LiveAction.VeDichOpenQuestion openQuestion:
             {
-                var staged = state.StagedPower;
+                var answerer = VeDichTurn.CurrentPlayer(state).Id;
+                var staged = state.Players.First(p => p.Id == answerer).Powers.Staged;
                 var next = VeDichTurn.OpenPhase2Question(state, openQuestion.QuestionId, ctx.Now);
                 if (staged is null) return (next, []);
                 var facts = new List<LiveFact>
@@ -369,7 +370,7 @@ public static class VeDichApplier
                 var questionId = state.Open?.Question.Id
                     ?? throw new RuleError("NOTHING_OPEN", "no question is open");
                 var next = VeDichTurn.Buzz(state, buzz.PlayerId, ctx.Now);
-                var buzzMs = next.Open?.BuzzerMs ?? 0;
+                var buzzMs = next.Open?.Window.BuzzerMs ?? 0;
                 return (next, [Facts.Buzz(questionId, buzz.PlayerId, ctx.RoundId, buzzMs)]);
             }
 
@@ -377,7 +378,9 @@ public static class VeDichApplier
             {
                 var open = state.Open ?? throw new RuleError("NOTHING_OPEN", "no question is open");
                 var face = open.Question.Value;
-                var assignedTo = open.AssignedTo;
+                var assignedTo = open.Window.Eligibility == AnswerEligibility.Pair
+                    ? open.Window.PairB
+                    : null;
                 var verdicts = new Verdicts(resolve.Answerer, resolve.Buzzer);
                 var next = VeDichTurn.ResolveQuestion(state, verdicts);
                 var facts = new List<LiveFact>();
@@ -387,7 +390,7 @@ public static class VeDichApplier
                     static AnswerFact Teammate(string questionId, string userId, bool correct, int points) =>
                         Facts.Oral(questionId, userId, correct ? Verdict.CORRECT : Verdict.INCORRECT, points);
 
-                    if (open.Buzzer is null)
+                    if (open.Window.Buzzer is null)
                     {
                         var payout = VeDichScoring.Assign(face, null, ctx.Rules.Assign);
                         facts.Add(Teammate(open.Question.Id, open.Answerer, false, payout.Buzzer));
@@ -396,9 +399,9 @@ public static class VeDichApplier
                     else
                     {
                         var buzzerCorrect = resolve.Buzzer == true;
-                        var other = open.Buzzer == open.Answerer ? assignedTo : open.Answerer;
+                        var other = open.Window.Buzzer == open.Answerer ? assignedTo : open.Answerer;
                         var payout = VeDichScoring.Assign(face, buzzerCorrect, ctx.Rules.Assign);
-                        facts.Add(Teammate(open.Question.Id, open.Buzzer, buzzerCorrect, payout.Buzzer));
+                        facts.Add(Teammate(open.Question.Id, open.Window.Buzzer, buzzerCorrect, payout.Buzzer));
                         facts.Add(Teammate(open.Question.Id, other, false, payout.Partner));
                     }
                     return (next, facts);
@@ -423,10 +426,10 @@ public static class VeDichApplier
                 else
                 {
                     facts.Add(Facts.Oral(open.Question.Id, open.Answerer, verdict, answererPoints));
-                    if (open.Buzzer is not null)
+                    if (open.Window.Buzzer is not null)
                     {
                         var buzzerCorrect = resolve.Buzzer == true;
-                        facts.Add(Facts.Oral(open.Question.Id, open.Buzzer,
+                        facts.Add(Facts.Oral(open.Question.Id, open.Window.Buzzer,
                             buzzerCorrect ? Verdict.CORRECT : Verdict.INCORRECT,
                             VeDichScoring.Points(face, buzzerCorrect, ctx.Rules)));
                     }

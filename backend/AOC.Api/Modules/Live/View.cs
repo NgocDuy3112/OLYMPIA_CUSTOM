@@ -332,16 +332,44 @@ public static class LiveView
             state.Ended ? "ended" : "phase2", open, RankTable(input.Table, input.TieBreak), p2me);
     }
 
-    private static string? VeDichDeadline(VeDichState state, OpenQuestion open)
+    private static string? VeDichDeadline(OpenQuestion open)
+        => open.Window.HasStarted ? open.Window.Deadline() : null;
+
+    private static string? StageOfWindow(OpenQuestion? open)
     {
-        if (open.Step == "buzz" && state.BuzzOpenedAt is not null)
-            return PlusSeconds(state.BuzzOpenedAt, VeDichTurn.BuzzWindowSeconds(state));
-        if (open.Step == "current" && open.OpenedAt is not null)
+        if (open is null) return null;
+        if (open.Window.Mode == AnswerMode.Buzz) return "buzz";
+        return "current";
+    }
+
+    private static string? AssignedToId(OpenQuestion? open)
+        => open is null || open.Window.Eligibility != AnswerEligibility.Pair
+            ? null
+            : open.Window.PairB;
+
+    private static Dictionary<string, object?>? StagedPowerOf(VeDichPlayerState? player)
+    {
+        var staged = player?.Powers.Staged;
+        if (staged is null) return null;
+        return new Dictionary<string, object?>
         {
-            var seconds = RoundRules.VeDichClockSeconds(state.Rules, open.Question.Value);
-            if (seconds is not null) return PlusSeconds(open.OpenedAt, seconds.Value);
-        }
-        return null;
+            ["power"] = staged.Power,
+            ["targetId"] = staged.TargetId
+        };
+    }
+
+    private static bool CanBuzz(OpenQuestion? open, string playerId, string nowIso)
+    {
+        if (open is null) return false;
+        if (open.Window.Mode != AnswerMode.Buzz) return false;
+        if (open.Window.Buzzer is not null) return false;
+        if (!open.Window.IsOpen(nowIso)) return false;
+
+        if (open.Window.Eligibility == AnswerEligibility.Others)
+            return playerId != open.Window.TurnPlayerId;
+        if (open.Window.Eligibility == AnswerEligibility.Pair)
+            return playerId == open.Window.PairA || playerId == open.Window.PairB;
+        return false;
     }
 
     private static Dictionary<string, object?> VeDichView(ViewInput input, VeDichState state)
@@ -352,18 +380,18 @@ public static class LiveView
         var openList = new List<object?>();
         if (open is not null)
         {
-            var frozenRemainingMs = open.Step == "buzz"
-                && open.Buzzer is not null
-                && state.BuzzOpenedAt is not null
-                ? Math.Max(0,
-                    VeDichTurn.BuzzWindowSeconds(state) * 1000
-                    - (DateTimeOffset.Parse(input.Now).ToUnixTimeMilliseconds()
-                        - DateTimeOffset.Parse(state.BuzzOpenedAt).ToUnixTimeMilliseconds()))
-                : (long?) null;
+            long? frozenRemainingMs = null;
+            if (open.Window.Mode == AnswerMode.Buzz
+                && open.Window.Buzzer is not null
+                && open.Window.HasStarted)
+            {
+                frozenRemainingMs = Math.Max(0,
+                    open.Window.Seconds!.Value * 1000 - open.Window.ElapsedMs(input.Now));
+            }
             openList.Add(new Dictionary<string, object?>
             {
                 ["questionId"] = open.Question.Id,
-                ["deadlineAt"] = frozenRemainingMs is null ? VeDichDeadline(state, open) : null,
+                ["deadlineAt"] = frozenRemainingMs is null ? VeDichDeadline(open) : null,
                 ["frozenRemainingMs"] = frozenRemainingMs,
                 ["question"] = open.Revealed || input.RevealAll
                     ? QuestionOf(input, open.Question.Id)
@@ -413,7 +441,10 @@ public static class LiveView
         Dictionary<string, object?>? audioGate = null;
         if (state.Phase == 2 && open is not null)
         {
-            var allowed = new[] { open.Answerer, open.AssignedTo, open.Buzzer }
+            var allowed = new[]
+            {
+                open.Answerer, open.Window.PairA, open.Window.PairB, open.Window.Buzzer
+            }
                 .Where(id => !string.IsNullOrEmpty(id))
                 .Distinct()
                 .Cast<string>()
@@ -428,17 +459,16 @@ public static class LiveView
         var me = new Dictionary<string, object?>
         {
             ["score"] = player?.Score ?? 0,
-            ["powersLeft"] = player?.PowersLeft ?? [],
+            ["powersLeft"] = player?.Powers.Available ?? [],
             ["isMyTurn"] = isMyTurn,
             ["pendingPicks"] = state.PendingPicks.Select(q => q.Id).ToList(),
             ["isAnswerer"] = open?.Answerer == input.UserId,
-            ["canAnswer"] = open is not null && open.Step == "current"
+            ["canAnswer"] = open is not null && open.Window.Mode == AnswerMode.Oral
                 && (state.Phase == 1 || open.Answerer == input.UserId),
-            ["canBuzz"] = open is not null && open.Step == "buzz" && open.Buzzer is null
-                && VeDichTurn.MayBuzz(state, input.UserId) && VeDichTurn.IsBuzzOpen(state, input.Now),
+            ["canBuzz"] = CanBuzz(open, input.UserId, input.Now),
             ["power"] = open?.Power,
-            ["buzzer"] = open?.Buzzer,
-            ["buzzerMs"] = open?.BuzzerMs,
+            ["buzzer"] = open?.Window.Buzzer,
+            ["buzzerMs"] = open?.Window.BuzzerMs,
             ["answerState"] = open is null ? "none" : StateOf(input.Submitted, open.Question.Id),
             ["verdicts"] = VerdictsOf(input.Submitted)
         };
@@ -451,17 +481,9 @@ public static class LiveView
         if (state.TurnIndex < state.Players.Count) turnPlayerId = state.Players[state.TurnIndex].Id;
         view["turnPlayerId"] = turnPlayerId;
         view["answererId"] = state.Open?.Answerer;
-        view["assignedToId"] = state.Open?.AssignedTo;
-        Dictionary<string, object?>? stagedPower = null;
-        if (state.StagedPower is { } staged)
-        {
-            stagedPower = new Dictionary<string, object?>
-            {
-                ["power"] = staged.Power,
-                ["targetId"] = staged.TargetId
-            };
-        }
-        view["stagedPower"] = stagedPower;
+        view["assignedToId"] = AssignedToId(state.Open);
+        view["stagedPower"] = StagedPowerOf(
+            state.TurnIndex < state.Players.Count ? state.Players[state.TurnIndex] : null);
         return view;
     }
 
@@ -563,6 +585,28 @@ public static class LiveView
 
 public static class LiveFacts
 {
+    private static string? StageOfWindow(OpenQuestion? open)
+    {
+        if (open is null) return null;
+        if (open.Window.Mode == AnswerMode.Buzz) return "buzz";
+        return "current";
+    }
+
+    private static string? AssignedToId(OpenQuestion? open)
+        => open is null || open.Window.Eligibility != AnswerEligibility.Pair
+            ? null
+            : open.Window.PairB;
+
+    private static Dictionary<string, object?>? StagedPowerOf(VeDichPlayerState? player)
+    {
+        var staged = player?.Powers.Staged;
+        if (staged is null) return null;
+        return new Dictionary<string, object?>
+        {
+            ["power"] = staged.Power,
+            ["targetId"] = staged.TargetId
+        };
+    }
     public static JsonElement WaitingMarker() =>
         JsonSerializer.SerializeToElement(new { waiting = true }, JsonApiOptions.Options);
 
@@ -618,30 +662,28 @@ public static class LiveFacts
             case "ve-dich":
             {
                 var state = LiveState.ParseVeDich(raw);
+                var turnPlayer = state.TurnIndex < state.Players.Count
+                    ? state.Players[state.TurnIndex]
+                    : null;
+                var open = state.Open;
                 return new Dictionary<string, object?>
                 {
                     ["phase"] = state.Phase,
-                    ["turnPlayerId"] = state.TurnIndex < state.Players.Count
-                        ? state.Players[state.TurnIndex].Id : null,
-                    ["openStage"] = state.Open?.Step,
-                    ["revealed"] = state.Open?.Revealed ?? false,
-                    ["clockStarted"] = state.Open is not null
-                        && (state.Open.Step == "buzz"
-                            ? state.BuzzOpenedAt is not null
-                            : state.Open.OpenedAt is not null),
-                    ["answererId"] = state.Open?.Answerer,
-                    ["buzzerId"] = state.Open?.Buzzer,
-                    ["buzzerMs"] = state.Open?.BuzzerMs,
-                    ["power"] = state.Open?.Power,
-                    ["assignedToId"] = state.Open?.AssignedTo,
+                    ["turnPlayerId"] = turnPlayer?.Id,
+                    ["openStage"] = StageOfWindow(open),
+                    ["revealed"] = open?.Revealed ?? false,
+                    ["clockStarted"] = open is not null && open.Window.OpenedAt is not null,
+                    ["answererId"] = open?.Answerer,
+                    ["buzzerId"] = open?.Window.Buzzer,
+                    ["buzzerMs"] = open?.Window.BuzzerMs,
+                    ["power"] = open?.Power,
+                    ["assignedToId"] = AssignedToId(open),
                     ["pendingQuestionId"] = state.PendingPicks.Count > 0 ? state.PendingPicks[0].Id : null,
                     ["pendingValues"] = state.PendingPicks.Select(q => q.Value).ToList(),
                     ["turnPicked"] = state.TurnPicked,
                     ["picksConfirmed"] = state.PicksConfirmed,
-                    ["stagedPower"] = state.StagedPower is { } sp
-                        ? new Dictionary<string, object?> { ["power"] = sp.Power, ["targetId"] = sp.TargetId }
-                        : null,
-                    ["turnPowerUsed"] = state.TurnPowerUsed ?? false
+                    ["stagedPower"] = StagedPowerOf(turnPlayer),
+                    ["turnPowerUsed"] = turnPlayer?.Powers.UsedThisTurn ?? false
                 };
             }
             case "khoi-dong":

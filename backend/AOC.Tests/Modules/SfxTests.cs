@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AOC.Api.Modules.Live;
 using AOC.Domain.Contracts;
+using AOC.Domain.Gameplay;
 using AOC.Domain.Gameplay.Turns;
 using Xunit;
 
@@ -10,22 +11,39 @@ public class SfxTests
 {
     private static readonly JsonElement Empty = JsonSerializer.SerializeToElement(new { });
 
-    private static OpenQuestion Open(int value, string stage = "current",
+    private static OpenQuestion Open(int value, AnswerMode mode = AnswerMode.Oral,
         PowerKind? power = null, string? openedAt = "2026-01-01T00:00:00.000Z") => new()
     {
         Question = new VeDichQuestion { Id = "q1", Value = value },
         Answerer = "a",
-        Step = stage,
         Power = power,
         Revealed = true,
-        OpenedAt = openedAt
+        Window = WindowFor(value, mode, power, openedAt)
     };
 
-    private static JsonElement StateFor(OpenQuestion? open, string? buzzOpenedAt = null) =>
+    private static AnswerWindow WindowFor(int value, AnswerMode mode, PowerKind? power, string? openedAt)
+    {
+        if (mode == AnswerMode.Oral)
+        {
+            var oral = AnswerWindow.OralCurrentTurn("a");
+            return openedAt is null
+                ? oral
+                : oral.OpenFor(openedAt, RoundRules.VeDichClockSeconds(RuleBatches.VeDich, value)!.Value);
+        }
+
+        var seconds = power == PowerKind.ASSIGN
+            ? RoundRules.VeDichClockSeconds(RuleBatches.VeDich, value)!.Value
+            : RuleBatches.VeDich.BuzzWindowS;
+        var buzz = power == PowerKind.ASSIGN
+            ? AnswerWindow.BuzzPair("a", "b", seconds)
+            : AnswerWindow.BuzzOthers(seconds, "a");
+        return openedAt is null ? buzz : buzz.OpenFor(openedAt, seconds);
+    }
+
+    private static JsonElement StateFor(OpenQuestion? open) =>
         JsonSerializer.SerializeToElement(new VeDichState
         {
-            Open = open,
-            BuzzOpenedAt = buzzOpenedAt
+            Open = open
         })!;
 
     [Fact]
@@ -126,9 +144,9 @@ public class SfxTests
     public void VeDich_ThePostAnswerRaceIsFiveSeconds()
     {
         Assert.Equal("vd_5s.mp3", Sfx.FileFor(
-            new LiveAction.VeDichCloseCurrentAnswer(), StateFor(Open(30, stage: "buzz")), "ve-dich"));
+            new LiveAction.VeDichCloseCurrentAnswer(), StateFor(Open(30, AnswerMode.Buzz)), "ve-dich"));
         Assert.Equal("vd_5s.mp3", Sfx.FileFor(
-            new LiveAction.VeDichStartClock(), StateFor(Open(30, stage: "buzz")), "ve-dich"));
+            new LiveAction.VeDichStartClock(), StateFor(Open(30, AnswerMode.Buzz)), "ve-dich"));
     }
 
     [Fact]
@@ -136,11 +154,10 @@ public class SfxTests
     {
         Assert.Equal("vd_30s.mp3", Sfx.FileFor(
             new LiveAction.VeDichStartClock(),
-            StateFor(Open(40, stage: "buzz", power: PowerKind.ASSIGN)), "ve-dich"));
+            StateFor(Open(40, AnswerMode.Buzz, PowerKind.ASSIGN)), "ve-dich"));
         Assert.Equal("vd_30s.mp3", Sfx.FileFor(
             new LiveAction.VeDichReveal(),
-            StateFor(Open(40, stage: "buzz", power: PowerKind.ASSIGN, openedAt: null),
-                buzzOpenedAt: "2026-01-01T00:00:00.000Z"), "ve-dich"));
+            StateFor(Open(40, AnswerMode.Buzz, PowerKind.ASSIGN, openedAt: null)), "ve-dich"));
     }
 
     [Fact]
