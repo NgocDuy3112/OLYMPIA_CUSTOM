@@ -66,6 +66,27 @@ public static class LiveView
         return question is null ? null : QuestionView.Sanitize(question);
     }
 
+    private static string? DeadlineWhileOpen(AnswerWindow window, string nowIso)
+        => window.IsOpen(nowIso) ? window.Deadline() : null;
+
+    private static string? DeadlineOnceStarted(AnswerWindow window)
+        => window.HasStarted ? window.Deadline() : null;
+
+    private static bool WindowOpen(AnswerWindow window, string nowIso) => window.IsOpen(nowIso);
+
+    private static Dictionary<string, object?> OpenEntry(string questionId, string? deadlineAt,
+        object? question, long? frozenRemainingMs = null)
+    {
+        var entry = new Dictionary<string, object?>
+        {
+            ["questionId"] = questionId,
+            ["deadlineAt"] = deadlineAt
+        };
+        if (frozenRemainingMs is not null) entry["frozenRemainingMs"] = frozenRemainingMs;
+        entry["question"] = question;
+        return entry;
+    }
+
     public static List<RankedScore> RankTable(
         List<ScoreRow>? table, IReadOnlyDictionary<string, int>? tieBreak = null)
     {
@@ -113,7 +134,6 @@ public static class LiveView
     private static Dictionary<string, object?> GiaiMaView(ViewInput input, GiaiMaState state)
     {
         var player = state.Players.FirstOrDefault(p => p.Id == input.UserId);
-        var windowOpen = state.HintWindow.IsOpen(input.Now);
         var open = new List<object?>();
         var hintsLocked = state.HintWindow.Locked;
         var openHintContent = QuestionOf(input, state.OpenHint!);
@@ -126,12 +146,8 @@ public static class LiveView
 
         if (state.OpenHint is not null)
         {
-            open.Add(new Dictionary<string, object?>
-            {
-                ["questionId"] = state.OpenHint,
-                ["deadlineAt"] = windowOpen ? state.HintWindow.Deadline() : null,
-                ["question"] = openHintContent
-            });
+            open.Add(OpenEntry(state.OpenHint,
+                DeadlineWhileOpen(state.HintWindow, input.Now), openHintContent));
         }
 
         var keywordQuestion = (input.Questions ?? []).FirstOrDefault(q => q.Kind == QuestionKind.KEYWORD);
@@ -241,12 +257,8 @@ public static class LiveView
 
         if (questionId is not null && state.QuestionRevealedAt is not null)
         {
-            open.Add(new Dictionary<string, object?>
-            {
-                ["questionId"] = questionId,
-                ["deadlineAt"] = state.Window.Deadline(),
-                ["question"] = QuestionOf(input, questionId)
-            });
+            open.Add(OpenEntry(questionId, DeadlineOnceStarted(state.Window),
+                QuestionOf(input, questionId)));
         }
 
         var me = new Dictionary<string, object?>
@@ -304,17 +316,12 @@ public static class LiveView
 
         var p2 = state.Phase2;
         var qid = p2 is null ? null : KhoiDongTurn.Phase2QuestionId(p2);
-        var windowOpen = p2 is not null && KhoiDongTurn.IsPhase2WindowOpen(p2, input.Now);
+        var windowOpen = p2 is not null && !p2.Closed && WindowOpen(p2.Window, input.Now);
 
         var open = new List<object?>();
         if (qid is not null && p2 is not null)
         {
-            open.Add(new Dictionary<string, object?>
-            {
-                ["questionId"] = qid,
-                ["deadlineAt"] = p2.Window.Deadline(),
-                ["question"] = QuestionOf(input, qid)
-            });
+            open.Add(OpenEntry(qid, DeadlineOnceStarted(p2.Window), QuestionOf(input, qid)));
         }
         // with Index = -1 nothing is picked yet: qid is null, so no question leaks
 
@@ -331,9 +338,6 @@ public static class LiveView
         return Base(input.MatchId, input.RoundId, input.Version,
             state.Ended ? "ended" : "phase2", open, RankTable(input.Table, input.TieBreak), p2me);
     }
-
-    private static string? VeDichDeadline(OpenQuestion open)
-        => open.Window.HasStarted ? open.Window.Deadline() : null;
 
     private static string? StageOfWindow(OpenQuestion? open)
     {
@@ -390,15 +394,10 @@ public static class LiveView
                 frozenRemainingMs = Math.Max(0,
                     seconds * 1000 - open.Window.ElapsedMs(input.Now));
             }
-            openList.Add(new Dictionary<string, object?>
-            {
-                ["questionId"] = open.Question.Id,
-                ["deadlineAt"] = frozenRemainingMs is null ? VeDichDeadline(open) : null,
-                ["frozenRemainingMs"] = frozenRemainingMs,
-                ["question"] = open.Revealed || input.RevealAll
-                    ? QuestionOf(input, open.Question.Id)
-                    : null
-            });
+            openList.Add(OpenEntry(open.Question.Id,
+                frozenRemainingMs is null ? DeadlineOnceStarted(open.Window) : null,
+                open.Revealed || input.RevealAll ? QuestionOf(input, open.Question.Id) : null,
+                frozenRemainingMs));
         }
 
         var openId = open?.Question.Id;
@@ -674,7 +673,7 @@ public static class LiveFacts
                     ["turnPlayerId"] = turnPlayer?.Id,
                     ["openStage"] = StageOfWindow(open),
                     ["revealed"] = open?.Revealed ?? false,
-                    ["clockStarted"] = open is not null && open.Window.OpenedAt is not null,
+                    ["clockStarted"] = open is not null && open.Window.HasStarted,
                     ["answererId"] = open?.Answerer,
                     ["buzzerId"] = open?.Window.Buzzer,
                     ["buzzerMs"] = open?.Window.BuzzerMs,
@@ -700,8 +699,8 @@ public static class LiveFacts
                     ["phase2Closed"] = p2?.Closed ?? false,
                     ["questionIndex"] = p2?.Index ?? 0,
                     ["questionCount"] = p2?.QuestionIds.Count ?? 0,
-                    ["windowOpen"] = p2 is not null
-                        && KhoiDongTurn.IsPhase2WindowOpen(p2, DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"))
+                    ["windowOpen"] = p2 is not null && !p2.Closed
+                        && p2.Window.IsOpen(DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"))
                 };
             }
             case "but-pha":
@@ -711,7 +710,7 @@ public static class LiveFacts
                 {
                     ["questionId"] = ButPhaTurn.OpenQuestionId(state),
                     ["opened"] = state.QuestionRevealedAt is not null,
-                    ["clockStarted"] = state.Window.OpenedAt is not null
+                    ["clockStarted"] = state.Window.HasStarted
                 };
             }
             default:
