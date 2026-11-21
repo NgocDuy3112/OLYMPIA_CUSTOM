@@ -88,6 +88,26 @@ export function usePasswordRegister() {
     })
 }
 
+export function useForgotPassword() {
+    return useMutation({
+        mutationFn: (input: { email: string }) =>
+            api<{ ok: true }>("/api/auth/forgot-password", {
+                method: "POST",
+                body: JSON.stringify(input),
+            }),
+    })
+}
+
+export function useResetPassword() {
+    return useMutation({
+        mutationFn: (input: { email: string; code: string; newPassword: string }) =>
+            api<{ ok: true }>("/api/auth/reset-password", {
+                method: "POST",
+                body: JSON.stringify(input),
+            }),
+    })
+}
+
 export function useChangePassword() {
     const queryClient = useQueryClient()
     return useMutation({

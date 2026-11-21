@@ -20,7 +20,7 @@ export function TurnIcon({ kind }: { kind: TurnIconKind }) {
             className="icon-pop inline-flex shrink-0 items-center justify-center"
             style={{ fontSize: pt(12) }}
         >
-            <Icon className={`size-[1.15em] ${tone}`} aria-hidden />
+            <Icon className={`size-[1.15em] icon-throb ${tone}`} aria-hidden />
         </span>
     )
 }

@@ -159,11 +159,11 @@ function itemStyle(index: number): CSSProperties {
     const row = Math.floor(index / GRID_COLS) % GRID_ROWS
     const left = col * 8.33 + (((index * 17) % 40) / 10)
     const top = row * 11.1 + (((index * 29) % 50) / 10)
-    const size = 16 + ((index * 7) % 15)
+    const size = 14 + ((index * 7) % 11)
     const rotate = ((index * 47) % 60) - 30
     const duration = 3.2 + (index % 5) * 0.7
     const delay = -((index * 13) % 60) / 10
-    const peak = 0.1 + (index % 5) * 0.05
+    const peak = 0.12 + (index % 5) * 0.04
     const driftX = ((index * 31) % 96) - 48
     const driftY = ((index * 23) % 68) - 34
     const floatDuration = 5 + (index % 6) * 1.4

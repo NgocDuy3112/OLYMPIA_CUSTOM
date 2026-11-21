@@ -3,7 +3,7 @@ import type { ServerClock } from "@shared/lib/clock"
 
 export interface PlayerQuestion {
     questionId: string
-    kind: "CHOICE" | "TEXT" | "KEYWORD" | "HINT"
+    kind: "CHOICE" | "TEXT" | "KEYWORD"
     position: number
     questionText: string
     media: { url: string; type: "image" | "audio" | "video" } | null

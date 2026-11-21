@@ -32,7 +32,7 @@ export function Strip({ items }: { items: StripItem[] }) {
                                     type="button"
                                     onClick={item.onClick}
                                     title={item.title}
-                                    className={stripSlotClass(true)}
+                                    className={`${stripSlotClass(true)}${item.muted ? "" : " console-ready"}`}
                                     style={{ fontSize: pt(9), borderRadius: STRIP_R }}
                                 >
                                     {item.content ?? item.label}

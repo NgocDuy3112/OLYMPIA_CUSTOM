@@ -32,7 +32,7 @@ export function VeDichRiengAOCPlayer({ ctx }: { ctx: VeDichRiengPlayerCtx }) {
                     type="button"
                     onClick={() => command({ type: "buzz", questionId: openQ.questionId })}
                     disabled={cmdBusy}
-                    className="flex h-[3.3cqw] items-center gap-[0.8cqw] rounded-lg bg-destructive px-[2cqw] font-sans text-base font-bold uppercase text-destructive-foreground shadow-sm transition hover:brightness-110 disabled:opacity-60"
+                    className={`flex h-[3.3cqw] items-center gap-[0.8cqw] rounded-lg bg-destructive px-[2cqw] font-sans text-base font-bold uppercase text-destructive-foreground shadow-sm transition hover:brightness-110 disabled:opacity-60${cmdBusy ? "" : " control-breathe"}`}
                     style={{ borderRadius: STRIP_R }}
                     title={COPY.buzz}
                 >

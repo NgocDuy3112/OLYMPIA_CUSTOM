@@ -49,7 +49,7 @@ export function AnswerBand({ question, answerState, disabled, busy, error, onSub
 
     if (isMc) {
         return (
-            <div className="flex w-full items-center gap-[1cqw]">
+            <div className={`flex w-full items-center gap-[1cqw]${disabled ? "" : " control-breathe"}`}>
                 {options.map((option, i) => (
                     <button
                         key={option.id}
@@ -82,7 +82,7 @@ export function AnswerBand({ question, answerState, disabled, busy, error, onSub
     if (error) textPlaceholder = "Bấm nút Gửi để thử lại"
 
     return (
-        <div className="flex w-full items-center gap-[1cqw]">
+        <div className={`flex w-full items-center gap-[1cqw]${disabled ? "" : " control-breathe"}`}>
             <input
                 type="text"
                 value={state.text}
