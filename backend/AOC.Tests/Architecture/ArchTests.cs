@@ -12,7 +12,7 @@ public class ArchTests
         "Auth/PlayerAccountRoutes.cs",
         "GameplayRead/GameplayReadRoutes.cs",
         "McpKeys/McpKeyRoutes.cs",
-        "Questions/QuestionRoutes.cs",
+        "Questions/Staging/QuestionStagingRoutes.cs",
         "Tournaments/TournamentRoutes.cs"
     ];
 
@@ -20,7 +20,7 @@ public class ArchTests
     [
         "Modules/Auth/PlayerAccountRoutes.cs",
         "Modules/Matches/AssemblePatch.cs",
-        "Modules/Questions/StagingService.cs",
+        "Modules/Questions/Staging/StagingService.cs",
         "Modules/Roster/RosterService.cs"
     ];
 
@@ -28,22 +28,23 @@ public class ArchTests
     {
         ["Http/ErrorHandlingMiddleware.cs"] = 7,
         ["Modules/Live/LiveRoutes.cs"] = 6,
-        ["Modules/Live/LiveService.cs"] = 8,
-        ["Modules/Live/Protocol.cs"] = 6,
+        ["Modules/Live/Service/LiveService.cs"] = 8,
+        ["Modules/Live/Wire/Protocol.cs"] = 6,
         ["Modules/Live/Submit.cs"] = 1,
         ["Modules/Live/TieBreak/TieBreakRoutes.cs"] = 2,
         ["Modules/Live/View/LiveFacts.cs"] = 8,
-        ["Modules/Live/View/LiveView.ButPha.cs"] = 1,
+        ["Modules/Live/ButPha/LiveView.ButPha.cs"] = 1,
         ["Modules/Live/View/LiveView.cs"] = 5,
-        ["Modules/Live/View/LiveView.GiaiMa.cs"] = 6,
-        ["Modules/Live/View/LiveView.KhoiDong.cs"] = 3,
-        ["Modules/Live/View/LiveView.VeDich.cs"] = 4,
+        ["Modules/Live/GiaiMa/LiveView.GiaiMa.cs"] = 6,
+        ["Modules/Live/KhoiDong/LiveView.KhoiDong.cs"] = 3,
+        ["Modules/Live/VeDich/LiveView.VeDich.cs"] = 4,
         ["Modules/MatchCodes/MatchCodesService.cs"] = 2,
         ["Modules/Matches/MatchRoutes.cs"] = 3,
         ["Modules/Mcp/McpTools.cs"] = 6,
         ["Modules/McpKeys/McpKeyRoutes.cs"] = 2,
-        ["Modules/Questions/QuestionRoutes.cs"] = 2,
-        ["Modules/Questions/QuestionsService.cs"] = 1,
+        ["Modules/Questions/Crud/QuestionRoutes.cs"] = 1,
+        ["Modules/Questions/Staging/QuestionStagingRoutes.cs"] = 1,
+        ["Modules/Questions/Crud/QuestionsService.cs"] = 1,
         ["Modules/Roster/RosterRoutes.cs"] = 4,
         ["Modules/Standings/StandingsRoutes.cs"] = 1
     };

@@ -185,6 +185,7 @@ app.MapGoogleAuthRoutes();
 app.MapAdminRoutes();
 app.MapTournamentRoutes();
 app.MapQuestionRoutes();
+app.MapQuestionStagingRoutes();
 app.MapMatchRoutes();
 app.MapAssemblePatchRoutes();
 app.MapLiveRoutes();

@@ -113,6 +113,19 @@ public sealed class SubmitService(
         });
     }
 
+    private static Transition<JsonElement> ToTransition<TState>(TState nextState, List<LiveFact> facts)
+    {
+        var element = JsonSerializer.SerializeToElement(nextState, JsonDefaults.Options);
+        return new Transition<JsonElement>(element, facts);
+    }
+
+    private async Task BroadcastAsync(Guid matchId, string? file)
+    {
+        var id = matchId.ToString();
+        await Sfx.BroadcastAsync(hub, id, file);
+        await hub.PublishAsync(id);
+    }
+
     public async Task<AnswerResult> SubmitAnswerAsync(SubmitContext ctx)
     {
         var value = ParseValue(ctx.Value);
@@ -121,80 +134,88 @@ public sealed class SubmitService(
         switch (loaded.Live.RoundId)
         {
             case "giai-ma":
-            {
-                var state = LiveState.ParseGiaiMa(loaded.Live.State);
-                if (state.OpenHint != ctx.QuestionId.ToString())
-                    throw new SubmitError(409, "NO_WINDOW", "no answer window is open for this question");
-                AssertWindow(state.HintWindow, ctx.UserId.ToString(), loaded.Now,
-                    "WINDOW_CLOSED", "the answer window has closed",
-                    "the answer window has closed");
-                if (GiaiMaTurn.KeywordWindowRunning(state, loaded.Now))
-                    throw new SubmitError(409, "WINDOW_CLOSED", "the answer window has closed");
-                if (!GiaiMaTurn.CanPlayerAnswer(state, ctx.UserId.ToString(), loaded.Now))
-                    throw new SubmitError(409, "LOCKED", "you can no longer answer this round");
-
-                return await DraftAsync(loaded, ctx, value, state.HintWindow.ElapsedMs(loaded.Now));
-            }
-
+                return await SubmitGiaiMaAsync(loaded, ctx, value);
             case "but-pha":
-            {
-                if (value is not SubmittedAnswerValue.Text)
-                    throw new SubmitError(400, "BAD_VALUE", "a but-pha answer must be text");
-                var state = LiveState.ParseButPha(loaded.Live.State);
-                var openId = ButPhaTurn.OpenQuestionId(state);
-                if (openId is null) throw new SubmitError(409, "NO_QUESTION", "no question is open");
-                if (openId != ctx.QuestionId.ToString())
-                    throw new SubmitError(409, "NOT_OPEN", "that question is not open");
-                AssertWindow(state.Window, ctx.UserId.ToString(), loaded.Now,
-                    "NO_CLOCK", "the question's clock has not started",
-                    "the answer window has closed");
-
-                return await DraftAsync(loaded, ctx, value, state.Window.ElapsedMs(loaded.Now));
-            }
-
+                return await SubmitButPhaAsync(loaded, ctx, value);
             case "khoi-dong":
-            {
-                value = TextOfChoice(loaded, ctx, value, "a chung answer must be text");
-                var state = LiveState.ParseKhoiDong(loaded.Live.State);
-                if (state.Flow != Flow.chung || state.Phase2 is null)
-                    throw new SubmitError(409, "NO_WINDOW",
-                        "khởi động riêng is oral — there is nothing to type yet");
-                var questionId = KhoiDongTurn.Phase2QuestionId(state.Phase2);
-                if (questionId is null)
-                    throw new SubmitError(409, "ENDED", "every chung question has been played");
-                if (questionId != ctx.QuestionId.ToString())
-                    throw new SubmitError(409, "NOT_OPEN", "that question is not the one in play");
-                AssertWindow(state.Phase2.Window, ctx.UserId.ToString(), loaded.Now,
-                    "NO_WINDOW", "the console has not started the clock for this question yet",
-                    "the clock has run out — the answer window is closed");
-                if (state.Phase2.Closed)
-                    throw new SubmitError(409, "WINDOW_CLOSED",
-                        "the clock has run out — the answer window is closed");
-
-                return await DraftAsync(loaded, ctx, value, state.Phase2.Window.ElapsedMs(loaded.Now));
-            }
-
+                return await SubmitKhoiDongAsync(loaded, ctx, value);
             case "ve-dich":
-            {
-                if (value is not SubmittedAnswerValue.Text)
-                    throw new SubmitError(400, "BAD_VALUE", "a ve-dich phase-1 answer must be text");
-                var state = LiveState.ParseVeDich(loaded.Live.State);
-                if (state.Ended) throw new SubmitError(409, "ENDED", "the round has ended");
-                if (state.Phase != 1) throw new SubmitError(409, "PHASE_CLOSED", "phase 1 is over");
-
-                var open = state.Open;
-                if (open is null || open.Question.Id != ctx.QuestionId.ToString())
-                    throw new SubmitError(409, "NOT_OPEN", "that question is not open");
-                AssertWindow(open.Window, open.Answerer, loaded.Now,
-                    "NO_CLOCK", "the clock has not started yet",
-                    "the answer window for this question has closed");
-
-                return await DraftAsync(loaded, ctx, value, open.Window.ElapsedMs(loaded.Now));
-            }
-
+                return await SubmitVeDichAsync(loaded, ctx, value);
             default:
                 throw new SubmitError(409, "NO_ROUND", $"round {loaded.Live.RoundId} does not accept answers yet");
         }
+    }
+
+    private async Task<AnswerResult> SubmitGiaiMaAsync(Loaded loaded, SubmitContext ctx, SubmittedAnswerValue value)
+    {
+        var state = LiveState.ParseGiaiMa(loaded.Live.State);
+        if (state.OpenHint != ctx.QuestionId.ToString())
+            throw new SubmitError(409, "NO_WINDOW", "no answer window is open for this question");
+        AssertWindow(state.HintWindow, ctx.UserId.ToString(), loaded.Now,
+            "WINDOW_CLOSED", "the answer window has closed",
+            "the answer window has closed");
+        if (GiaiMaTurn.KeywordWindowRunning(state, loaded.Now))
+            throw new SubmitError(409, "WINDOW_CLOSED", "the answer window has closed");
+        if (!GiaiMaTurn.CanPlayerAnswer(state, ctx.UserId.ToString(), loaded.Now))
+            throw new SubmitError(409, "LOCKED", "you can no longer answer this round");
+
+        return await DraftAsync(loaded, ctx, value, state.HintWindow.ElapsedMs(loaded.Now));
+    }
+
+    private async Task<AnswerResult> SubmitButPhaAsync(Loaded loaded, SubmitContext ctx, SubmittedAnswerValue value)
+    {
+        if (value is not SubmittedAnswerValue.Text)
+            throw new SubmitError(400, "BAD_VALUE", "a but-pha answer must be text");
+        var state = LiveState.ParseButPha(loaded.Live.State);
+        var openId = ButPhaTurn.OpenQuestionId(state);
+        if (openId is null) throw new SubmitError(409, "NO_QUESTION", "no question is open");
+        if (openId != ctx.QuestionId.ToString())
+            throw new SubmitError(409, "NOT_OPEN", "that question is not open");
+        AssertWindow(state.Window, ctx.UserId.ToString(), loaded.Now,
+            "NO_CLOCK", "the question's clock has not started",
+            "the answer window has closed");
+
+        return await DraftAsync(loaded, ctx, value, state.Window.ElapsedMs(loaded.Now));
+    }
+
+    private async Task<AnswerResult> SubmitKhoiDongAsync(Loaded loaded, SubmitContext ctx, SubmittedAnswerValue value)
+    {
+        value = TextOfChoice(loaded, ctx, value, "a chung answer must be text");
+        var state = LiveState.ParseKhoiDong(loaded.Live.State);
+        if (state.Flow != Flow.chung || state.Phase2 is null)
+            throw new SubmitError(409, "NO_WINDOW",
+                "khởi động riêng is oral — there is nothing to type yet");
+        var questionId = KhoiDongTurn.Phase2QuestionId(state.Phase2);
+        if (questionId is null)
+            throw new SubmitError(409, "ENDED", "every chung question has been played");
+        if (questionId != ctx.QuestionId.ToString())
+            throw new SubmitError(409, "NOT_OPEN", "that question is not the one in play");
+        AssertWindow(state.Phase2.Window, ctx.UserId.ToString(), loaded.Now,
+            "NO_WINDOW", "the console has not started the clock for this question yet",
+            "the clock has run out — the answer window is closed");
+        if (state.Phase2.Closed)
+            throw new SubmitError(409, "WINDOW_CLOSED",
+                "the clock has run out — the answer window is closed");
+
+        return await DraftAsync(loaded, ctx, value, state.Phase2.Window.ElapsedMs(loaded.Now));
+    }
+
+    private async Task<AnswerResult> SubmitVeDichAsync(Loaded loaded, SubmitContext ctx, SubmittedAnswerValue value)
+    {
+        if (value is not SubmittedAnswerValue.Text)
+            throw new SubmitError(400, "BAD_VALUE", "a ve-dich phase-1 answer must be text");
+        var state = LiveState.ParseVeDich(loaded.Live.State);
+        if (state.Ended) throw new SubmitError(409, "ENDED", "the round has ended");
+        if (state.Phase != 1) throw new SubmitError(409, "PHASE_CLOSED", "phase 1 is over");
+
+        var open = state.Open;
+        if (open is null || open.Question.Id != ctx.QuestionId.ToString())
+            throw new SubmitError(409, "NOT_OPEN", "that question is not open");
+        AssertWindow(open.Window, open.Answerer, loaded.Now,
+            "NO_CLOCK", "the clock has not started yet",
+            "the answer window for this question has closed");
+
+        return await DraftAsync(loaded, ctx, value, open.Window.ElapsedMs(loaded.Now));
     }
 
     public async Task<AnswerResult> SubmitKeywordAsync(SubmitContext ctx)
@@ -237,12 +258,10 @@ public sealed class SubmitService(
                     RoundRules.ResolveGiaiMa(loaded.Match.RoundConfigsMap.GetValueOrDefault(current.RoundId)),
                     "", []));
 
-            return new Transition<JsonElement>(
-                JsonSerializer.SerializeToElement(nextState, JsonDefaults.Options), facts);
+            return ToTransition(nextState, facts);
         });
 
-        await Sfx.BroadcastAsync(hub, ctx.MatchId.ToString(), "ping.mp3");
-        await hub.PublishAsync(ctx.MatchId.ToString());
+        await BroadcastAsync(ctx.MatchId, "ping.mp3");
         return new AnswerResult();
     }
 
@@ -270,13 +289,10 @@ public sealed class SubmitService(
                     RoundRules.ResolveVeDich(
                         loaded.Match.RoundConfigsMap.GetValueOrDefault(loaded.Live.RoundId)),
                     [], [], []));
-            return new Transition<JsonElement>(
-                JsonSerializer.SerializeToElement(nextState, JsonDefaults.Options), facts);
+            return ToTransition(nextState, facts);
         });
 
-        await Sfx.BroadcastAsync(hub, matchId.ToString(),
-            Sfx.FileFor(action, applied.State, applied.RoundId));
-        await hub.PublishAsync(matchId.ToString());
+        await BroadcastAsync(matchId, Sfx.FileFor(action, applied.State, applied.RoundId));
         return new { applied = command };
     }
 
