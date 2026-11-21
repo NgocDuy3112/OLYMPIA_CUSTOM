@@ -245,3 +245,21 @@
 @media (prefers-reduced-motion: reduce) {
   .icon-pop { animation: none; }
 }
+.control-breathe {
+  animation: control-breathe 2s ease-in-out infinite;
+}
+@keyframes control-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 var(--glow-2), 0 0 14px 0 var(--glow-1); }
+  50% { box-shadow: 0 0 0 3px var(--glow-1), 0 0 30px 6px var(--glow-2); }
+}
+.icon-throb {
+  animation: icon-throb 2.2s ease-in-out infinite;
+}
+@keyframes icon-throb {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .control-breathe { animation: none; }
+  .icon-throb { animation: none; }
+}

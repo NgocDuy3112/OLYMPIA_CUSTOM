@@ -32,7 +32,7 @@ export function PlayerShell({ matchId }: { matchId: string }) {
     const gate = gateOf({ failureStatus: model.failureStatus, hasView: model.v !== undefined })
     if (gate) return <PlayerGateScreen gate={gate} model={model} />
 
-    if (model.screen === "lobby") {
+    if (model.screen === "lobby" && !model.tiebreak) {
         if (model.lobby.data) {
             return (
                 <StageShell fullHeight>

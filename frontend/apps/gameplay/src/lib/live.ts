@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api, ApiError } from "@shared/lib/api"
 import { useServerClock, type ServerClock } from "@shared/lib/clock"
 import type { LobbyData } from "@shared/deck/types"
-import { useSocketStream } from "@shared/lib/ws"
+import { useSocketStream, useHubInvoker } from "@shared/lib/ws"
 
 interface ViewFailure {
     status: number
@@ -24,7 +24,7 @@ function failureOf(error: unknown): ViewFailure | null {
 
 export interface LiveQuestion {
     questionId: string
-    kind: "CHOICE" | "TEXT" | "KEYWORD" | "HINT"
+    kind: "CHOICE" | "TEXT" | "KEYWORD"
     position: number
     questionText: string
     media: { url: string; type: "image" | "audio" | "video" } | null
@@ -93,6 +93,7 @@ export interface LiveView {
     }>
     keyword?: { questionId: string; question: LiveQuestion | null } | null
     hintAnswers: Record<string, string>
+    tiebreak?: TieBreakView | null
     keywordDeadlineAt: string | null
     keywordLength: number
     keywordKind: string
@@ -214,4 +215,83 @@ export function useLiveKeyword(matchId: string) {
 
 export function useLivePlayerCommand(matchId: string) {
     return useLiveCommandPost<LivePlayerCommand>(matchId, "commands")
+}
+
+export interface TieBreakMedia {
+    url: string
+    type: string
+}
+
+export interface TieBreakQuestion {
+    questionId: string
+    kind: "CHOICE" | "TEXT" | "KEYWORD"
+    position: number
+    questionText: string
+    media: { url: string; type: "image" | "audio" | "video" } | null
+    payload: { options?: Array<{ id: string; text: string }> }
+}
+
+export interface TieBreakPlayer {
+    id: string
+    displayName: string
+    points: number
+    rank: number
+    eliminated: boolean
+}
+
+export interface TieBreakView {
+    matchId: string
+    version: number
+    stage: string
+    questionId: string | null
+    cursor: number
+    ended: boolean
+    window: { buzzer: string | null; buzzerMs: number | null; locked: boolean }
+    windowOpen: boolean
+    deadlineAt: string | null
+    players: TieBreakPlayer[]
+    me: TieBreakPlayer | null
+    question: TieBreakQuestion | null
+}
+
+const tieBreakKey = (matchId: string) => ["tiebreak", matchId] as const
+
+export function useTieBreakMatch(matchId: string, enabled: boolean) {
+    const queryClient = useQueryClient()
+    const { ready, invoke } = useHubInvoker(
+        `/api/matches/${matchId}/live/stream`,
+        enabled && Boolean(matchId),
+    )
+
+    const query = useQuery({
+        queryKey: tieBreakKey(matchId),
+        queryFn: () => api<TieBreakView>(`/api/matches/${matchId}/live/tiebreak`),
+        enabled: enabled && Boolean(matchId),
+        refetchInterval: 3_000,
+        retry: false,
+        staleTime: 0,
+    })
+
+    const buzz = useMutation({
+        mutationFn: async (questionId: string) => {
+            if (!ready) throw new Error("Chuông chưa sẵn sàng")
+            const result = await invoke("Buzz", [
+                { v: 1, type: "buzz", data: { questionId } },
+            ])
+            void queryClient.invalidateQueries({ queryKey: tieBreakKey(matchId) })
+            return result
+        },
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: liveKey(matchId) })
+        },
+        onError: () => {
+            void queryClient.invalidateQueries({ queryKey: tieBreakKey(matchId) })
+        },
+    })
+
+    return {
+        view: query.data,
+        refetch: () => void query.refetch(),
+        buzz,
+    }
 }

@@ -16,6 +16,7 @@ function model(over: Partial<PlayerModel> = {}): PlayerModel {
         failureMessage: undefined,
         screen: "lobby",
         roundId: "",
+        tiebreak: false,
         lobbyHint: "",
         lobby: { data: undefined } as unknown as PlayerModel["lobby"],
         retry: vi.fn(),

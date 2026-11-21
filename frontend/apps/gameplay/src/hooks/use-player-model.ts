@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react"
-import { roundModuleOf } from "@/rounds"
+import { roundModuleOf, tieBreakModule } from "@/rounds"
 import {
     playerScreenOf,
     useLiveAnswer,
@@ -29,6 +29,7 @@ export interface PlayerModel {
     failureMessage: string | undefined
     screen: PlayerScreen
     roundId: string
+    tiebreak: boolean
     lobbyHint: string
     lobby: ReturnType<typeof useLiveLobby>
     retry: () => void
@@ -72,11 +73,12 @@ export function usePlayerModel(matchId: string): PlayerModel {
         retry: live.refetch,
     }
     if (!v) {
-        return { ...base, screen: "lobby", roundId: "", lobbyHint: lobbyHintOf("", ""), ctx: null, render: null }
+        return { ...base, screen: "lobby", roundId: "", tiebreak: false, lobbyHint: lobbyHintOf("", ""), ctx: null, render: null }
     }
 
     const roundId = v.roundId
     const stage = v.stage
+    const tiebreak = v.tiebreak !== undefined
     const selection = s2QuestionOf({ selection: view2, open, roundId, stage })
     const flash = flashOf(answer.error, keywordSubmit.error, cmd.error)
 
@@ -105,8 +107,9 @@ export function usePlayerModel(matchId: string): PlayerModel {
         ...base,
         screen: playerScreenOf(v),
         roundId,
+        tiebreak,
         lobbyHint: lobbyHintOf(roundId, stage),
         ctx,
-        render: roundModuleOf(roundId)?.render ?? null,
+        render: tiebreak ? tieBreakModule.render : (roundModuleOf(roundId)?.render ?? null),
     }
 }

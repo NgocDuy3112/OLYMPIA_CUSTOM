@@ -9,6 +9,7 @@ import { requiredEnv } from "@shared/results/links"
 import { SelfBroadcastContext, useSelfBroadcast } from "@shared/lib/rtc"
 import { useSchedule, useTournament, type TournamentDetail } from "@shared/results/api"
 import { IconField } from "@shared/decors/icon-field"
+import { GlowWash } from "@shared/decors/glow-wash"
 
 interface TournamentContext { tournament: TournamentDetail }
 
@@ -89,6 +90,7 @@ function App() {
     return (
         <>
             <IconField />
+            <GlowWash />
             <BrowserRouter>
             <Routes>
                 <Route element={<AppShell />}>
