@@ -139,9 +139,7 @@ export function CodePage() {
             </Card>
 
             <p className="text-center font-sans text-xs leading-relaxed text-muted-foreground">
-                Chưa có chỗ ngồi? Vào trận bằng nút{" "}
-                <span className="font-medium text-foreground">Vào trận</span> trên thanh điều hướng —
-                đó là ghế ban điều hành đã xếp cho bạn.{" "}
+                
                 <Link to="/privacy" className="underline underline-offset-2 hover:text-foreground">
                     Chính sách quyền riêng tư
                 </Link>

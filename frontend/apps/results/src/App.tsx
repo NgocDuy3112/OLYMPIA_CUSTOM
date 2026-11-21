@@ -14,6 +14,7 @@ import { SchedulePage } from "@shared/results/SchedulePage"
 import { StandingsPage } from "@shared/results/StandingsPage"
 import { EnterMatchDialog } from "./EnterMatchDialog"
 import { LoginPage } from "./pages/LoginPage"
+import { ForgotPasswordPage } from "./pages/ForgotPasswordPage"
 import { ChangePasswordPage } from "./pages/ChangePasswordPage"
 import { CodePage } from "./pages/CodePage"
 
@@ -233,6 +234,7 @@ function App() {
                     </Route>
                     <Route element={<PlainLayout />}>
                         <Route path="/login" element={<LoginPage />} />
+                        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                         <Route path="/password" element={<ChangePasswordPage />} />
                         <Route path="/code" element={<CodePage />} />
                     </Route>

@@ -195,6 +195,16 @@ export function LoginPage() {
                             aria-label="Mật khẩu"
                             autoComplete={mode === "register" ? "new-password" : "current-password"}
                         />
+                        {mode === "login" && (
+                            <div className="flex justify-end">
+                                <Link
+                                    to="/forgot-password"
+                                    className="font-sans text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                                >
+                                    Quên mật khẩu?
+                                </Link>
+                            </div>
+                        )}
                         {errorText && (
                             <p role="alert" className="font-sans text-sm font-medium text-destructive">
                                 {errorText}
@@ -213,8 +223,6 @@ export function LoginPage() {
             </Card>
 
             <p className="text-center font-sans text-xs leading-relaxed text-muted-foreground">
-                Khi vào trận, trình duyệt sẽ hỏi quyền camera và micro. Hình và tiếng chỉ phát cho ban
-                điều hành, các thí sinh cùng trận và khán giả của giải.{" "}
                 <Link to="/privacy" className="underline underline-offset-2 hover:text-foreground">
                     Chính sách quyền riêng tư
                 </Link>

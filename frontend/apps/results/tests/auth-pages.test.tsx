@@ -137,7 +137,7 @@ describe("ChangePasswordPage — where the desk's password ends", () => {
         expect(screen.getByLabelText("Mật khẩu ban điều hành cấp")).toBeTruthy()
         expect(screen.getByLabelText("Mật khẩu mới")).toBeTruthy()
         expect(screen.getByLabelText("Nhập lại mật khẩu mới")).toBeTruthy()
-        expect(screen.getByText(/ban điều hành cấp mật khẩu đầu tiên/)).toBeTruthy()
+        expect(screen.getByText(/Đây là mật khẩu của bạn/)).toBeTruthy()
     })
 
     it("refuses a repeat that does not match, without sending anything", async () => {

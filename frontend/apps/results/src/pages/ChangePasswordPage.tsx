@@ -159,8 +159,7 @@ export function ChangePasswordPage() {
             </Card>
 
             <p className="text-center font-sans text-xs leading-relaxed text-muted-foreground">
-                Đây là mật khẩu của bạn: ban điều hành cấp mật khẩu đầu tiên để bạn vào được, và mất
-                quyền biết nó ngay khi bạn đổi.{" "}
+                Đây là mật khẩu của bạn
                 <Link to="/privacy" className="underline underline-offset-2 hover:text-foreground">
                     Chính sách quyền riêng tư
                 </Link>
