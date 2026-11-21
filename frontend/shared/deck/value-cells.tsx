@@ -1,4 +1,4 @@
-import { playerCellClass } from "./cells"
+import { playerCellClass, type CellWhere } from "./cells"
 import { DECK_PAD, pt } from "./geometry"
 
 export function ValueCells({ cells, onPick }: {
@@ -12,7 +12,9 @@ export function ValueCells({ cells, onPick }: {
                 {cells.map((cell) => {
                     const chosen = cell.chosen ?? 0
                     const actionable = Boolean(onPick) && (chosen > 0 || cell.remaining > 0)
-                    const where = chosen > 0 ? "pending" : cell.remaining > 0 ? "free" : "taken"
+                    let where: CellWhere = "taken"
+                    if (chosen > 0) where = "pending"
+                    else if (cell.remaining > 0) where = "free"
                     const title = cell.remaining > 0
                         ? `Chọn ngẫu nhiên 1 câu ${cell.value}`
                         : `Hết câu ${cell.value}`

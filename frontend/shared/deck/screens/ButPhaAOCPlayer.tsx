@@ -1,5 +1,6 @@
 import { AnswerBand, PlayerStage, QuestionCard, QuestionStepper, Rail, Timer, type PlayerCore } from "../player-deck"
 import type { AnswerValue } from "../types"
+import { timerRemainingOf } from "@shared/lib/clock"
 
 type ButPhaPlayerCtx = PlayerCore & {
     remaining: number
@@ -24,10 +25,7 @@ export function ButPhaAOCPlayer({ ctx }: { ctx: ButPhaPlayerCtx }) {
         done = TOTAL_QUESTIONS
         active = null
     }
-    let timerRemaining: number | null = null
-    if (openQ) {
-        if (openQ.deadlineAt) timerRemaining = remaining
-    }
+    const timerRemaining = timerRemainingOf(openQ, remaining)
     return (
         <PlayerStage
             rail={<Rail view={v} myId={myId} currentQid={openQ?.questionId ?? null} />}

@@ -1,9 +1,9 @@
 import { ConsoleStage, QuestionCard, QuestionStepper, Rail, Timer } from "@/components/stage/deck"
 import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
-import { COPY } from "@shared/deck/copy"
-
 import type { ConsoleQuestion, ButPhaConsole } from "@/lib/live"
-import type { ScreenCore } from "../types"
+import type { ScreenCore } from "@/rounds/types"
+import { COPY } from "@shared/deck/copy"
+import { timerRemainingOf } from "@shared/lib/clock"
 
 export type ButPhaCtx = ScreenCore & {
     remaining: number | null
@@ -34,8 +34,7 @@ export function ButPhaAOCController({ ctx }: { ctx: ButPhaCtx }) {
         const answerId = revealId
         revealAnswer = () => ctx.send({ kind: "reveal.answer", questionId: answerId })
     }
-    let timerRemaining: number | null = null
-    if (openQ?.deadlineAt) timerRemaining = remaining
+    const timerRemaining = timerRemainingOf(openQ, remaining)
 
     let ended = v.roundEnded
     if (v.projection.stage === "ended") ended = true

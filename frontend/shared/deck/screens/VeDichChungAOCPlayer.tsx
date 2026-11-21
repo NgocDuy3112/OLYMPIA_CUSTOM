@@ -1,6 +1,7 @@
 import { AnswerBand, PlayerStage, QuestionCard, Rail, Timer, VeDichStripCells, type PlayerCore } from "../player-deck"
 import type { AnswerValue } from "../types"
 import { stripCellsOf } from "../ve-dich-board"
+import { timerRemainingOf } from "@shared/lib/clock"
 
 type VeDichChungPlayerCtx = PlayerCore & {
     remaining: number
@@ -12,8 +13,7 @@ export function VeDichChungAOCPlayer({ ctx }: { ctx: VeDichChungPlayerCtx }) {
     const { v, remaining, myId, flash, answerBusy, submitAnswer } = ctx
     const openQ = ctx.open[0]
     const qid = openQ.questionId
-    let timerRemaining: number | null = null
-    if (openQ.deadlineAt) timerRemaining = remaining
+    const timerRemaining = timerRemainingOf(openQ, remaining)
     return (
         <PlayerStage
             rail={<Rail view={v} myId={myId} currentQid={qid || null} />}

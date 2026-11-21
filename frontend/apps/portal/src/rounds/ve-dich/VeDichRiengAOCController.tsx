@@ -1,13 +1,12 @@
 import { useState } from "react"
 import { ConsoleStage, QuestionCard, QuestionChips, Rail, Timer } from "@/components/stage/deck"
 import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
-import { COPY } from "@shared/deck/copy"
 import type { LiveAction } from "@/lib/live-actions"
-import { formatDurationMs } from "@shared/lib/clock"
-
 import type { VeDichConsole } from "@/lib/live"
+import type { ScreenCore } from "@/rounds/types"
+import { COPY } from "@shared/deck/copy"
 import { stripCellsOf } from "@shared/deck/ve-dich-board"
-import type { ScreenCore } from "../types"
+import { formatDurationMs, timerRemainingOf } from "@shared/lib/clock"
 
 export type VeDichRiengCtx = ScreenCore & {
     remaining: number | null
@@ -104,9 +103,7 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
     if (consoleVeDich?.buzzerMs != null) buzzText = formatDurationMs(consoleVeDich.buzzerMs)
     let endTurn: (() => void) | undefined = () => ctx.hetLuot()
     if (turnOpen) endTurn = undefined
-    let timerRemaining: number | null = null
-    if (openNow?.deadlineAt) timerRemaining = remaining
-    else if (typeof openNow?.frozenRemainingMs === "number") timerRemaining = openNow.frozenRemainingMs
+    const timerRemaining = timerRemainingOf(openNow, remaining)
 
     let canVerdict = false
     if (openNow !== null) {

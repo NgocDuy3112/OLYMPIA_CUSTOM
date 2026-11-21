@@ -3,6 +3,7 @@ import { Hand } from "lucide-react"
 import { AnswerBand, AudienceFace, PlayerStage, QuestionCard, Rail, Timer, VeDichStripCells, type PlayerCore } from "../player-deck"
 import { STRIP_R } from "../geometry"
 import { stripCellsOf } from "../ve-dich-board"
+import { timerRemainingOf } from "@shared/lib/clock"
 import { COPY } from "../copy"
 import type { AnswerValue, VeDichCommand } from "../types"
 
@@ -18,9 +19,7 @@ export function VeDichRiengAOCPlayer({ ctx }: { ctx: VeDichRiengPlayerCtx }) {
     const { v, remaining, myId, flash, answerBusy, submitAnswer, cmdBusy, command, audience } = ctx
     const openQ = ctx.open[0]
     const qid = openQ.questionId
-    let timerRemaining: number | null = null
-    if (openQ?.deadlineAt) timerRemaining = remaining
-    else if (typeof openQ?.frozenRemainingMs === "number") timerRemaining = openQ.frozenRemainingMs
+    const timerRemaining = timerRemainingOf(openQ, remaining)
     let faceSlot: ReactNode = undefined
     if (audience) {
         faceSlot = <AudienceFace options={openQ.question?.payload.options ?? []} />

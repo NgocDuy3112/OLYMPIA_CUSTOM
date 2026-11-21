@@ -22,6 +22,16 @@ export function formatRemaining(ms: number): string {
     return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
+export function timerRemainingOf(
+    open: { deadlineAt?: string | null; frozenRemainingMs?: number | null } | null | undefined,
+    remaining: number | null
+): number | null {
+    if (!open) return null
+    if (open.deadlineAt) return remaining
+    if (typeof open.frozenRemainingMs === "number") return open.frozenRemainingMs
+    return null
+}
+
 export function formatDurationMs(ms: number): string {
     const clamped = Math.max(0, Math.round(ms))
     const seconds = Math.floor(clamped / 1000)
