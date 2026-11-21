@@ -7,6 +7,7 @@ using AOC.Infrastructure.Auth;
 using AOC.Infrastructure.Configuration;
 using AOC.Infrastructure.Data;
 using AOC.Infrastructure.Data.Entities;
+using AOC.Infrastructure.Email;
 
 namespace AOC.Api.Modules.Auth;
 
@@ -113,6 +114,29 @@ public static class PlayerAccountRoutes
                 new SessionTokenPayload(user.Id.ToString(), user.Role.ToString(), tokenVersion)));
 
             return Results.Json(new { ok = true, displayName = user.DisplayName }, JsonApi.Options);
+        }).RequireRateLimiting("strict10").DisableAntiforgery();
+
+        app.MapPost("/api/auth/forgot-password", async (HttpContext http) =>
+        {
+            var body = Validate.Object(await Validate.ReadJsonBodyAsync(http));
+            var email = Validate.RequiredString(body, "email", maxLength: 256, minLength: 1);
+            var db = http.RequestServices.GetRequiredService<AOCDbContext>();
+            var sender = http.RequestServices.GetRequiredService<IEmailService>();
+            await new PasswordResetService(db, sender).RequestResetAsync(email, http.RequestAborted);
+            return Results.Json(new { ok = true }, JsonApi.Options);
+        }).RequireRateLimiting("strict10").DisableAntiforgery();
+
+        app.MapPost("/api/auth/reset-password", async (HttpContext http) =>
+        {
+            var body = Validate.Object(await Validate.ReadJsonBodyAsync(http));
+            var email = Validate.RequiredString(body, "email", maxLength: 256, minLength: 1);
+            var code = Validate.RequiredString(body, "code", maxLength: 32, minLength: 1);
+            var newPassword = Validate.RequiredString(body, "newPassword", maxLength: 256, minLength: 1);
+            var db = http.RequestServices.GetRequiredService<AOCDbContext>();
+            var sender = http.RequestServices.GetRequiredService<IEmailService>();
+            await new PasswordResetService(db, sender)
+                .ResetPasswordAsync(email, code, newPassword, http.RequestAborted);
+            return Results.Json(new { ok = true }, JsonApi.Options);
         }).RequireRateLimiting("strict10").DisableAntiforgery();
 
         app.MapGet("/api/me/match", async (HttpContext http) =>

@@ -69,7 +69,7 @@ public class AocRulebookTests
         Assert.Equal([Domain.Contracts.QuestionKind.TEXT],
             AocRulebook.AocRoundConfig("khoi-dong")!.AllowedKinds);
         Assert.Equal(
-            new[] { Domain.Contracts.QuestionKind.KEYWORD, Domain.Contracts.QuestionKind.HINT },
+            new[] { Domain.Contracts.QuestionKind.KEYWORD, Domain.Contracts.QuestionKind.TEXT },
             AocRulebook.AocRoundConfig("giai-ma")!.AllowedKinds);
         Assert.Equal([Domain.Contracts.QuestionKind.TEXT],
             AocRulebook.AocRoundConfig("but-pha")!.AllowedKinds);

@@ -40,7 +40,8 @@ public sealed class ErrorHandlingMiddleware(RequestDelegate next, ILogger<ErrorH
 
         TournamentError tournament => (tournament.Status, Body(tournament.Code.ToString(), tournament.Message, tournament.Details)),
 
-        QuestionError question => (question.Status, Body(question.Code.ToString(), question.Message, question.Details)),
+        QuestionError question => (question.Status, Body(question.Code.ToString(), question.Message,
+            question is QuestionRowError rowError ? rowError.Rows : question.Details)),
 
         CodeError code => (code.Status, Body(code.Code.ToString(), code.Message, code.Details)),
 
@@ -73,7 +74,7 @@ public sealed class ErrorHandlingMiddleware(RequestDelegate next, ILogger<ErrorH
         BadHttpRequestException badRequest => (badRequest.StatusCode,
             FastifyBody(badRequest.StatusCode, "Bad Request", badRequest.Message)),
 
-        _ => (500, FastifyBody(500, "Internal Server Error", ex.Message))
+        _ => (500, FastifyBody(500, "Internal Server Error", "Internal Server Error"))
     };
 
     private static object FastifyBody(int status, string error, string message) =>

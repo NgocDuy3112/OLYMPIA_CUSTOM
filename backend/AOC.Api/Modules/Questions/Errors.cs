@@ -9,7 +9,16 @@ public enum QuestionErrorCode
     IMMUTABLE
 }
 
-public sealed class QuestionError : Exception
+public sealed record RowDetail(int Index, string Message);
+
+public sealed class QuestionRowError(
+    QuestionErrorCode code, string message, IReadOnlyList<RowDetail> rows)
+    : QuestionError(code, message)
+{
+    public IReadOnlyList<RowDetail> Rows { get; } = rows;
+}
+
+public class QuestionError : Exception
 {
     public QuestionError(QuestionErrorCode code, string message, IReadOnlyList<string>? details = null)
         : base(message)

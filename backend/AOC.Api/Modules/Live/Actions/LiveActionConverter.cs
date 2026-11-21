@@ -81,6 +81,20 @@ public sealed class LiveActionConverter : JsonConverter<LiveAction>
             )).ToList();
         }
 
+        T EnumOf<T>(string name) where T : struct, Enum =>
+            Enum.TryParse<T>(Str(name), out var parsed)
+                ? parsed
+                : throw new JsonException($"invalid value for '{name}'");
+
+        T? OptEnumOf<T>(string name) where T : struct, Enum
+        {
+            if (!root.TryGetProperty(name, out var v) || v.ValueKind != JsonValueKind.String)
+                return null;
+            return Enum.TryParse<T>(v.GetString()!, out var parsed)
+                ? parsed
+                : throw new JsonException($"invalid value for '{name}'");
+        }
+
         return kind switch
         {
             "giai-ma.start" => new LiveAction.GiaiMaStart(StrList("playerIds"), StrList("hintIds")),
@@ -92,7 +106,7 @@ public sealed class LiveActionConverter : JsonConverter<LiveAction>
             "giai-ma.resolveHint" => new LiveAction.GiaiMaResolveHint(VerdictList("verdicts")),
             "giai-ma.submitKeyword" => new LiveAction.GiaiMaSubmitKeyword(
                 Str("playerId"), Str("questionId"), Str("text"),
-                Enum.Parse<VerdictSuggestion>(Str("suggestion"))),
+                EnumOf<VerdictSuggestion>("suggestion")),
             "giai-ma.judgeKeyword" => new LiveAction.GiaiMaJudgeKeyword(
                 Str("playerId"), Str("questionId"), Bool("correct")),
             "giai-ma.endRound" => new LiveAction.GiaiMaEndRound(),
@@ -142,9 +156,7 @@ public sealed class LiveActionConverter : JsonConverter<LiveAction>
             "ve-dich.judge" => new LiveAction.VeDichJudge(Str("playerId"), Bool("correct")),
             "ve-dich.declarePower" => new LiveAction.VeDichDeclarePower(
                 Str("playerId"),
-                root.TryGetProperty("power", out var pw) && pw.ValueKind == JsonValueKind.String
-                    ? Enum.Parse<PowerKind>(pw.GetString()!)
-                    : null,
+                OptEnumOf<PowerKind>("power"),
                 OptStr("targetId")),
             "ve-dich.buzz" => new LiveAction.VeDichBuzz(Str("playerId")),
 

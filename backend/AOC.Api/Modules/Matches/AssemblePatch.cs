@@ -48,7 +48,7 @@ public sealed class AssemblePatchService(AOCDbContext db)
                 new Buckets.Slot(entry.RoundId, entry.TurnId, entry.Points),
                 new Buckets.SlotConflictSource(
                     source.Tags,
-                    declared == "HINT" ? "TEXT" : declared,
+                    declared,
                     source.KeywordId?.ToString()));
             if (conflict is not null)
                 throw new MatchError(MatchErrorCode.VALIDATION, $"questions[{index}]: {conflict}");

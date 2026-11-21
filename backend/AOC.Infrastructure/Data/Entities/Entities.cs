@@ -115,57 +115,6 @@ public class TournamentPlayerEntity
     public DateTime EnrolledAt { get; set; }
 }
 
-public class QuestionImportBatchEntity
-{
-    public Guid Id { get; set; }
-    public Guid? CreatedBy { get; set; }
-    public string? SourceName { get; set; }
-    public int RowCount { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
-}
-
-public class SourceCells
-{
-    public string Question { get; set; } = "";
-    public string Answer { get; set; } = "";
-    public string Explanation { get; set; } = "";
-    public string Note { get; set; } = "";
-    public string Media { get; set; } = "";
-}
-
-public class QuestionImportRowEntity
-{
-    public Guid Id { get; set; }
-    public Guid BatchId { get; set; }
-    public int Position { get; set; }
-    public string Sheet { get; set; } = "";
-    public string SourceId { get; set; } = "";
-    public JsonElement Cells { get; set; }
-    public JsonElement? Media { get; set; }
-    public string? Error { get; set; }
-    public string? Warning { get; set; }
-    public bool Dropped { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
-
-    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
-    [System.Text.Json.Serialization.JsonIgnore]
-    public SourceCells CellsObject
-    {
-        get => JsonDefaults.Deserialize<SourceCells>(Cells) ?? new SourceCells();
-        set => Cells = JsonDefaults.Serialize(value);
-    }
-
-    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
-    [System.Text.Json.Serialization.JsonIgnore]
-    public AOC.Domain.Contracts.Media? MediaObject
-    {
-        get => Media is { } el ? JsonDefaults.Deserialize<AOC.Domain.Contracts.Media>(el) : null;
-        set => Media = value is null ? null : JsonDefaults.Serialize(value);
-    }
-}
-
 public class QuestionBankEntity
 {
     public Guid Id { get; set; }
@@ -404,5 +353,17 @@ public class AuditEventEntity
 
     public string? Ip { get; set; }
     public string? UserAgent { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class PasswordResetCodeEntity
+{
+    public Guid Id { get; set; }
+    public Guid UserId { get; set; }
+    public string CodeHash { get; set; } = "";
+    public string Salt { get; set; } = "";
+    public DateTime ExpiresAt { get; set; }
+    public DateTime? UsedAt { get; set; }
+    public int Attempts { get; set; }
     public DateTime CreatedAt { get; set; }
 }

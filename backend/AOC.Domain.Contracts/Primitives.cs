@@ -19,8 +19,7 @@ public enum QuestionKind
 {
     CHOICE,
     TEXT,
-    KEYWORD,
-    HINT
+    KEYWORD
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter))]

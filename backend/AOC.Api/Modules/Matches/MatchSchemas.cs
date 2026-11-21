@@ -171,6 +171,9 @@ public static class MatchSchemas
             {
                 players = p.Deserialize<List<Seat>>(JsonApi.Options);
                 if (players is null) throw new JsonException();
+                foreach (var seat in players)
+                    if (seat.Kind != "user" || !Guid.TryParse(seat.UserId, out _))
+                        details.Add("/players: Seat failed validation");
             }
             catch (JsonException)
             {

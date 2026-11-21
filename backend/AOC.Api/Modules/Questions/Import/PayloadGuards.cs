@@ -42,7 +42,6 @@ public static class PayloadGuards
                 return;
             }
             case QuestionKind.TEXT:
-            case QuestionKind.HINT:
             {
                 if (!p.TryGetProperty("acceptedAnswers", out var accepted) || accepted.ValueKind != JsonValueKind.Array)
                     throw Fail("TEXT questions require payload.acceptedAnswers");

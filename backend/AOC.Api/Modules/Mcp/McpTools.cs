@@ -44,6 +44,21 @@ public sealed class McpTools(
         _ => UserRole.PLAYER
     };
 
+    private static Guid ParseTournamentId(string tournamentId)
+    {
+        if (!Guid.TryParse(tournamentId, out var id))
+            throw ApiException.BadRequest("tournamentId: Expected string with format 'uuid'");
+        return id;
+    }
+
+    private static QuestionKind? ParseKind(string? kind)
+    {
+        if (kind is null) return null;
+        if (!Enum.TryParse<QuestionKind>(kind, out var parsed))
+            throw ApiException.BadRequest("kind: Expected union value");
+        return parsed;
+    }
+
     private static object AgentQuestion(QuestionBankEntity row) => new
     {
         id = row.Id,
@@ -119,16 +134,13 @@ public sealed class McpTools(
         string? search = null, int limit = 20, int offset = 0)
     {
         var actor = Actor();
+        var tid = ParseTournamentId(tournamentId);
+        var parsedKind = ParseKind(kind);
         return Run(() =>
         {
             McpActorAccessor.RequireScope(actor, "READ");
-            var tid = Guid.Parse(tournamentId);
             var tournament = db.Tournaments.AsNoTracking().First(t => t.Id == tid && t.DeletedAt == null);
             AssertTournamentVisible(tournament, actor.Role);
-
-            QuestionKind? parsedKind = kind is null
-                ? null
-                : Enum.Parse<QuestionKind>(kind);
 
             var page = questions.ListForAgentAsync(parsedKind, search, new Page(limit, offset))
                 .GetAwaiter().GetResult();
@@ -144,7 +156,7 @@ public sealed class McpTools(
                 limit = page.Limit,
                 offset = page.Offset
             };
-        }, "list_questions", Guid.Parse(tournamentId),
+        }, "list_questions", tid,
             new Dictionary<string, object?> { ["kind"] = kind, ["search"] = search });
     }
 
@@ -152,10 +164,10 @@ public sealed class McpTools(
     public CallToolResult GetQuestion(string questionId, string tournamentId)
     {
         var actor = Actor();
+        var tid = ParseTournamentId(tournamentId);
         return Run(() =>
         {
             McpActorAccessor.RequireScope(actor, "READ");
-            var tid = Guid.Parse(tournamentId);
             var tournament = db.Tournaments.AsNoTracking().First(t => t.Id == tid && t.DeletedAt == null);
             AssertTournamentVisible(tournament, actor.Role);
 
@@ -166,7 +178,7 @@ public sealed class McpTools(
                 null).GetAwaiter().GetResult();
 
             return AgentQuestion(row);
-        }, "get_question", Guid.Parse(tournamentId), null);
+        }, "get_question", tid, null);
     }
 
 
@@ -174,14 +186,15 @@ public sealed class McpTools(
         string? search = null, int limit = 20, int offset = 0)
     {
         var actor = Actor();
+        var tid = ParseTournamentId(tournamentId);
+        var parsedKind = ParseKind(kind);
         return Run(() =>
         {
             McpActorAccessor.RequireScope(actor, "READ");
-            var tid = Guid.Parse(tournamentId);
             var tournament = db.Tournaments.AsNoTracking().First(t => t.Id == tid && t.DeletedAt == null);
             AssertTournamentVisible(tournament, actor.Role);
 
-            List<QuestionKind>? kinds = kind is null ? null : [Enum.Parse<QuestionKind>(kind)];
+            List<QuestionKind>? kinds = parsedKind is { } pk ? [pk] : null;
 
             var page = questions.ListForAssemblyAsync(kinds, null, search, new Page(limit, offset))
                 .GetAwaiter().GetResult();
@@ -197,7 +210,7 @@ public sealed class McpTools(
                 limit = page.Limit,
                 offset = page.Offset
             };
-        }, "eligible_questions", Guid.Parse(tournamentId),
+        }, "eligible_questions", tid,
             new Dictionary<string, object?> { ["kind"] = kind, ["search"] = search });
     }
 }

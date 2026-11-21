@@ -31,7 +31,7 @@ public static partial class Matching
         var submitted = text.Value;
         if (submitted.Length == 0) return false;
 
-        if (kind == QuestionKind.TEXT || kind == QuestionKind.HINT)
+        if (kind == QuestionKind.TEXT)
         {
             if (payload is not QuestionPayload.Text textPayload) return false;
             var needle = NormalizeText(submitted);

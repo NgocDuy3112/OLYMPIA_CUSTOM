@@ -84,11 +84,13 @@ internal static class AuthTestDb
             AppContext.BaseDirectory);
     }
 
+    private static readonly System.Lazy<DbContextOptions<AOCDbContext>> SharedOptions = new(() =>
+        new DbContextOptionsBuilder<AOCDbContext>()
+            .Configure<AOCDbContext>(ConnectionString())
+            .Options);
+
     public static AOCDbContext OpenDb()
     {
-        var options = new DbContextOptionsBuilder<AOCDbContext>()
-            .Configure<AOCDbContext>(ConnectionString())
-            .Options;
-        return new AOCDbContext(options);
+        return new AOCDbContext(SharedOptions.Value);
     }
 }

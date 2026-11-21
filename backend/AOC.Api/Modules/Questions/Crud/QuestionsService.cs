@@ -78,16 +78,10 @@ public sealed class QuestionsService(AOCDbContext db) : IQuestionReads
 
     private async Task AssertHintSetAsync(QuestionKind kind, string? keywordId, Guid? excludeHintId = null)
     {
-        if (kind != QuestionKind.HINT)
-        {
-            if (keywordId is not null)
-                throw new QuestionError(QuestionErrorCode.VALIDATION,
-                    "keywordId applies to HINT questions only");
-            return;
-        }
-        if (keywordId is null)
+        if (keywordId is null) return;
+        if (kind != QuestionKind.TEXT)
             throw new QuestionError(QuestionErrorCode.VALIDATION,
-                "a HINT belongs to a keyword set (keywordId is required)");
+                "keywordId applies to TEXT questions only");
 
         var keywordGuid = Guid.Parse(keywordId);
         var keyword = await db.QuestionBank.AsNoTracking()
@@ -97,7 +91,7 @@ public sealed class QuestionsService(AOCDbContext db) : IQuestionReads
                 $"keyword {keywordId} is not a KEYWORD question");
 
         var inSet = db.QuestionBank.AsNoTracking()
-            .Where(q => q.Kind == QuestionKind.HINT && q.KeywordId == keywordGuid);
+            .Where(q => q.Kind == QuestionKind.TEXT && q.KeywordId == keywordGuid);
         if (excludeHintId is not null)
             inSet = inSet.Where(q => q.Id != excludeHintId.Value);
         var tally = await inSet.CountAsync();
@@ -120,8 +114,8 @@ public sealed class QuestionsService(AOCDbContext db) : IQuestionReads
     public async Task<QuestionBankEntity> DuplicateQuestionAsync(WriteContext ctx, string id)
     {
         var source = await RequireQuestionAsync(id);
-        if (source.Kind == QuestionKind.HINT)
-            await AssertHintSetAsync(QuestionKind.HINT, source.KeywordId?.ToString());
+        if (source.KeywordId is not null)
+            await AssertHintSetAsync(source.Kind, source.KeywordId?.ToString());
 
         var row = new QuestionBankEntity
         {
@@ -178,13 +172,8 @@ public sealed class QuestionsService(AOCDbContext db) : IQuestionReads
 
         if (kindPatch is not null && kindPatch != existing.Kind)
         {
-            var convertible =
-                (existing.Kind == QuestionKind.TEXT && kindPatch == QuestionKind.HINT) ||
-                (existing.Kind == QuestionKind.HINT && kindPatch == QuestionKind.TEXT);
-            if (!convertible)
-                throw new QuestionError(QuestionErrorCode.VALIDATION,
-                    $"kind cannot change from {existing.Kind} to {kindPatch}",
-                    ["only TEXT ↔ HINT conversion is allowed"]);
+            throw new QuestionError(QuestionErrorCode.VALIDATION,
+                $"kind cannot change from {existing.Kind} to {kindPatch}");
         }
 
         JsonElement? payloadPatch = null;
@@ -212,17 +201,11 @@ public sealed class QuestionsService(AOCDbContext db) : IQuestionReads
         }
 
         var nextKind = kindPatch ?? existing.Kind;
-        if (nextKind == QuestionKind.HINT)
+        var nextKeywordId = hasKeywordId ? keywordIdPatch : existing.KeywordId?.ToString();
+        if (nextKeywordId is not null)
         {
-            var keywordId = hasKeywordId ? keywordIdPatch : existing.KeywordId?.ToString();
-            await AssertHintSetAsync(QuestionKind.HINT, keywordId,
-                existing.Kind == QuestionKind.HINT ? existing.Id : null);
-        }
-        else if (hasKeywordId || existing.Kind == QuestionKind.HINT)
-        {
-            await AssertHintSetAsync(nextKind, keywordIdPatch);
-            if (existing.Kind == QuestionKind.HINT && !hasKeywordId)
-                keywordIdPatch = null;
+            await AssertHintSetAsync(nextKind, nextKeywordId,
+                existing.KeywordId is not null ? existing.Id : null);
         }
 
         var tracked = await db.QuestionBank.FirstAsync(q => q.Id == Guid.Parse(id));
@@ -278,8 +261,8 @@ public sealed class QuestionsService(AOCDbContext db) : IQuestionReads
             "payload ->> 'bucket' = ANY(string_to_array({0}, ','))"
         };
         if (Buckets.ExpandBucketParam(bucket).Contains("giai-ma"))
-            clauses.Add("kind IN ('KEYWORD', 'HINT')");
-        clauses.Add("(cardinality(tags) = 0 AND payload ->> 'bucket' IS NULL AND kind NOT IN ('KEYWORD', 'HINT'))");
+            clauses.Add("(kind = 'KEYWORD' OR (kind = 'TEXT' AND keyword_id IS NOT NULL))");
+        clauses.Add("(cardinality(tags) = 0 AND payload ->> 'bucket' IS NULL AND NOT (kind = 'KEYWORD' OR (kind = 'TEXT' AND keyword_id IS NOT NULL)))");
         return string.Join(" OR ", clauses.Select(c => $"({c})"));
     }
 
@@ -450,7 +433,7 @@ public sealed class QuestionsService(AOCDbContext db) : IQuestionReads
             + "SELECT COALESCE("
             + "(SELECT t FROM unnest(tags) AS t WHERE t = ANY(string_to_array({" + bucketIndex + "}, ',')) LIMIT 1), "
             + "payload ->> 'bucket', "
-            + "CASE WHEN kind IN ('KEYWORD', 'HINT') THEN 'giai-ma' END"
+            + "CASE WHEN kind = 'KEYWORD' OR (kind = 'TEXT' AND keyword_id IS NOT NULL) THEN 'giai-ma' END"
             + ") AS bucket FROM question_bank"
             + where.Text()
             + ") AS rows WHERE bucket IS NOT NULL GROUP BY bucket";

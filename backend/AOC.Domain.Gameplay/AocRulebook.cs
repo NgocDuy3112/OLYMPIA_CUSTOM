@@ -52,7 +52,7 @@ public static class AocRulebook
 
         public static RoundConfig GiaiMa(RoundRules.GiaiMaRules b) => new()
         {
-            AllowedKinds = [QuestionKind.KEYWORD, QuestionKind.HINT],
+            AllowedKinds = [QuestionKind.KEYWORD, QuestionKind.TEXT],
             Scoring = new ScoringRule.KeywordDerived(b.Start, b.DropPerHint, b.Floor, 0),
             Rules = BatchOf(b),
             Turns =

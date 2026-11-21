@@ -79,9 +79,9 @@ public sealed class MatchAssembly(AOCDbContext db)
                 if (!bankById.TryGetValue(Guid.Parse(entry.SourceId), out var source))
                     throw new MatchError(MatchErrorCode.VALIDATION,
                         $"{where}: question {entry.SourceId} does not exist");
-                if (source.Status != QuestionStatus.PUBLISHED)
+                if (source.Status == QuestionStatus.ARCHIVED)
                     throw new MatchError(MatchErrorCode.VALIDATION,
-                        $"{where}: question {entry.SourceId} is {source.Status}, not PUBLISHED");
+                        $"{where}: question {entry.SourceId} is archived and cannot be assembled");
                 if (!config.AllowedKinds.Contains(source.Kind))
                     throw new MatchError(MatchErrorCode.VALIDATION,
                         $"{where}: kind {source.Kind} is not allowed in round \"{entry.RoundId}\"",

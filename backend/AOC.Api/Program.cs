@@ -20,6 +20,7 @@ using AOC.Api.Realtime;
 using AOC.Infrastructure.Auth;
 using AOC.Infrastructure.Configuration;
 using AOC.Infrastructure.Data;
+using AOC.Infrastructure.Email;
 using AOC.Infrastructure.Oidc;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -57,6 +58,7 @@ builder.Services.AddDbContextPool<AOCDbContext>(options =>
     options.Configure(config.DatabaseUrl));
 
 builder.Services.AddSingleton<SessionTokens>();
+builder.Services.AddSingleton<IEmailService, SmtpEmailService>();
 builder.Services.AddSingleton<GoogleOidcService>();
 builder.Services.AddScoped<AOC.Infrastructure.Audit.AuditService>();
 builder.Services.AddSingleton<MatchHubRegistry>();
@@ -77,7 +79,7 @@ builder.Services.AddScoped<DraftWriter>();
 builder.Services.AddScoped<QuestionsService>();
 builder.Services.AddScoped<AOC.Api.Modules.Questions.Reads.IQuestionReads>(
     sp => sp.GetRequiredService<QuestionsService>());
-builder.Services.AddScoped<StagingService>();
+builder.Services.AddScoped<MatchDirectImportService>();
 builder.Services.AddScoped<GameplayReadService>();
 builder.Services.AddScoped<McpKeysService>();
 

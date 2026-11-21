@@ -55,13 +55,13 @@ public static partial class QuestionRoutes
             var filters = new QuestionFilter(
                 Status: ParseStatus(query.GetValueOrDefault("status")),
                 Kind: ParseKind(query.GetValueOrDefault("kind")),
-                KeywordId: query.GetValueOrDefault("keywordId") is { } kw && kw.Length > 0
-                    ? Guid.Parse(kw) : null,
+                KeywordId: query.GetValueOrDefault("keywordId") is { Length: > 0 } kw
+                    ? ParseUuid(kw, "keywordId") : null,
                 Search: query.GetValueOrDefault("search"),
                 Ids: query.GetValueOrDefault("ids")?.Split(',')
                     .Select(id => id.Trim())
                     .Where(id => id.Length > 0)
-                    .Select(Guid.Parse)
+                    .Select(id => ParseUuid(id, "ids"))
                     .ToList(),
                 Bucket: query.GetValueOrDefault("bucket"));
 
@@ -195,6 +195,13 @@ public static partial class QuestionRoutes
         if (raw is null) return null;
         if (!Enum.TryParse<QuestionKind>(raw, out var parsed))
             throw ApiException.BadRequest("kind: Expected union value");
+        return parsed;
+    }
+
+    private static Guid ParseUuid(string raw, string name)
+    {
+        if (!Guid.TryParse(raw, out var parsed))
+            throw ApiException.BadRequest($"{name}: Expected string with format 'uuid'");
         return parsed;
     }
 

@@ -41,6 +41,12 @@ public sealed class AppConfig
         DiscordLog = new DiscordLogOptions(
             Optional("DISCORD_WEBHOOK_URL"),
             Optional("DISCORD_LOG_LEVEL") ?? "Warning");
+        Smtp = new SmtpOptions(
+            Optional("SMTP_HOST"),
+            ParseSmtpPort(Optional("SMTP_PORT")),
+            Optional("SMTP_USER"),
+            Optional("SMTP_PASSWORD"),
+            Optional("SMTP_FROM"));
         SeedAdminPassword = Optional("SEED_ADMIN_PASSWORD");
         SeedAdminUsername = Optional("SEED_ADMIN_USERNAME");
         CorsOrigins = (Environment.GetEnvironmentVariable("CORS_ORIGINS") ?? "")
@@ -57,6 +63,7 @@ public sealed class AppConfig
     public S3Options S3 { get; }
     public LivekitOptions Livekit { get; }
     public DiscordLogOptions DiscordLog { get; }
+    public SmtpOptions Smtp { get; }
     public string? SeedAdminPassword { get; }
     public string? SeedAdminUsername { get; }
     public string[] CorsOrigins { get; }
@@ -74,6 +81,20 @@ public sealed class AppConfig
         raw ??= "3000";
         if (!int.TryParse(raw, out var value) || value < 1 || value > 65535)
             throw new InvalidOperationException($"Invalid PORT: {raw}");
+        return value;
+    }
+
+    private static int ParseSmtpPort(string? raw)
+    {
+        if (string.IsNullOrEmpty(raw))
+            return 587;
+        var parsed = int.TryParse(raw, out var value);
+        if (!parsed)
+            throw new InvalidOperationException($"Invalid SMTP_PORT: {raw}");
+        if (value < 1)
+            throw new InvalidOperationException($"Invalid SMTP_PORT: {raw}");
+        if (value > 65535)
+            throw new InvalidOperationException($"Invalid SMTP_PORT: {raw}");
         return value;
     }
 

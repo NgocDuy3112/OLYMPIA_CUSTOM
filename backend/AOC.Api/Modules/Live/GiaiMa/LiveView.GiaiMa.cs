@@ -50,7 +50,7 @@ public static partial class LiveView
         }
 
         var hintTiles = (input.Questions ?? [])
-            .Where(q => q.Kind == QuestionKind.HINT)
+            .Where(q => q.Kind == QuestionKind.TEXT && q.RoundId == "giai-ma")
             .OrderBy(q => q.Position)
             .Select((q, index) => new { q.Id, Tile = index })
             .ToDictionary(x => x.Id, x => x.Tile);

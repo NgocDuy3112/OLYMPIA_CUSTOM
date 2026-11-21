@@ -13,8 +13,6 @@ public class AOCDbContext(DbContextOptions<AOCDbContext> options) : DbContext(op
 
     public DbSet<TournamentEntity> Tournaments => Set<TournamentEntity>();
     public DbSet<TournamentPlayerEntity> TournamentPlayers => Set<TournamentPlayerEntity>();
-    public DbSet<QuestionImportBatchEntity> QuestionImportBatches => Set<QuestionImportBatchEntity>();
-    public DbSet<QuestionImportRowEntity> QuestionImportRows => Set<QuestionImportRowEntity>();
     public DbSet<QuestionBankEntity> QuestionBank => Set<QuestionBankEntity>();
 
     public DbSet<MatchEntity> Matches => Set<MatchEntity>();
@@ -29,6 +27,7 @@ public class AOCDbContext(DbContextOptions<AOCDbContext> options) : DbContext(op
     public DbSet<MatchAssemblyEventEntity> MatchAssemblyEvents => Set<MatchAssemblyEventEntity>();
 
     public DbSet<AuditEventEntity> AuditEvents => Set<AuditEventEntity>();
+    public DbSet<PasswordResetCodeEntity> PasswordResetCodes => Set<PasswordResetCodeEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -117,29 +116,6 @@ public class AOCDbContext(DbContextOptions<AOCDbContext> options) : DbContext(op
             e.Property(x => x.EnrolledAt).HasDefaultValueSql("now()");
         });
 
-        modelBuilder.Entity<QuestionImportBatchEntity>(e =>
-        {
-            e.ToTable("question_import_batches");
-            e.HasKey(x => x.Id);
-            e.Property(x => x.RowCount).HasDefaultValue(0);
-            e.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
-            e.Property(x => x.UpdatedAt).HasDefaultValueSql("now()");
-        });
-
-        modelBuilder.Entity<QuestionImportRowEntity>(e =>
-        {
-            e.ToTable("question_import_rows");
-            e.HasKey(x => x.Id);
-            e.HasIndex(x => new { x.BatchId, x.Position }).IsUnique();
-            e.Property(x => x.Sheet).IsRequired();
-            e.Property(x => x.SourceId).IsRequired();
-            e.Property(x => x.Cells).HasColumnType("jsonb").IsRequired();
-            e.Property(x => x.Media).HasColumnType("jsonb");
-            e.Property(x => x.Dropped).HasDefaultValue(false);
-            e.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
-            e.Property(x => x.UpdatedAt).HasDefaultValueSql("now()");
-        });
-
         modelBuilder.Entity<QuestionBankEntity>(e =>
         {
             e.ToTable("question_bank");
@@ -153,9 +129,6 @@ public class AOCDbContext(DbContextOptions<AOCDbContext> options) : DbContext(op
             e.Property(x => x.Status).HasDefaultValue(QuestionStatus.DRAFT);
             e.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
             e.Property(x => x.UpdatedAt).HasDefaultValueSql("now()");
-            e.ToTable(t => t.HasCheckConstraint(
-                "question_bank_hint_needs_keyword",
-                "kind <> 'HINT' OR keyword_id IS NOT NULL"));
         });
 
         modelBuilder.Entity<MatchEntity>(e =>
@@ -305,6 +278,18 @@ public class AOCDbContext(DbContextOptions<AOCDbContext> options) : DbContext(op
             e.Property(x => x.Action).IsRequired().HasMaxLength(100);
             e.Property(x => x.Details).HasColumnType("jsonb");
             e.Property(x => x.Ip).HasMaxLength(45);
+            e.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
+        });
+
+        modelBuilder.Entity<PasswordResetCodeEntity>(e =>
+        {
+            e.ToTable("password_reset_codes");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.UserId);
+            e.Property(x => x.CodeHash).IsRequired();
+            e.Property(x => x.Salt).IsRequired();
+            e.Property(x => x.ExpiresAt).IsRequired();
+            e.Property(x => x.Attempts).HasDefaultValue(0);
             e.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
         });
     }

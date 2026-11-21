@@ -125,7 +125,7 @@ public static class Buckets
 
     public static List<QuestionKind> ExpectedKindsForBucket(string bucket, bool keywordLinked = false)
     {
-        if (bucket == "giai-ma") return keywordLinked ? [QuestionKind.HINT] : [QuestionKind.KEYWORD];
+        if (bucket == "giai-ma") return keywordLinked ? [QuestionKind.TEXT] : [QuestionKind.KEYWORD];
         return [BucketKind[bucket]];
     }
 
@@ -186,7 +186,6 @@ public static class Buckets
         switch (kind)
         {
             case QuestionKind.TEXT:
-            case QuestionKind.HINT:
                 RequireAccepted(p, kind.ToString());
                 if (p.TryGetProperty("options", out var opts) && opts.ValueKind == JsonValueKind.Array
                     && opts.GetArrayLength() > 0)

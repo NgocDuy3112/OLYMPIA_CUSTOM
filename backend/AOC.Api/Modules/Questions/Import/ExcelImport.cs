@@ -106,7 +106,7 @@ public static class ExcelImport
                 if (sourceId == "GM_KEY")
                     return new Placement(true, "giai-ma", "KEYWORD", false, "");
                 if (Regex.IsMatch(sourceId, @"^GM_\d+$"))
-                    return new Placement(true, "giai-ma", "HINT", true, "");
+                    return new Placement(true, "giai-ma", "TEXT", true, "");
                 return Mismatch("GM_KEY or GM_<n>");
             case "BUT_PHA":
                 if (Regex.IsMatch(sourceId, @"^BP_\d+$"))
@@ -338,10 +338,10 @@ public static class ExcelImport
 
 
     public static List<QuestionsService.BatchError> StructuralProblems(
-        IReadOnlyList<(int Index, string Kind)> rows)
+        IReadOnlyList<(int Index, string Kind, bool IsHint)> rows)
     {
         var keywords = rows.Where(r => r.Kind == "KEYWORD").ToList();
-        var hints = rows.Where(r => r.Kind == "HINT").ToList();
+        var hints = rows.Where(r => r.IsHint).ToList();
         var problems = new List<QuestionsService.BatchError>();
 
         if (hints.Count > 0 && keywords.Count == 0)
@@ -368,41 +368,7 @@ public static class ExcelImport
     }
 
 
-    public sealed record ExcelWarning(int Index, string Message);
-
-    public sealed record ExcelImportReport(
-        bool DryRun,
-        int Total,
-        int Created,
-        List<Guid> Ids,
-        List<QuestionsService.BatchError> Errors,
-        int Skipped,
-        List<ExcelWarning> Warnings,
-        List<object> Rows,
-        Guid? StagedBatchId);
-
-    private static ExcelImportReport Report(bool dryRun, ParsedWorkbook parsed,
-        List<QuestionsService.BatchError>? errors = null, Guid? stagedBatchId = null)
-    {
-        var warnings = parsed.Entries
-            .Where(e => e.Mapped.Warning is not null)
-            .Select(e => new ExcelWarning(e.Summary.Index, e.Mapped.Warning!))
-            .ToList();
-        var rows = parsed.Entries.Select(e => (object)new
-        {
-            index = e.Summary.Index,
-            sheet = e.Summary.Sheet,
-            sourceId = e.Summary.SourceId,
-            bucket = e.Summary.Bucket,
-            kind = e.Summary.Kind
-        }).ToList();
-
-        return new ExcelImportReport(dryRun, parsed.Entries.Count, 0, [],
-            errors ?? [], parsed.Skipped, warnings, rows, stagedBatchId);
-    }
-
-
-    private static List<QuestionsService.BatchError> AttachMedia(
+    internal static List<QuestionsService.BatchError> AttachMedia(
         ParsedWorkbook parsed, IReadOnlyList<MediaAttachment> attachments)
     {
         var errors = new List<QuestionsService.BatchError>();
@@ -452,7 +418,7 @@ public static class ExcelImport
         return error.GetType().Name;
     }
 
-    private static async Task<List<QuestionsService.BatchError>> UploadMediaAsync(
+    internal static async Task<List<QuestionsService.BatchError>> UploadMediaAsync(
         ParsedWorkbook parsed, ILogger logger)
     {
         var uploads = new Dictionary<string, StoredMedia>();
@@ -497,217 +463,7 @@ public static class ExcelImport
     }
 
 
-    private const int StageChunk = 100;
-
-    private static async Task<Guid> StageWorkbookAsync(
-        AOCDbContext db, QuestionsService.WriteContext ctx, ParsedWorkbook parsed,
-        string? sourceName, List<QuestionsService.BatchError> errors, ILogger logger)
-    {
-        foreach (var error in errors)
-        {
-            var entry = parsed.Entries[error.Index];
-            if (entry.Mapped.Error is null)
-                entry.Mapped = entry.Mapped with { Error = error };
-        }
-
-        foreach (var failure in await UploadMediaAsync(parsed, logger))
-        {
-            var entry = parsed.Entries[failure.Index];
-            if (entry.Mapped.Error is null)
-                entry.Mapped = entry.Mapped with { Error = failure };
-        }
-
-        var batch = new QuestionImportBatchEntity
-        {
-            CreatedBy = ctx.ActorId,
-            SourceName = sourceName,
-            RowCount = parsed.Entries.Count
-        };
-        db.QuestionImportBatches.Add(batch);
-        await db.SaveChangesAsync();
-
-        var rows = parsed.Entries.Select(entry => new QuestionImportRowEntity
-        {
-            BatchId = batch.Id,
-            Position = entry.Summary.Index,
-            Sheet = entry.Summary.Sheet,
-            SourceId = entry.Summary.SourceId,
-            Cells = JsonDefaults.Serialize(entry.Cells),
-            Media = entry.Mapped.Input?.Media is { } media ? JsonDefaults.Serialize(media) : null,
-            Error = entry.Mapped.Error?.Message,
-            Warning = entry.Mapped.Warning
-        }).ToList();
-
-        for (var start = 0; start < rows.Count; start += StageChunk)
-        {
-            db.QuestionImportRows.AddRange(rows.Skip(start).Take(StageChunk));
-            await db.SaveChangesAsync();
-        }
-
-        return batch.Id;
-    }
-
-
-
-    public static async Task<ExcelImportReport> ImportExcelAsync(
-        QuestionsService.WriteContext ctx,
-        byte[] buffer,
-        bool dryRun,
-        IReadOnlyList<MediaAttachment> attachments,
-        string? sourceName,
-        QuestionsService questions,
-        AOCDbContext db,
-        ILogger logger,
-        bool forceStage = false)
-    {
-        var parsed = ParseWorkbook(buffer);
-
-        if (parsed.Entries.Count == 0)
-        {
-            List<string> details;
-            if (parsed.SheetNames.Count > 0)
-            {
-                details = [$"sheets: {string.Join(", ", parsed.SheetNames)} — every row was empty"];
-            }
-            else
-            {
-                details = ["no sheets found"];
-            }
-            throw new QuestionError(QuestionErrorCode.VALIDATION, "no questions in that file", details);
-        }
-        if (parsed.Entries.Count > MaxImportRows)
-            throw new QuestionError(QuestionErrorCode.VALIDATION,
-                $"an import may hold at most {MaxImportRows} questions",
-                [$"{parsed.Entries.Count} filled rows in this file"]);
-
-        async Task<ExcelImportReport?> RefuseAsync(List<QuestionsService.BatchError> rowErrors)
-        {
-            if (dryRun) return null;
-            var stagedBatchId = await StageWorkbookAsync(db, ctx, parsed, sourceName, rowErrors, logger);
-            var stagedErrors = parsed.Entries
-                .Select(e => e.Mapped.Error)
-                .Where(error => error is not null)
-                .Cast<QuestionsService.BatchError>()
-                .OrderBy(e => e.Index)
-                .ToList();
-            return Report(false, parsed, stagedErrors, stagedBatchId);
-        }
-
-        var structural = StructuralProblems(
-            parsed.Entries.Select(e => (e.Summary.Index, e.Summary.Kind)).ToList());
-
-        var mediaErrors = AttachMedia(parsed, attachments);
-
-        var rowErrors = parsed.Entries
-            .Select(e => e.Mapped.Error)
-            .Where(error => error is not null)
-            .Cast<QuestionsService.BatchError>()
-            .Concat(structural)
-            .Concat(mediaErrors)
-            .OrderBy(e => e.Index)
-            .ToList();
-
-        if (rowErrors.Count > 0)
-            return await RefuseAsync(rowErrors) ?? Report(dryRun, parsed, rowErrors);
-
-        var fileDuplicates = DuplicatesInFile(parsed);
-        if (fileDuplicates.Count > 0)
-            return await RefuseAsync(fileDuplicates) ?? Report(dryRun, parsed, fileDuplicates);
-
-        var inputs = parsed.Entries.Select(e => e.Mapped.Input!).ToList();
-
-        var validationErrors = new List<QuestionsService.BatchError>();
-        const int chunkSize = QuestionsService.MaxBatchSize;
-        for (var start = 0; start < inputs.Count; start += chunkSize)
-        {
-            var items = inputs.Skip(start).Take(chunkSize).ToList();
-            var validation = await questions.ImportQuestionsAsync(ctx,
-                items.Select(i => JsonSerializer.SerializeToElement(i, JsonApi.Options)).ToList(), true);
-            validationErrors.AddRange(validation.Errors.Select(error =>
-                error with { Index = start + error.Index }));
-        }
-        if (validationErrors.Count > 0)
-        {
-            var sorted = validationErrors.OrderBy(e => e.Index).ToList();
-            return await RefuseAsync(sorted) ?? Report(dryRun, parsed, sorted);
-        }
-        if (dryRun) return Report(true, parsed);
-
-        if (forceStage)
-        {
-            var stagedId = await StageWorkbookAsync(db, ctx, parsed, sourceName, [], logger);
-            return Report(false, parsed, null, stagedId);
-        }
-
-        var uploadErrors = await UploadMediaAsync(parsed, logger);
-        if (uploadErrors.Count > 0)
-            return await RefuseAsync(uploadErrors) ?? Report(false, parsed, uploadErrors);
-
-        var mainPositions = new List<int>();
-        var hintPositions = new List<int>();
-        for (var index = 0; index < parsed.Entries.Count; index++)
-        {
-            if (parsed.Entries[index].Mapped.IsHint) hintPositions.Add(index);
-            else mainPositions.Add(index);
-        }
-
-        var main = await WriteAsync(ctx, questions, parsed, mainPositions, null);
-        if (main.Errors.Count > 0) return Report(false, parsed, main.Errors);
-
-        if (hintPositions.Count == 0)
-            return Report(false, parsed, null) with { Created = main.Ids.Count, Ids = main.Ids };
-
-        var keywordIndex = parsed.Entries.FindIndex(e => e.Summary.Kind == "KEYWORD");
-        var keywordId = main.Ids[mainPositions.IndexOf(keywordIndex)];
-
-        var hints = await WriteAsync(ctx, questions, parsed, hintPositions, keywordId);
-
-        var allErrors = main.Errors.Concat(hints.Errors).OrderBy(e => e.Index).ToList();
-        var report = Report(false, parsed, allErrors.Count > 0 ? allErrors : null);
-        return report with
-        {
-            Created = main.Ids.Count + hints.Ids.Count,
-            Ids = [.. main.Ids, .. hints.Ids]
-        };
-    }
-
-    private sealed record WriteResult(List<Guid> Ids, List<QuestionsService.BatchError> Errors);
-
-    private static async Task<WriteResult> WriteAsync(
-        QuestionsService.WriteContext ctx, QuestionsService questions, ParsedWorkbook parsed,
-        List<int> positions, Guid? keywordId)
-    {
-        var ids = new List<Guid>();
-        var errors = new List<QuestionsService.BatchError>();
-        var items = positions
-            .Select(index =>
-            {
-                var input = parsed.Entries[index].Mapped.Input!;
-                return keywordId is { } kw ? input with { KeywordId = kw.ToString() } : input;
-            })
-            .ToList();
-
-        const int chunk = 100;
-        for (var start = 0; start < items.Count; start += chunk)
-        {
-            var slice = items.Skip(start).Take(chunk).ToList();
-            var result = await questions.ImportQuestionsAsync(ctx,
-                slice.Select(i => JsonSerializer.SerializeToElement(i, JsonApi.Options)).ToList(), false);
-            ids.AddRange(result.Ids);
-            if (result.Errors.Count > 0)
-            {
-                errors.AddRange(result.Errors.Select(error =>
-                    error with
-                    {
-                        Index = positions[Math.Min(start + error.Index, positions.Count - 1)]
-                    }));
-                break;
-            }
-        }
-        return new WriteResult(ids, errors);
-    }
-
-    private static List<QuestionsService.BatchError> DuplicatesInFile(ParsedWorkbook parsed)
+    internal static List<QuestionsService.BatchError> DuplicatesInFile(ParsedWorkbook parsed)
     {
         var seen = new Dictionary<string, int>();
         var duplicates = new List<QuestionsService.BatchError>();
