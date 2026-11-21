@@ -109,6 +109,12 @@ public static class Buckets
                 if (PointsOf(bucket) == slot.Points && bucket != QuestionsService.TieBreakBucket)
                     return bucket;
 
+            if (slot.Points is not null
+                && turn.Buckets.Count == 1
+                && PointsOf(turn.Buckets[0]) is null
+                && turn.Buckets[0] != QuestionsService.TieBreakBucket)
+                return turn.Buckets[0];
+
             throw new QuestionError(QuestionErrorCode.VALIDATION,
                 $"turn \"{turn.Id}\" of round \"{slot.RoundId}\" has no bucket for {slot.Points?.ToString() ?? "no points"}");
         }

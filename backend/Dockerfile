@@ -1,7 +1,9 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-COPY AOC.Domain/AOC.Domain.csproj AOC.Domain/
+COPY AOC.Domain.Contracts/AOC.Domain.Contracts.csproj AOC.Domain.Contracts/
+COPY AOC.Domain.Gameplay/AOC.Domain.Gameplay.csproj AOC.Domain.Gameplay/
+COPY AOC.Domain.Tournament/AOC.Domain.Tournament.csproj AOC.Domain.Tournament/
 COPY AOC.Infrastructure/AOC.Infrastructure.csproj AOC.Infrastructure/
 COPY AOC.Api/AOC.Api.csproj AOC.Api/
 RUN dotnet restore AOC.Api/AOC.Api.csproj
