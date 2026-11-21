@@ -23,7 +23,7 @@ export function useAudienceLive(tournamentId: string, matchId: string) {
 }
 
 export function audienceView(read: AudienceRead): PlayerView {
-    return { ...read, hintAnswers: {}, me: { pickedTiles: [], hintVerdicts: {} } }
+    return { ...read, me: { pickedTiles: [], hintVerdicts: {} } }
 }
 
 const noop = () => {}
