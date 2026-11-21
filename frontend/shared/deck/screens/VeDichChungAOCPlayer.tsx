@@ -11,8 +11,8 @@ type VeDichChungPlayerCtx = PlayerCore & {
 
 export function VeDichChungAOCPlayer({ ctx }: { ctx: VeDichChungPlayerCtx }) {
     const { v, remaining, myId, flash, answerBusy, submitAnswer } = ctx
-    const openQ = ctx.open[0]
-    const qid = openQ.questionId
+    const openQ = ctx.open[0] ?? null
+    const qid = openQ?.questionId ?? null
     const timerRemaining = timerRemainingOf(openQ, remaining)
     return (
         <PlayerStage
@@ -23,18 +23,18 @@ export function VeDichChungAOCPlayer({ ctx }: { ctx: VeDichChungPlayerCtx }) {
                 mode="Lượt chung"
                 mid={<VeDichStripCells cells={stripCellsOf(v.board)} />}
                 right={<Timer remaining={timerRemaining} />}
-                question={openQ.question?.questionText ?? null}
-                media={openQ.question?.media ?? null}
+                question={openQ?.question?.questionText ?? null}
+                media={openQ?.question?.media ?? null}
             />
             <>
-                {openQ.question && (
+                {openQ?.question && (
                     <AnswerBand
                         question={openQ.question}
                         answerState={v.me.answerState}
                         disabled={remaining <= 0}
                         busy={answerBusy}
                         error={flash}
-                        onSubmit={(value) => submitAnswer(qid, value)}
+                        onSubmit={(value) => submitAnswer(openQ.questionId, value)}
                     />
                 )}
             </>

@@ -1,8 +1,10 @@
+import { useEffect, useMemo, useRef } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api, ApiError } from "@shared/lib/api"
 import { useServerClock, type ServerClock } from "@shared/lib/clock"
 import type { LobbyData } from "@shared/deck/types"
-import { useSocketStream, useHubInvoker } from "@shared/lib/ws"
+import { useHubInvoker, type HubInvoker, type StreamStatus } from "@shared/lib/ws"
+import { logError } from "@shared/lib/log"
 
 interface ViewFailure {
     status: number
@@ -111,11 +113,49 @@ interface StreamFrame {
 
 const liveKey = (matchId: string) => ["live", matchId] as const
 
+const streamPathOf = (matchId: string) => `/api/matches/${matchId}/live/stream`
+
 interface UseLiveMatch {
     view: LiveView | undefined
     failure: ViewFailure | null
     clock: ServerClock
+    streamStatus: StreamStatus
     refetch: () => void
+}
+
+/**
+ * The single live connection for a match.
+ *
+ * View frames and hub invocations share one socket: the hub issues one ticket
+ * per identity, so a second connection to the same path gets refused and
+ * silently kills whichever side lost the race. Both the deck and the tiebreak
+ * buzz go through here.
+ */
+export function useLiveHub(matchId: string, enabled: boolean): HubInvoker {
+    const queryClient = useQueryClient()
+    const clock = useServerClock()
+    const path = matchId ? streamPathOf(matchId) : null
+
+    const onMessage = useMemo(
+        () => (message: unknown) => {
+            const frame = message as StreamFrame | null
+            if (!frame || typeof frame !== "object") return
+
+            if (frame.type === "view" && frame.data?.view) {
+                if (frame.at) clock.sync(frame.at)
+                queryClient.setQueryData(liveKey(matchId), frame.data.view)
+                return
+            }
+
+            if (frame.type === "error") {
+                logError("live", frame)
+                void queryClient.invalidateQueries({ queryKey: liveKey(matchId) })
+            }
+        },
+        [clock, matchId, queryClient]
+    )
+
+    return useHubInvoker(path, enabled, { onMessage })
 }
 
 export function useLiveMatch(matchId: string, enabled: boolean): UseLiveMatch {
@@ -129,35 +169,32 @@ export function useLiveMatch(matchId: string, enabled: boolean): UseLiveMatch {
         retry: false,
         staleTime: Infinity,
         refetchOnWindowFocus: false,
+        // The stream is the primary source. While it is down the view is stale
+        // by definition, so fall back to polling instead of freezing the deck.
+        refetchInterval: (state) => {
+            if (state.state.data === undefined) return false
+            if (state.state.error) return 3_000
+            return false
+        },
     })
 
-    let streamPath: string | null = null
-    if (enabled) {
-        if (matchId) streamPath = `/api/matches/${matchId}/live/stream`
-    }
-    useSocketStream(
-        streamPath,
-        true,
-        (message) => {
-            const frame = message as StreamFrame | null
-            if (!frame || typeof frame !== "object") return
+    const hub = useLiveHub(matchId, enabled && Boolean(matchId))
 
-            if (frame.type === "view" && frame.data?.view) {
-                if (frame.at) clock.sync(frame.at)
-                queryClient.setQueryData(liveKey(matchId), frame.data.view)
-                return
-            }
-
-            if (frame.type === "error") {
-                void queryClient.invalidateQueries({ queryKey: liveKey(matchId) })
-            }
-        }
-    )
+    // Missed frames are never replayed: after every (re)connect pull the
+    // authoritative view once, so a drop heals instead of leaving a dead screen.
+    const lastGeneration = useRef(-1)
+    useEffect(() => {
+        if (!matchId) return
+        if (hub.generation === lastGeneration.current) return
+        lastGeneration.current = hub.generation
+        void queryClient.invalidateQueries({ queryKey: liveKey(matchId) })
+    }, [matchId, hub.generation, queryClient])
 
     return {
         view: query.data,
         failure: failureOf(query.error),
         clock,
+        streamStatus: hub.status,
         refetch: () => void query.refetch(),
     }
 }
@@ -258,10 +295,8 @@ const tieBreakKey = (matchId: string) => ["tiebreak", matchId] as const
 
 export function useTieBreakMatch(matchId: string, enabled: boolean) {
     const queryClient = useQueryClient()
-    const { ready, invoke } = useHubInvoker(
-        `/api/matches/${matchId}/live/stream`,
-        enabled && Boolean(matchId),
-    )
+    // Same socket as the deck — see useLiveHub.
+    const { ready, invoke } = useLiveHub(matchId, enabled && Boolean(matchId))
 
     const query = useQuery({
         queryKey: tieBreakKey(matchId),

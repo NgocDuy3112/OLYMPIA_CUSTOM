@@ -52,6 +52,20 @@ export function TieBreakAOCPlayer({ ctx }: { ctx: PlayerCtx }) {
         )
     }
 
+    // The buzz ack can fail (window closed, lost connection, server timeout).
+    // Without a line here the player sees a dead button and never learns why.
+    let buzzError = null
+    if (tie.buzz.isError) {
+        const message = tie.buzz.error instanceof Error
+            ? tie.buzz.error.message
+            : "Không gửi được chuông — thử lại"
+        buzzError = (
+            <span role="alert" className="font-sans font-semibold text-destructive" style={{ fontSize: pt(12) }}>
+                {message}
+            </span>
+        )
+    }
+
     return (
         <PlayerStage
             rail={<Rail view={v} myId={myId} currentQid={qid} />}
@@ -63,6 +77,7 @@ export function TieBreakAOCPlayer({ ctx }: { ctx: PlayerCtx }) {
                 media={view?.question?.media ?? null}
             />
             {statusLine}
+            {buzzError}
             {buzzClick ? (
                 <button
                     type="button"

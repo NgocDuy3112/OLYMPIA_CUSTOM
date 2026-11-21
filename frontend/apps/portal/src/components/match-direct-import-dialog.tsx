@@ -12,6 +12,14 @@ interface RowDetail {
 
 type Phase = "idle" | "uploading" | "processing" | "success" | "error"
 
+function parseJson(text: string): unknown {
+    try {
+        return JSON.parse(text) as unknown
+    } catch {
+        return null
+    }
+}
+
 export function MatchDirectImportDialog({
     open,
     onClose,
@@ -106,12 +114,7 @@ export function MatchDirectImportDialog({
         }
         xhr.upload.onload = () => setPhase("processing")
         xhr.onload = () => {
-            let body: unknown = null
-            try {
-                body = JSON.parse(xhr.responseText) as unknown
-            } catch {
-                body = null
-            }
+            const body = parseJson(xhr.responseText)
             if (xhr.status >= 200 && xhr.status < 300) {
                 succeed(body)
                 return

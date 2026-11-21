@@ -10,6 +10,7 @@ import { SelfBroadcastContext, useSelfBroadcast } from "@shared/lib/rtc"
 import { useSchedule, useTournament, type TournamentDetail } from "@shared/results/api"
 import { IconField } from "@shared/decors/icon-field"
 import { GlowWash } from "@shared/decors/glow-wash"
+import { ErrorBoundary } from "@shared/lib/error-boundary"
 
 interface TournamentContext { tournament: TournamentDetail }
 
@@ -88,7 +89,7 @@ function RootRedirect() {
 
 function App() {
     return (
-        <>
+        <ErrorBoundary scope="gameplay">
             <IconField />
             <GlowWash />
             <BrowserRouter>
@@ -104,7 +105,7 @@ function App() {
                 </Route>
             </Routes>
             </BrowserRouter>
-        </>
+        </ErrorBoundary>
     )
 }
 

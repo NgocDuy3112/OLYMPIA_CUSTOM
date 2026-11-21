@@ -12,11 +12,12 @@ import { OperatorsPage } from "@/pages/OperatorsPage"
 import { PortalShell } from "@/components/portal-shell"
 import { IconField } from "@shared/decors/icon-field"
 import { GlowWash } from "@shared/decors/glow-wash"
+import { ErrorBoundary } from "@shared/lib/error-boundary"
 
 
 export default function App() {
   return (
-    <>
+    <ErrorBoundary scope="portal">
       <IconField />
       <GlowWash />
       <BrowserRouter>
@@ -43,7 +44,9 @@ export default function App() {
           path="/tournaments/:tournamentId/matches/:matchId/stage"
           element={
             <RequireAuth>
-              <StagePage />
+              <ErrorBoundary scope="portal:stage">
+                <StagePage />
+              </ErrorBoundary>
             </RequireAuth>
           }
         />
@@ -59,6 +62,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       </BrowserRouter>
-    </>
+    </ErrorBoundary>
   )
 }

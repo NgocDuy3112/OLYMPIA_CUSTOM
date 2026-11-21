@@ -2,14 +2,48 @@ import { useEffect, type ReactNode } from "react"
 import { gateOf } from "@/lib/player-gate"
 import { usePlayerModel } from "@/hooks/use-player-model"
 import { useSelfCam } from "@shared/lib/rtc"
+import type { StreamStatus } from "@shared/lib/ws"
+import { useExitGuard } from "@shared/lib/exit-guard"
 import { StageShell } from "@shared/deck/stage-shell"
 import { Lobby } from "@shared/deck/lobby"
+import { Gate } from "@shared/deck/primitives"
 import { Badges, MainCard, Rail, StageLayout } from "@shared/deck/player-deck"
-import { ROUND_LABEL, pt } from "@shared/deck/geometry"
+import { ROUND_LABEL, isWaitingStage, pt } from "@shared/deck/geometry"
 import { PlayerGateScreen } from "./player-gates"
+
+const EXIT_WARNING = "Trận đang diễn ra — rời trang sẽ mất phần đang thi."
+
+function LinkBanner({ status, onRetry }: { status: Extract<StreamStatus, "reconnecting" | "stopped">; onRetry: () => void }) {
+    if (status === "stopped") {
+        return (
+            <StageShell>
+                <Gate title="Phiên thi đã đóng" body="Máy chủ từ chối kết nối trận này — đăng nhập lại rồi tải lại trang.">
+                    <button type="button" onClick={() => window.location.reload()} className="rounded-lg bg-primary px-4 py-2 font-sans text-sm font-semibold text-primary-foreground">
+                        Tải lại
+                    </button>
+                </Gate>
+            </StageShell>
+        )
+    }
+    return (
+        <StageShell>
+            <Gate title="Đang nối lại" body="Mất kết nối với sân khấu — đang thử lại. Điểm và câu trả lời vẫn được giữ trên máy chủ.">
+                <button type="button" onClick={onRetry} className="rounded-lg bg-primary px-4 py-2 font-sans text-sm font-semibold text-primary-foreground">
+                    Thử lại ngay
+                </button>
+            </Gate>
+        </StageShell>
+    )
+}
 
 export function PlayerShell({ matchId }: { matchId: string }) {
     const model = usePlayerModel(matchId)
+
+    // Guard only while a round is actually running: the lobby and the closing
+    // screens are safe to leave, and warning there would train players to
+    // ignore the prompt.
+    const roundRunning = model.v !== undefined && !isWaitingStage(model.v.stage)
+    useExitGuard(roundRunning, EXIT_WARNING)
 
     const setSpeakGate = useSelfCam()?.setSpeakGate
     const setAudioGate = useSelfCam()?.setAudioGate
@@ -31,6 +65,10 @@ export function PlayerShell({ matchId }: { matchId: string }) {
 
     const gate = gateOf({ failureStatus: model.failureStatus, hasView: model.v !== undefined })
     if (gate) return <PlayerGateScreen gate={gate} model={model} />
+
+    if (model.streamStatus === "reconnecting" || model.streamStatus === "stopped") {
+        return <LinkBanner status={model.streamStatus} onRetry={model.retry} />
+    }
 
     if (model.screen === "lobby" && !model.tiebreak) {
         if (model.lobby.data) {

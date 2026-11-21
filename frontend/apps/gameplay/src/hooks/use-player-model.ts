@@ -12,6 +12,7 @@ import {
     type LiveView,
     type PlayerScreen,
 } from "@/lib/live"
+import type { StreamStatus } from "@shared/lib/ws"
 import { flashOf } from "@/lib/flash"
 import { lobbyHintOf } from "@/lib/lobby-hint"
 import { playerCtxOf } from "@/lib/player-ctx"
@@ -27,6 +28,7 @@ export interface PlayerModel {
     v: LiveView | undefined
     failureStatus: number | undefined
     failureMessage: string | undefined
+    streamStatus: StreamStatus
     screen: PlayerScreen
     roundId: string
     tiebreak: boolean
@@ -69,6 +71,7 @@ export function usePlayerModel(matchId: string): PlayerModel {
         v,
         failureStatus,
         failureMessage: live.failure?.message,
+        streamStatus: live.streamStatus,
         lobby,
         retry: live.refetch,
     }

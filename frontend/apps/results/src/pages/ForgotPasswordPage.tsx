@@ -68,7 +68,7 @@ export function ForgotPasswordPage() {
     if (reset.isPending) resetDisabled = true
     if (code.length !== CODE_LENGTH) resetDisabled = true
     if (next1.length < PASSWORD_MIN) resetDisabled = true
-    if (Boolean(clientError)) resetDisabled = true
+    if (clientError) resetDisabled = true
 
     let resetLabel = "Đặt mật khẩu mới"
     if (reset.isPending) resetLabel = "Đang lưu…"

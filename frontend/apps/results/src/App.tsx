@@ -17,6 +17,7 @@ import { LoginPage } from "./pages/LoginPage"
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage"
 import { ChangePasswordPage } from "./pages/ChangePasswordPage"
 import { CodePage } from "./pages/CodePage"
+import { ErrorBoundary } from "@shared/lib/error-boundary"
 
 export function ResultsNav({ tournamentId }: { tournamentId?: string }) {
     const [enterOpen, setEnterOpen] = useState(false)
@@ -223,7 +224,7 @@ function NotFoundPage() {
 
 function App() {
     return (
-        <>
+        <ErrorBoundary scope="results">
             <BrowserRouter>
             <Routes>
                 <Route element={<AppShell />}>
@@ -242,7 +243,7 @@ function App() {
                 </Route>
             </Routes>
             </BrowserRouter>
-        </>
+        </ErrorBoundary>
     )
 }
 

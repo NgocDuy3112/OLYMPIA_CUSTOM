@@ -14,6 +14,7 @@ function model(over: Partial<PlayerModel> = {}): PlayerModel {
         v: undefined,
         failureStatus: undefined,
         failureMessage: undefined,
+        streamStatus: "idle",
         screen: "lobby",
         roundId: "",
         tiebreak: false,
