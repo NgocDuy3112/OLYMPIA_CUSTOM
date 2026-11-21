@@ -1,12 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from "react"
-import { Pencil, Trash2, UserPlus } from "lucide-react"
-import { Badge } from "@shared/ui/badge"
-import { Button } from "@shared/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@shared/ui/dialog"
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@shared/ui/field"
-import { Input } from "@shared/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
 import {
     useEnrollIntoTournament,
     usePlayers,
@@ -16,6 +9,10 @@ import {
 } from "@/lib/players"
 import { useTournaments } from "@/lib/tournaments"
 import { DISCORD_SHAPE, discordValue } from "@/lib/discord"
+import { EditPlayerDialog } from "./players-desk/edit-player-dialog"
+import { EnrollDialog } from "./players-desk/enroll-dialog"
+import { LeaveDialog } from "./players-desk/leave-dialog"
+import { PlayersTable } from "./players-desk/players-table"
 
 export function PlayersDesk() {
     const players = usePlayers()
@@ -124,44 +121,6 @@ export function PlayersDesk() {
     const rows = players.data.items
     const enrolledSomewhere = rows.filter((row) => row.enrollments.length > 0).length
 
-    const actions = (row: PlayerRow): ReactNode => {
-        const canEnroll = openFor(row).length > 0
-        return (
-            <>
-                <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => startEdit(row)}
-                    title="Sửa tên / email / Discord"
-                >
-                    <Pencil className="size-3.5" />
-                    Sửa
-                </Button>
-                <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={!canEnroll || tournaments.isPending}
-                    onClick={() => openEnroll(row)}
-                    title="Ghi danh vào một giải chưa có mặt"
-                >
-                    <UserPlus className="size-3.5" />
-                    Ghi danh
-                </Button>
-                <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-destructive"
-                    disabled={row.enrollments.length === 0}
-                    onClick={() => openLeave(row)}
-                    title="Rời một giải (từ chối nếu đã thi đấu)"
-                >
-                    <Trash2 className="size-3.5" />
-                    Bỏ
-                </Button>
-            </>
-        )
-    }
-
     let rosterHint = `${rows.length} tài khoản · ${enrolledSomewhere} ghi danh ít nhất một giải — thí sinh tự xuất hiện ở đây khi đăng nhập Google.`
     if (rows.length === 0) rosterHint = "Chưa có tài khoản nào."
     let deskError: ReactNode = null
@@ -178,87 +137,6 @@ export function PlayersDesk() {
     if (enroll.isPending) enrollLabel = "Đang ghi danh…"
     let leaveLabel = "Bỏ"
     if (leave.isPending) leaveLabel = "Đang bỏ…"
-
-    let enrollDialog: ReactNode = null
-    if (enrolling) {
-        let enrollSlot: ReactNode = (
-            <>
-                <Field>
-                    <FieldLabel htmlFor="enroll-tournament">Giải</FieldLabel>
-                    <select
-                        id="enroll-tournament"
-                        className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
-                        value={enrollTournament}
-                        onChange={(event) => setEnrollTournament(event.target.value)}
-                    >
-                        {openFor(enrolling).map((tournament) => {
-                            let currentTag = ""
-                            if (tournament.current) currentTag = " · current"
-                            return (
-                                <option key={tournament.id} value={tournament.id}>
-                                    {tournament.name}
-                                    {currentTag}
-                                </option>
-                            )
-                        })}
-                    </select>
-                    <FieldDescription>
-                        Thí sinh vào bảng của giải này — thi được ngay khi có
-                        trận.
-                    </FieldDescription>
-                </Field>
-
-                {enroll.isError && (
-                    <p role="alert" className="text-sm text-destructive">
-                        {enroll.error.message}
-                    </p>
-                )}
-
-                <DialogFooter>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={closeDialogs}
-                        disabled={enroll.isPending}
-                    >
-                        Huỷ
-                    </Button>
-                    <Button
-                        type="submit"
-                        disabled={enroll.isPending || enrollTournament === ""}
-                    >
-                        {enrollLabel}
-                    </Button>
-                </DialogFooter>
-            </>
-        )
-        if (openFor(enrolling).length === 0) {
-            enrollSlot = (
-                <p className="text-sm text-muted-foreground">
-                    Tài khoản này đã ghi danh vào tất cả giải.
-                </p>
-            )
-        }
-        if (tournaments.isPending) {
-            enrollSlot = (
-                <p className="text-sm text-muted-foreground">Đang tải danh sách giải…</p>
-            )
-        }
-        enrollDialog = (
-            <Dialog open onOpenChange={(next) => { if (!next) closeDialogs() }}>
-                <DialogContent>
-                    <form onSubmit={submitEnroll}>
-                        <FieldGroup>
-                            <DialogHeader>
-                                <DialogTitle>Ghi danh {enrolling.displayName}</DialogTitle>
-                            </DialogHeader>
-                            {enrollSlot}
-                        </FieldGroup>
-                    </form>
-                </DialogContent>
-            </Dialog>
-        )
-    }
 
     return (
         <Card>
@@ -283,238 +161,59 @@ export function PlayersDesk() {
                     </p>
                 )}
                 {rows.length > 0 && (
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="pl-6">Contestant</TableHead>
-                                <TableHead>Account</TableHead>
-                                <TableHead className="w-36">Discord</TableHead>
-                                <TableHead className="w-64">Giải đã ghi danh</TableHead>
-                                <TableHead className="w-64 pr-6 text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {rows.map((row) => {
-                                let discordCell: ReactNode = (
-                                    <span
-                                        className="text-sm text-muted-foreground"
-                                        title="Chưa có ID Discord — bấm Sửa để lưu (dán ID, mention hoặc link đều được)."
-                                    >
-                                        chưa liên kết
-                                    </span>
-                                )
-                                if (row.discordId) {
-                                    discordCell = (
-                                        <span
-                                            className="font-mono text-xs"
-                                            title={`Discord ID ${row.discordId}`}
-                                        >
-                                            {row.discordId}
-                                        </span>
-                                    )
-                                }
-                                return (
-                                <TableRow key={row.userId}>
-                                    <TableCell className="pl-6 font-medium">{row.displayName}</TableCell>
-                                    <TableCell>
-                                        <div className="flex flex-col gap-0.5">
-                                            <span
-                                                className="font-mono text-xs text-muted-foreground"
-                                                title="Tên đăng nhập — định danh nội bộ của thí sinh, không dùng để đăng nhập"
-                                            >
-                                                {row.username}
-                                            </span>
-                                            <span className="text-sm">
-                                                {row.email ?? (
-                                                    <span className="text-muted-foreground">
-                                                        không có địa chỉ
-                                                    </span>
-                                                )}
-                                            </span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        {discordCell}
-                                    </TableCell>
-                                    <TableCell>
-                                        {row.enrollments.length === 0 && (
-                                            <span className="text-sm text-muted-foreground">
-                                                chưa ghi danh giải nào
-                                            </span>
-                                        )}
-                                        {row.enrollments.length > 0 && (
-                                            <span className="flex flex-wrap gap-1">
-                                                {row.enrollments.map((entry) => {
-                                                    let currentTag = ""
-                                                    if (entry.current) currentTag = " · current"
-                                                    return (
-                                                        <Badge key={entry.tournamentId} variant="secondary">
-                                                            {entry.name}
-                                                            {currentTag}
-                                                        </Badge>
-                                                    )
-                                                })}
-                                            </span>
-                                        )}
-                                    </TableCell>
-                                    <TableCell className="pr-6 text-right">
-                                        <span className="flex flex-wrap justify-end gap-1">
-                                            {actions(row)}
-                                        </span>
-                                    </TableCell>
-                                </TableRow>
-                                )
-                            })}
-                        </TableBody>
-                    </Table>
+                    <PlayersTable
+                        rows={rows}
+                        tournamentsPending={tournaments.isPending}
+                        openFor={openFor}
+                        onEdit={startEdit}
+                        onEnroll={openEnroll}
+                        onLeave={openLeave}
+                    />
                 )}
             </CardContent>
 
             {editing && (
-                <Dialog open onOpenChange={(next) => { if (!next) setEditing(null) }}>
-                    <DialogContent>
-                        <form onSubmit={save}>
-                            <FieldGroup>
-                                <DialogHeader>
-                                    <DialogTitle>Sửa thí sinh</DialogTitle>
-                                </DialogHeader>
-
-                                <Field>
-                                    <FieldLabel htmlFor="edit-player-name">Tên (trên bảng đấu)</FieldLabel>
-                                    <Input
-                                        id="edit-player-name"
-                                        value={editName}
-                                        onChange={(event) => setEditName(event.target.value)}
-                                        maxLength={100}
-                                        aria-label="Edit player name"
-                                        autoFocus
-                                    />
-                                </Field>
-
-                                <Field>
-                                    <FieldLabel htmlFor="edit-player-email">Email</FieldLabel>
-                                    <Input
-                                        id="edit-player-email"
-                                        value={editEmail}
-                                        onChange={(event) => setEditEmail(event.target.value)}
-                                        type="email"
-                                        maxLength={255}
-                                        aria-label="Edit player email"
-                                        placeholder="bỏ trống = không có địa chỉ"
-                                    />
-                                </Field>
-
-                                <Field>
-                                    <FieldLabel htmlFor="edit-player-discord">
-                                        Discord ID (15–30 chữ số)
-                                    </FieldLabel>
-                                    <Input
-                                        id="edit-player-discord"
-                                        value={editDiscord}
-                                        onChange={(event) => setEditDiscord(event.target.value)}
-                                        maxLength={64}
-                                        inputMode="numeric"
-                                        aria-label="Discord ID"
-                                        placeholder="dán ID, mention hoặc link"
-                                    />
-                                    {editDiscord.trim() !== "" &&
-                                        !/^[0-9]{15,30}$/.test(discordValue(editDiscord)) && (
-                                            <span className="text-xs text-destructive">
-                                                ID Discord là dãy 15–30 chữ số
-                                            </span>
-                                        )}
-                                </Field>
-
-                                {update.isError && (
-                                    <p role="alert" className="text-sm text-destructive">
-                                        {update.error.message}
-                                    </p>
-                                )}
-
-                                <DialogFooter>
-                                    <Button
-                                        type="submit"
-                                        disabled={
-                                            update.isPending ||
-                                            editName.trim().length === 0 ||
-                                            (editDiscord.trim() !== "" &&
-                                                !/^[0-9]{15,30}$/.test(discordValue(editDiscord)))
-                                        }
-                                    >
-                                        {saveLabel}
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => setEditing(null)}
-                                        disabled={update.isPending}
-                                    >
-                                        Huỷ
-                                    </Button>
-                                </DialogFooter>
-                            </FieldGroup>
-                        </form>
-                    </DialogContent>
-                </Dialog>
+                <EditPlayerDialog
+                    editName={editName}
+                    editEmail={editEmail}
+                    editDiscord={editDiscord}
+                    saveLabel={saveLabel}
+                    updatePending={update.isPending}
+                    updateError={update.isError ? update.error.message : null}
+                    onNameChange={setEditName}
+                    onEmailChange={setEditEmail}
+                    onDiscordChange={setEditDiscord}
+                    onClose={() => setEditing(null)}
+                    onSubmit={save}
+                />
             )}
 
-            {enrollDialog}
+            {enrolling && (
+                <EnrollDialog
+                    player={enrolling}
+                    options={openFor(enrolling)}
+                    enrollTournament={enrollTournament}
+                    enrollLabel={enrollLabel}
+                    enrollPending={enroll.isPending}
+                    enrollError={enroll.isError ? enroll.error.message : null}
+                    tournamentsPending={tournaments.isPending}
+                    onTournamentChange={setEnrollTournament}
+                    onClose={closeDialogs}
+                    onSubmit={submitEnroll}
+                />
+            )}
 
             {leaving && (
-                <Dialog open onOpenChange={(next) => { if (!next) closeDialogs() }}>
-                    <DialogContent>
-                        <form onSubmit={submitLeave}>
-                            <FieldGroup>
-                                <DialogHeader>
-                                    <DialogTitle>Bỏ {leaving.displayName} khỏi giải</DialogTitle>
-                                </DialogHeader>
-
-                                <Field>
-                                    <FieldLabel htmlFor="leave-tournament">Giải</FieldLabel>
-                                    <select
-                                        id="leave-tournament"
-                                        className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
-                                        value={leaveTournament}
-                                        onChange={(event) => setLeaveTournament(event.target.value)}
-                                    >
-                                        {leaving.enrollments.map((entry) => (
-                                            <option key={entry.tournamentId} value={entry.tournamentId}>
-                                                {entry.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <FieldDescription>
-                                        Từ chối nếu thí sinh đã có kết quả ở giải này.
-                                    </FieldDescription>
-                                </Field>
-
-                                {leave.isError && (
-                                    <p role="alert" className="text-sm text-destructive">
-                                        {leave.error.message}
-                                    </p>
-                                )}
-
-                                <DialogFooter>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={closeDialogs}
-                                        disabled={leave.isPending}
-                                    >
-                                        Huỷ
-                                    </Button>
-                                    <Button
-                                        type="submit"
-                                        variant="destructive"
-                                        disabled={leave.isPending || leaveTournament === ""}
-                                    >
-                                        {leaveLabel}
-                                    </Button>
-                                </DialogFooter>
-                            </FieldGroup>
-                        </form>
-                    </DialogContent>
-                </Dialog>
+                <LeaveDialog
+                    player={leaving}
+                    leaveTournament={leaveTournament}
+                    leaveLabel={leaveLabel}
+                    leavePending={leave.isPending}
+                    leaveError={leave.isError ? leave.error.message : null}
+                    onTournamentChange={setLeaveTournament}
+                    onClose={closeDialogs}
+                    onSubmit={submitLeave}
+                />
             )}
         </Card>
     )
