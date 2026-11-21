@@ -1,9 +1,8 @@
 import { useState, type ReactNode } from "react"
-import { COPY } from "@shared/deck/copy"
 import { ConsoleStage, Progress, QuestionCard, Rail, Timer } from "@/components/stage/deck"
 import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
-
-import type { ScreenCore } from "../types"
+import type { ScreenCore } from "@/rounds/types"
+import { COPY } from "@shared/deck/copy"
 
 export type KhoiDongRiengCtx = ScreenCore & {
     oralRemaining: number | null

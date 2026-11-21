@@ -1,8 +1,8 @@
 import type { CardData, ConsoleFacts } from "@/components/stage/deck"
-import type { ConsoleCommits } from "../model/use-console-commits"
-import type { ConsoleJudging } from "../model/use-console-judging"
-import type { ConsolePlans } from "../model/use-console-plans"
-import type { ConsoleTransport } from "../model/use-console-transport"
+import type { ConsoleCommits } from "@/console/model/use-console-commits"
+import type { ConsoleJudging } from "@/console/model/use-console-judging"
+import type { ConsolePlans } from "@/console/model/use-console-plans"
+import type { ConsoleTransport } from "@/console/model/use-console-transport"
 
 interface ConsoleFactsParts {
     transport: ConsoleTransport

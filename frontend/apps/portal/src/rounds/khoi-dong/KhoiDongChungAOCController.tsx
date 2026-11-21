@@ -1,7 +1,7 @@
 import { ConsoleStage, QuestionCard, QuestionChips, Rail, Timer } from "@/components/stage/deck"
 import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
 import type { KhoiDongConsole } from "@/lib/live"
-import type { ScreenCore } from "../types"
+import type { ScreenCore } from "@/rounds/types"
 
 export type KhoiDongChungCtx = ScreenCore & {
     remaining: number | null

@@ -1,7 +1,7 @@
 import type { ConsoleFacts } from "@/components/stage/deck"
-import { ButPhaAOCController, type ButPhaCtx } from "./ButPhaAOCController"
 import { mergedVerdicts, type ButPhaConsole } from "@/lib/live"
-import { screenCore, type RoundAction, type RoundModule, type RoundPlanInput } from "../types"
+import { screenCore, type RoundAction, type RoundModule, type RoundPlanInput } from "@/rounds/types"
+import { ButPhaAOCController, type ButPhaCtx } from "./ButPhaAOCController"
 
 
 

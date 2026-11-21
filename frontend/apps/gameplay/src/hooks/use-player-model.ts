@@ -1,7 +1,4 @@
 import { useState, type ReactNode } from "react"
-import { useCountdown } from "@shared/lib/clock"
-import { isWaitingStage } from "@shared/deck/geometry"
-import type { PlayerCtx } from "@shared/deck/player-deck"
 import { roundModuleOf } from "@/rounds"
 import {
     playerScreenOf,
@@ -16,10 +13,13 @@ import {
     type PlayerScreen,
 } from "@/lib/live"
 import { flashOf } from "@/lib/flash"
-import { useGlow, glowKeyOf, type GlowKey } from "@shared/lib/glow"
 import { lobbyHintOf } from "@/lib/lobby-hint"
 import { playerCtxOf } from "@/lib/player-ctx"
 import { s2QuestionOf } from "@/lib/s2"
+import { useCountdown } from "@shared/lib/clock"
+import { isWaitingStage } from "@shared/deck/geometry"
+import type { PlayerCtx } from "@shared/deck/player-deck"
+import { useGlow, glowKeyOf, type GlowKey } from "@shared/lib/glow"
 import { useMe } from "@shared/session"
 
 export interface PlayerModel {

@@ -1,12 +1,12 @@
 import { Link, useLocation } from "react-router-dom"
+import type { PlayerGate } from "@/lib/player-gate"
+import { NOT_LIVE_HINT } from "@/lib/lobby-hint"
+import type { PlayerModel } from "@/hooks/use-player-model"
 import { StageShell } from "@shared/deck/stage-shell"
 import { Lobby } from "@shared/deck/lobby"
 import { Gate } from "@shared/deck/player-deck"
 import { Card, CardContent } from "@shared/ui/card"
-import { NOT_LIVE_HINT } from "@/lib/lobby-hint"
 import { loginLink } from "@shared/session"
-import type { PlayerGate } from "@/lib/player-gate"
-import type { PlayerModel } from "@/hooks/use-player-model"
 
 const actionClass = "rounded-lg bg-primary px-4 py-2 font-sans text-sm font-semibold text-primary-foreground"
 

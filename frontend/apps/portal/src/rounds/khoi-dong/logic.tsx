@@ -1,8 +1,9 @@
 import type { ConsoleFacts } from "@/components/stage/deck"
+import type { KhoiDongConsole } from "@/lib/live"
+import { screenCore, type RoundAction, type RoundModule } from "@/rounds/types"
+import { khoiDongRailVariantOf, khoiDongScreenOf } from "@shared/deck/khoi-dong"
 import { KhoiDongChungAOCController, type KhoiDongChungCtx } from "./KhoiDongChungAOCController"
 import { KhoiDongRiengAOCController, type KhoiDongRiengCtx } from "./KhoiDongRiengAOCController"
-import { screenCore, type RoundAction, type RoundModule } from "../types"
-import type { KhoiDongConsole } from "@/lib/live"
 
 
 function riengCtx(f: ConsoleFacts): KhoiDongRiengCtx {
@@ -21,13 +22,10 @@ function chungCtx(f: ConsoleFacts): KhoiDongChungCtx {
 
 export const khoiDongAOC: RoundModule = {
     render: (f) => {
-        if (f.stage === "phase2") return <KhoiDongChungAOCController ctx={chungCtx(f)} />
+        if (khoiDongScreenOf(f.stage) === "khoi-dong-chung") return <KhoiDongChungAOCController ctx={chungCtx(f)} />
         return <KhoiDongRiengAOCController ctx={riengCtx(f)} />
     },
-    railVariant: ({ stage }) => {
-        if (stage === "phase2") return "answers"
-        return "compact"
-    },
+    railVariant: ({ stage }) => khoiDongRailVariantOf(stage),
     endRoundPlan: (input): RoundAction[] => {
         if (input.stage === "phase1") {
             if (input.hasOralRun) return [{ kind: "khoi-dong.timeOutRun" }]

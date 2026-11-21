@@ -1,6 +1,5 @@
 import type { RemoteVideoTrack } from "livekit-client"
 import type { CardData } from "@/components/stage/rail"
-import { formatDurationMs } from "@shared/lib/clock"
 import { valueText } from "@/components/stage/ledger"
 import type {
     ConsoleQuestion,
@@ -10,6 +9,7 @@ import type {
     QuestionAnswerRow,
     VeDichConsole,
 } from "@/lib/live"
+import { formatDurationMs } from "@shared/lib/clock"
 
 export interface RailCardsInput {
     table: Projection["table"]

@@ -1,9 +1,8 @@
 import { useState } from "react"
 import { ConsoleStage, QuestionCard, QuestionChips, Rail, Timer, ValueCells } from "@/components/stage/deck"
 import { backToLobbyAction } from "@/components/stage/actions"
-
 import type { ConsoleQuestion, VeDichConsole } from "@/lib/live"
-import type { ScreenCore } from "../types"
+import type { ScreenCore } from "@/rounds/types"
 
 export type VeDichChungPickCtx = ScreenCore & {
     questions: ConsoleQuestion[]

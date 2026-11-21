@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { Navigate, Route, Routes } from "react-router-dom"
-import { SfxUnlockBar } from "@shared/ui/sfx-unlock-bar"
 import { LivePage } from "@/pages/LivePage"
 import { IconField } from "@shared/decors/icon-field"
+import { SfxUnlockBar } from "@shared/ui/sfx-unlock-bar"
 
 const client = new QueryClient({
     defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },

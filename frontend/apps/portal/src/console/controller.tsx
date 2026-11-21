@@ -1,14 +1,14 @@
 import type { ReactNode } from "react"
+import { Badges, StageLayout } from "@/components/stage/deck"
 import { StageShell } from "@shared/deck/stage-shell"
 import { Lobby } from "@shared/deck/lobby"
-import { Badges, StageLayout } from "@/components/stage/deck"
 import { ROUND_LABEL, pt } from "@shared/deck/geometry"
+import { useGlow, glowKeyOf, type GlowKey } from "@shared/lib/glow"
+import { Button } from "@shared/ui/button"
 import { AdjustScoreDialog } from "./AdjustScoreDialog"
 import { RegradeDialog } from "./RegradeDialog"
 import { useConsoleModel, type ConsoleControl } from "./use-console-model"
 import { ConsoleControlContext } from "./control-context"
-import { useGlow, glowKeyOf, type GlowKey } from "@shared/lib/glow"
-import { Button } from "@shared/ui/button"
 
 function ControlBanner({ control }: { control: ConsoleControl }) {
     if (!control.blocked) return null

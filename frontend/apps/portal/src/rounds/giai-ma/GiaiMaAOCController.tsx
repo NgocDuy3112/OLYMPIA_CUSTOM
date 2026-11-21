@@ -1,10 +1,9 @@
 import { ConsoleStage, HintBars, KeywordLengthBanner, QuestionCard, Rail, Timer } from "@/components/stage/deck"
 import { backToLobbyAction } from "@/components/stage/actions"
+import type { ConsoleQuestion, GiaiMaConsole } from "@/lib/live"
+import type { ScreenCore } from "@/rounds/types"
 import { COPY } from "@shared/deck/copy"
 import { HINT_TILES } from "@shared/deck/cells"
-
-import type { ConsoleQuestion, GiaiMaConsole } from "@/lib/live"
-import type { ScreenCore } from "../types"
 
 export type GiaiMaCtx = ScreenCore & {
     remaining: number | null

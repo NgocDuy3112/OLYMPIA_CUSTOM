@@ -1,6 +1,6 @@
+import type { AnswerValue, LivePlayerCommand } from "@/lib/live"
 import type { PlayerCtx, PlayerView } from "@shared/deck/types"
 import type { ServerClock } from "@shared/lib/clock"
-import type { AnswerValue, LivePlayerCommand } from "@/lib/live"
 import type { S2Question } from "./s2"
 
 interface PlayerCtxParts {

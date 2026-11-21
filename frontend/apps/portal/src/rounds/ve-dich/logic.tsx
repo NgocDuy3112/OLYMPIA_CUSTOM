@@ -1,10 +1,10 @@
 import type { ConsoleFacts } from "@/components/stage/deck"
 import type { VeDichConsole } from "@/lib/live"
+import { screenCore, type HetLuotFacts, type RoundAction, type RoundModule } from "@/rounds/types"
 import { VeDichChungAOCController, type VeDichChungCtx } from "./VeDichChungAOCController"
 import { VeDichChungPickAOCController, type VeDichChungPickCtx } from "./VeDichChungPickAOCController"
 import { VeDichRiengPickAOCController, type VeDichRiengPickCtx } from "./VeDichRiengPickAOCController"
 import { VeDichRiengAOCController, type VeDichRiengCtx } from "./VeDichRiengAOCController"
-import { screenCore, type HetLuotFacts, type RoundAction, type RoundModule } from "../types"
 
 
 function pickCtx(f: ConsoleFacts): VeDichChungPickCtx & VeDichRiengPickCtx {

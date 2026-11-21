@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { playerScreenOf, type LiveView } from "../src/lib/live"
+import { playerScreenOf, type LiveView } from "@/lib/live"
 
 const view = (over: Partial<LiveView>): LiveView => ({
     matchId: "m1",

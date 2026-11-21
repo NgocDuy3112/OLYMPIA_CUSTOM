@@ -1,12 +1,12 @@
 import { useEffect, type ReactNode } from "react"
+import { gateOf } from "@/lib/player-gate"
+import { usePlayerModel } from "@/hooks/use-player-model"
 import { useSelfCam } from "@shared/lib/rtc"
 import { StageShell } from "@shared/deck/stage-shell"
 import { Lobby } from "@shared/deck/lobby"
 import { Badges, MainCard, Rail, StageLayout } from "@shared/deck/player-deck"
 import { ROUND_LABEL, pt } from "@shared/deck/geometry"
-import { gateOf } from "@/lib/player-gate"
 import { PlayerGateScreen } from "./player-gates"
-import { usePlayerModel } from "@/hooks/use-player-model"
 
 export function PlayerShell({ matchId }: { matchId: string }) {
     const model = usePlayerModel(matchId)

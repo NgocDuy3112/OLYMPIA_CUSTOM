@@ -1,11 +1,10 @@
 import { ConsoleStage, QuestionCard, QuestionChips, Rail, Timer } from "@/components/stage/deck"
 import { backToLobbyAction } from "@/components/stage/actions"
+import type { LiveAction } from "@/lib/live-actions"
+import type { QuestionAnswerRow, VeDichConsole } from "@/lib/live"
+import type { ScreenCore } from "@/rounds/types"
 import { COPY } from "@shared/deck/copy"
 import { stripCellsOf } from "@shared/deck/ve-dich-board"
-import type { LiveAction } from "@/lib/live-actions"
-
-import type { QuestionAnswerRow, VeDichConsole } from "@/lib/live"
-import type { ScreenCore } from "../types"
 
 export type VeDichChungCtx = ScreenCore & {
     remaining: number | null

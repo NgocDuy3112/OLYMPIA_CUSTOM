@@ -1,6 +1,6 @@
 import { useState } from "react"
+import { judgingIdsOf, targetOf, type JudgingIds } from "@/console/lib/judging"
 import { type ConsoleQuestion, type QuestionAnswerRow } from "@/lib/live"
-import { judgingIdsOf, targetOf, type JudgingIds } from "../lib/judging"
 
 type Picked = { qid: string | null; ids: ReadonlySet<string> }
 const EMPTY_PICKS: ReadonlySet<string> = new Set()

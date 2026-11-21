@@ -1,6 +1,6 @@
 import type { RemoteVideoTrack } from "livekit-client"
+import { expandRoundEntries } from "@/console/navigator-plan"
 import type { LobbyData } from "@/lib/live"
-import { expandRoundEntries } from "../navigator-plan"
 
 interface LobbyViewInput {
     lobby: LobbyData
