@@ -4,12 +4,13 @@ import { logError } from "@shared/lib/log"
 import { playSfx, stopSfx } from "@shared/lib/sfx"
 import { useSocketStream } from "@shared/lib/ws"
 import type { LiveAction, Verdict } from "./live-actions"
+import type { TieBreakView } from "@/rounds/tiebreak/types"
 
 
 
 export interface ConsoleQuestion {
     _id: string
-    kind: "CHOICE" | "TEXT" | "KEYWORD" | "HINT"
+    kind: "CHOICE" | "TEXT" | "KEYWORD"
     roundId: string
     turnId: string
     position: number
@@ -56,6 +57,7 @@ export interface Projection {
     keywordKind?: string
     keywordCode?: string | null
     hintAnswers: Record<string, string>
+    tiebreak?: TieBreakView | null
     revealed?: {
         contestants: Array<{
             userId: string

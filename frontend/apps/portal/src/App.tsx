@@ -11,12 +11,14 @@ import { McpKeysPage } from "@/pages/McpKeysPage"
 import { OperatorsPage } from "@/pages/OperatorsPage"
 import { PortalShell } from "@/components/portal-shell"
 import { IconField } from "@shared/decors/icon-field"
+import { GlowWash } from "@shared/decors/glow-wash"
 
 
 export default function App() {
   return (
     <>
       <IconField />
+      <GlowWash />
       <BrowserRouter>
       <Routes>
         <Route

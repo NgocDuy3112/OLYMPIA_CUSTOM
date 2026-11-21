@@ -252,3 +252,29 @@
 @media (prefers-reduced-motion: reduce) {
   .icon-pop { animation: none; }
 }
+.console-ready {
+  animation: console-ready 2s ease-in-out infinite;
+}
+@keyframes console-ready {
+  0%, 100% { box-shadow: 0 0 0 0 var(--glow-2), 0 0 14px 0 var(--glow-1); }
+  50% { box-shadow: 0 0 0 3px var(--glow-1), 0 0 30px 6px var(--glow-2); }
+}
+.console-armed {
+  animation: console-armed 1.8s ease-in-out infinite;
+}
+@keyframes console-armed {
+  0%, 100% { box-shadow: 0 0 0 0 var(--glow-2), 0 0 16px 0 var(--glow-1); }
+  50% { box-shadow: 0 0 0 4px var(--glow-1), 0 0 34px 8px var(--glow-2); }
+}
+.icon-throb {
+  animation: icon-throb 2.2s ease-in-out infinite;
+}
+@keyframes icon-throb {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .console-ready { animation: none; }
+  .console-armed { animation: none; }
+  .icon-throb { animation: none; }
+}

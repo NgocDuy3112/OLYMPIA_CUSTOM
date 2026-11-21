@@ -21,6 +21,7 @@ export interface Entry {
     points?: number
     questionText?: string
     kind?: string
+    keywordId?: string | null
     badge?: string
     position?: number
 }
@@ -29,6 +30,7 @@ export interface BankRow {
     id: string
     kind: string
     questionText: string
+    keywordId?: string | null
     tags?: string[]
     payload?: Record<string, unknown>
 }
@@ -128,14 +130,15 @@ export function bucketOfRow(row: BankRow): string | null {
     if (tagged) return tagged
     const carrier = row.payload?.bucket
     if (typeof carrier === "string" && carrier.length > 0) return carrier
-    if (row.kind === "KEYWORD" || row.kind === "HINT") return "giai-ma"
+    if (row.kind === "KEYWORD") return "giai-ma"
+    if (row.kind === "TEXT" && row.keywordId != null) return "giai-ma"
     return null
 }
 
-export function badgeOfRow(row: Pick<BankRow, "kind" | "payload">): string {
+export function badgeOfRow(row: Pick<BankRow, "kind" | "payload" | "keywordId">): string {
     const declared = row.payload?.type
     if (typeof declared === "string" && declared.length > 0) return declared
-    if (row.kind === "HINT") return "TEXT"
+    if (row.kind === "TEXT" && row.keywordId != null) return "Gợi ý"
     return row.kind
 }
 
@@ -143,7 +146,7 @@ export function badgeOfFrozen(question: FrozenQuestion): string {
     const declared = question.payload?.type
     if (typeof declared === "string" && declared.length > 0) return declared
     if (question.kind === "KEYWORD") return "KEYWORD"
-    if (question.kind === "HINT") return "Gợi ý"
+    if (question.kind === "TEXT" && question.roundId === "giai-ma") return "Gợi ý"
     return question.kind ?? "TEXT"
 }
 

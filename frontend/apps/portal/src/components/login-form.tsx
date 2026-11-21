@@ -149,9 +149,6 @@ export function LoginForm({
                     {loginLabel}
                   </Button>
                 </Field>
-                <FieldDescription className="text-center">
-                  Ban điều hành đăng nhập ở đây — thí sinh vào trận bằng Google ở ứng dụng thi đấu.
-                </FieldDescription>
               </FieldGroup>
             </form>
   )

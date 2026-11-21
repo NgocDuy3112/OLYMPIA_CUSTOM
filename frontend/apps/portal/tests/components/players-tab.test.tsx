@@ -14,10 +14,7 @@ const row = (
     displayName: string,
     email: string | null = null,
     group: "A" | "B" | null = null,
-    over: Partial<{
-        username: string
-        discordId: string | null
-    }> = {}
+    over: Partial<{ username: string; discordId: string | null }> = {}
 ) => ({
     userId,
     displayName,
@@ -45,57 +42,36 @@ const draw = (items = [row("u1", "An"), row("u2", "Bình", "binh@example.test")]
         { routes: { [ROSTER_URL]: { body: roster(items) } } }
     )
 
-describe("the Thí sinh tab — now a read-only window onto the roster", () => {
-    it("shows a name and the account it belongs to", async () => {
+describe("the Thí sinh tab — a window onto the roster", () => {
+    it("counts the roster members next to the Manage action", async () => {
         draw()
-        expect(await screen.findByText("An")).toBeInTheDocument()
-        expect(screen.getByText("binh@example.test")).toBeInTheDocument()
-    })
-
-    it("shows the handle they sign in with, and says when there is no address", async () => {
-        draw()
-        await screen.findByText("An")
-        expect(screen.getByText("an")).toBeInTheDocument()
-        expect(screen.getByText("không có địa chỉ")).toBeInTheDocument()
-        expect(screen.getByText("binh")).toBeInTheDocument()
-    })
-
-    it("just counts the rows — no password column left to report on", async () => {
-        draw([
-            row("u1", "Chưa Có"),
-            row("u2", "Bình", "binh@example.test"),
-        ])
         expect(await screen.findByText(/2 contestants — xem và sửa ở trang Thí sinh/)).toBeInTheDocument()
-        expect(screen.queryByText(/mật khẩu/)).toBeNull()
+        expect(screen.getByRole("link", { name: /Quản lý thí sinh/ })).toBeInTheDocument()
     })
 
-    it("keeps the group column, including the not-yet-drawn case", async () => {
-        draw([row("u1", "An", null, "A"), row("u2", "Bình", null)])
-        await screen.findByText("An")
-        expect(screen.getByText("Nhóm A")).toBeInTheDocument()
-        expect(screen.getByText("chưa xếp")).toBeInTheDocument()
+    it("counts a single member without the plural", async () => {
+        draw([row("u1", "An")])
+        expect(await screen.findByText(/1 contestant — xem và sửa ở trang Thí sinh/)).toBeInTheDocument()
     })
 
-    it("points at the right first step when the roster is empty", async () => {
+    it("shows the first step when the roster is empty", async () => {
         draw([])
         expect(await screen.findByText(/No contestants yet/)).toBeInTheDocument()
-        expect(screen.getByText(/ghi danh họ ở trang Thí sinh trước/)).toBeInTheDocument()
     })
 
-    it("offers NO tools: no add, no edit, no password, no drop — not even an Actions column", async () => {
+    it("offers no editing tools — only the Manage link", async () => {
         draw()
-        await screen.findByText("An")
+        await screen.findByText(/2 contestants/)
 
         expect(screen.queryByRole("button", { name: /Thêm thí sinh/ })).toBeNull()
         expect(screen.queryAllByRole("button", { name: /Sửa/ })).toHaveLength(0)
         expect(screen.queryAllByRole("button", { name: /Đặt mật khẩu/ })).toHaveLength(0)
         expect(screen.queryAllByRole("button", { name: /Bỏ/ })).toHaveLength(0)
-        expect(screen.queryByText("Actions")).toBeNull()
     })
 
-    it("sends the desk to the roster page instead, when they ask to manage", async () => {
+    it("sends the desk to the roster page when they ask to manage", async () => {
         draw()
-        await screen.findByText("An")
+        await screen.findByText(/2 contestants/)
 
         await userEvent.click(screen.getByRole("link", { name: /Quản lý thí sinh/ }))
         await waitFor(() => expect(screen.getByText("the roster desk")).toBeInTheDocument())

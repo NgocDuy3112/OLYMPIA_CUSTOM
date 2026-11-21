@@ -41,7 +41,7 @@ export function GroupSection({
         (row) =>
             row.kind !== "KEYWORD" &&
             row.kind !== "CHOICE" &&
-            !(row.kind === "HINT" && row.keywordId != null && keywordIds.has(row.keywordId))
+            !(row.kind === "TEXT" && row.keywordId != null && keywordIds.has(row.keywordId))
     )
 
     return (

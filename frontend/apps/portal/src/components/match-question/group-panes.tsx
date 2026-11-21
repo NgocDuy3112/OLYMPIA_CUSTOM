@@ -25,7 +25,7 @@ export function GroupPanes({
                 const entries = shown[group.bucket] ?? []
                 const required = requiredFor(group, rules, playerCount)
                 let filled = entries.length
-                if (group.bucket === "giai-ma") filled = entries.filter((entry) => entry.kind === "HINT").length
+                if (group.bucket === "giai-ma") filled = entries.filter((entry) => entry.kind === "TEXT").length
                 let typeLabel: string | undefined = undefined
                 if (group.typeLabel) typeLabel = group.typeLabel
                 let emptyHint = "Chưa có câu hỏi trong nhóm này"

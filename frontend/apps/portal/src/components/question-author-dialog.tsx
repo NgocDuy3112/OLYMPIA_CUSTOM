@@ -14,7 +14,7 @@ import {
 import { Input } from "@shared/ui/input"
 
 export type PayloadShape = "choice" | "keyword" | "text"
-export type QuestionKind = "TEXT" | "KEYWORD" | "HINT"
+export type QuestionKind = "TEXT" | "KEYWORD"
 
 export interface QuestionMedia {
     url: string
@@ -111,7 +111,7 @@ function payloadShapeOf(bucket: string, linked: boolean): PayloadShape {
 }
 
 function kindFor(shape: PayloadShape, keywordId: string): QuestionKind {
-    if (keywordId) return "HINT"
+    if (keywordId) return "TEXT"
     if (shape === "keyword") return "KEYWORD"
     return "TEXT"
 }
@@ -139,7 +139,7 @@ function draftFrom(row: AuthorRow | null | undefined, bucket?: string, presetKey
         keywordId: row?.keywordId ?? presetKeywordId ?? "",
         media: row?.media ?? null,
     }
-    if (!base.bucket && (presetKeywordId || row?.kind === "HINT")) base.bucket = "giai-ma"
+    if (!base.bucket && (presetKeywordId || row?.keywordId != null)) base.bucket = "giai-ma"
     if (!base.bucket && row) {
         let carried = (row.tags ?? []).find((tag) => BUCKET_VALUES.has(tag))
         if (carried === undefined) {
@@ -256,9 +256,9 @@ export function QuestionAuthorDialog({
     onSave,
 }: AuthorDialogProps) {
     const [draft, setDraft] = useState<AuthorDraft>(() => draftFrom(row, bucket, presetKeywordId))
-    const [linking, setLinking] = useState(() => Boolean(presetKeywordId) || row?.kind === "HINT")
+    const [linking, setLinking] = useState(() => Boolean(presetKeywordId) || row?.keywordId != null)
     const hintBorn = Boolean(presetKeywordId) && row === null
-    const hintMode = row?.kind === "HINT" || Boolean(presetKeywordId)
+    const hintMode = row?.keywordId != null || Boolean(presetKeywordId)
 
     const patch = (part: Partial<AuthorDraft>) => setDraft((prev) => ({ ...prev, ...part }))
 
@@ -293,12 +293,12 @@ export function QuestionAuthorDialog({
         queryKey: ["keyword-hints", draft.keywordId],
         queryFn: () =>
             api<{ items: Array<{ id: string }> }>(
-                `/portal/questions?${new URLSearchParams({ kind: "HINT", keywordId: draft.keywordId, limit: "100", offset: "0" }).toString()}`
+                `/portal/questions?${new URLSearchParams({ kind: "TEXT", keywordId: draft.keywordId, limit: "100", offset: "0" }).toString()}`
             ),
         enabled: open && draft.keywordId.length > 0 && showLink,
         staleTime: 15_000,
     })
-    const selfIsHint = row !== null && row.kind === "HINT" && row.keywordId === draft.keywordId
+    const selfIsHint = row !== null && row.keywordId != null && row.keywordId === draft.keywordId
     let hintOffset = 0
     if (selfIsHint) hintOffset = 1
     const otherHints = Math.max(0, (hintPool.data?.items ?? []).length - hintOffset)

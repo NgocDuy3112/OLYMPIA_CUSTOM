@@ -35,7 +35,7 @@ export function KeywordSetCard({
 }) {
     const payload = row.payload as { code?: string }
 
-    const hintParams = new URLSearchParams({ kind: "HINT", keywordId: row.id, limit: "100", offset: "0" })
+    const hintParams = new URLSearchParams({ kind: "TEXT", keywordId: row.id, limit: "100", offset: "0" })
     const hints = useQuery({
         queryKey: ["keyword-hints", row.id],
         queryFn: () => api<Paged>(`/portal/questions?${hintParams.toString()}`),

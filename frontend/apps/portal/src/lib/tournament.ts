@@ -39,7 +39,7 @@ type ScoringRule =
     }
 
 export interface RoundConfig {
-    allowedKinds: Array<"CHOICE" | "TEXT" | "KEYWORD" | "HINT">
+    allowedKinds: Array<"CHOICE" | "TEXT" | "KEYWORD">
     scoring: ScoringRule
     turns: TurnConfig[]
 }

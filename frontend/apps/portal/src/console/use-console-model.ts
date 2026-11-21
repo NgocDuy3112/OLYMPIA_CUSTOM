@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import type { ConsoleFacts } from "@/components/stage/deck"
-import { railVariantOf, roundModuleOf, type RoundModule } from "@/rounds"
+import { railVariantOf, roundModuleOf, tieBreakModule, type RoundModule } from "@/rounds"
 import { postControl, useLobby, type GiaiMaConsole, type KhoiDongConsole, type LobbyData, type MatchController, type VeDichConsole } from "@/lib/live"
 import { useMe } from "@/lib/session"
 import { useTransitionMatch } from "@/lib/tournament"
@@ -274,5 +274,6 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         openAdjust: adjust.openAdjust,
         openRegrade: adjust.openRegrade,
     })
-    return { phase: "deck", control, facts, roundModule: roundModuleOf(roundId), host: transport.host, ...adjust }
+    const roundModule = projection.tiebreak !== undefined ? tieBreakModule : roundModuleOf(roundId)
+    return { phase: "deck", control, facts, roundModule, host: transport.host, ...adjust }
 }

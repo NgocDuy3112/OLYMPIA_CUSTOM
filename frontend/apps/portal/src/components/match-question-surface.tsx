@@ -4,7 +4,7 @@ import { arrayMove } from "@dnd-kit/sortable"
 import { ApiError, api, type PageResult } from "@shared/lib/api"
 import { Badge } from "@shared/ui/badge"
 import { ComposeDndProvider } from "@/components/compose-group"
-import { ExcelImportDialog } from "@/components/excel-import-dialog"
+import { MatchDirectImportDialog } from "@/components/match-direct-import-dialog"
 import { useTournament, type MatchSummary } from "@/lib/tournament"
 import { BankPickerPane } from "./match-question/bank-picker-pane"
 import { GroupPanes } from "./match-question/group-panes"
@@ -114,6 +114,7 @@ export function MatchQuestionSurface({
                 sourceId: row.id,
                 questionText: row.questionText,
                 kind: row.kind,
+                keywordId: row.keywordId ?? null,
                 badge: badgeOfRow(row),
             }
             if (group.points !== undefined) base.points = group.points
@@ -122,7 +123,7 @@ export function MatchQuestionSurface({
             if (targetBucket === "giai-ma" && row.kind === "KEYWORD") {
                 const hints = await api<PageResult<BankRow>>(
                     `/portal/questions?${new URLSearchParams({
-                        kind: "HINT",
+                        kind: "TEXT",
                         keywordId: row.id,
                         limit: "100",
                         offset: "0",
@@ -135,7 +136,8 @@ export function MatchQuestionSurface({
                         turnId: group.turnId,
                         sourceId: hint.id,
                         questionText: hint.questionText,
-                        kind: "HINT",
+                        kind: "TEXT",
+                        keywordId: hint.keywordId ?? row.id,
                         badge: "Gợi ý",
                     })),
                 ]
@@ -260,7 +262,7 @@ export function MatchQuestionSurface({
 
             const removed = entries[index]
             let next = entries.filter((_, i) => i !== index)
-            if (removed.kind === "KEYWORD") next = entries.filter((entry) => entry.kind !== "HINT")
+            if (removed.kind === "KEYWORD") next = entries.filter((entry) => entry.kind !== "TEXT")
             return { ...current, [bucket]: next }
         })
     }
@@ -405,23 +407,17 @@ export function MatchQuestionSurface({
                     onSave={() => save.mutate()}
                 />
 
-                {importOpen && match.status === "UPCOMING" && (
-                    <ExcelImportDialog
+                {importOpen && match.status === "UPCOMING" ? (
+                    <MatchDirectImportDialog
                         open
                         onClose={() => setImportOpen(false)}
-                        commitTo={{
-                            tournamentId,
-                            matchId: match.id,
-                            onDone: (created, revision) => {
-                                let revisionNote = ""
-                                if (revision !== null) revisionNote = ` · rev ${revision}`
-                                setNotice(
-                                    `Đã nhập ${created} câu vào trận${revisionNote}.`
-                                )
-                            },
+                        tournamentId={tournamentId}
+                        matchId={match.id}
+                        onDone={(created, revision) => {
+                            setNotice(`Đã nhập ${created} câu vào trận · rev ${revision}.`)
                         }}
                     />
-                )}
+                ) : null}
 
                 <MatchTabsBar tabId={tabId} shown={shown} onSelect={setTabId} />
 

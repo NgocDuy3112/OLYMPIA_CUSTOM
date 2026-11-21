@@ -1,7 +1,7 @@
 import { Archive, EyeOff, Globe, Pencil } from "lucide-react"
 import { ApiError } from "@shared/lib/api"
 
-export type Kind = "CHOICE" | "TEXT" | "KEYWORD" | "HINT"
+export type Kind = "CHOICE" | "TEXT" | "KEYWORD"
 export type Status = "DRAFT" | "PUBLISHED" | "ARCHIVED"
 
 export interface BankQuestion {
@@ -20,7 +20,7 @@ export interface Paged {
     total: number
 }
 
-export const PAGE_SIZE = 25
+export const PAGE_SIZE = 30
 export const HINT_MAX = 8
 export const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" })
 
@@ -109,7 +109,8 @@ export function bucketOf(row: BankQuestion): string | null {
     if (tagged) return tagged
     const carrier = (row.payload as { bucket?: unknown }).bucket
     if (typeof carrier === "string" && carrier.length > 0) return carrier
-    if (row.kind === "KEYWORD" || row.kind === "HINT") return "giai-ma"
+    if (row.kind === "KEYWORD") return "giai-ma"
+    if (row.kind === "TEXT" && row.keywordId != null) return "giai-ma"
     return null
 }
 
@@ -179,7 +180,7 @@ export function answerSummary(row: BankQuestion): string | null {
         correctSet?: string[]
         code?: string
     }
-    if (row.kind === "TEXT" || row.kind === "HINT") {
+    if (row.kind === "TEXT") {
         const answers = payload.acceptedAnswers ?? []
         if (answers.length > 0) return `→ ${answers.join(" · ")}`
         return null
@@ -190,7 +191,7 @@ export function answerSummary(row: BankQuestion): string | null {
             .map((id) => text.get(id))
             .filter((value): value is string => Boolean(value))
         if (correct.length > 0) return `→ ${correct.join(" · ")}`
-        return "→ ⚠ no correct option ticked"
+        return "→ No correct option ticked"
     }
     if (payload.code) return `→ ${payload.code}`
     return null

@@ -51,7 +51,7 @@ export function StagesTab({
     if (stages.length === 0) {
         stagesSlot = (
             <p className="px-6 pb-6 text-sm text-muted-foreground">
-                No stages yet. A match has to name one, so add them before creating matches.
+                No stages yet
             </p>
         )
     }

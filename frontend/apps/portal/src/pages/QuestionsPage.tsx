@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react"
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Copy, Download, FileText, Globe, ListPlus, Plus, Search, X } from "lucide-react"
+import { Copy, FileText, Globe, ListPlus, Plus, Search, X } from "lucide-react"
 import { cn } from "cn"
 import { api } from "@shared/lib/api"
 import { Button } from "@shared/ui/button"
 import { Input } from "@shared/ui/input"
 import { EmptyState, ErrorPanel, ListSkeleton, Page, PageHeader } from "@/components/page"
-import { ExcelImportDialog } from "@/components/excel-import-dialog"
-import { StagedImportBanner } from "@/components/staged-import"
 import { useMe } from "@/lib/session"
 import { AddToMatchDialog } from "./questions/AddToMatchDialog"
 import { ArchiveConfirmDialog } from "./questions/ArchiveConfirmDialog"
@@ -117,7 +115,6 @@ export function QuestionsPage() {
         row: null,
     })
     const [previewing, setPreviewing] = useState<BankQuestion | null>(null)
-    const [importOpen, setImportOpen] = useState(false)
 
     const requestTransition = (row: BankQuestion, to: Status) => {
         if (to === "ARCHIVED") {
@@ -241,9 +238,6 @@ export function QuestionsPage() {
                 title="Questions"
                 actions={
                     <div className="flex items-center gap-2">
-                        <Button variant="outline" aria-label="Import" title="Import" onClick={() => setImportOpen(true)}>
-                            <Download className="size-4" aria-hidden />
-                        </Button>
                         <Button aria-label="New question" title="New question" onClick={() => setEditing({ open: true, row: null })}>
                             <Plus className="size-4" aria-hidden />
                         </Button>
@@ -251,8 +245,6 @@ export function QuestionsPage() {
                 }
             />
 
-
-            <StagedImportBanner />
 
             {
 }
@@ -465,8 +457,6 @@ export function QuestionsPage() {
                     if (confirming) transition.mutate({ id: confirming.id, to: "ARCHIVED" })
                 }}
             />
-
-            {importOpen && <ExcelImportDialog open={importOpen} onClose={() => setImportOpen(false)} />}
 
 
             {addRows !== null && (
