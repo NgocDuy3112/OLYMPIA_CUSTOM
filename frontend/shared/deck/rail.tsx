@@ -1,7 +1,8 @@
 import { useEffect, useRef, type ReactNode } from "react"
 import type { LocalVideoTrack } from "livekit-client"
 import { useSelfCam } from "@shared/lib/rtc"
-import { initialsOf, pt } from "./geometry"
+import { pt } from "./geometry"
+import { PlayerAvatar } from "./player-card"
 import { railCardClass, railCardState, railScoreClass } from "./rail-card"
 import { RailAnswerLine } from "./rail-answer"
 import { SelfCamControls } from "./cam-controls"
@@ -100,14 +101,10 @@ export function Rail({ view, myId, currentQid }: {
                         className={`flex ${rowHeight} shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl p-[0.9cqw] shadow-sm ${railCardClass(state)} ${cardRing(mine, activeRun)}`}
                     >
                         <div className="flex min-h-0 flex-1 gap-[0.7cqw]">
-                            <div
-                                className="relative flex w-[52%] shrink-0 items-center justify-center rounded-lg bg-primary/10 font-display font-bold text-primary/70"
-                                style={{ fontSize: pt(16) }}
-                            >
-                                <span aria-hidden>{initialsOf(row.displayName)}</span>
+                            <PlayerAvatar name={row.displayName} className="bg-primary/10 text-primary/70">
                                 {mine && selfCam?.camOn && selfCam.video && <SelfVideo track={selfCam.video} />}
                                 {mine && <SelfCamControls />}
-                            </div>
+                            </PlayerAvatar>
                             <div className="flex min-w-0 flex-1 flex-col justify-start gap-[0.3cqw] pt-[0.2cqw] text-center">
                                 <span className="flex min-w-0 items-center justify-center gap-[0.3cqw] font-display font-semibold leading-none text-foreground" style={{ fontSize: pt(16) }}>
                                     <span className="truncate">{row.displayName}</span>

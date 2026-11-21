@@ -5,7 +5,8 @@ import { useSelfCam } from "@shared/lib/rtc"
 import { Button } from "@shared/ui/button"
 import { SOLID_SURFACE } from "@shared/ui/solid"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@shared/ui/dialog"
-import { initialsOf, pt } from "./geometry"
+import { pt } from "./geometry"
+import { PlayerAvatar } from "./player-card"
 import { SelfCamControls } from "./cam-controls"
 import type { LobbyData } from "./types"
 
@@ -83,16 +84,10 @@ export function Lobby({
                             className={`flex h-[9.3cqw] w-[21cqw] shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl p-[0.9cqw] shadow-sm ${SOLID_SURFACE} ${rowRing}`}
                         >
                             <div className="flex min-h-0 flex-1 gap-[0.7cqw]">
-                                <div
-                                    className="relative flex w-[52%] shrink-0 items-center justify-center rounded-lg bg-muted font-display font-bold text-muted-foreground"
-                                    style={{ fontSize: pt(16) }}
-                                >
-                                    <span aria-hidden>
-                                        {initialsOf(row.displayName)}
-                                    </span>
+                                <PlayerAvatar name={row.displayName} className="bg-muted text-muted-foreground">
                                     {video && <LobbyVideo track={video} />}
                                     {mine && <SelfCamControls />}
-                                </div>
+                                </PlayerAvatar>
                                 <div className="flex min-w-0 flex-1 flex-col justify-start gap-[0.3cqw] pt-[0.2cqw] text-center">
                                     <span className="truncate font-display font-semibold leading-none text-foreground" style={{ fontSize: pt(16) }}>
                                         {row.displayName}
