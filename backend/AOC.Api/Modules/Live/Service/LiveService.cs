@@ -345,7 +345,7 @@ public sealed partial class LiveService
             state,
             (await reader.ReadPlayerAnswersAsync(matchId, userId))
                 .Select(a => new SubmittedAnswerRow(
-                    a.QuestionId, a.Judged, a.Verdict, a.AnsweredMs, a.Suggestion, AnswerValueOf(a.Value))).ToList(),
+                    a.QuestionId, a.Verdict, a.AnsweredMs, a.Suggestion, AnswerValueOf(a.Value))).ToList(),
             (await reader.ReadJudgedAnswersAsync(matchId))
                 .Select(a => new JudgedRow(a.QuestionId, a.UserId, a.Verdict, a.AnsweredMs)).ToList(),
             match.QuestionsList,

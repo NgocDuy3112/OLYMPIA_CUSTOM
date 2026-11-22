@@ -167,7 +167,7 @@ public sealed partial class LiveService
                 foreach (var question in match.QuestionsList.Where(q => q.RoundId == current.RoundId))
                 {
                     var drafts = await tx.ReadAnswerDrafts(Guid.Parse(question.Id));
-                    if (drafts.Any(d => !d.Judged))
+                    if (drafts.Any(d => d.Verdict is null))
                         throw new RuleError("UNJUDGED_ANSWERS",
                             "judge every submitted answer before ending the round");
                 }

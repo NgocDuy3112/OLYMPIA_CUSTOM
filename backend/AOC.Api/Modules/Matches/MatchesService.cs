@@ -101,7 +101,7 @@ public sealed class MatchesService(
 
         if (!already)
         {
-            var unjudged = rows.Where(r => !r.Judged).ToList();
+            var unjudged = rows.Where(r => r.Verdict is null).ToList();
             if (unjudged.Count > 0)
                 throw new MatchError(MatchErrorCode.NOT_READY,
                     $"match {matchId} has {unjudged.Count} answer(s) without a final verdict");

@@ -93,6 +93,7 @@ export interface VeDichConsole {
     pendingValues?: number[]
     turnPicked?: number
     picksConfirmed?: boolean
+    powersLeft?: Array<"STAR" | "ASSIGN">
     stagedPower: { power: "STAR" | "ASSIGN"; targetId?: string } | null
     turnPowerUsed: boolean
 }
@@ -184,7 +185,6 @@ export interface QuestionAnswerRow {
     userId: string
     value: { picked?: string[]; text?: string; oral?: true } | null
     verdict: "CORRECT" | "INCORRECT" | null
-    judged: boolean
     pointsAwarded: number | null
     answeredMs?: number | null
 }

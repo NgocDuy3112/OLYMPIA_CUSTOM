@@ -21,9 +21,9 @@ const submitClass = (ready: boolean): string => {
     return `${SUBMIT} ${cursor}`
 }
 
-export function AnswerBand({ question, answerState, disabled, busy, error, onSubmit }: {
+export function AnswerBand({ question, answered, disabled, busy, error, onSubmit }: {
     question: PlayerQuestion | null
-    answerState?: "none" | "draft" | "final"
+    answered?: boolean
     disabled?: boolean
     busy?: boolean
     error?: string | null
@@ -34,10 +34,11 @@ export function AnswerBand({ question, answerState, disabled, busy, error, onSub
     let state = { qid, picked: "", text: "" }
     if (draft.qid === qid) state = draft
 
-    const [lastReset, setLastReset] = useState({ qid, answerState })
-    const stale = lastReset.qid !== qid || lastReset.answerState !== answerState
+    // Once the server echoes the answer back the box is spent for this question.
+    const [lastReset, setLastReset] = useState({ qid, answered })
+    const stale = lastReset.qid !== qid || lastReset.answered !== answered
     if (stale) {
-        setLastReset({ qid, answerState })
+        setLastReset({ qid, answered })
         setDraft({ qid: "", picked: "", text: "" })
     }
     let sendLabel: string = COPY.send
@@ -124,7 +125,7 @@ export function SubmissionLog({ entries }: { entries: SubmissionEntry[] }) {
     return (
         <section
             className="flex w-full flex-col gap-[0.4cqw] rounded-lg bg-muted/40 px-[1.2cqw] py-[0.8cqw] ring-1 ring-border"
-            aria-label="Trạng thái nộp bài"
+            aria-label="Trạng thái trả lời"
         >
             {entries.map((entry) => {
                 let label = "đáp án"
@@ -136,7 +137,7 @@ export function SubmissionLog({ entries }: { entries: SubmissionEntry[] }) {
                         className="font-sans text-muted-foreground"
                         style={{ fontSize: pt(12) }}
                     >
-                        Bạn đã nộp {label}: <b>{entry.answer}</b> ({formatElapsed(entry.elapsedS)}s)
+                        Bạn đã trả lời {label}: <b>{entry.answer}</b> ({formatElapsed(entry.elapsedS)}s)
                     </p>
                 )
             })}

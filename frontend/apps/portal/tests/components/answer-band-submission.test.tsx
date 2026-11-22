@@ -13,14 +13,14 @@ const QUESTION = {
 }
 
 describe("AnswerBand — submission feedback", () => {
-    it("shows what was submitted in its own section", () => {
+    it("shows what was answered in its own section", () => {
         render(
             <SubmissionLog entries={[{ kind: "answer", answer: "Hà Nội", elapsedS: 3.5 }]} />
         )
 
-        expect(screen.getByLabelText("Trạng thái nộp bài")).toBeInTheDocument()
+        expect(screen.getByLabelText("Trạng thái trả lời")).toBeInTheDocument()
         expect(screen.getByRole("status").textContent).toBe(
-            "Bạn đã nộp đáp án: Hà Nội (3.500s)"
+            "Bạn đã trả lời đáp án: Hà Nội (3.500s)"
         )
     })
 
@@ -36,8 +36,8 @@ describe("AnswerBand — submission feedback", () => {
 
         const rows = screen.getAllByRole("status")
         expect(rows.map((r) => r.textContent)).toEqual([
-            "Bạn đã nộp đáp án: Hà Nội (3.500s)",
-            "Bạn đã nộp từ khóa: AOMASAO (10.834s)",
+            "Bạn đã trả lời đáp án: Hà Nội (3.500s)",
+            "Bạn đã trả lời từ khóa: AOMASAO (10.834s)",
         ])
     })
 
@@ -45,7 +45,7 @@ describe("AnswerBand — submission feedback", () => {
         const user = userEvent.setup()
         const onSubmit = vi.fn()
         render(
-            <AnswerBand question={QUESTION} answerState="none" onSubmit={onSubmit} />
+            <AnswerBand question={QUESTION} answered={false} onSubmit={onSubmit} />
         )
 
         const input = screen.getByLabelText("Câu trả lời của bạn") as HTMLInputElement
@@ -58,12 +58,12 @@ describe("AnswerBand — submission feedback", () => {
         expect(input.value).toBe("")
     })
 
-    it("clears the input again when a second submission comes back as draft", async () => {
+    it("keeps the box empty once the server echoes the answer back", async () => {
         const user = userEvent.setup()
         const { rerender } = render(
             <AnswerBand
                 question={QUESTION}
-                answerState="draft"
+                answered={false}
                 onSubmit={vi.fn()}
             />
         )
@@ -75,7 +75,7 @@ describe("AnswerBand — submission feedback", () => {
         rerender(
             <AnswerBand
                 question={QUESTION}
-                answerState="final"
+                answered
                 onSubmit={vi.fn()}
             />
         )

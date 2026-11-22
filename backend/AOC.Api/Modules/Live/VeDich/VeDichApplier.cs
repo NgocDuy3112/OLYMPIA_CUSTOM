@@ -94,11 +94,11 @@ public static class VeDichApplier
             {
                 if (state.Phase != 1) throw new RuleError("WRONG_PHASE", "judge only applies in phase 1");
                 var open = state.Open ?? throw new RuleError("NOTHING_OPEN", "no question is open");
-                if (!ctx.Drafts.Any(d => d.UserId == judge.PlayerId))
-                    throw new RuleError("NO_ANSWER", $"no submitted answer from {judge.PlayerId} to judge");
-                var points = VeDichScoring.Points(open.Question.Value, judge.Correct, ctx.Rules);
+                // A player who never answered still gets graded — always as wrong.
+                var correct = judge.Correct && ctx.Drafts.Any(d => d.UserId == judge.PlayerId);
+                var points = VeDichScoring.Points(open.Question.Value, correct, ctx.Rules);
                 return (state, [new JudgeFact(open.Question.Id, judge.PlayerId,
-                    judge.Correct ? Verdict.CORRECT : Verdict.INCORRECT, points)]);
+                    correct ? Verdict.CORRECT : Verdict.INCORRECT, points)]);
             }
 
             case LiveAction.VeDichReveal:

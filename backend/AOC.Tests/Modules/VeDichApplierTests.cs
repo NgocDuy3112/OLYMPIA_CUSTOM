@@ -40,26 +40,43 @@ public class VeDichApplierTests
         new("operator", "ve-dich", Now, RuleBatches.VeDich, [], [], drafts);
 
     [Fact]
-    public void Judge_RefusesAPlayerWhoNeverAnswered()
+    public void Judge_DeductsFromAPlayerWhoNeverAnswered()
     {
-        var error = Assert.Throws<RuleError>(() =>
-            VeDichApplier.Apply(Phase1Open(), new LiveAction.VeDichJudge("ghost", true), Ctx([])));
+        var (_, facts) = VeDichApplier.Apply(
+            Phase1Open(), new LiveAction.VeDichJudge("ghost", true), Ctx([]));
 
-        Assert.Equal("NO_ANSWER", error.Code);
+        var judge = Assert.Single(facts.OfType<JudgeFact>());
+        Assert.Equal("ghost", judge.UserId);
+        Assert.Equal(Verdict.INCORRECT, judge.Verdict);
+        Assert.Equal(-10, judge.PointsAwarded);
     }
 
     [Fact]
     public void Judge_AcceptsTheAnswererAndEmitsAJudgeFact()
     {
-        var drafts = new List<AnswerDraft> { new("a", null, 1200, false) };
+        // Any submitted answer counts — no draft/final distinction any more.
+        var answered = new List<AnswerDraft> { new("a", null, 1200) };
 
         var (_, facts) = VeDichApplier.Apply(
-            Phase1Open(), new LiveAction.VeDichJudge("a", true), Ctx(drafts));
+            Phase1Open(), new LiveAction.VeDichJudge("a", true), Ctx(answered));
 
         var judge = Assert.Single(facts.OfType<JudgeFact>());
         Assert.Equal("20-1", judge.QuestionId);
         Assert.Equal("a", judge.UserId);
         Assert.Equal(Verdict.CORRECT, judge.Verdict);
         Assert.Equal(20, judge.PointsAwarded);
+    }
+
+    [Fact]
+    public void Judge_KnowsWhoAnsweredFromTheDraftList()
+    {
+        var answered = new List<AnswerDraft> { new("a", null, 1200) };
+
+        var (_, facts) = VeDichApplier.Apply(
+            Phase1Open(), new LiveAction.VeDichResolve(true, null), Ctx(answered));
+
+        var judge = Assert.Single(facts.OfType<JudgeFact>());
+        Assert.Equal("a", judge.UserId);
+        Assert.Equal(Verdict.CORRECT, judge.Verdict);
     }
 }

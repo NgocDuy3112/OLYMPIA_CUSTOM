@@ -88,7 +88,7 @@ public static class KhoiDongApplier
             case LiveAction.KhoiDongNextQuestion:
             {
                 var questionId = state.Phase2 is null ? null : KhoiDongTurn.Phase2QuestionId(state.Phase2);
-                if (questionId is not null && ctx.AnswerDrafts.Any(d => !d.Judged))
+                if (questionId is not null && ctx.AnswerDrafts.Any(d => d.Verdict is null))
                     throw new RuleError("UNJUDGED_ANSWERS",
                         "judge every submitted answer before moving to the next question");
                 return (KhoiDongRound.NextQuestion(state), []);

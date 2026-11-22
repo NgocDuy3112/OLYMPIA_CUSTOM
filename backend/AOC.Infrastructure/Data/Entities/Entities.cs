@@ -235,7 +235,6 @@ public class AnswerEntity
     public int? FirstAnsweredMs { get; set; }
     public int? AnsweredMs { get; set; }
     public bool AutoMatched { get; set; }
-    public bool Judged { get; set; }
     public Verdict? Verdict { get; set; }
     public int? PointsAwarded { get; set; }
     public DateTime SubmittedAt { get; set; }

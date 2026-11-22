@@ -113,7 +113,7 @@ public static partial class LiveView
     {
         var row = submitted.FirstOrDefault(s => s.QuestionId == questionId);
         if (row is null) return "none";
-        return row.Judged ? "final" : "draft";
+        return "answered";
     }
 
     internal static MatchQuestion? QuestionMatchOf(ViewInput input, string? questionId)

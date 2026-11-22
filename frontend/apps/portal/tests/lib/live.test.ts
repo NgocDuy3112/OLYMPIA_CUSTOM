@@ -28,7 +28,6 @@ const row = (over: Partial<QuestionAnswerRow>): QuestionAnswerRow => ({
     userId: "p1",
     value: null,
     verdict: "CORRECT",
-    judged: false,
     pointsAwarded: null,
     ...over,
 })

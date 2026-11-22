@@ -42,7 +42,7 @@ export function KhoiDongChungAOCPlayer({ ctx }: { ctx: KhoiDongChungPlayerCtx })
             {openQ && (
                 <AnswerBand
                     question={openQ.question}
-                    answerState={v.me.answerState}
+                    answered={v.me.answerState === "answered"}
                     disabled={locked}
                     busy={answerBusy}
                     error={flash}

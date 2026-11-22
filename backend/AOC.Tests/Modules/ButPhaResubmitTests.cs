@@ -126,7 +126,6 @@ public class ButPhaResubmitTests
                 UserId = userId,
                 Value = JsonSerializer.SerializeToElement(
                     new SubmittedAnswerValue.Text("cũ"), JsonApi.Options),
-                Judged = true,
                 Verdict = Verdict.INCORRECT,
                 FirstAnsweredMs = 1000,
                 AnsweredMs = 1000,
@@ -158,7 +157,7 @@ public class ButPhaResubmitTests
         var row = Assert.Single(f.Db.Answers.AsNoTracking().Where(a => a.MatchId == f.MatchId));
         var value = row.Value.Deserialize<SubmittedAnswerValue>(JsonApi.Options);
         Assert.Equal("Hà Nội", Assert.IsType<SubmittedAnswerValue.Text>(value).Value);
-        Assert.False(row.Judged);
+        Assert.Null(row.Verdict);
         Assert.True(row.AnsweredMs >= row.FirstAnsweredMs);
     }
 

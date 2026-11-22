@@ -204,6 +204,13 @@
     "when": 1795700000000,
     "tag": "0028_drop_question_import_tables",
     "breakpoints": true
+   },
+   {
+    "idx": 29,
+    "version": "7",
+    "when": 1795800000000,
+    "tag": "0029_drop_answer_judged",
+    "breakpoints": true
    }
   ]
 }

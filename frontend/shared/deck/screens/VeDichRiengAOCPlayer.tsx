@@ -50,7 +50,7 @@ export function VeDichRiengAOCPlayer({ ctx }: { ctx: VeDichRiengPlayerCtx }) {
                     actionSlot = (
                         <AnswerBand
                             question={openQ.question}
-                            answerState={v.me.answerState}
+                            answered={v.me.answerState === "answered"}
                             disabled={remaining <= 0}
                             busy={answerBusy}
                             error={flash}

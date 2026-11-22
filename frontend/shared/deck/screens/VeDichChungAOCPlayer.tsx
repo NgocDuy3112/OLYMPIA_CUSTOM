@@ -34,7 +34,7 @@ export function VeDichChungAOCPlayer({ ctx }: { ctx: VeDichChungPlayerCtx }) {
                 {openQ?.question && (
                     <AnswerBand
                         question={openQ.question}
-                        answerState={v.me.answerState}
+                        answered={v.me.answerState === "answered"}
                         disabled={remaining <= 0}
                         busy={answerBusy}
                         error={flash}

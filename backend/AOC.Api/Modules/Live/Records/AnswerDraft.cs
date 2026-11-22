@@ -6,4 +6,4 @@ public sealed record AnswerDraft(
     string UserId,
     Verdict? Suggestion,
     int? AnsweredMs,
-    bool Judged);
+    Verdict? Verdict = null);

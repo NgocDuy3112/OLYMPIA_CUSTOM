@@ -42,7 +42,7 @@ export interface LiveScoreRow {
 
 export interface LiveMe {
     verdicts?: Record<string, "CORRECT" | "INCORRECT">
-    answerState?: "none" | "draft" | "final"
+    answerState?: "none" | "answered"
     isMyRun?: boolean
     points?: number
     answered?: string[]
@@ -93,6 +93,7 @@ export interface LiveView {
         value: number
         where: "free" | "pending" | "open" | "taken" | "deferred"
     }>
+    console?: { picksConfirmed?: boolean } | null
     keyword?: { questionId: string; question: LiveQuestion | null } | null
     hintAnswers: Record<string, string>
     tiebreak?: TieBreakView | null

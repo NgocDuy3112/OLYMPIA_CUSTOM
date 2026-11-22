@@ -55,11 +55,11 @@ internal sealed class PgLiveTx(AOCDbContext db, Guid matchId, MatchLiveEntity ro
         var drafts = facts.OfType<DraftFact>().ToList();
         if (drafts.Count > 0)
         {
-            var existing = await ExistingAnswerKeysAsync(
+            var existingByKey = await ExistingAnswersAsync(
                 drafts.Select(d => (d.QuestionId, d.UserId)).ToList());
             foreach (var draft in drafts)
             {
-                if (existing.Contains((draft.QuestionId, draft.UserId))) continue;
+                if (existingByKey.ContainsKey((draft.QuestionId, draft.UserId))) continue;
                 db.Answers.Add(new AnswerEntity
                 {
                     MatchId = matchId,
@@ -67,8 +67,7 @@ internal sealed class PgLiveTx(AOCDbContext db, Guid matchId, MatchLiveEntity ro
                     UserId = Guid.Parse(draft.UserId),
                     Value = draft.Value,
                     Drafts = JsonSerializer.SerializeToElement(
-                        new Dictionary<string, Verdict> { ["auto"] = draft.Suggestion }, JsonApi.Options),
-                    Judged = false
+                        new Dictionary<string, Verdict> { ["auto"] = draft.Suggestion }, JsonApi.Options)
                 });
             }
         }
@@ -76,11 +75,19 @@ internal sealed class PgLiveTx(AOCDbContext db, Guid matchId, MatchLiveEntity ro
         var answers = facts.OfType<AnswerFact>().ToList();
         if (answers.Count > 0)
         {
-            var existing = await ExistingAnswerKeysAsync(
+            // A verdict is final once written: re-recording the same answer only
+            // refreshes the value, never wipes the score it already earned.
+            var existingByKey = await ExistingAnswersAsync(
                 answers.Select(a => (a.QuestionId, a.UserId)).ToList());
             foreach (var answer in answers)
             {
-                if (existing.Contains((answer.QuestionId, answer.UserId))) continue;
+                if (existingByKey.TryGetValue((answer.QuestionId, answer.UserId), out var row))
+                {
+                    row.Value = answer.Value;
+                    row.Verdict = answer.Verdict;
+                    row.PointsAwarded = answer.PointsAwarded;
+                    continue;
+                }
                 db.Answers.Add(new AnswerEntity
                 {
                     MatchId = matchId,
@@ -88,7 +95,6 @@ internal sealed class PgLiveTx(AOCDbContext db, Guid matchId, MatchLiveEntity ro
                     UserId = Guid.Parse(answer.UserId),
                     Value = answer.Value,
                     AutoMatched = answer.AutoMatched,
-                    Judged = true,
                     Verdict = answer.Verdict,
                     PointsAwarded = answer.PointsAwarded
                 });
@@ -102,10 +108,20 @@ internal sealed class PgLiveTx(AOCDbContext db, Guid matchId, MatchLiveEntity ro
                 && a.QuestionId == Guid.Parse(judge.QuestionId)
                 && a.UserId == Guid.Parse(judge.UserId));
             if (target is null)
-                throw new RuleError("NO_ANSWER",
-                    $"no submitted answer to judge for question {judge.QuestionId}");
+            {
+                // Nobody answered: still record the verdict and its deduction.
+                db.Answers.Add(new AnswerEntity
+                {
+                    MatchId = matchId,
+                    QuestionId = Guid.Parse(judge.QuestionId),
+                    UserId = Guid.Parse(judge.UserId),
+                    Value = JsonSerializer.SerializeToElement(new { oral = true }, JsonApi.Options),
+                    Verdict = judge.Verdict,
+                    PointsAwarded = judge.PointsAwarded
+                });
+                continue;
+            }
             target.Verdict = judge.Verdict;
-            target.Judged = true;
             target.PointsAwarded = judge.PointsAwarded;
         }
 
@@ -184,25 +200,24 @@ internal sealed class PgLiveTx(AOCDbContext db, Guid matchId, MatchLiveEntity ro
         await db.SaveChangesAsync();
     }
 
-    private async Task<HashSet<(string QuestionId, string UserId)>> ExistingAnswerKeysAsync(
+    private async Task<Dictionary<(string QuestionId, string UserId), AnswerEntity>> ExistingAnswersAsync(
         List<(string QuestionId, string UserId)> keys)
     {
         var questionIds = keys.Select(k => Guid.Parse(k.QuestionId)).Distinct().ToList();
         var userIds = keys.Select(k => Guid.Parse(k.UserId)).Distinct().ToList();
-        var rows = await db.Answers.AsNoTracking()
+        var rows = await db.Answers
             .Where(a => a.MatchId == matchId
                 && questionIds.Contains(a.QuestionId)
                 && userIds.Contains(a.UserId))
-            .Select(a => new { QuestionId = a.QuestionId, UserId = a.UserId })
             .ToListAsync();
-        return rows.Select(r => (r.QuestionId.ToString(), r.UserId.ToString())).ToHashSet();
+        return rows.ToDictionary(r => (r.QuestionId.ToString(), r.UserId.ToString()));
     }
 
     public async Task<List<AnswerDraft>> ReadAnswerDrafts(Guid questionId)
     {
         var rows = await db.Answers.AsNoTracking()
             .Where(a => a.MatchId == matchId && a.QuestionId == questionId)
-            .Select(a => new { a.UserId, a.Drafts, a.AnsweredMs, a.Judged })
+            .Select(a => new { a.UserId, a.Drafts, a.AnsweredMs, a.Verdict })
             .ToListAsync();
 
         return rows.Select(r =>
@@ -213,7 +228,7 @@ internal sealed class PgLiveTx(AOCDbContext db, Guid matchId, MatchLiveEntity ro
                 && auto.ValueKind == JsonValueKind.String
                 && Enum.TryParse<Verdict>(auto.GetString(), out var parsed))
                 suggestion = parsed;
-            return new AnswerDraft(r.UserId.ToString(), suggestion, r.AnsweredMs, r.Judged);
+            return new AnswerDraft(r.UserId.ToString(), suggestion, r.AnsweredMs, r.Verdict);
         }).ToList();
     }
 }
@@ -281,7 +296,7 @@ public sealed class LiveReader(AOCDbContext db)
     {
         var rows = await db.Answers.AsNoTracking()
             .Where(a => a.MatchId == matchId && a.UserId == userId)
-            .Select(a => new { QuestionId = a.QuestionId, a.Judged, a.Verdict, a.AnsweredMs, a.Drafts, a.Value })
+            .Select(a => new { QuestionId = a.QuestionId, a.Verdict, a.AnsweredMs, a.Drafts, a.Value })
             .ToListAsync();
         return rows.Select(r =>
         {
@@ -292,12 +307,12 @@ public sealed class LiveReader(AOCDbContext db)
                 && Enum.TryParse<Verdict>(auto.GetString(), out var parsed))
                 suggestion = parsed;
             return new SubmittedAnswer(
-                r.QuestionId.ToString(), r.Judged, r.Verdict, r.AnsweredMs, suggestion, r.Value);
+                r.QuestionId.ToString(), r.Verdict, r.AnsweredMs, suggestion, r.Value);
         }).ToList();
     }
 
     public sealed record SubmittedAnswer(
-        string QuestionId, bool Judged, Verdict? Verdict, int? AnsweredMs,
+        string QuestionId, Verdict? Verdict, int? AnsweredMs,
         Verdict? Suggestion = null, JsonElement Value = default);
 
     public async Task<List<object>> ReadQuestionAnswersAsync(Guid matchId, Guid questionId)
@@ -310,7 +325,6 @@ public sealed class LiveReader(AOCDbContext db)
                 a.Value,
                 a.Drafts,
                 a.Verdict,
-                a.Judged,
                 a.PointsAwarded,
                 a.SubmittedAt,
                 a.AnsweredMs
@@ -324,7 +338,6 @@ public sealed class LiveReader(AOCDbContext db)
             value = r.Value,
             drafts = r.Drafts,
             verdict = r.Verdict,
-            judged = r.Judged,
             pointsAwarded = r.PointsAwarded,
             submittedAt = r.SubmittedAt,
             answeredMs = r.AnsweredMs
@@ -344,7 +357,7 @@ public sealed class LiveReader(AOCDbContext db)
     public async Task<List<JudgedAnswer>> ReadJudgedAnswersAsync(Guid matchId)
     {
         var rows = await db.Answers.AsNoTracking()
-            .Where(a => a.MatchId == matchId && a.Judged)
+            .Where(a => a.MatchId == matchId && a.Verdict != null)
             .Select(a => new { QuestionId = a.QuestionId, UserId = a.UserId, a.Verdict, a.AnsweredMs })
             .ToListAsync();
         return rows.Select(r => new JudgedAnswer(
@@ -367,7 +380,7 @@ public sealed class DraftWriter(AOCDbContext db)
         var existing = await db.Answers.FirstOrDefaultAsync(a =>
             a.MatchId == matchId && a.QuestionId == questionId && a.UserId == userId);
 
-        if (existing is { Judged: true })
+        if (existing is { Verdict: not null })
             throw new RuleError("ALREADY_JUDGED", "this answer already has a final verdict");
 
         var drafts = existing?.Drafts is { } d && d.ValueKind == JsonValueKind.Object
@@ -392,7 +405,6 @@ public sealed class DraftWriter(AOCDbContext db)
                 UserId = userId,
                 Value = value,
                 Drafts = JsonSerializer.SerializeToElement(drafts, JsonApi.Options),
-                Judged = false,
                 FirstAnsweredMs = answeredMs,
                 AnsweredMs = answeredMs
             });

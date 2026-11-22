@@ -19,7 +19,7 @@ export interface PlayerScoreRow {
 
 export interface PlayerMe {
     verdicts?: Record<string, "CORRECT" | "INCORRECT">
-    answerState?: "none" | "draft" | "final"
+    answerState?: "none" | "answered"
     mySubmission?: { answer: string; elapsedS: number } | null
     myKeywordSubmission?: { answer: string; elapsedS: number } | null
     isMyRun?: boolean
@@ -81,6 +81,7 @@ export interface PlayerView {
     answererId?: string | null
     assignedToId?: string | null
     stagedPower?: { power: "STAR" | "ASSIGN"; targetId?: string } | null
+    console?: { picksConfirmed?: boolean } | null
     keyword?: { questionId: string; question: PlayerQuestion | null } | null
     keywordCode?: string | null
     hintAnswers: Record<string, string>

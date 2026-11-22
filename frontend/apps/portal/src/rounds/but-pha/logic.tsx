@@ -24,7 +24,7 @@ function finalizeIfNeeded(input: RoundPlanInput): RoundAction[] {
     if (input.openIds.length === 0) return []
     if (input.rows.length === 0) return []
     const questionId = input.openIds[0]
-    const unjudged = input.rows.some((row) => !row.judged)
+    const unjudged = input.rows.some((row) => row.verdict === null)
     if (!unjudged) return []
     const verdicts = mergedVerdicts(questionId, input.rows, input.overrides)
     if (verdicts.length === 0) return []

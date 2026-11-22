@@ -17,12 +17,11 @@ const input = (over: Partial<PlanInput> = {}): PlanInput => ({
     ...over,
 })
 
-const row = (userId: string, verdict: QuestionAnswerRow["verdict"], judged: boolean): QuestionAnswerRow => ({
+const row = (userId: string, verdict: QuestionAnswerRow["verdict"]): QuestionAnswerRow => ({
     questionId: "q1",
     userId,
     value: { text: "đáp án" },
     verdict,
-    judged,
     pointsAwarded: verdict === "CORRECT" ? 10 : 0,
 })
 
@@ -69,7 +68,7 @@ describe("endRoundPlanOf — what Kết thúc sends (one press ends the round)",
         expect(endRoundPlanOf("but-pha", input({
             stage: "question",
             openIds: ["b1"],
-            rows: [row("u1", null, false), row("u2", null, false)],
+            rows: [row("u1", null), row("u2", null)],
             overrides: { "b1:u1": true, "b1:u2": false },
         }))).toEqual([
             {
@@ -86,7 +85,7 @@ describe("endRoundPlanOf — what Kết thúc sends (one press ends the round)",
         expect(endRoundPlanOf("but-pha", input({
             stage: "question",
             openIds: ["b1"],
-            rows: [row("u1", null, false), row("u2", null, false)],
+            rows: [row("u1", null), row("u2", null)],
             overrides: { "b1:u2": true },
         }))).toEqual([
             {
@@ -100,13 +99,13 @@ describe("endRoundPlanOf — what Kết thúc sends (one press ends the round)",
         expect(endRoundPlanOf("but-pha", input({
             stage: "question",
             openIds: ["b1"],
-            rows: [row("u2", null, false)],
+            rows: [row("u2", null)],
         }))).toEqual([{ kind: "but-pha.endRound" }])
 
         expect(endRoundPlanOf("but-pha", input({
             stage: "question",
             openIds: ["b1"],
-            rows: [row("u1", "INCORRECT", true)],
+            rows: [row("u1", "INCORRECT")],
         }))).toEqual([{ kind: "but-pha.endRound" }])
 
         expect(endRoundPlanOf("but-pha", input({ stage: "question" })))
@@ -130,7 +129,7 @@ describe("nextQuestionPlanOf — what Tính giờ sends (pick a NEW question)", 
             stage: "question",
             openIds: ["b1"],
             openQuestionPosition: 2,
-            rows: [row("u2", null, false)],
+            rows: [row("u2", null)],
             overrides: { "b1:u2": true },
         }))).toEqual([
             { kind: "but-pha.finalize", questionId: "b1", verdicts: [{ playerId: "u2", correct: true }] },
@@ -142,7 +141,7 @@ describe("nextQuestionPlanOf — what Tính giờ sends (pick a NEW question)", 
             stage: "question",
             openIds: ["b1"],
             openQuestionPosition: 2,
-            rows: [row("u2", null, false)],
+            rows: [row("u2", null)],
         }))).toEqual([
             { kind: "but-pha.closeQuestion" },
             { kind: "but-pha.openQuestion" },
@@ -154,7 +153,7 @@ describe("nextQuestionPlanOf — what Tính giờ sends (pick a NEW question)", 
             stage: "question",
             openIds: ["b4"],
             openQuestionPosition: 4,
-            rows: [row("u1", "CORRECT", true)],
+            rows: [row("u1", "CORRECT")],
         }))).toEqual([
             { kind: "but-pha.closeQuestion" },
         ])
@@ -165,7 +164,7 @@ describe("nextQuestionPlanOf — what Tính giờ sends (pick a NEW question)", 
             stage: "question",
             openIds: ["b4"],
             openQuestionPosition: 3,
-            rows: [row("u1", "CORRECT", true)],
+            rows: [row("u1", "CORRECT")],
         }))).toEqual([
             { kind: "but-pha.closeQuestion" },
         ])
@@ -174,7 +173,7 @@ describe("nextQuestionPlanOf — what Tính giờ sends (pick a NEW question)", 
             stage: "question",
             openIds: ["b3"],
             openQuestionPosition: 2,
-            rows: [row("u1", "CORRECT", true)],
+            rows: [row("u1", "CORRECT")],
         }))).toEqual([
             { kind: "but-pha.closeQuestion" },
             { kind: "but-pha.openQuestion" },

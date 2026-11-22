@@ -61,7 +61,7 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
         answerSlot = (
             <AnswerBand
                 question={hintWindow.question}
-                answerState={v.me.answerState}
+                answered={v.me.answerState === "answered"}
                 disabled={remaining <= 0}
                 busy={answerBusy}
                 error={flash}
