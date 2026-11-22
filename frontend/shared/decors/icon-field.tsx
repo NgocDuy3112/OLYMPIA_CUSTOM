@@ -161,16 +161,15 @@ function itemStyle(index: number): CSSProperties {
     const top = row * 11.1 + (((index * 29) % 50) / 10)
     const size = 14 + ((index * 7) % 11)
     const rotate = ((index * 47) % 60) - 30
-    const duration = 3.2 + (index % 5) * 0.7
-    const delay = -((index * 13) % 60) / 10
-    const peak = 0.2 + (index % 5) * 0.06
-    const driftX = ((index * 31) % 96) - 48
-    const driftY = ((index * 23) % 68) - 34
-    const floatDuration = 5 + (index % 6) * 1.4
+    const duration = 9 + (index % 7) * 2.2
+    const delay = -((index * 13) % 90) / 10
+    const base = 0.07 + (index % 3) * 0.02
+    const peak = 0.3 + (index % 4) * 0.04
+    const flashWindow = index % 5 === 0
+    const driftX = (((index * 31) % 96) - 48) * 0.55
+    const driftY = (((index * 23) % 68) - 34) * 0.55
+    const floatDuration = 7.5 + (index % 6) * 1.8
     const floatDelay = -((index * 19) % 80) / 10
-    const glowDuration = 4.5 + (index % 7) * 0.9
-    const glowDelay = -((index * 11) % 70) / 10
-    const glowBlur = 3 + (index % 4) * 2
     return {
         left: `${left}%`,
         top: `${top}%`,
@@ -179,14 +178,14 @@ function itemStyle(index: number): CSSProperties {
         "--blink-duration": `${duration}s`,
         "--blink-delay": `${delay}s`,
         "--icon-rotate": `${rotate}deg`,
+        "--icon-base": `${base}`,
         "--icon-peak": `${peak}`,
+        "--icon-flash": flashWindow ? "1" : "0",
         "--icon-drift-x": `${driftX}px`,
         "--icon-drift-y": `${driftY}px`,
         "--float-duration": `${floatDuration}s`,
         "--float-delay": `${floatDelay}s`,
-        "--glow-duration": `${glowDuration}s`,
-        "--glow-delay": `${glowDelay}s`,
-        "--glow-blur": `${glowBlur}px`,
+
     } as CSSProperties
 }
 
@@ -204,12 +203,13 @@ const FIELD_CSS = `
   animation-delay: var(--float-delay);
 }
 .stage-field-icon {
-  opacity: 0;
-  animation-name: stage-field-blink, stage-field-glow;
-  animation-timing-function: ease-in-out, ease-in-out;
-  animation-iteration-count: infinite, infinite;
-  animation-duration: var(--blink-duration), var(--glow-duration);
-  animation-delay: var(--blink-delay), var(--glow-delay);
+  opacity: var(--icon-base);
+  filter: drop-shadow(0 0 1px currentColor);
+  animation-name: stage-field-flash;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-duration: var(--blink-duration);
+  animation-delay: var(--blink-delay);
 }
 @keyframes stage-field-float {
   0% { transform: translate(0, 0); }
@@ -218,25 +218,15 @@ const FIELD_CSS = `
   75% { transform: translate(calc(var(--icon-drift-x) * -1), var(--icon-drift-y)); }
   100% { transform: translate(0, 0); }
 }
-@keyframes stage-field-blink {
-  0% { opacity: 0; transform: scale(0.75) rotate(var(--icon-rotate)); }
-  50% { opacity: var(--icon-peak); transform: scale(1) rotate(var(--icon-rotate)); }
-  100% { opacity: 0; transform: scale(1.2) rotate(var(--icon-rotate)); }
-}
-@keyframes stage-field-glow {
-  0%, 100% {
-    filter: drop-shadow(0 0 0 transparent) brightness(0.9);
+@keyframes stage-field-flash {
+  0% { opacity: var(--icon-base); filter: drop-shadow(0 0 1px currentColor); }
+  48% { opacity: var(--icon-base); filter: drop-shadow(0 0 1px currentColor); }
+  52% {
+    opacity: calc(var(--icon-base) + (var(--icon-peak) - var(--icon-base)) * var(--icon-flash));
+    filter: drop-shadow(0 0 calc(2px + 2px * var(--icon-flash)) currentColor);
   }
-  50% {
-    filter:
-      drop-shadow(0 0 var(--glow-blur) currentColor)
-      drop-shadow(0 0 calc(var(--glow-blur) * 2.4) currentColor)
-      brightness(1.7);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .stage-field-float { animation: none; }
-  .stage-field-icon { animation: none; animation-name: none; opacity: var(--icon-peak); transform: rotate(var(--icon-rotate)); }
+  60% { opacity: var(--icon-base); filter: drop-shadow(0 0 1px currentColor); }
+  100% { opacity: var(--icon-base); filter: drop-shadow(0 0 1px currentColor); }
 }
 `
 

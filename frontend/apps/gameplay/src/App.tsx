@@ -92,6 +92,7 @@ function App() {
         <ErrorBoundary scope="gameplay">
             <IconField />
             <GlowWash />
+            <div className="relative z-10">
             <BrowserRouter>
             <Routes>
                 <Route element={<AppShell />}>
@@ -105,6 +106,7 @@ function App() {
                 </Route>
             </Routes>
             </BrowserRouter>
+            </div>
         </ErrorBoundary>
     )
 }

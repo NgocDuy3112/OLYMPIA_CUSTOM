@@ -18,6 +18,8 @@ import { ForgotPasswordPage } from "./pages/ForgotPasswordPage"
 import { ChangePasswordPage } from "./pages/ChangePasswordPage"
 import { CodePage } from "./pages/CodePage"
 import { ErrorBoundary } from "@shared/lib/error-boundary"
+import { IconField } from "@shared/decors/icon-field"
+import { GlowWash } from "@shared/decors/glow-wash"
 
 export function ResultsNav({ tournamentId }: { tournamentId?: string }) {
     const [enterOpen, setEnterOpen] = useState(false)
@@ -225,6 +227,9 @@ function NotFoundPage() {
 function App() {
     return (
         <ErrorBoundary scope="results">
+            <IconField />
+            <GlowWash />
+            <div className="relative z-10">
             <BrowserRouter>
             <Routes>
                 <Route element={<AppShell />}>
@@ -243,6 +248,7 @@ function App() {
                 </Route>
             </Routes>
             </BrowserRouter>
+            </div>
         </ErrorBoundary>
     )
 }
