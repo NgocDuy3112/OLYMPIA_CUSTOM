@@ -79,6 +79,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         questions,
         openIds: open.map((q) => q.questionId),
         answerRows: v?.projection.answers ?? [],
+        send,
     })
     const { rows, judgingId, resolvingId, keywordQuestionId, selectedIds, target } = judging
     const commits = useConsoleCommits({

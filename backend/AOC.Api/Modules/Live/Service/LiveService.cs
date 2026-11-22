@@ -336,13 +336,27 @@ public sealed partial class LiveService
             userId.ToString(),
             state,
             (await reader.ReadPlayerAnswersAsync(matchId, userId))
-                .Select(a => new SubmittedAnswerRow(a.QuestionId, a.Judged, a.Verdict, a.AnsweredMs, a.Suggestion)).ToList(),
+                .Select(a => new SubmittedAnswerRow(
+                    a.QuestionId, a.Judged, a.Verdict, a.AnsweredMs, a.Suggestion, AnswerValueOf(a.Value))).ToList(),
             (await reader.ReadJudgedAnswersAsync(matchId))
                 .Select(a => new JudgedRow(a.QuestionId, a.UserId, a.Verdict, a.AnsweredMs)).ToList(),
             match.QuestionsList,
             board.Rows,
             RevealedAnswers: await RevealedAnswersAsync(matchId, state),
             TieBreak: board.TieBreak)));
+    }
+
+    private static AnswerValue? AnswerValueOf(JsonElement raw)
+    {
+        if (raw.ValueKind != JsonValueKind.Object) return null;
+        try
+        {
+            return raw.Deserialize<AnswerValue>(JsonApi.Options);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private async Task<Dictionary<string, object?>> WithTieBreakAsync(

@@ -66,6 +66,7 @@ public static partial class LiveView
         {
             ["points"] = KhoiDongRound.KhoiDongPoints(state, input.UserId),
             ["answerState"] = qid is null ? "none" : StateOf(input.Submitted, qid),
+            ["mySubmission"] = MySubmissionOf(input.Submitted, qid, QuestionMatchOf(input, qid)),
             ["windowOpen"] = windowOpen,
             ["questionIndex"] = p2?.Index ?? 0,
             ["questionCount"] = p2?.QuestionIds.Count ?? 0,

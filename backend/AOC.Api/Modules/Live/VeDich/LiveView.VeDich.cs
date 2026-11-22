@@ -164,6 +164,8 @@ public static partial class LiveView
             ["buzzer"] = open?.Window.Buzzer,
             ["buzzerMs"] = open?.Window.BuzzerMs,
             ["answerState"] = open is null ? "none" : StateOf(input.Submitted, open.Question.Id),
+            ["mySubmission"] = MySubmissionOf(
+                input.Submitted, open?.Question.Id, QuestionMatchOf(input, open?.Question.Id)),
             ["verdicts"] = VerdictsOf(input.Submitted)
         };
 

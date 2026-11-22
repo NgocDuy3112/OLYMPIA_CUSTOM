@@ -116,6 +116,30 @@ public static partial class LiveView
         return row.Judged ? "final" : "draft";
     }
 
+    internal static MatchQuestion? QuestionMatchOf(ViewInput input, string? questionId)
+    {
+        if (questionId is null) return null;
+        return (input.Questions ?? []).FirstOrDefault(q => q.Id == questionId);
+    }
+
+    internal static Dictionary<string, object?>? MySubmissionOf(
+        List<SubmittedAnswerRow> submitted, string? questionId, MatchQuestion? question)
+    {
+        if (questionId is null) return null;
+        var row = submitted.FirstOrDefault(s => s.QuestionId == questionId);
+        if (row is null) return null;
+        if (row.Value is null) return null;
+        var answer = QuestionView.AnswerRowDisplay(row.Value, question);
+        if (answer is null) return null;
+        var elapsedS = 0.0;
+        if (row.AnsweredMs is { } ms) elapsedS = ms / 1000.0;
+        return new Dictionary<string, object?>
+        {
+            ["answer"] = answer,
+            ["elapsedS"] = Math.Round(elapsedS, 1)
+        };
+    }
+
     private static Dictionary<string, string> VerdictsOf(List<SubmittedAnswerRow> submitted)
         => submitted
             .Where(row => row.Verdict is not null)

@@ -43,9 +43,10 @@ public static partial class LiveView
             && state.RevealedAnswer == keywordQuestion.Id;
 
         string answerState = "none";
+        string? openQuestionId = null;
         if (open.Count > 0)
         {
-            var openQuestionId = ((Dictionary<string, object?>)open[0]!)["questionId"]!.ToString()!;
+            openQuestionId = ((Dictionary<string, object?>)open[0]!)["questionId"]!.ToString()!;
             answerState = StateOf(input.Submitted, openQuestionId);
         }
 
@@ -75,7 +76,9 @@ public static partial class LiveView
                 ["question"] = QuestionOf(input, questionId)
             }).ToList(),
             ["hintsRevealed"] = player?.HintsRevealed ?? 0,
-            ["answerState"] = answerState
+            ["answerState"] = answerState,
+            ["mySubmission"] = MySubmissionOf(
+                input.Submitted, openQuestionId, QuestionMatchOf(input, openQuestionId))
         };
 
         var keywordDeadlineAt = GiaiMaTurn.KeywordWindowRunning(state, input.Now)

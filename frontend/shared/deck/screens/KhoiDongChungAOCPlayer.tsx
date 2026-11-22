@@ -39,6 +39,7 @@ export function KhoiDongChungAOCPlayer({ ctx }: { ctx: KhoiDongChungPlayerCtx })
                 <AnswerBand
                     question={openQ.question}
                     answerState={v.me.answerState}
+                    mySubmission={v.me.mySubmission}
                     disabled={locked}
                     busy={answerBusy}
                     error={flash}

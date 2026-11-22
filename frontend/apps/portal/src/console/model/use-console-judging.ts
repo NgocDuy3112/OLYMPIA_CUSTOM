@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { judgingIdsOf, targetOf, type JudgingIds } from "@/console/lib/judging"
 import { type ConsoleQuestion, type QuestionAnswerRow } from "@/lib/live"
+import type { LiveAction } from "@/lib/live-actions"
 
 type Picked = { qid: string | null; ids: ReadonlySet<string> }
 const EMPTY_PICKS: ReadonlySet<string> = new Set()
@@ -24,6 +25,7 @@ interface JudgingScopeInput {
     questions: ConsoleQuestion[]
     openIds: readonly string[]
     answerRows: QuestionAnswerRow[]
+    send: (action: LiveAction) => void
 }
 
 export function useConsoleJudging(input: JudgingScopeInput): ConsoleJudging {
@@ -70,6 +72,10 @@ export function useConsoleJudging(input: JudgingScopeInput): ConsoleJudging {
             for (const userId of targets) next[`${qid}:${userId}`] = correct
             return next
         })
+
+        if (input.roundId !== "but-pha") return
+        const verdicts = targets.map((playerId) => ({ playerId, correct }))
+        input.send({ kind: "but-pha.finalize", questionId: qid, verdicts })
     }
 
     const toggleSelect = (userId: string) =>

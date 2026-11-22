@@ -24,7 +24,9 @@ public static partial class LiveView
         {
             ["points"] = ButPhaTurn.ButPhaTotal(state, input.UserId),
             ["answerState"] = questionId is null ? "none" : StateOf(input.Submitted, questionId),
-            ["verdicts"] = VerdictsOf(input.Submitted)
+            ["verdicts"] = VerdictsOf(input.Submitted),
+            ["mySubmission"] = MySubmissionOf(
+                input.Submitted, questionId, QuestionMatchOf(input, questionId))
         };
 
         return Base(input.MatchId, input.RoundId, input.Version,

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import { STRIP_R, pt } from "./geometry"
 import { COPY } from "./copy"
 import type { AnswerValue, PlayerQuestion } from "./types"
@@ -20,9 +20,10 @@ const submitClass = (ready: boolean): string => {
     return `${SUBMIT} ${cursor}`
 }
 
-export function AnswerBand({ question, answerState, disabled, busy, error, onSubmit }: {
+export function AnswerBand({ question, answerState, mySubmission, disabled, busy, error, onSubmit }: {
     question: PlayerQuestion | null
     answerState?: "none" | "draft" | "final"
+    mySubmission?: { answer: string; elapsedS: number } | null
     disabled?: boolean
     busy?: boolean
     error?: string | null
@@ -33,13 +34,38 @@ export function AnswerBand({ question, answerState, disabled, busy, error, onSub
     let state = { qid, picked: "", text: "" }
     if (draft.qid === qid) state = draft
 
-    const [lastReset, setLastReset] = useState({ qid, answerState })
-    if (lastReset.qid !== qid || lastReset.answerState !== answerState) {
-        setLastReset({ qid, answerState })
+    const submissionKey = mySubmission
+        ? `${mySubmission.answer}@${mySubmission.elapsedS}`
+        : ""
+    const [lastReset, setLastReset] = useState({ qid, answerState, submissionKey })
+    const stale =
+        lastReset.qid !== qid ||
+        lastReset.answerState !== answerState ||
+        lastReset.submissionKey !== submissionKey
+    if (stale) {
+        setLastReset({ qid, answerState, submissionKey })
         setDraft({ qid: "", picked: "", text: "" })
     }
     let sendLabel: string = COPY.send
     if (busy) sendLabel = "…"
+
+    const send = (value: AnswerValue) => {
+        setDraft({ qid: "", picked: "", text: "" })
+        onSubmit(value)
+    }
+
+    let submissionLine: ReactNode = null
+    if (mySubmission) {
+        submissionLine = (
+            <p
+                className="font-sans text-muted-foreground"
+                style={{ fontSize: pt(11) }}
+                role="status"
+            >
+                Bạn đã nộp đáp án: <b>{mySubmission.answer}</b> ở {mySubmission.elapsedS}s
+            </p>
+        )
+    }
 
     if (!question) {
         return <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}></span>
@@ -68,12 +94,13 @@ export function AnswerBand({ question, answerState, disabled, busy, error, onSub
                 <button
                     type="button"
                     disabled={!state.picked || disabled || busy}
-                    onClick={() => onSubmit({ picked: [state.picked] })}
+                    onClick={() => send({ picked: [state.picked] })}
                     className={submitClass(Boolean(state.picked) && !disabled && !busy)}
                     style={{ fontSize: pt(11), borderRadius: STRIP_R }}
                 >
                     {sendLabel}
                 </button>
+                {submissionLine}
             </div>
         )
     }
@@ -90,7 +117,7 @@ export function AnswerBand({ question, answerState, disabled, busy, error, onSub
                 onChange={(event) => setDraft({ qid, text: event.target.value, picked: "" })}
                 onKeyDown={(event) => {
                     if (event.key === "Enter" && state.text.trim() && !disabled && !busy) {
-                        onSubmit({ text: state.text.trim() })
+                        send({ text: state.text.trim() })
                     }
                 }}
                 placeholder={textPlaceholder}
@@ -101,12 +128,13 @@ export function AnswerBand({ question, answerState, disabled, busy, error, onSub
             <button
                 type="button"
                 disabled={!state.text.trim() || disabled || busy}
-                onClick={() => onSubmit({ text: state.text.trim() })}
+                onClick={() => send({ text: state.text.trim() })}
                 className={submitClass(Boolean(state.text.trim()) && !disabled && !busy)}
                 style={{ fontSize: pt(11), borderRadius: STRIP_R }}
             >
                 {sendLabel}
             </button>
+            {submissionLine}
         </div>
     )
 }

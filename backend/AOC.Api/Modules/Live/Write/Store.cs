@@ -281,7 +281,7 @@ public sealed class LiveReader(AOCDbContext db)
     {
         var rows = await db.Answers.AsNoTracking()
             .Where(a => a.MatchId == matchId && a.UserId == userId)
-            .Select(a => new { QuestionId = a.QuestionId, a.Judged, a.Verdict, a.AnsweredMs, a.Drafts })
+            .Select(a => new { QuestionId = a.QuestionId, a.Judged, a.Verdict, a.AnsweredMs, a.Drafts, a.Value })
             .ToListAsync();
         return rows.Select(r =>
         {
@@ -292,12 +292,13 @@ public sealed class LiveReader(AOCDbContext db)
                 && Enum.TryParse<Verdict>(auto.GetString(), out var parsed))
                 suggestion = parsed;
             return new SubmittedAnswer(
-                r.QuestionId.ToString(), r.Judged, r.Verdict, r.AnsweredMs, suggestion);
+                r.QuestionId.ToString(), r.Judged, r.Verdict, r.AnsweredMs, suggestion, r.Value);
         }).ToList();
     }
 
     public sealed record SubmittedAnswer(
-        string QuestionId, bool Judged, Verdict? Verdict, int? AnsweredMs, Verdict? Suggestion = null);
+        string QuestionId, bool Judged, Verdict? Verdict, int? AnsweredMs,
+        Verdict? Suggestion = null, JsonElement Value = default);
 
     public async Task<List<object>> ReadQuestionAnswersAsync(Guid matchId, Guid questionId)
     {
