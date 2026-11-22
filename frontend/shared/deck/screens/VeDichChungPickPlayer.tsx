@@ -35,18 +35,19 @@ export function VeDichChungPickPlayer({ ctx }: { ctx: VeDichChungPickPlayerCtx }
                         <Timer remaining={null} />
                     </span>
                 }
-            />
-            <ValueCells
-                cells={[20, 30].map((value) => ({
-                    value,
-                    remaining: board.filter(
-                        (c) => c.value === value && c.where === "free" && !pickedIds.includes(c.questionId),
-                    ).length,
-                    chosen: pickedIds.filter(
-                        (id) => board.find((c) => c.questionId === id)?.value === value,
-                    ).length,
-                }))}
-            />
+            >
+                <ValueCells
+                    cells={[20, 30].map((value) => ({
+                        value,
+                        remaining: board.filter(
+                            (c) => c.value === value && c.where === "free" && !pickedIds.includes(c.questionId),
+                        ).length,
+                        chosen: pickedIds.filter(
+                            (id) => board.find((c) => c.questionId === id)?.value === value,
+                        ).length,
+                    }))}
+                />
+            </QuestionCard>
         </PlayerStage>
     )
 }

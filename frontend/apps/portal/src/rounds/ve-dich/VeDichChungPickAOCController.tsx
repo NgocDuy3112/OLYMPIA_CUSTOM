@@ -82,19 +82,20 @@ export function VeDichChungPickAOCController({ ctx }: { ctx: VeDichChungPickCtx 
                         <Timer remaining={null} />
                     </span>
                 }
-            />
-            <ValueCells
-                cells={[20, 30].map((value) => ({
-                    value,
-                    remaining: (projection.board ?? []).filter(
-                        (c) => c.value === value && c.where === "free" && !chosen.includes(c.questionId),
-                    ).length,
-                    chosen: chosen.filter(
-                        (id) => (projection.board ?? []).find((c) => c.questionId === id)?.value === value,
-                    ).length,
-                }))}
-                onPick={pickRandomOf}
-            />
+            >
+                <ValueCells
+                    cells={[20, 30].map((value) => ({
+                        value,
+                        remaining: (projection.board ?? []).filter(
+                            (c) => c.value === value && c.where === "free" && !chosen.includes(c.questionId),
+                        ).length,
+                        chosen: chosen.filter(
+                            (id) => (projection.board ?? []).find((c) => c.questionId === id)?.value === value,
+                        ).length,
+                    }))}
+                    onPick={pickRandomOf}
+                />
+            </QuestionCard>
         </ConsoleStage>
     )
 }
