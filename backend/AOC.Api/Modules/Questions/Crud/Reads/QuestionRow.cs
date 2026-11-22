@@ -5,6 +5,8 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.Questions.Reads;
 
+public sealed record QuestionUsage(Guid Id, Guid TournamentId, string Label, string StageId, string Status);
+
 public sealed record QuestionRow(
     Guid Id,
     QuestionKind Kind,
@@ -17,7 +19,8 @@ public sealed record QuestionRow(
     Guid CreatedBy,
     Guid? ImportBatchId,
     DateTime CreatedAt,
-    DateTime UpdatedAt)
+    DateTime UpdatedAt,
+    IReadOnlyList<QuestionUsage>? AssignedMatches = null)
 {
     public static QuestionRow Of(QuestionBankEntity row) => new(
         row.Id,

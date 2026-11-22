@@ -7,6 +7,7 @@ import { PreviewText } from "./PreviewText"
 import { SelectAllBox, SelectBox } from "./SelectBox"
 import { RowActions } from "./RowActions"
 import { StatusBadge } from "./StatusBadge"
+import { QuestionUsageCell } from "./QuestionUsageCell"
 
 export function QuestionTable({
     rows,
@@ -42,6 +43,7 @@ export function QuestionTable({
                         <TableHead>Question</TableHead>
                         {showKind && <TableHead className="w-20">Kind</TableHead>}
                         <TableHead className="w-28">Status</TableHead>
+                        <TableHead className="w-40">Trận đã gán</TableHead>
                         <TableHead className="w-28">Updated</TableHead>
                         <TableHead className="w-72 text-right">Actions</TableHead>
                     </TableRow>
@@ -85,6 +87,7 @@ export function QuestionTable({
                                     <TableCell><Badge variant="outline">{shapeOf(row)}</Badge></TableCell>
                                 )}
                                 <TableCell><StatusBadge status={row.status} /></TableCell>
+                                <TableCell><QuestionUsageCell matches={row.assignedMatches} /></TableCell>
                                 <TableCell className="text-sm text-muted-foreground">
                                     {dateFormat.format(new Date(row.updatedAt))}
                                 </TableCell>

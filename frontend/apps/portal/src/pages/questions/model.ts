@@ -4,6 +4,14 @@ import { ApiError } from "@shared/lib/api"
 export type Kind = "CHOICE" | "TEXT" | "KEYWORD"
 export type Status = "DRAFT" | "PUBLISHED" | "ARCHIVED"
 
+export interface QuestionUsageItem {
+    id: string
+    tournamentId: string
+    label: string
+    stageId: string
+    status: string
+}
+
 export interface BankQuestion {
     id: string
     kind: Kind
@@ -13,6 +21,7 @@ export interface BankQuestion {
     tags?: string[]
     payload: Record<string, unknown>
     updatedAt: string
+    assignedMatches?: QuestionUsageItem[]
 }
 
 export interface Paged {

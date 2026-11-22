@@ -145,4 +145,34 @@ describe("QuestionsPage", () => {
         expect(JSON.parse(patch![1]?.body as string)).toEqual({ status: "PUBLISHED" })
         expect(await screen.findByText(draftRow.questionText)).toBeInTheDocument()
     })
+
+    it("shows assigned matches in the table column", async () => {
+        const assignedRow = {
+            ...draftRow,
+            id: "q3",
+            assignedMatches: [
+                {
+                    id: "m1",
+                    tournamentId: "t1",
+                    label: "Vòng loại 1",
+                    stageId: "Khoi-dong",
+                    status: "UPCOMING",
+                },
+            ],
+        }
+        stubFetch({
+            "GET /portal/auth/me": {
+                body: { id: "u1", username: "ada", displayName: "Ada", role: "ADMIN", emailVerified: true, totpEnabled: true, avatarUrl: null },
+            },
+            "GET /portal/questions?limit=30&offset=0&bucket=khoi-dong": list([assignedRow]),
+            "GET /portal/questions/bucket-counts": { body: {} },
+        })
+        renderWithProviders(<QuestionsPage />)
+
+        expect(await screen.findByText("Vòng loại 1")).toBeInTheDocument()
+        const row = screen.getByText(draftRow.questionText).closest("tr")!
+        expect(within(row).getByText("Vòng loại 1")).toBeInTheDocument()
+        expect(screen.queryByText("—")).toBeNull()
+    })
+
 })

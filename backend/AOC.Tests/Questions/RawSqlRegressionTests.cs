@@ -130,6 +130,92 @@ public class RawSqlRegressionTests
     }
 
     [DbFact]
+    public async Task List_attaches_the_assigned_match_to_the_question()
+    {
+        await AuthTestDb.EnsureSchemaAsync();
+        using var db = AuthTestDb.OpenDb();
+
+        var fixture = await SeedAsync(db);
+        try
+        {
+            var service = new QuestionsService(db);
+            var page = await service.ListAsync(
+                new QuestionFilter(Ids: [fixture.Question.Id]), new Page(20, 0));
+
+            var row = page.Items[0];
+            Assert.NotNull(row.AssignedMatches);
+            var usage = Assert.Single(row.AssignedMatches!);
+            Assert.Equal(fixture.Match.Id, usage.Id);
+            Assert.Equal(fixture.Tournament.Id, usage.TournamentId);
+            Assert.Equal("Fixture match", usage.Label);
+            Assert.Equal("stage-1", usage.StageId);
+        }
+        finally
+        {
+            await CleanupAsync(db, fixture);
+        }
+    }
+
+    [DbFact]
+    public async Task List_leaves_assigned_matches_empty_without_a_match()
+    {
+        await AuthTestDb.EnsureSchemaAsync();
+        using var db = AuthTestDb.OpenDb();
+
+        var fixture = await SeedAsync(db);
+        try
+        {
+            var service = new QuestionsService(db);
+            var orphan = new QuestionBankEntity
+            {
+                Id = Guid.NewGuid(),
+                Kind = QuestionKind.KEYWORD,
+                QuestionText = "orphan keyword question",
+                Payload = JsonSerializer.SerializeToElement(new { type = "KEYWORD", code = "ORPHAN" }),
+                Status = QuestionStatus.PUBLISHED,
+                Tags = ["giai-ma"],
+                CreatedBy = fixture.User.Id,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            db.QuestionBank.Add(orphan);
+            await db.SaveChangesAsync();
+
+            var page = await service.ListAsync(new QuestionFilter(Ids: [orphan.Id]), new Page(20, 0));
+            Assert.Single(page.Items);
+            Assert.Null(page.Items[0].AssignedMatches);
+
+            db.QuestionBank.Remove(await db.QuestionBank.FirstAsync(q => q.Id == orphan.Id));
+            await db.SaveChangesAsync();
+        }
+        finally
+        {
+            await CleanupAsync(db, fixture);
+        }
+    }
+
+    [DbFact]
+    public async Task Require_attaches_the_assigned_match()
+    {
+        await AuthTestDb.EnsureSchemaAsync();
+        using var db = AuthTestDb.OpenDb();
+
+        var fixture = await SeedAsync(db);
+        try
+        {
+            var service = new QuestionsService(db);
+            var row = await service.RequireAsync(fixture.Question.Id.ToString());
+
+            var usage = Assert.Single(row.AssignedMatches!);
+            Assert.Equal(fixture.Match.Id, usage.Id);
+        }
+        finally
+        {
+            await CleanupAsync(db, fixture);
+        }
+    }
+
+    [DbFact]
     public async Task List_pages_by_limit_and_offset()
     {
         await AuthTestDb.EnsureSchemaAsync();
@@ -177,7 +263,7 @@ public class RawSqlRegressionTests
     }
 
     [DbFact]
-    public async Task QuestionUsage_finds_the_seeded_match()
+    public async Task Update_allows_editing_an_assigned_question()
     {
         await AuthTestDb.EnsureSchemaAsync();
         using var db = AuthTestDb.OpenDb();
@@ -186,8 +272,16 @@ public class RawSqlRegressionTests
         try
         {
             var service = new QuestionsService(db);
-            var usage = await service.QuestionUsageAsync(fixture.Question.Id.ToString());
+            var patch = JsonSerializer.SerializeToElement(new
+            {
+                questionText = "updated fixture question"
+            });
 
+            var updated = await service.UpdateQuestionAsync(fixture.Question.Id.ToString(), patch);
+
+            Assert.Equal("updated fixture question", updated.QuestionText);
+            Assert.Equal(fixture.Question.Id, updated.Id);
+            var usage = await service.QuestionUsageAsync(fixture.Question.Id.ToString());
             Assert.Contains(usage, u => u.Id == fixture.Match.Id);
         }
         finally

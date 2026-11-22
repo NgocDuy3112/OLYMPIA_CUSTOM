@@ -137,10 +137,6 @@ public sealed class QuestionsService(AOCDbContext db) : IQuestionReads
     {
         var existing = await RequireQuestionAsync(id);
 
-        if (existing.Status == QuestionStatus.ARCHIVED)
-            throw new QuestionError(QuestionErrorCode.IMMUTABLE,
-                $"question {id} is archived and cannot be edited");
-
         var patch = new Dictionary<string, object?>();
         QuestionKind? kindPatch = null;
         string? keywordIdPatch = null;
@@ -348,11 +344,62 @@ public sealed class QuestionsService(AOCDbContext db) : IQuestionReads
         var where = BuildFilter(filters);
         var total = await CountRowsAsync(where);
         var rows = await QueryRowsAsync(where, page);
-        return Pagination.Result(rows.Select(QuestionRow.Of).ToList(), total, page);
+        var usage = await AssignedMatchesAsync(rows.Select(row => row.Id).ToList());
+        return Pagination.Result(rows.Select(row => WithUsage(row, usage)).ToList(), total, page);
     }
 
     public async Task<QuestionRow> RequireAsync(string id)
-        => QuestionRow.Of(await RequireQuestionAsync(id));
+    {
+        var row = await RequireQuestionAsync(id);
+        var usage = await AssignedMatchesAsync([row.Id]);
+        return WithUsage(row, usage);
+    }
+
+    private static QuestionRow WithUsage(QuestionBankEntity row, Dictionary<Guid, List<QuestionUsage>> usage)
+        => usage.TryGetValue(row.Id, out var matches)
+            ? QuestionRow.Of(row) with { AssignedMatches = matches }
+            : QuestionRow.Of(row);
+
+    private async Task<Dictionary<Guid, List<QuestionUsage>>> AssignedMatchesAsync(List<Guid> sourceIds)
+    {
+        var result = new Dictionary<Guid, List<QuestionUsage>>();
+        if (sourceIds.Count == 0) return result;
+
+        var rows = await db.Database
+            .SqlQueryRaw<QuestionUsageMatch>(
+                """
+                SELECT m.id AS match_id,
+                       m.tournament_id AS tournament_id,
+                       m.label AS label,
+                       m.stage_id AS stage_id,
+                       m.status::text AS status,
+                       q ->> 'sourceId' AS source_id
+                  FROM matches m
+                  CROSS JOIN LATERAL jsonb_array_elements(m.questions) AS q
+                 WHERE m.deleted_at IS NULL
+                   AND q ->> 'sourceId' = ANY(string_to_array({0}, ','))
+                 ORDER BY m.updated_at DESC
+                """,
+                string.Join(',', sourceIds.Select(id => id.ToString())))
+            .ToListAsync();
+
+        foreach (var row in rows)
+        {
+            if (!Guid.TryParse(row.SourceId, out var sourceId)) continue;
+            if (!result.TryGetValue(sourceId, out var list))
+            {
+                list = [];
+                result[sourceId] = list;
+            }
+            if (list.Any(item => item.Id == row.MatchId)) continue;
+            list.Add(new QuestionUsage(row.MatchId, row.TournamentId, row.Label, row.StageId, row.Status));
+        }
+
+        return result;
+    }
+
+    private sealed record QuestionUsageMatch(
+        Guid MatchId, Guid TournamentId, string Label, string StageId, string Status, string SourceId);
 
     public async Task<PageResult<QuestionBankEntity>> ListForAssemblyAsync(
         List<QuestionKind>? kinds, string? bucket, string? search, Page page)
@@ -441,8 +488,6 @@ public sealed class QuestionsService(AOCDbContext db) : IQuestionReads
         var items = await db.Database.SqlQueryRaw<BucketCount>(sql, args.ToArray()).ToListAsync();
         return items.ToDictionary(item => item.Bucket, item => item.N);
     }
-
-    public sealed record QuestionUsage(Guid Id, Guid TournamentId, string Label, string StageId, string Status);
 
     public async Task<List<QuestionUsage>> QuestionUsageAsync(string questionId)
     {
