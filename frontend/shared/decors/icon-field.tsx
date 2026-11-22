@@ -163,11 +163,14 @@ function itemStyle(index: number): CSSProperties {
     const rotate = ((index * 47) % 60) - 30
     const duration = 3.2 + (index % 5) * 0.7
     const delay = -((index * 13) % 60) / 10
-    const peak = 0.12 + (index % 5) * 0.04
+    const peak = 0.2 + (index % 5) * 0.06
     const driftX = ((index * 31) % 96) - 48
     const driftY = ((index * 23) % 68) - 34
     const floatDuration = 5 + (index % 6) * 1.4
     const floatDelay = -((index * 19) % 80) / 10
+    const glowDuration = 4.5 + (index % 7) * 0.9
+    const glowDelay = -((index * 11) % 70) / 10
+    const glowBlur = 3 + (index % 4) * 2
     return {
         left: `${left}%`,
         top: `${top}%`,
@@ -181,6 +184,9 @@ function itemStyle(index: number): CSSProperties {
         "--icon-drift-y": `${driftY}px`,
         "--float-duration": `${floatDuration}s`,
         "--float-delay": `${floatDelay}s`,
+        "--glow-duration": `${glowDuration}s`,
+        "--glow-delay": `${glowDelay}s`,
+        "--glow-blur": `${glowBlur}px`,
     } as CSSProperties
 }
 
@@ -199,11 +205,11 @@ const FIELD_CSS = `
 }
 .stage-field-icon {
   opacity: 0;
-  animation-name: stage-field-blink;
-  animation-timing-function: ease-in-out;
-  animation-iteration-count: infinite;
-  animation-duration: var(--blink-duration);
-  animation-delay: var(--blink-delay);
+  animation-name: stage-field-blink, stage-field-glow;
+  animation-timing-function: ease-in-out, ease-in-out;
+  animation-iteration-count: infinite, infinite;
+  animation-duration: var(--blink-duration), var(--glow-duration);
+  animation-delay: var(--blink-delay), var(--glow-delay);
 }
 @keyframes stage-field-float {
   0% { transform: translate(0, 0); }
@@ -217,9 +223,20 @@ const FIELD_CSS = `
   50% { opacity: var(--icon-peak); transform: scale(1) rotate(var(--icon-rotate)); }
   100% { opacity: 0; transform: scale(1.2) rotate(var(--icon-rotate)); }
 }
+@keyframes stage-field-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 0 transparent) brightness(0.9);
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 var(--glow-blur) currentColor)
+      drop-shadow(0 0 calc(var(--glow-blur) * 2.4) currentColor)
+      brightness(1.7);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .stage-field-float { animation: none; }
-  .stage-field-icon { animation: none; opacity: var(--icon-peak); transform: rotate(var(--icon-rotate)); }
+  .stage-field-icon { animation: none; animation-name: none; opacity: var(--icon-peak); transform: rotate(var(--icon-rotate)); }
 }
 `
 
