@@ -1,7 +1,7 @@
 import { useEffect } from "react"
 import { isKnownRound, isWaitingStage } from "@shared/deck/geometry"
 
-export type GlowKey = "white" | "lobby" | "khoi-dong" | "giai-ma" | "but-pha" | "ve-dich"
+export type GlowKey = "white" | "lobby" | "khoi-dong" | "giai-ma" | "but-pha" | "ve-dich" | "ve-dich-rieng"
 
 const ROUND_GLOW: Record<string, GlowKey> = {
     "khoi-dong": "khoi-dong",
@@ -18,6 +18,8 @@ export function roundGlowOf(roundId: string): GlowKey {
 export function glowKeyOf(roundId: string, stage: string): GlowKey {
     if (!isKnownRound(roundId)) return "lobby"
     if (isWaitingStage(stage)) return "lobby"
+    // Về đích Riêng plays under a darker, single-spotlight stage.
+    if (roundId === "ve-dich" && stage === "phase2") return "ve-dich-rieng"
     return roundGlowOf(roundId)
 }
 

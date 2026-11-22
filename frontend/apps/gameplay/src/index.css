@@ -86,6 +86,11 @@
   inherits: true;
   initial-value: rgb(255 255 255);
 }
+@property --stage-vignette {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
 
 :root {
   --background: oklch(1 0 0);
@@ -129,8 +134,9 @@
   --glow-3: rgb(255 255 255 / 0.10);
   --glow-4: rgb(255 255 255 / 0.10);
   --glow-ink: rgb(255 255 255);
+  --stage-vignette: 0;
   transition: --glow-1 800ms ease, --glow-2 800ms ease, --glow-3 800ms ease, --glow-4 800ms ease,
-    --glow-ink 800ms ease;
+    --glow-ink 800ms ease, --stage-vignette 800ms ease;
 }
 
 .dark {
@@ -213,6 +219,16 @@
   --glow-3: rgb(239 68 68 / 0.20);
   --glow-4: rgb(239 68 68 / 0.17);
   --glow-ink: rgb(239 68 68);
+}
+
+/* Về đích Riêng: the room goes dark and one red spotlight stays on stage. */
+[data-glow="ve-dich-rieng"] {
+  --glow-1: rgb(239 68 68 / 0.16);
+  --glow-2: rgb(239 68 68 / 0.12);
+  --glow-3: rgb(239 68 68 / 0.08);
+  --glow-4: rgb(239 68 68 / 0.06);
+  --glow-ink: rgb(239 68 68 / 0.7);
+  --stage-vignette: 1;
 }
 
 @layer base {
