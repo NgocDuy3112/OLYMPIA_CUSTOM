@@ -15,8 +15,8 @@ export function RailAnswerLine({ answer, answeredMs, buzzLabel, buzzMs }: {
         <>
             {hasAnswer && (
                 <span
-                    className="w-full text-center font-sans leading-tight break-words whitespace-pre-line line-clamp-3 text-foreground"
-                    style={{ fontSize: pt(12) }}
+                    className="block w-full min-h-0 shrink overflow-hidden text-center font-sans leading-tight break-words line-clamp-2 text-foreground"
+                    style={{ fontSize: pt(11) }}
                     title={answer ?? undefined}
                 >
                     {answer}
@@ -24,7 +24,7 @@ export function RailAnswerLine({ answer, answeredMs, buzzLabel, buzzMs }: {
             )}
             {(hasTime || hasBuzz) && (
                 <span
-                    className="flex min-w-0 flex-wrap items-center justify-center gap-[0.3cqw] font-sans leading-none text-foreground/85"
+                    className="flex w-full shrink-0 flex-wrap items-center justify-center gap-[0.3cqw] font-sans leading-none text-foreground/85"
                     style={{ fontSize: pt(10) }}
                 >
                     {hasTime && (

@@ -109,7 +109,7 @@ export function Rail({ view, myId, currentQid }: {
                                 {mine && selfCam?.camOn && selfCam.video && <SelfVideo track={selfCam.video} />}
                                 {mine && <SelfCamControls />}
                             </PlayerAvatar>
-                            <div className="flex min-w-0 flex-1 flex-col justify-start gap-[0.3cqw] pt-[0.2cqw] text-center">
+                            <div className="flex min-w-0 min-h-0 flex-1 flex-col justify-start gap-[0.25cqw] overflow-hidden pt-[0.2cqw] text-center">
                                 <span className="flex min-w-0 items-center justify-center gap-[0.3cqw] font-display font-semibold leading-none text-foreground" style={{ fontSize: pt(16) }}>
                                     <span className="truncate">{row.displayName}</span>
                                 </span>
