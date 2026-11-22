@@ -130,6 +130,7 @@ export function Rail({ cards, onSelect, onScoreClick, selectHint }: { cards: Car
                     if (c.ring === "selected") hoverCls = "cursor-pointer"
                 }
                 let ringCls = cardRing(c.ring)
+                if (c.ring === "selected") ringCls = ""
                 if (selectHint) {
                     hoverCls = "cursor-pointer hover:ring-emerald-400 active:ring-emerald-600"
                     ringCls = "ring-2 ring-emerald-400 console-armed"

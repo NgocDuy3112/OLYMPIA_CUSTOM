@@ -3,7 +3,7 @@ type RailCardState = "waiting" | "wrong" | "buzzing" | "picked"
 const STATE: Record<RailCardState, string> = {
     wrong: "bg-[#101116] text-muted-foreground ring-1 ring-white/10",
     buzzing: "bg-[#2a2f38] text-foreground ring-1 ring-white/40 outline-4 outline-dashed outline-white",
-    picked: "bg-[#16181e] text-foreground ring-[3px] ring-primary shadow-[0_0_0_4px] shadow-primary/35",
+    picked: "bg-primary/30 text-foreground ring-4 ring-primary shadow-[inset_0_0_0_3px] shadow-primary",
     waiting: "bg-[#16181e] ring-1 ring-white/10",
 }
 
