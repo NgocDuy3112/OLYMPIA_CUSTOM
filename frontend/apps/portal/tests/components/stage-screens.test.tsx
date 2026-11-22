@@ -738,13 +738,14 @@ it("phase 1: clicking a value cell random-picks one question of that value", asy
         )
 
         await user.click(screen.getByTitle("Chọn ngẫu nhiên 1 câu 20"))
-        expect(f.send).not.toHaveBeenCalled()
-        await user.click(screen.getByTitle("Chọn ngẫu nhiên 1 câu 30"))
-
-        await user.click(screen.getByRole("button", { name: "Xác nhận" }))
         expect(f.send).toHaveBeenCalledWith({
             kind: "ve-dich.pickRound",
-            questionIds: ["q20", "q30"],
+            questionIds: ["q20"],
+        })
+        await user.click(screen.getByTitle("Chọn ngẫu nhiên 1 câu 30"))
+        expect(f.send).toHaveBeenLastCalledWith({
+            kind: "ve-dich.pickRound",
+            questionIds: expect.arrayContaining(["q20", "q30"]),
         })
     })
 
@@ -976,14 +977,15 @@ it("offers no Hết lượt in the chung phase — and strip buttons carry no to
         const user = userEvent.setup()
         const f = renderRound(
             "ve-dich",
-            { send: vi.fn(), rows: [answerRow("u1", null)], target: "u1" },
-            { open: [openQ] },
+            { sendChain: vi.fn(), rows: [answerRow("u1", null)], target: "u1" },
+            { open: [openQ], table: TWO_PLAYERS },
             veDichMc({ phase: 1 }),
         )
 
         await user.click(screen.getByRole("button", { name: "Chấm điểm" }))
         expect(f.sendChain).toHaveBeenCalledWith([
             { kind: "ve-dich.judge", playerId: "u1", correct: true },
+            { kind: "ve-dich.judge", playerId: "u2", correct: false },
         ])
     })
 
@@ -996,7 +998,7 @@ it("offers no Hết lượt in the chung phase — and strip buttons carry no to
                 rows: [answerRow("u1", null), answerRow("u2", null)],
                 target: "u1",
             },
-            { open: [openQ] },
+            { open: [openQ], table: TWO_PLAYERS },
             veDichMc({ phase: 1 }),
         )
 
@@ -1017,7 +1019,7 @@ it("offers no Hết lượt in the chung phase — and strip buttons carry no to
                 target: "u1",
                 selectedIds: new Set(["u1", "u2"]),
             },
-            { open: [openQ] },
+            { open: [openQ], table: TWO_PLAYERS },
             veDichMc({ phase: 1 }),
         )
 

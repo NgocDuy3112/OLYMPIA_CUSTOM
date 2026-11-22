@@ -47,11 +47,12 @@ public static class GiaiMaApplier
 
             case LiveAction.GiaiMaResolveHint resolve:
             {
-                global::AOC.Api.Modules.Live.Apply.AssertVerdictCoverage(ctx.AnswerDrafts, resolve.Verdicts, "resolving the hint");
-                var answers = resolve.Verdicts.ToDictionary(v => v.PlayerId, v => v.Correct);
+                var covered = global::AOC.Api.Modules.Live.Apply.CoveredVerdicts(
+                    ctx.AnswerDrafts, resolve.Verdicts);
+                var answers = covered.ToDictionary(v => v.PlayerId, v => v.Correct);
                 var next = GiaiMaTurn.ResolveOpenHint(state, answers);
                 var openHint = state.OpenHint!;
-                var facts = resolve.Verdicts.Select(v => (LiveFact)new JudgeFact(
+                var facts = covered.Select(v => (LiveFact)new JudgeFact(
                     openHint, v.PlayerId,
                     v.Correct ? Verdict.CORRECT : Verdict.INCORRECT,
                     0)).ToList();

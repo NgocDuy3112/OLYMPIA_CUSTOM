@@ -106,10 +106,7 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
     const timerRemaining = timerRemainingOf(openNow, remaining)
 
     let canVerdict = false
-    if (openNow !== null) {
-        if (ctx.target !== null) canVerdict = true
-        if (ctx.selectedIds.size > 0) canVerdict = true
-    }
+    if (openNow !== null) canVerdict = true
 
     return (
         <ConsoleStage

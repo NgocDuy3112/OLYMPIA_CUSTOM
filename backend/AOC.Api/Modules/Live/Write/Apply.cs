@@ -17,21 +17,12 @@ public interface ILiveStore<S>
 
 public static class Apply
 {
-    public static void AssertVerdictCoverage(
+    public static List<(string PlayerId, bool Correct)> CoveredVerdicts(
         IReadOnlyList<AnswerDraft> drafts,
-        IReadOnlyList<(string PlayerId, bool Correct)> verdicts,
-        string what)
+        IReadOnlyList<(string PlayerId, bool Correct)> verdicts)
     {
         var submitters = drafts.Select(d => d.UserId).ToHashSet();
-        foreach (var (playerId, _) in verdicts)
-            if (!submitters.Contains(playerId))
-                throw new RuleError("NO_ANSWER", $"no submitted answer from {playerId} to judge");
-
-        var staged = verdicts.Select(v => v.PlayerId).ToHashSet();
-        foreach (var draft in drafts)
-            if (!draft.Judged && !staged.Contains(draft.UserId))
-                throw new RuleError("UNJUDGED_ANSWERS",
-                    $"judge every submitted answer before {what}");
+        return verdicts.Where(v => submitters.Contains(v.PlayerId)).ToList();
     }
 
     public static async Task<LiveRecord<S>> MutateLive<S>(

@@ -27,21 +27,12 @@ public sealed partial class LiveService
         if (action is LiveAction.ButPhaFinalize finalize)
         {
             answerDrafts = await tx.ReadAnswerDrafts(Guid.Parse(finalize.QuestionId));
-            global::AOC.Api.Modules.Live.Apply.AssertVerdictCoverage(
-                answerDrafts, finalize.Verdicts, "finalizing");
-        }
-        if (action is LiveAction.ButPhaCloseQuestion)
-        {
-            var open = ButPhaTurn.OpenQuestionId(engine);
-            if (open is not null)
+            finalize = finalize with
             {
-                var drafts = await tx.ReadAnswerDrafts(Guid.Parse(open));
-                if (drafts.Any(d => !d.Judged))
-                    throw new RuleError("UNJUDGED_ANSWERS",
-                        "judge every submitted answer before closing the question");
-            }
+                Verdicts = global::AOC.Api.Modules.Live.Apply.CoveredVerdicts(
+                    answerDrafts, finalize.Verdicts)
+            };
         }
-
         var ctx = new ButPhaApplier.ButPhaContext(actorId.ToString(), current.RoundId, now,
             butPhaRules,
             match.QuestionsList.Where(q => q.RoundId == current.RoundId)

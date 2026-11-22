@@ -18,10 +18,7 @@ export default defineConfig({
         },
     },
     server: {
-        port: 5177,
-        // Venue screens open this page from other devices on the LAN — a
-        // localhost-only bind would hide it, and Vite's allowedHosts guard
-        // would 403 those Host headers.
+        port: 5176,
         host: true,
         allowedHosts: ["host.containers.internal"],
         proxy: {

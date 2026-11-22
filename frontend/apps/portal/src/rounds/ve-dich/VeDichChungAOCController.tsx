@@ -24,23 +24,20 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
     const boardCells = projection.board ?? []
     const stripCells = stripCellsOf(boardCells)
     const revealed = consoleVeDich?.revealed ?? false
-    const gradeableIds = () => {
-        const answered = (id: string) => rows.some((r) => r.userId === id)
-        if (ctx.selectedIds.size > 0) return [...ctx.selectedIds].filter(answered)
-        if (ctx.target !== null) {
-            if (answered(ctx.target)) return [ctx.target]
-        }
+    const markedIds = () => {
+        if (ctx.selectedIds.size > 0) return [...ctx.selectedIds]
+        if (ctx.target !== null) return [ctx.target]
         return []
     }
-    const canMark = gradeableIds().length > 0
+    const canMark = markedIds().length > 0
 
     const grade = () => {
-        const ids = gradeableIds()
+        const ids = markedIds()
         if (ids.length === 0) return
-        const actions = rows.map((row) => {
+        const actions = projection.table.map((seat) => {
             let correct = false
-            if (ids.includes(row.userId)) correct = true
-            return { kind: "ve-dich.judge" as const, playerId: row.userId, correct }
+            if (ids.includes(seat.id)) correct = true
+            return { kind: "ve-dich.judge" as const, playerId: seat.id, correct }
         })
         ctx.sendChain(actions)
     }

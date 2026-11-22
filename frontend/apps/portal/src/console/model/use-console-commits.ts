@@ -11,6 +11,7 @@ export interface ConsoleCommits {
 interface CommitInput {
     roundId: string
     rows: QuestionAnswerRow[]
+    keywordRows: QuestionAnswerRow[]
     openCount: number
     judgingId: string | null
     keywordQuestionId: string | null
@@ -20,12 +21,13 @@ interface CommitInput {
 }
 
 export function useConsoleCommits(input: CommitInput): ConsoleCommits {
-    const { roundId, rows, openCount, judgingId, keywordQuestionId, selectedIds } = input
+    const { roundId, rows, keywordRows, openCount, judgingId, keywordQuestionId, selectedIds } = input
     const isGiaiMa = roundId === "giai-ma"
     const selectedOnQuestion = rows.some((r) => selectedIds.has(r.userId))
 
+    const selectedOnKeyword = keywordRows.some((r) => selectedIds.has(r.userId))
     const commitHintReady = isGiaiMa && openCount > 0 && selectedOnQuestion
-    const commitKeywordReady = isGiaiMa && openCount === 0 && selectedOnQuestion
+    const commitKeywordReady = isGiaiMa && selectedOnKeyword
 
     const commitHint = () => {
         if (!commitHintReady || !judgingId) return

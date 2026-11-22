@@ -62,7 +62,7 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
             <AnswerBand
                 question={hintWindow.question}
                 answerState={v.me.answerState}
-                disabled={remaining <= 0 || keywordOpen}
+                disabled={remaining <= 0}
                 busy={answerBusy}
                 error={flash}
                 onSubmit={(value) => submitAnswer(hintWindow.questionId, value)}

@@ -34,7 +34,9 @@ export function VeDichChungPickAOCController({ ctx }: { ctx: VeDichChungPickCtx 
         )
         if (pool.length === 0) return
         const random = pool[Math.floor(Math.random() * pool.length)]
-        setChosen([...chosen, random.questionId])
+        const next = [...chosen, random.questionId]
+        setChosen(next)
+        ctx.send({ kind: "ve-dich.pickRound", questionIds: next })
     }
 
     const boardCells = projection.board ?? []
@@ -44,7 +46,9 @@ export function VeDichChungPickAOCController({ ctx }: { ctx: VeDichChungPickCtx 
         if (cell) stagedCells.push({ questionId: cell.questionId, value: cell.value })
     }
     const dropPick = (id: string) => {
-        setChosen(chosen.filter((picked) => picked !== id))
+        const next = chosen.filter((picked) => picked !== id)
+        setChosen(next)
+        ctx.send({ kind: "ve-dich.pickRound", questionIds: next })
     }
 
 

@@ -81,10 +81,11 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         answerRows: v?.projection.answers ?? [],
         send,
     })
-    const { rows, judgingId, resolvingId, keywordQuestionId, selectedIds, target } = judging
+    const { rows, keywordRows, judgingId, resolvingId, keywordQuestionId, selectedIds, target } = judging
     const commits = useConsoleCommits({
         roundId,
         rows,
+        keywordRows,
         openCount: open.length,
         judgingId,
         keywordQuestionId,

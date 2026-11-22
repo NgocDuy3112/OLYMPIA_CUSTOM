@@ -54,9 +54,9 @@ public static class ButPhaApplier
 
                 var next = ButPhaTurn.FinalizeQuestion(state, results);
 
-                if (!next.Answers.TryGetValue(questionId, out var recordedAnswers))
-                    throw new RuleError("NO_ANSWER", $"question {questionId} has no finalized answers");
-                var recorded = recordedAnswers.ToDictionary(a => a.PlayerId, a => a.Correct);
+                var recorded = new Dictionary<string, bool>();
+                if (next.Answers.TryGetValue(questionId, out var recordedAnswers))
+                    recorded = recordedAnswers.ToDictionary(a => a.PlayerId, a => a.Correct);
                 var facts = results.Select(r => (LiveFact)new JudgeFact(
                     questionId, r.PlayerId,
                     recorded.GetValueOrDefault(r.PlayerId) ? Verdict.CORRECT : Verdict.INCORRECT,

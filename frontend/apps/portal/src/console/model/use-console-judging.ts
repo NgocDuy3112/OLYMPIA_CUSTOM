@@ -8,6 +8,7 @@ const EMPTY_PICKS: ReadonlySet<string> = new Set()
 
 export interface ConsoleJudging extends JudgingIds {
     rows: QuestionAnswerRow[]
+    keywordRows: QuestionAnswerRow[]
     overrides: Record<string, boolean>
     selectedQ: string | null
     setSelectedQ: (questionId: string | null) => void
@@ -43,6 +44,7 @@ export function useConsoleJudging(input: JudgingScopeInput): ConsoleJudging {
 
     const railQ = ids.judgingId ?? ids.resolvingId
     const rows = input.answerRows.filter((row) => row.questionId === railQ)
+    const keywordRows = input.answerRows.filter((row) => row.questionId === ids.keywordQuestionId)
 
     let selectedIds: ReadonlySet<string> = EMPTY_PICKS
     if (picked.qid === ids.judgingId) selectedIds = picked.ids
@@ -91,6 +93,7 @@ export function useConsoleJudging(input: JudgingScopeInput): ConsoleJudging {
     return {
         ...ids,
         rows,
+        keywordRows,
         overrides,
         selectedQ,
         setSelectedQ,

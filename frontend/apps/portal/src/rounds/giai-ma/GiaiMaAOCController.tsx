@@ -47,15 +47,16 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
     const keywordOpen = (ctx.keywordRemaining ?? 0) > 0
     let startKeywordWindow: (() => void) | undefined = undefined
     if (keywordQ && !keywordOpen) startKeywordWindow = () => ctx.send({ kind: "giai-ma.startKeywordWindow" })
+    const hintsLocked = consoleGiaiMa?.hintsLocked === true
     let revealHint: (() => void) | undefined = undefined
-    if (hintTarget) {
+    if (hintTarget && !hintsLocked) {
         const targetId = hintTarget
         revealHint = () => ctx.send({ kind: "reveal.answer", questionId: targetId })
     }
     let revealKeyword: (() => void) | undefined = undefined
     if (keywordQ) revealKeyword = () => ctx.send({ kind: "reveal.answer", questionId: keywordQ._id })
     let lockHints: (() => void) | undefined = undefined
-    if (openHintId) lockHints = () => ctx.send({ kind: "giai-ma.lockHints" })
+    if (openHintId && !hintsLocked) lockHints = () => ctx.send({ kind: "giai-ma.lockHints" })
     let timerRemaining: number | null = null
     if ((ctx.keywordRemaining ?? 0) > 0) timerRemaining = ctx.keywordRemaining
     else if (open[0]?.deadlineAt) timerRemaining = remaining
