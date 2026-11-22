@@ -12,24 +12,22 @@ export type VeDichRiengPickCtx = ScreenCore & {
 
 
 export function VeDichRiengPickAOCController({ ctx }: { ctx: VeDichRiengPickCtx }) {
-    const { consoleVeDich } = ctx
-    const projection = ctx.v.projection
-    const turnPlayer = consoleVeDich?.turnPlayerId ?? null
-    const pendingCount = (projection.board ?? []).filter((c) => c.where === "pending").length
-    const stagingKey = `${turnPlayer ?? "-"}:${pendingCount}:${projection.open.length}`
-    return <VeDichRiengPickBoard key={stagingKey} ctx={ctx} />
-}
-
-function VeDichRiengPickBoard({ ctx }: { ctx: VeDichRiengPickCtx }) {
     const { v, baseCards, flash } = ctx
     const projection = v.projection
     const consoleVeDich = (ctx.v.console ?? null) as VeDichConsole | null
     const turnPlayer = consoleVeDich?.turnPlayerId ?? null
 
 
-    const [chosen, setChosen] = useState<string[]>(
-        () => (projection.board ?? []).filter((c) => c.where === "pending").map((c) => c.questionId),
-    )
+    const pendingIds = (projection.board ?? [])
+        .filter((c) => c.where === "pending")
+        .map((c) => c.questionId)
+    const pendingKey = `${turnPlayer ?? "-"}:${pendingIds.join(",")}`
+    const [chosen, setChosen] = useState<string[]>(pendingIds)
+    const [seenPending, setSeenPending] = useState(pendingKey)
+    if (seenPending !== pendingKey) {
+        setSeenPending(pendingKey)
+        setChosen(pendingIds)
+    }
     const openNow = projection.open[0] ?? null
     const need = 3
     const pickedThisTurn = (consoleVeDich?.turnPicked ?? 0) === need
