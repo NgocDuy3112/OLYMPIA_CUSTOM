@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { pt } from "./geometry"
 import { PlayerAvatar } from "./player-card"
 import { SelfCamControls } from "./cam-controls"
+import { PlayerCamControls } from "./player-cam-controls"
 import type { LobbyData } from "./types"
 
 
@@ -78,6 +79,8 @@ export function Lobby({
                     }
                     let rowRing = ""
                     if (mine) rowRing = "ring-2 ring-sky-500"
+                    const hasControls =
+                        Boolean(row.onToggleAudio) || Boolean(row.onToggleVideo) || Boolean(row.onToggleMic)
                     return (
                         <div
                             key={row.id}
@@ -87,6 +90,17 @@ export function Lobby({
                                 <PlayerAvatar name={row.displayName} className="bg-muted text-muted-foreground">
                                     {video && <LobbyVideo track={video} />}
                                     {mine && <SelfCamControls />}
+                                    {hasControls && !mine && (
+                                        <PlayerCamControls
+                                            playerId={row.id}
+                                            micOn={row.micOn}
+                                            audioMuted={row.audioMuted}
+                                            videoOff={row.videoHidden}
+                                            onToggleMic={row.onToggleMic}
+                                            onToggleAudio={row.onToggleAudio}
+                                            onToggleVideo={row.onToggleVideo}
+                                        />
+                                    )}
                                 </PlayerAvatar>
                                 <div className="flex min-w-0 flex-1 flex-col justify-start gap-[0.3cqw] pt-[0.2cqw] text-center">
                                     <span className="truncate font-display font-semibold leading-none text-foreground" style={{ fontSize: pt(16) }}>

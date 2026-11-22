@@ -130,6 +130,12 @@ export interface LobbyData {
         points: number
         rank: number
         video?: RemoteVideoTrack | null
+        micOn?: boolean
+        audioMuted?: boolean
+        videoHidden?: boolean
+        onToggleAudio?: () => void
+        onToggleVideo?: () => void
+        onToggleMic?: () => void
     }>
     connected: string[]
 }
