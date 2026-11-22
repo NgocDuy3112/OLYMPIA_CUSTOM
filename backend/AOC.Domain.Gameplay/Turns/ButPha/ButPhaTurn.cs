@@ -141,9 +141,7 @@ public static class ButPhaTurn
     private static bool IsLate(ButPhaState state, double atS)
     {
         if (atS < 0) return true;
-        var limit = state.Window.Seconds
-            ?? throw Err("WINDOW_NOT_OPEN", "the answer window has no clock");
-        return atS > limit;
+        return atS > state.Rules.QuestionLimitS;
     }
 
     public static int ButPhaTotal(ButPhaState state, string playerId)

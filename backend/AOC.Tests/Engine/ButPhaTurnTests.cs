@@ -40,6 +40,28 @@ public class ButPhaTurnTests
     }
 
     [Fact]
+    public void Finalize_awards_points_within_the_rule_limit()
+    {
+        var s = ButPhaTurn.StartButPha(Ids, RuleBatches.ButPha);
+
+        var next = ButPhaTurn.FinalizeQuestion(s, [new FinalResult("a", true, 3)]);
+
+        Assert.Equal(60, ButPhaTurn.ButPhaTotal(next, "a"));
+        Assert.True(next.Answers["q1"].Single(a => a.PlayerId == "a").Correct);
+    }
+
+    [Fact]
+    public void Finalize_zeroes_a_late_answer_past_the_rule_limit()
+    {
+        var s = ButPhaTurn.StartButPha(Ids, RuleBatches.ButPha);
+
+        var next = ButPhaTurn.FinalizeQuestion(s, [new FinalResult("a", true, 45)]);
+
+        Assert.Equal(0, ButPhaTurn.ButPhaTotal(next, "a"));
+        Assert.False(next.Answers["q1"].Single(a => a.PlayerId == "a").Correct);
+    }
+
+    [Fact]
     public void Sequencing_RequiresExactlyFourQuestions()
     {
         Assert.Equal("VALIDATION", CodeOf(() => ButPhaTurn.StartButPha(["a"], RuleBatches.ButPha)));

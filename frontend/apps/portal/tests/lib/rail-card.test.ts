@@ -10,12 +10,11 @@ describe("railCardState", () => {
         expect(railScoreClass("wrong")).toContain("muted")
     })
 
-    it("the buzzed seat has a THICK DASHED WHITE outline", () => {
+    it("the buzzed seat has the same THICK WHITE ring as a picked card", () => {
         expect(railCardState({ buzzing: true })).toBe("buzzing")
-        expect(railCardClass("buzzing")).toContain("bg-[#2a2f38]")
-        expect(railCardClass("buzzing")).toContain("outline-4")
-        expect(railCardClass("buzzing")).toContain("outline-dashed")
-        expect(railCardClass("buzzing")).toContain("outline-white")
+        expect(railCardClass("buzzing")).toContain("ring-4")
+        expect(railCardClass("buzzing")).toContain("ring-white")
+        expect(railCardClass("buzzing")).toBe(railCardClass("picked"))
     })
 
     it("locked beats the buzz — the seat is out either way", () => {
@@ -27,6 +26,6 @@ describe("railCardState", () => {
         expect(railCardClass("waiting")).toContain("bg-[#16181e]")
         expect(railCardClass("waiting")).toContain("ring-white/10")
         expect(railCardClass("waiting")).not.toContain("outline-dashed")
-        expect(railCardClass("buzzing")).toContain("bg-[#2a2f38]")
+        expect(railCardClass("buzzing")).toContain("bg-[#3a4150]")
     })
 })

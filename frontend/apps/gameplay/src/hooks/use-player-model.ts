@@ -97,7 +97,8 @@ export function usePlayerModel(matchId: string): PlayerModel {
         pickS2: (questionId: string, idx: number) => setView2({ qid: questionId, idx }),
         answer: {
             busy: answer.isPending,
-            submit: (questionId: string, value: AnswerValue) => answer.mutate({ questionId, value }),
+            submit: (questionId: string, value: AnswerValue) =>
+                answer.mutate({ questionId, value, pressedAt: new Date().toISOString() }),
         },
         keyword: {
             busy: keywordSubmit.isPending,

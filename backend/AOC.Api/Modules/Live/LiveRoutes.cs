@@ -269,11 +269,18 @@ public static class LiveRoutes
             if (!body.TryGetProperty("value", out var value))
                 throw ApiException.BadRequest("body must have required property 'value'");
 
+            DateTimeOffset? pressedAt = null;
+            if (body.TryGetProperty("pressedAt", out var pressedEl)
+                && pressedEl.ValueKind == JsonValueKind.String
+                && DateTimeOffset.TryParse(pressedEl.GetString(), out var parsedPressed))
+                pressedAt = parsedPressed;
+
             var submit = http.RequestServices.GetRequiredService<SubmitService>();
             var result = await submit.SubmitAnswerAsync(new SubmitService.SubmitContext(
                 Guid.Parse(matchId), user.Id, Guid.Parse(questionId), value.Clone(),
                 http.Connection.RemoteIpAddress?.ToString(),
-                http.Request.Headers.UserAgent.ToString()));
+                http.Request.Headers.UserAgent.ToString(),
+                pressedAt));
             return Results.Json(result, JsonApi.Options);
         });
 

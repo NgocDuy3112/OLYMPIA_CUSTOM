@@ -24,7 +24,27 @@ public sealed class SubmitService(
         Guid QuestionId,
         JsonElement Value,
         string? Ip = null,
-        string? UserAgent = null);
+        string? UserAgent = null,
+        DateTimeOffset? PressedAt = null);
+
+    private const int ClampLagMs = 2_000;
+
+    private static string ClampedPressIso(SubmitContext ctx, string serverNowIso)
+    {
+        var serverNow = DateTimeOffset.Parse(serverNowIso);
+        if (ctx.PressedAt is not { } pressed) return serverNowIso;
+        var earliest = serverNow.AddMilliseconds(-ClampLagMs);
+        DateTimeOffset clamped = pressed;
+        if (pressed < earliest) clamped = earliest;
+        if (pressed > serverNow) clamped = serverNow;
+        return clamped.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+    }
+
+    private static int PressedMs(AnswerWindow window, SubmitContext ctx, string serverNowIso)
+    {
+        var pressedIso = ClampedPressIso(ctx, serverNowIso);
+        return window.ElapsedMs(pressedIso);
+    }
 
     public sealed record AnswerResult(bool Drafted = true);
 
@@ -159,7 +179,7 @@ public sealed class SubmitService(
         if (!GiaiMaTurn.CanPlayerAnswer(state, ctx.UserId.ToString(), loaded.Now))
             throw new SubmitError(409, "LOCKED", "you can no longer answer this round");
 
-        return await DraftAsync(loaded, ctx, value, state.HintWindow.ElapsedMs(loaded.Now));
+        return await DraftAsync(loaded, ctx, value, PressedMs(state.HintWindow, ctx, loaded.Now));
     }
 
     private async Task<AnswerResult> SubmitButPhaAsync(Loaded loaded, SubmitContext ctx, SubmittedAnswerValue value)
@@ -175,7 +195,7 @@ public sealed class SubmitService(
             "NO_CLOCK", "the question's clock has not started",
             "the answer window has closed");
 
-        return await DraftAsync(loaded, ctx, value, state.Window.ElapsedMs(loaded.Now));
+        return await DraftAsync(loaded, ctx, value, PressedMs(state.Window, ctx, loaded.Now));
     }
 
     private async Task<AnswerResult> SubmitKhoiDongAsync(Loaded loaded, SubmitContext ctx, SubmittedAnswerValue value)
@@ -197,7 +217,7 @@ public sealed class SubmitService(
             throw new SubmitError(409, "WINDOW_CLOSED",
                 "the clock has run out — the answer window is closed");
 
-        return await DraftAsync(loaded, ctx, value, state.Phase2.Window.ElapsedMs(loaded.Now));
+        return await DraftAsync(loaded, ctx, value, PressedMs(state.Phase2.Window, ctx, loaded.Now));
     }
 
     private async Task<AnswerResult> SubmitVeDichAsync(Loaded loaded, SubmitContext ctx, SubmittedAnswerValue value)
@@ -215,7 +235,7 @@ public sealed class SubmitService(
             "NO_CLOCK", "the clock has not started yet",
             "the answer window for this question has closed");
 
-        return await DraftAsync(loaded, ctx, value, open.Window.ElapsedMs(loaded.Now));
+        return await DraftAsync(loaded, ctx, value, PressedMs(open.Window, ctx, loaded.Now));
     }
 
     public async Task<AnswerResult> SubmitKeywordAsync(SubmitContext ctx)

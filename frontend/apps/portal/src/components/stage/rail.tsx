@@ -67,10 +67,12 @@ export function Rail({ cards, onSelect, onScoreClick, selectHint }: { cards: Car
     return (
         <>
             {cards.map((c) => {
+                const keywordSubmitted = c.badge?.text === "TỪ KHOÁ"
                 const state = railCardState({
                     locked: c.dimmed === true,
                     buzzing: c.buzzing === true,
-                    picked: c.ring === "selected"
+                    picked: c.ring === "selected",
+                    submitted: keywordSubmitted,
                 })
                 let badgeNode: ReactNode = null
                 if (c.badge) {

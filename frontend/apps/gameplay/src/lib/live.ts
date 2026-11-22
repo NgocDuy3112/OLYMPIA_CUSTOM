@@ -243,7 +243,7 @@ function useLiveCommandPost<TInput>(matchId: string, suffix: string) {
 }
 
 export function useLiveAnswer(matchId: string) {
-    return useLiveCommandPost<{ questionId: string; value: AnswerValue }>(matchId, "answers")
+    return useLiveCommandPost<{ questionId: string; value: AnswerValue; pressedAt: string }>(matchId, "answers")
 }
 
 export function useLiveKeyword(matchId: string) {

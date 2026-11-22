@@ -190,4 +190,35 @@ public class SubmitWindowTests
         Assert.Single(codes.Distinct());
         Assert.All(codes, code => Assert.Equal("WINDOW_CLOSED", code));
     }
+
+    [DbFact]
+    public async Task PressedAt_drives_the_recorded_elapsed_time_not_the_server_clock()
+    {
+        var fixture = (await SeedAsync(["but-pha"]))["but-pha"];
+        using var db = AuthTestDb.OpenDb();
+
+        var openedAt = DateTimeOffset.UtcNow.AddSeconds(-5);
+        var live = db.MatchLive.Single(l => l.MatchId == fixture.MatchId);
+        var state = new ButPhaState
+        {
+            QuestionIds = [fixture.QuestionId.ToString()],
+            QuestionRevealedAt = Iso(openedAt.UtcDateTime),
+            Window = AnswerWindow.TypedEveryone(30).OpenFor(Iso(openedAt.UtcDateTime), 30)
+        };
+        live.State = JsonSerializer.SerializeToElement(state, JsonApi.Options);
+        await db.SaveChangesAsync();
+
+        var pressedAt = DateTimeOffset.UtcNow.AddMilliseconds(-1_000);
+        var ctx = new SubmitService.SubmitContext(
+            fixture.MatchId, fixture.UserId, fixture.QuestionId,
+            JsonSerializer.SerializeToElement(
+                new SubmittedAnswerValue.Text("Hà Nội"), JsonApi.Options),
+            PressedAt: pressedAt);
+
+        await fixture.Submit.SubmitAnswerAsync(ctx);
+
+        var stored = db.Answers.Single(a => a.MatchId == fixture.MatchId && a.UserId == fixture.UserId);
+        Assert.NotNull(stored.AnsweredMs);
+        Assert.InRange(stored.AnsweredMs!.Value, 3_500, 4_500);
+    }
 }
