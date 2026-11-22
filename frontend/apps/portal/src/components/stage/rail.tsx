@@ -5,6 +5,7 @@ import { initialsOf, pt } from "@shared/deck/geometry"
 import { railCardClass, railCardState, railScoreClass } from "@shared/deck/rail-card"
 import { TurnIcon } from "@shared/deck/stage"
 import { PlayerCamControls } from "@shared/deck/player-cam-controls"
+import { useScoreFlash, VerdictFlashLayer } from "@shared/deck/verdict-flash"
 
 export interface CardData {
     id: string
@@ -42,8 +43,12 @@ const cardRing = (ring: CardData["ring"]): string => {
     return ""
 }
 
-function CardVideo({ track }: { track: RemoteVideoTrack }) {
-    const holder = useRef<HTMLSpanElement>(null)
+function ScoreVerdict({ points, scoreSize }: { points: number; scoreSize: number }) {
+    const flash = useScoreFlash(points)
+    return <VerdictFlashLayer flash={flash} points={points} size={scoreSize} />
+}
+
+function CardVideo({ track }: { track: RemoteVideoTrack }) {    const holder = useRef<HTMLSpanElement>(null)
     useEffect(() => {
         const box = holder.current
         if (!box) return
@@ -166,7 +171,7 @@ export function Rail({ cards, onSelect, onScoreClick, selectHint }: { cards: Car
                                 />
                             )}
                         </div>
-                        <div className="flex min-w-0 flex-1 flex-col justify-start gap-[0.3cqw] pt-[0.2cqw] text-center">
+                        <div className="relative flex min-w-0 flex-1 flex-col justify-start gap-[0.3cqw] pt-[0.2cqw] text-center">
                             <span className="flex min-w-0 items-center justify-center gap-[0.3cqw] font-display font-semibold leading-none text-foreground" style={{ fontSize: pt(16) }}>
                                 <span className="truncate">{c.name}</span>
                             </span>
@@ -186,6 +191,7 @@ export function Rail({ cards, onSelect, onScoreClick, selectHint }: { cards: Car
                                 </span>
                             )}
                             {statusLine}
+                            <ScoreVerdict points={c.points} scoreSize={scoreSize} />
                         </div>
                     </div>
                 </Tag>

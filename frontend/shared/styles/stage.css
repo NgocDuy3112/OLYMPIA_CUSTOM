@@ -245,13 +245,43 @@
   100% { opacity: 1; transform: translateX(0) scale(1); }
 }
 
+/* A verdict lands on a card: ringed ✔/✖ + its delta, then it hands back. */
+.verdict-flash {
+  animation: verdict-flash-in 250ms cubic-bezier(0.22, 1, 0.36, 1) 1,
+    verdict-flash-out 400ms ease 1100ms 1 forwards;
+}
+@keyframes verdict-flash-in {
+  0% { opacity: 0; transform: scale(0.88); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes verdict-flash-out {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+/* The ring takes the round's colour, so it never argues with the card's tone. */
+.verdict-flash-mark {
+  width: 1.9em;
+  height: 1.9em;
+  color: var(--glow-ink);
+  box-shadow:
+    0 0 0 0.09em var(--glow-ink),
+    0 0 1.2em var(--glow-2);
+  animation: verdict-mark-in 380ms cubic-bezier(0.34, 1.56, 0.64, 1) 1;
+}
+@keyframes verdict-mark-in {
+  0% { transform: scale(0.3) rotate(-18deg); opacity: 0; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .icon-pop,
   .icon-throb,
   .stage-pulse,
   .stage-flash-good,
   .stage-flash-bad,
-  .stage-wash-in {
+  .stage-wash-in,
+  .verdict-flash,
+  .verdict-flash-mark {
     animation: none;
   }
   .stage-wash {

@@ -8,6 +8,12 @@ import { RailAnswerLine } from "./rail-answer"
 import { SelfCamControls } from "./cam-controls"
 import { TurnIcon, type TurnIconKind } from "./turn-icon"
 import type { PlayerView } from "./types"
+import { useScoreFlash, VerdictFlashLayer } from "./verdict-flash"
+
+function ScoreVerdict({ points, scoreSize }: { points: number; scoreSize: number }) {
+    const flash = useScoreFlash(points)
+    return <VerdictFlashLayer flash={flash} points={points} size={scoreSize} />
+}
 
 function SelfVideo({ track }: { track: LocalVideoTrack }) {
     const holder = useRef<HTMLSpanElement>(null)
@@ -25,8 +31,7 @@ function SelfVideo({ track }: { track: LocalVideoTrack }) {
     return <span ref={holder} className="absolute inset-0 overflow-hidden rounded-lg" aria-hidden />
 }
 
-const cardRing = (mine: boolean, activeRun: boolean): string => {
-    if (mine) return "ring-2 ring-sky-500"
+const cardRing = (mine: boolean, activeRun: boolean): string => {    if (mine) return "ring-2 ring-sky-500"
     if (activeRun) return "ring-2 ring-amber-400"
     return ""
 }
@@ -109,7 +114,7 @@ export function Rail({ view, myId, currentQid }: {
                                 {mine && selfCam?.camOn && selfCam.video && <SelfVideo track={selfCam.video} />}
                                 {mine && <SelfCamControls />}
                             </PlayerAvatar>
-                            <div className="flex min-w-0 min-h-0 flex-1 flex-col justify-start gap-[0.25cqw] overflow-hidden pt-[0.2cqw] text-center">
+                            <div className="relative flex min-w-0 min-h-0 flex-1 flex-col justify-start gap-[0.25cqw] overflow-hidden pt-[0.2cqw] text-center">
                                 <span className="flex min-w-0 items-center justify-center gap-[0.3cqw] font-display font-semibold leading-none text-foreground" style={{ fontSize: pt(16) }}>
                                     <span className="truncate">{row.displayName}</span>
                                 </span>
@@ -123,6 +128,7 @@ export function Rail({ view, myId, currentQid }: {
                                     buzzLabel={buzzed ? "Đã bấm chuông" : null}
                                     buzzMs={buzzed ? buzzMs : null}
                                 />
+                                <ScoreVerdict points={row.points} scoreSize={scoreFontSize} />
                             </div>
                         </div>
                     </div>
