@@ -220,6 +220,9 @@ export function useLiveLobby(matchId: string, enabled: boolean) {
 export type LivePlayerCommand =
     | { type: "buzz"; questionId: string }
 
+type LivePlayerCommandPost =
+    | { type: "buzz"; questionId: string; pressedAt: string }
+
 export type AnswerValue = { picked?: string[]; text?: string }
 
 function useLiveCommandPost<TInput>(matchId: string, suffix: string) {
@@ -247,11 +250,12 @@ export function useLiveAnswer(matchId: string) {
 }
 
 export function useLiveKeyword(matchId: string) {
-    return useLiveCommandPost<{ questionId: string; value: { text: string } }>(matchId, "keyword")
+    return useLiveCommandPost<{ questionId: string; value: { text: string }; pressedAt: string }>(
+        matchId, "keyword")
 }
 
 export function useLivePlayerCommand(matchId: string) {
-    return useLiveCommandPost<LivePlayerCommand>(matchId, "commands")
+    return useLiveCommandPost<LivePlayerCommandPost>(matchId, "commands")
 }
 
 export interface TieBreakMedia {

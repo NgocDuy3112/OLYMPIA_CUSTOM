@@ -192,7 +192,8 @@ public sealed class PlayerLiveHub(
                     var result = await submit.SubmitAnswerAsync(new SubmitService.SubmitContext(
                         Guid.Parse(MatchId), user.Id, Guid.Parse(qid.GetString()!), value.Clone(),
                         http.Connection.RemoteIpAddress?.ToString(),
-                        http.Request.Headers.UserAgent.ToString()));
+                        http.Request.Headers.UserAgent.ToString(),
+                        SubmitService.ReadPressedAt(data)));
                     await PushAsync(Protocol.Ack("answer", result, requestId));
                     break;
                 }
@@ -204,21 +205,25 @@ public sealed class PlayerLiveHub(
                     var result = await submit.SubmitKeywordAsync(new SubmitService.SubmitContext(
                         Guid.Parse(MatchId), user.Id, Guid.Parse(qid.GetString()!), value.Clone(),
                         http.Connection.RemoteIpAddress?.ToString(),
-                        http.Request.Headers.UserAgent.ToString()));
+                        http.Request.Headers.UserAgent.ToString(),
+                        SubmitService.ReadPressedAt(data)));
                     await PushAsync(Protocol.Ack("keyword", result, requestId));
                     break;
                 }
                 case "buzz":
                 {
+                    var pressedAt = SubmitService.ReadPressedAt(data);
                     var state = await tieBreak.GetStateAsync(Guid.Parse(MatchId));
                     if (state is { Ended: false })
                     {
-                        var tieResult = await tieBreak.BuzzAsync(Guid.Parse(MatchId), user.Id);
+                        var buzzNow = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+                        var tieResult = await tieBreak.BuzzAsync(Guid.Parse(MatchId), user.Id,
+                            SubmitService.ClampPressed(pressedAt, buzzNow));
                         await PushAsync(Protocol.Ack("buzz", tieResult, requestId));
                         break;
                     }
                     var result = await submit.SubmitVeDichCommandAsync(
-                        Guid.Parse(MatchId), user.Id, "buzz");
+                        Guid.Parse(MatchId), user.Id, "buzz", pressedAt);
                     await PushAsync(Protocol.Ack("buzz", result, requestId));
                     break;
                 }

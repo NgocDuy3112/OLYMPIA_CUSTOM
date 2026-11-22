@@ -84,8 +84,9 @@ public sealed class TieBreakService(
     public Task<TieBreakState> LockBuzzAsync(Guid matchId, int expectedVersion)
         => MutateAsync(matchId, expectedVersion, TieBreakTurn.LockBuzz);
 
-    public Task<TieBreakState> BuzzAsync(Guid matchId, Guid playerId)
-        => MutateAsync(matchId, -1, state => TieBreakTurn.Buzz(state, playerId.ToString(), Now()));
+    public Task<TieBreakState> BuzzAsync(Guid matchId, Guid playerId, string? pressedAt = null)
+        => MutateAsync(matchId, -1,
+            state => TieBreakTurn.Buzz(state, playerId.ToString(), pressedAt ?? Now()));
 
     public Task<TieBreakState> JudgeAsync(Guid matchId, bool correct, int expectedVersion)
         => MutateAsync(matchId, expectedVersion, state => TieBreakTurn.Judge(state, correct));

@@ -29,15 +29,26 @@ public sealed class SubmitService(
 
     private const int ClampLagMs = 2_000;
 
-    private static string ClampedPressIso(SubmitContext ctx, string serverNowIso)
+    public static string ClampPressed(DateTimeOffset? pressed, string serverNowIso)
     {
         var serverNow = DateTimeOffset.Parse(serverNowIso);
-        if (ctx.PressedAt is not { } pressed) return serverNowIso;
+        if (pressed is not { } value) return serverNowIso;
         var earliest = serverNow.AddMilliseconds(-ClampLagMs);
-        DateTimeOffset clamped = pressed;
-        if (pressed < earliest) clamped = earliest;
-        if (pressed > serverNow) clamped = serverNow;
+        DateTimeOffset clamped = value;
+        if (value < earliest) clamped = earliest;
+        if (value > serverNow) clamped = serverNow;
         return clamped.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+    }
+
+    private static string ClampedPressIso(SubmitContext ctx, string serverNowIso)
+        => ClampPressed(ctx.PressedAt, serverNowIso);
+
+    public static DateTimeOffset? ReadPressedAt(JsonElement body)
+    {
+        if (!body.TryGetProperty("pressedAt", out var el)) return null;
+        if (el.ValueKind != JsonValueKind.String) return null;
+        if (!DateTimeOffset.TryParse(el.GetString(), out var parsed)) return null;
+        return parsed;
     }
 
     private static int PressedMs(AnswerWindow window, SubmitContext ctx, string serverNowIso)
@@ -285,9 +296,11 @@ public sealed class SubmitService(
         return new AnswerResult();
     }
 
-    public async Task<object> SubmitVeDichCommandAsync(Guid matchId, Guid userId, string command)
+    public async Task<object> SubmitVeDichCommandAsync(Guid matchId, Guid userId, string command,
+        DateTimeOffset? pressedAt = null)
     {
-        var loaded = await LoadContextAsync(new SubmitContext(matchId, userId, Guid.Empty, default));
+        var loaded = await LoadContextAsync(
+            new SubmitContext(matchId, userId, Guid.Empty, default, PressedAt: pressedAt));
         if (loaded.Live.RoundId != "ve-dich")
             throw new SubmitError(409, "NO_ROUND", $"round {loaded.Live.RoundId} is not ve-dich");
 
@@ -296,7 +309,9 @@ public sealed class SubmitService(
             "buzz" => (LiveAction)new LiveAction.VeDichBuzz(userId.ToString()),
             _ => throw new SubmitError(400, "BAD_COMMAND", "unknown command")
         };
-        var now = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+        var now = ClampedPressIso(
+            new SubmitContext(matchId, userId, Guid.Empty, default, PressedAt: pressedAt),
+            loaded.Now);
 
         var store = new PgLiveStore(db, matchId);
         var applied = await Apply.MutateLive(store, async tx =>

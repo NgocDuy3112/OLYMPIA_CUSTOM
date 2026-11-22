@@ -102,9 +102,18 @@ export function usePlayerModel(matchId: string): PlayerModel {
         },
         keyword: {
             busy: keywordSubmit.isPending,
-            submit: (questionId: string, text: string) => keywordSubmit.mutate({ questionId, value: { text } }),
+            submit: (questionId: string, text: string) =>
+                keywordSubmit.mutate({
+                    questionId,
+                    value: { text },
+                    pressedAt: new Date().toISOString(),
+                }),
         },
-        cmd: { busy: cmd.isPending, run: (action: LivePlayerCommand) => cmd.mutate(action) },
+        cmd: {
+            busy: cmd.isPending,
+            run: (action: LivePlayerCommand) =>
+                cmd.mutate({ ...action, pressedAt: new Date().toISOString() }),
+        },
     })
 
     return {
