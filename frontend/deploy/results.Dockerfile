@@ -7,7 +7,9 @@ RUN npm ci
 COPY . .
 RUN npm run build:results
 
-FROM docker.io/library/nginx:alpine
-COPY deploy/nginx-spa.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/apps/results/dist /usr/share/nginx/html
-EXPOSE 80
+FROM docker.io/library/caddy:2-alpine
+
+COPY --from=build /app/apps/results/dist /srv
+COPY deploy/Caddyfile /etc/caddy/Caddyfile
+
+EXPOSE 8080
