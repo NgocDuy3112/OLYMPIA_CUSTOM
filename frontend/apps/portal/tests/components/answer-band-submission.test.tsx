@@ -24,7 +24,7 @@ describe("AnswerBand — submission feedback", () => {
         )
 
         expect(screen.getByRole("status").textContent).toBe(
-            "Bạn đã nộp đáp án: Hà Nội ở 3.5s"
+            "Bạn đã nộp đáp án: Hà Nội (3.5s)"
         )
     })
 
@@ -71,7 +71,7 @@ describe("AnswerBand — submission feedback", () => {
 
         expect(input.value).toBe("")
         expect(screen.getByRole("status").textContent).toBe(
-            "Bạn đã nộp đáp án: Sài Gòn ở 6.2s"
+            "Bạn đã nộp đáp án: Sài Gòn (6.2s)"
         )
     })
 })

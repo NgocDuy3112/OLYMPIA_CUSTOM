@@ -62,7 +62,7 @@ export function AnswerBand({ question, answerState, mySubmission, disabled, busy
                 style={{ fontSize: pt(11) }}
                 role="status"
             >
-                Bạn đã nộp đáp án: <b>{mySubmission.answer}</b> ở {mySubmission.elapsedS}s
+                Bạn đã nộp đáp án: <b>{mySubmission.answer}</b> ({mySubmission.elapsedS}s)
             </p>
         )
     }

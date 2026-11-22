@@ -290,9 +290,6 @@ interface SelfBroadcast {
     camOn: boolean;
     micOn: boolean;
     deafen: boolean;
-    toggleCam: () => void;
-    toggleMic: () => void;
-    toggleDeafen: () => void;
     setSpeakGate: (allowed: boolean | null) => void;
     setAudioGate: (gate: { allowed: string[] } | null) => void;
 }
@@ -535,34 +532,6 @@ export function useSelfBroadcast(matchId: string): SelfBroadcast {
         };
     }, [room, deafen, audioGate]);
 
-    const toggleCam = () => {
-        if (!room) return;
-        const next = !camOn;
-        void room.localParticipant
-            .setCameraEnabled(next)
-            .then((pub) => {
-                setCamOn(next);
-                const track = pub?.track;
-                if (next && track && track.kind === "video") setVideo(track as LocalVideoTrack);
-                reportOwnState(room, "device_cam", next);
-            })
-            .catch((e: unknown) => setMediaError(mediaErrorOf(e)));
-    };
-
-    const toggleMic = () => {
-        if (!room) return;
-        if (speakGate.current === false) return;
-        const next = !micIntent.current;
-        micIntent.current = next;
-        void room.localParticipant
-            .setMicrophoneEnabled(next)
-            .then(() => {
-                setMicOn(next);
-                reportOwnState(room, "device_mic", next);
-            })
-            .catch((e: unknown) => setMediaError(mediaErrorOf(e)));
-    };
-
     const setSpeakGate = useCallback((allowed: boolean | null) => {
         if (speakGate.current === allowed) return;
         speakGate.current = allowed;
@@ -577,14 +546,6 @@ export function useSelfBroadcast(matchId: string): SelfBroadcast {
         }
     }, []);
 
-    const toggleDeafen = () => {
-        setDeafen((prev) => {
-            const next = !prev;
-            if (room) reportOwnState(room, "device_audio", !next);
-            return next;
-        });
-    };
-
     const setAudioGate = useCallback((gate: { allowed: string[] } | null) => {
         setAudioGateState((prev) => {
             if (prev === gate) return prev;
@@ -592,7 +553,7 @@ export function useSelfBroadcast(matchId: string): SelfBroadcast {
         });
     }, []);
 
-    return { status, error, mediaError, video, camOn, micOn, deafen, toggleCam, toggleMic, toggleDeafen, setSpeakGate, setAudioGate };
+    return { status, error, mediaError, video, camOn, micOn, deafen, setSpeakGate, setAudioGate };
 }
 
 
