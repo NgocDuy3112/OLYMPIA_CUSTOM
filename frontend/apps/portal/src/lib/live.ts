@@ -91,6 +91,8 @@ export interface VeDichConsole {
     assignedToId: string | null
     pendingQuestionId: string | null
     pendingValues?: number[]
+    turnQuestions?: string[]
+    turnValues?: number[]
     turnPicked?: number
     picksConfirmed?: boolean
     powersLeft?: Array<"STAR" | "ASSIGN">

@@ -3,7 +3,7 @@ import { backToLobbyAction } from "@/components/stage/actions"
 import type { LiveAction } from "@/lib/live-actions"
 import type { QuestionAnswerRow, VeDichConsole } from "@/lib/live"
 import type { ScreenCore } from "@/rounds/types"
-import { stripCellsOf } from "@shared/deck/ve-dich-board"
+import { turnChipHint, turnChipsOf } from "@shared/deck/ve-dich-board"
 
 export type VeDichChungCtx = ScreenCore & {
     remaining: number | null
@@ -22,7 +22,14 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
 
     const openNow = projection.open[0] ?? null
     const boardCells = projection.board ?? []
-    const stripCells = stripCellsOf(boardCells)
+    // The strip shows every question of the turn (N picks, up to one per player),
+    // not just the ones still waiting to be opened.
+    const turnChips = turnChipsOf({
+        turnQuestions: consoleVeDich?.turnQuestions ?? null,
+        turnValues: consoleVeDich?.turnValues ?? null,
+        board: boardCells,
+        openId: openNow?.questionId ?? null,
+    })
     const revealed = consoleVeDich?.revealed ?? false
     const markedIds = () => {
         if (ctx.selectedIds.size > 0) return [...ctx.selectedIds]
@@ -64,9 +71,13 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
 
     const unjudged = rows.some((row) => row.verdict === null)
     // The controller opens any staged question at will — there is no "Câu tiếp".
-    // Switching away from an open question is refused until its answers are
-    // all judged, or the plays of the going-away question would be lost.
-    let canSwitch = !openNow || !unjudged
+    // Leaving an open question is refused while it may still be costing someone
+    // plays: a running clock has contestants who have not submitted yet (they
+    // are absent from `rows`), and anyone who did submit must be graded first.
+    const submitted = rows.length > 0
+    const settled = submitted && !unjudged
+    const untouched = !submitted && !counting && !consoleVeDich?.clockStarted
+    const canSwitch = !openNow || settled || untouched
 
     // The console only lights a "selected" card while a question is being
     // judged, and the chung screen never is — so stamp the ticked card's ring
@@ -107,20 +118,23 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
                 right={
                     <span className="flex items-center gap-[1.2cqw]">
                         <QuestionChips
-                            chips={stripCells.map((cell) => {
-                                // The open cell always works (it only re-reveals);
-                                // other staged cells wait for the open one to be judged.
-                                const isOpen = cell.questionId === openNow?.questionId
+                            chips={turnChips.map((chip) => {
+                                const isOpen = chip.where === "open"
                                 return {
-                                    id: cell.questionId,
-                                    label: String(cell.value),
-                                    active: cell.where === "open",
-                                    clickable: (isOpen || canSwitch) && !revealed,
+                                    id: chip.questionId,
+                                    label: String(chip.value),
+                                    active: isOpen,
+                                    // The open chip re-reveals; the others switch (guarded).
+                                    clickable: isOpen ? !revealed : canSwitch,
+                                    title: turnChipHint(chip.where, chip.value),
                                 }
                             })}
                             onSelect={(id: string) => {
                                 const actions: LiveAction[] = []
                                 if (openNow === null || id !== openNow.questionId) {
+                                    // Moving on: close the open question first, or the
+                                    // engine refuses (a revealed/clocked one is locked).
+                                    if (openNow !== null) actions.push({ kind: "ve-dich.closeQuestion" })
                                     actions.push({ kind: "ve-dich.openPending", questionId: id })
                                 }
                                 if (!revealed) actions.push({ kind: "ve-dich.reveal" })

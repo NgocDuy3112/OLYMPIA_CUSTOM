@@ -5,7 +5,7 @@ import type { LiveAction } from "@/lib/live-actions"
 import type { VeDichConsole } from "@/lib/live"
 import type { ScreenCore } from "@/rounds/types"
 import { COPY } from "@shared/deck/copy"
-import { stripCellsOf } from "@shared/deck/ve-dich-board"
+import { turnChipHint, turnChipsOf } from "@shared/deck/ve-dich-board"
 import { formatDurationMs, timerRemainingOf } from "@shared/lib/clock"
 
 export type VeDichRiengCtx = ScreenCore & {
@@ -24,7 +24,13 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
 
     const openNow = projection.open[0] ?? null
     const boardCells = projection.board ?? []
-    const stripCells = stripCellsOf(boardCells)
+    // The strip keeps all three of the turn's questions visible.
+    const turnChips = turnChipsOf({
+        turnQuestions: consoleVeDich?.turnQuestions ?? null,
+        turnValues: consoleVeDich?.turnValues ?? null,
+        board: boardCells,
+        openId: openNow?.questionId ?? null,
+    })
     const revealed = consoleVeDich?.revealed ?? false
     const qid = openNow ? openNow.questionId : ""
     let needsVerdict = true
@@ -180,12 +186,16 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
                 right={
                     <span className="flex items-center gap-[1.2cqw]">
                         <QuestionChips
-                            chips={stripCells.map((cell) => ({
-                                id: cell.questionId,
-                                label: String(cell.value),
-                                active: cell.where === "open",
-                                clickable: !revealed,
-                            }))}
+                            chips={turnChips.map((chip) => {
+                                const isOpen = chip.where === "open"
+                                return {
+                                    id: chip.questionId,
+                                    label: String(chip.value),
+                                    active: isOpen,
+                                    clickable: !revealed,
+                                    title: turnChipHint(chip.where, chip.value),
+                                }
+                            })}
                             onSelect={(id: string) => {
                                 const actions: LiveAction[] = []
                                 if (openNow === null) {

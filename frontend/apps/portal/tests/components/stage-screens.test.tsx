@@ -1173,6 +1173,61 @@ it("offers no Hết lượt in the chung phase — and strip buttons carry no to
         expectButtonsInOrder(["Chấm điểm", "Về sảnh"])
     })
 
+    it("keeps every question of the turn on the strip after switching", () => {
+        renderRound(
+            "ve-dich",
+            { rows: [answerRow("u1", "CORRECT")] },
+            {
+                open: [{ questionId: "q1", deadlineAt: null, question: null }],
+                board: [
+                    { questionId: "q1", value: 20, where: "open" },
+                    { questionId: "q2", value: 20, where: "pending" },
+                    { questionId: "q3", value: 30, where: "taken" },
+                    { questionId: "q4", value: 30, where: "taken" },
+                ],
+            },
+            veDichMc({
+                phase: 1,
+                revealed: true,
+                turnQuestions: ["q1", "q2", "q3", "q4"],
+                turnValues: [20, 20, 30, 30],
+            }),
+        )
+
+        // Chung may stage one question per player — up to four.
+        expect(screen.getAllByTitle(/^Câu \d+ đang mở$/)).toHaveLength(1)
+        const chips = document.querySelectorAll('button[title^="Mở lại câu"], button[title^="Mở câu "]')
+        expect(chips.length).toBe(3)
+    })
+
+    it("chips are all the same width", () => {
+        renderRound(
+            "ve-dich",
+            { rows: [answerRow("u1", "CORRECT")] },
+            {
+                open: [{ questionId: "q1", deadlineAt: null, question: null }],
+                board: [
+                    { questionId: "q1", value: 20, where: "open" },
+                    { questionId: "q2", value: 30, where: "pending" },
+                ],
+            },
+            veDichMc({
+                phase: 1,
+                revealed: true,
+                turnQuestions: ["q1", "q2"],
+                turnValues: [20, 30],
+            }),
+        )
+
+        const chips = Array.from(document.querySelectorAll("button"))
+            .filter((el) => el.className.includes("h-[4.43cqw]"))
+        expect(chips).toHaveLength(2)
+        for (const chip of chips) {
+            expect(chip.className).toContain("w-[7cqw]")
+            expect(chip.className).not.toContain("min-w-[7cqw]")
+        }
+    })
+
     it("switches to another staged question once the open one is fully judged", async () => {
         const user = userEvent.setup()
         const f = renderRound(
@@ -1190,8 +1245,31 @@ it("offers no Hết lượt in the chung phase — and strip buttons carry no to
 
         await user.click(screen.getByRole("button", { name: /^30$/ }))
         expect(f.sendChain).toHaveBeenCalledWith([
+            { kind: "ve-dich.closeQuestion" },
             { kind: "ve-dich.openPending", questionId: "q2" },
             { kind: "ve-dich.reveal" },
+        ])
+    })
+
+    it("chips stay clickable after the open question was revealed", async () => {
+        const user = userEvent.setup()
+        const f = renderRound(
+            "ve-dich",
+            { sendChain: vi.fn(), rows: [answerRow("u1", "CORRECT")] },
+            {
+                open: [openQ],
+                board: [
+                    { questionId: "q1", value: 20, where: "open" },
+                    { questionId: "q2", value: 30, where: "pending" },
+                ],
+            },
+            veDichMc({ phase: 1, revealed: true }),
+        )
+
+        await user.click(screen.getByRole("button", { name: /^30$/ }))
+        expect(f.sendChain).toHaveBeenCalledWith([
+            { kind: "ve-dich.closeQuestion" },
+            { kind: "ve-dich.openPending", questionId: "q2" },
         ])
     })
 
@@ -1214,6 +1292,50 @@ it("offers no Hết lượt in the chung phase — and strip buttons carry no to
         expect(other).toHaveAttribute("aria-disabled", "true")
         await user.click(other)
         expect(f.sendChain).not.toHaveBeenCalled()
+    })
+
+    it("refuses to switch away while the clock runs and nobody has answered yet", async () => {
+        const user = userEvent.setup()
+        const f = renderRound(
+            "ve-dich",
+            { sendChain: vi.fn(), rows: [] },
+            {
+                open: [{ questionId: "q1", deadlineAt: "2026-01-01T00:00:20.000Z", question: null }],
+                board: [
+                    { questionId: "q1", value: 20, where: "open" },
+                    { questionId: "q2", value: 30, where: "pending" },
+                ],
+            },
+            veDichMc({ phase: 1, revealed: true, clockStarted: true }),
+        )
+
+        // Contestants are still typing: their answers are not in `rows` yet.
+        const other = screen.getByRole("button", { name: /^30$/ })
+        expect(other).toHaveAttribute("aria-disabled", "true")
+        await user.click(other)
+        expect(f.sendChain).not.toHaveBeenCalled()
+    })
+
+    it("switches away from an open question nobody touched — before its clock", async () => {
+        const user = userEvent.setup()
+        const f = renderRound(
+            "ve-dich",
+            { sendChain: vi.fn(), rows: [] },
+            {
+                open: [openQ],
+                board: [
+                    { questionId: "q1", value: 20, where: "open" },
+                    { questionId: "q2", value: 30, where: "pending" },
+                ],
+            },
+            veDichMc({ phase: 1, revealed: true, clockStarted: false }),
+        )
+
+        await user.click(screen.getByRole("button", { name: /^30$/ }))
+        expect(f.sendChain).toHaveBeenCalledWith([
+            { kind: "ve-dich.closeQuestion" },
+            { kind: "ve-dich.openPending", questionId: "q2" },
+        ])
     })
 })
 
