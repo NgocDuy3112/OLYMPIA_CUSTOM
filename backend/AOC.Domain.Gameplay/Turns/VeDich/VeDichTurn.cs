@@ -211,7 +211,8 @@ public static class VeDichTurn
                 Question = question,
                 Answerer = "",
                 Power = null,
-                Window = AnswerWindow.OralCurrentTurn(""),
+                Window = AnswerWindow.TypedEveryone(
+                    RoundRules.VeDichClockSeconds(state.Rules, question.Value) ?? 30),
                 Revealed = false
             }
         };
@@ -268,7 +269,8 @@ public static class VeDichTurn
                 Question = next,
                 Answerer = "",
                 Power = null,
-                Window = AnswerWindow.OralCurrentTurn(""),
+                Window = AnswerWindow.TypedEveryone(
+                    RoundRules.VeDichClockSeconds(state.Rules, next.Value) ?? 30),
                 Revealed = false
             }
         };

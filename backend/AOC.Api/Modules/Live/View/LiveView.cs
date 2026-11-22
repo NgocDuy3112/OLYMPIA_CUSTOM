@@ -122,7 +122,9 @@ public static partial class LiveView
         return (input.Questions ?? []).FirstOrDefault(q => q.Id == questionId);
     }
 
-    internal static Dictionary<string, object?>? MySubmissionOf(
+    internal sealed record SubmissionEcho(string Answer, double ElapsedS);
+
+    internal static SubmissionEcho? MySubmissionOf(
         List<SubmittedAnswerRow> submitted, string? questionId, MatchQuestion? question)
     {
         if (questionId is null) return null;
@@ -133,11 +135,7 @@ public static partial class LiveView
         if (answer is null) return null;
         var elapsedS = 0.0;
         if (row.AnsweredMs is { } ms) elapsedS = ms / 1000.0;
-        return new Dictionary<string, object?>
-        {
-            ["answer"] = answer,
-            ["elapsedS"] = Math.Round(elapsedS, 1)
-        };
+        return new SubmissionEcho(answer, Math.Round(elapsedS, 1));
     }
 
     private static Dictionary<string, string> VerdictsOf(List<SubmittedAnswerRow> submitted)

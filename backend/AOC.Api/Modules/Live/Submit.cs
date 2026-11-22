@@ -242,7 +242,7 @@ public sealed class SubmitService(
         var open = state.Open;
         if (open is null || open.Question.Id != ctx.QuestionId.ToString())
             throw new SubmitError(409, "NOT_OPEN", "that question is not open");
-        AssertWindow(open.Window, open.Answerer, loaded.Now,
+        AssertWindow(open.Window, ctx.UserId.ToString(), loaded.Now,
             "NO_CLOCK", "the clock has not started yet",
             "the answer window for this question has closed");
 

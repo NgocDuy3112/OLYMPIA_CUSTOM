@@ -66,6 +66,12 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
     let timerRemaining: number | null = null
     if (openNow?.deadlineAt) timerRemaining = remaining
 
+    const unjudged = rows.some((row) => row.verdict === null)
+    let nextQuestion: (() => void) | undefined = undefined
+    if (openNow && !unjudged) {
+        nextQuestion = () => ctx.send({ kind: "ve-dich.nextQuestion" })
+    }
+
     return (
         <ConsoleStage
             rail={<Rail cards={baseCards} onSelect={ctx.toggleSelect} onScoreClick={ctx.openRegrade} />}
@@ -81,6 +87,10 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
                 {
                     label: "Chấm điểm",
                     onClick: gradeClick,
+                },
+                {
+                    label: "Câu tiếp",
+                    onClick: nextQuestion,
                 },
                 backToLobbyAction(ctx.backToLobby),
             ]}

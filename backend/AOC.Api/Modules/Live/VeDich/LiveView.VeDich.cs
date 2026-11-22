@@ -46,6 +46,27 @@ public static partial class LiveView
         return false;
     }
 
+    internal sealed record AudioGate(List<string> Allowed);
+
+    internal sealed record MediaPolicy(
+        string Mode, string? TurnPlayerId, string? AnswererId,
+        string? AssignedToId, string? BuzzerId, List<string> Allowed);
+
+    private static bool CanAnswerOf(VeDichState state, OpenQuestion? open, string userId)
+    {
+        if (open is null) return false;
+        if (open.Window.Mode != AnswerMode.Typed) return false;
+        if (!open.Window.HasStarted) return false;
+        if (open.Window.Locked) return false;
+
+        if (open.Window.Eligibility == AnswerEligibility.Everyone) return true;
+        if (open.Window.Eligibility == AnswerEligibility.CurrentTurn)
+            return open.Window.TurnPlayerId == userId;
+        if (open.Window.Eligibility == AnswerEligibility.Pair)
+            return open.Window.PairA == userId || open.Window.PairB == userId;
+        return false;
+    }
+
     private static string? SelectedPlayerOf(
         VeDichState state, OpenQuestion? open, string? turnPlayerId)
     {
@@ -125,8 +146,8 @@ public static partial class LiveView
             })
             .ToList();
 
-        Dictionary<string, object?>? audioGate = null;
-        Dictionary<string, object?>? mediaPolicy = null;
+        AudioGate? audioGate = null;
+        MediaPolicy? mediaPolicy = null;
         var allowedIds = new List<string>();
         if (state.Phase == 2 && open is not null)
         {
@@ -138,7 +159,7 @@ public static partial class LiveView
                 .Where(id => id.Length > 0)
                 .Distinct()
                 .ToList();
-            audioGate = new Dictionary<string, object?> { ["allowed"] = allowedIds };
+            audioGate = new AudioGate(allowedIds);
         }
 
         var turnPlayerId = state.TurnIndex < state.Players.Count ? state.Players[state.TurnIndex].Id : null;
@@ -148,16 +169,8 @@ public static partial class LiveView
             if (open is null) mode = "all";
             else if (open.Window.Eligibility == AnswerEligibility.Pair) mode = "assign";
 
-            var policy = new Dictionary<string, object?>
-            {
-                ["mode"] = mode,
-                ["turnPlayerId"] = turnPlayerId,
-                ["answererId"] = open?.Answerer,
-                ["assignedToId"] = AssignedToId(open),
-                ["buzzerId"] = open?.Window.Buzzer,
-                ["allowed"] = allowedIds
-            };
-            mediaPolicy = policy;
+            mediaPolicy = new MediaPolicy(mode, turnPlayerId, open?.Answerer,
+                AssignedToId(open), open?.Window.Buzzer, allowedIds);
         }
 
         var isMyTurn = !state.Ended && open is null
@@ -171,8 +184,7 @@ public static partial class LiveView
             ["isMyTurn"] = isMyTurn,
             ["pendingPicks"] = state.PendingPicks.Select(q => q.Id).ToList(),
             ["isAnswerer"] = open?.Answerer == input.UserId,
-            ["canAnswer"] = open is not null && open.Window.Mode == AnswerMode.Oral
-                && (state.Phase == 1 || open.Answerer == input.UserId),
+            ["canAnswer"] = CanAnswerOf(state, open, input.UserId),
             ["canBuzz"] = CanBuzz(open, input.UserId, input.Now),
             ["power"] = open?.Power,
             ["buzzer"] = open?.Window.Buzzer,
