@@ -1226,6 +1226,9 @@ it("offers no Hết lượt in the chung phase — and strip buttons carry no to
             expect(chip.className).toContain("w-[7cqw]")
             expect(chip.className).not.toContain("min-w-[7cqw]")
         }
+        // Only the live question breathes.
+        const live = chips.filter((chip) => chip.className.includes("stage-pulse"))
+        expect(live).toHaveLength(1)
     })
 
     it("switches to another staged question once the open one is fully judged", async () => {
