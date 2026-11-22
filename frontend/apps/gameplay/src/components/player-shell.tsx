@@ -27,9 +27,9 @@ function LinkBanner({ status, onRetry }: { status: Extract<StreamStatus, "reconn
     }
     return (
         <StageShell>
-            <Gate title="Đang nối lại" body="Mất kết nối với sân khấu — đang thử lại. Điểm và câu trả lời vẫn được giữ trên máy chủ.">
+            <Gate title="Đang kết nối lại" body="Mất kết nối với sân khấu — đang thử lại.">
                 <button type="button" onClick={onRetry} className="rounded-lg bg-primary px-4 py-2 font-sans text-sm font-semibold text-primary-foreground">
-                    Thử lại ngay
+                    Thử lại
                 </button>
             </Gate>
         </StageShell>
@@ -39,9 +39,6 @@ function LinkBanner({ status, onRetry }: { status: Extract<StreamStatus, "reconn
 export function PlayerShell({ matchId }: { matchId: string }) {
     const model = usePlayerModel(matchId)
 
-    // Guard only while a round is actually running: the lobby and the closing
-    // screens are safe to leave, and warning there would train players to
-    // ignore the prompt.
     const roundRunning = model.v !== undefined && !isWaitingStage(model.v.stage)
     useExitGuard(roundRunning, EXIT_WARNING)
 

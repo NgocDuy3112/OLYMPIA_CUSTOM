@@ -1,0 +1,121 @@
+services:
+  postgres:
+    container_name: aoc-postgresql
+    image: docker.io/library/postgres:18-trixie
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - aoc-postgresql:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  
+  redis:
+    container_name: aoc-redis
+    image: docker.io/library/redis:7-alpine
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    volumes:
+      - aoc-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    container_name: aoc-backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    env_file:
+      - ./configs/.env
+    environment:
+      POSTGRES_HOST: postgres
+      LIVEKIT_INTERNAL_URL: http://livekit:7880
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  livekit:
+    container_name: aoc-livekit
+    image: docker.io/livekit/livekit-server:v1.13.11
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    env_file:
+      - ./configs/.env
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./scripts/livekit/run-livekit.sh:/usr/local/bin/run-livekit.sh:ro
+    entrypoint: ["/bin/sh", "/usr/local/bin/run-livekit.sh"]
+    ports:
+      - "7880:7880"
+      - "7881:7881/tcp"
+      - "7882:7882/udp"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "7880"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  backup:
+    container_name: aoc-backup
+    build:
+      context: ./scripts/backup
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    env_file:
+      - ./configs/.env
+    environment:
+      POSTGRES_HOST: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  aoc-postgresql:
+    external: true
+  aoc-redis:
+    external: true

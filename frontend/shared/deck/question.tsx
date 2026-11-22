@@ -84,7 +84,7 @@ export function KeywordLengthBanner({ length, kind, code, onClick }: { length: n
         <button
             type="button"
             onClick={onClick}
-            title={onClick ? "Hiện đáp án từ khoá" : undefined}
+            title={onClick ? "HIỆN TRẢ LỜI từ khoá" : undefined}
             className="flex h-31.25 shrink-0 items-center justify-center gap-[1.5cqw] rounded-2xl bg-card px-[2cqw] shadow-md ring-1 ring-border transition hover:ring-primary/60"
         >
             {code !== null && code !== undefined && code !== "" ? (

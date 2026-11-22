@@ -82,11 +82,11 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
                     onClick: lockHints,
                 },
                 {
-                    label: "Hiện đáp án gợi ý",
+                    label: "HIỆN TRẢ LỜI gợi ý",
                     onClick: revealHint,
                 },
                 {
-                    label: "Hiện đáp án từ khoá",
+                    label: "HIỆN TRẢ LỜI từ khoá",
                     onClick: revealKeyword,
                 },
                 backToLobbyAction(ctx.backToLobby),

@@ -88,10 +88,6 @@ export function VeDichRiengPickAOCController({ ctx }: { ctx: VeDichRiengPickCtx 
                     label: "Chọn lại",
                     onClick: clearPicks,
                 },
-                {
-                    label: "Sang lượt",
-                    onClick: () => ctx.send({ kind: "ve-dich.advanceTurn" }),
-                },
                 backToLobbyAction(ctx.backToLobby),
             ]}
             flash={flash}
