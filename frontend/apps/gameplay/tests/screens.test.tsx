@@ -234,10 +234,49 @@ describe("player screens render from a plain fixture", () => {
         expect(getByText("Về đích")).toBeTruthy()
     })
 
+    it("về đích · câu hỏi chung — the strip sits in the header's right slot, beside the clock", () => {
+        const v = view({
+            roundId: "ve-dich",
+            stage: "phase1",
+            open: [openQ],
+            board: [
+                { questionId: "q1", value: 20, where: "open" },
+                { questionId: "q2", value: 30, where: "pending" },
+            ],
+        })
+        const { container } = render(<VeDichChungAOCPlayer ctx={ctx({ v })} />)
+
+        // No mid slot: the strip no longer stretches across the middle.
+        expect(container.querySelector(".flex-1.items-start.justify-center")).toBeNull()
+        const right = container.querySelector(".flex.min-w-0.items-start.gap-\\[1\\.6cqw\\]")
+        expect(right).not.toBeNull()
+        expect(right?.textContent).toContain("20")
+        expect(right?.textContent).toContain("30")
+    })
+
     it("về đích · lượt cá nhân — the buzz button is this player's", () => {
         const v = view({ roundId: "ve-dich", stage: "phase2", open: [openQ], me: { canBuzz: true, buzzWindowOpen: true, pickedTiles: [], hintVerdicts: {} } as PlayerView["me"] })
         const { getAllByText } = render(<VeDichRiengAOCPlayer ctx={ctx({ v })} />)
         expect(getAllByText("Bấm chuông").length).toBeGreaterThan(0)
+    })
+
+    it("về đích · lượt cá nhân — the strip sits in the header's right slot too", () => {
+        const v = view({
+            roundId: "ve-dich",
+            stage: "phase2",
+            open: [openQ],
+            board: [
+                { questionId: "q1", value: 40, where: "open" },
+                { questionId: "q2", value: 50, where: "pending" },
+            ],
+        })
+        const { container } = render(<VeDichRiengAOCPlayer ctx={ctx({ v })} />)
+
+        expect(container.querySelector(".flex-1.items-start.justify-center")).toBeNull()
+        const right = container.querySelector(".flex.min-w-0.items-start.gap-\\[1\\.6cqw\\]")
+        expect(right).not.toBeNull()
+        expect(right?.textContent).toContain("40")
+        expect(right?.textContent).toContain("50")
     })
 
     it("về đích · the board — a picker with the fixed bands", () => {

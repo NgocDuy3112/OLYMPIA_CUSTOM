@@ -68,8 +68,12 @@ export function VeDichRiengAOCPlayer({ ctx }: { ctx: VeDichRiengPlayerCtx }) {
             <QuestionCard
                 round="Về đích"
                 mode="Lượt cá nhân"
-                mid={<VeDichStripCells cells={stripCellsOf(v.board)} />}
-                right={<Timer remaining={timerRemaining} />}
+                right={
+                    <span className="flex items-center gap-[1.2cqw]">
+                        <VeDichStripCells cells={stripCellsOf(v.board)} />
+                        <Timer remaining={timerRemaining} />
+                    </span>
+                }
                 question={openQ?.question?.questionText ?? null}
                 media={openQ?.question?.media ?? null}
                 face={faceSlot}

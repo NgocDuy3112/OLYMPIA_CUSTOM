@@ -89,3 +89,37 @@ describe("ve-dich screens survive an empty open[]", () => {
         expect(screen.getByLabelText("Câu trả lời của bạn")).toBeInTheDocument()
     })
 })
+
+/**
+ * Regression: after the controller confirms the round's picks, the console
+ * moves to the chung screen — but the players stayed on the pick board until a
+ * chip happened to open a question.
+ */
+describe("ve-dich dispatch follows picksConfirmed, not just open[]", () => {
+    it("phase 1 with confirmed picks leaves the pick board even before a chip is clicked", () => {
+        const confirmed = ctx({
+            v: view({
+                open: [],
+                board: [{ questionId: "q1", value: 20, where: "pending" }],
+                console: { picksConfirmed: true },
+            }),
+        })
+        render(<>{veDichAOC.render(confirmed)}</>)
+        // The pick board is gone — its grid is what the pick screen paints.
+        expect(screen.queryByTitle("Câu 20 điểm đã dùng")).toBeNull()
+        expect(document.querySelector('[style*="grid-template-columns"]')).toBeNull()
+        expect(screen.getByText("Lượt chung")).toBeInTheDocument()
+    })
+
+    it("phase 1 without confirmed picks still shows the pick board", () => {
+        const picking = ctx({
+            v: view({
+                open: [],
+                board: [{ questionId: "q1", value: 20, where: "free" }],
+                console: { picksConfirmed: false },
+            }),
+        })
+        render(<>{veDichAOC.render(picking)}</>)
+        expect(screen.getByTitle("Câu 20 điểm còn trống")).toBeInTheDocument()
+    })
+})

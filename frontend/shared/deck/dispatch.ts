@@ -5,7 +5,7 @@ export type PlayerScreen =
     | "lobby"   
     | LayoutKey 
 
-export function playerScreenOf(view: Pick<PlayerView, "roundId" | "stage" | "open">): PlayerScreen {
+export function playerScreenOf(view: Pick<PlayerView, "roundId" | "stage" | "open" | "console">): PlayerScreen {
     const { roundId, stage, open } = view
 
     if (!isKnownRound(roundId)) return "lobby" 
@@ -20,8 +20,13 @@ export function playerScreenOf(view: Pick<PlayerView, "roundId" | "stage" | "ope
         case "but-pha":
             return "but-pha"
         default: // ve-dich
-            if (open.length === 0) return "ve-dich-pick"
-            if (stage === "phase2") return "ve-dich-rieng"
-            return "ve-dich-chung"
+            if (open.length > 0) {
+                if (stage === "phase2") return "ve-dich-rieng"
+                return "ve-dich-chung"
+            }
+            // The controller confirmed the round's picks: the chung board still
+            // waits for a chip, but everyone must already be on the play screen.
+            if (view.console?.picksConfirmed === true) return "ve-dich-chung"
+            return "ve-dich-pick"
     }
 }
