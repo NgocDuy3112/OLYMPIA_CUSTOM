@@ -5,7 +5,7 @@ export type PlayerScreen =
     | "lobby"   
     | LayoutKey 
 
-export function playerScreenOf(view: Pick<PlayerView, "roundId" | "stage" | "open" | "console">): PlayerScreen {
+export function playerScreenOf(view: Pick<PlayerView, "roundId" | "stage" | "open" | "console" | "board">): PlayerScreen {
     const { roundId, stage, open } = view
 
     if (!isKnownRound(roundId)) return "lobby" 
@@ -27,6 +27,8 @@ export function playerScreenOf(view: Pick<PlayerView, "roundId" | "stage" | "ope
             // The controller confirmed the round's picks: the chung board still
             // waits for a chip, but everyone must already be on the play screen.
             if (view.console?.picksConfirmed === true) return "ve-dich-chung"
+            // Older frames carry no `console`; the staged picks do the same job.
+            if (stage !== "phase2" && (view.board ?? []).some((cell) => cell.where === "pending")) return "ve-dich-chung"
             return "ve-dich-pick"
     }
 }
