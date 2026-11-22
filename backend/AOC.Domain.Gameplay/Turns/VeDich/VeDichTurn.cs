@@ -155,7 +155,6 @@ public static class VeDichTurn
 
     public static VeDichState ConfirmPicks(VeDichState state)
     {
-        if (state.Phase != 2) throw Err("WRONG_PHASE", "confirmPicks only applies in Phase 2");
         if (state.Open is not null) throw Err("ALREADY_OPEN", "a question is already open");
         if (state.PendingPicks.Count == 0) throw Err("NOTHING_PICKED", "pick the questions first");
         return state with { PicksConfirmed = true };
@@ -185,7 +184,7 @@ public static class VeDichTurn
         {
             Remaining = pool.Where(q => !questionIds.Contains(q.Id)).ToList(),
             PendingPicks = picks,
-            PicksConfirmed = picks.Count > 0
+            PicksConfirmed = false
         };
     }
 
@@ -285,7 +284,8 @@ public static class VeDichTurn
         return state with
         {
             Remaining = state.Remaining.Concat(state.PendingPicks).ToList(),
-            PendingPicks = []
+            PendingPicks = [],
+            PicksConfirmed = false
         };
     }
 

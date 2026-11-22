@@ -27,3 +27,4 @@ export type { PlayerCore, PlayerCtx } from "./types"
 
 export { HintBars } from "./hint-bars"
 export { ValueCells } from "./value-cells"
+export { VeDichPickBoard, type PickBoardCell } from "./ve-dich-pick-board"

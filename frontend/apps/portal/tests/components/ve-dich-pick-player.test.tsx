@@ -51,8 +51,8 @@ describe("VeDichChungPickPlayer — staged picks", () => {
         render(<VeDichChungPickPlayer ctx={ctx(view())} />)
 
         const chips = screen.getAllByRole("button").filter((el) => {
-            const label = el.textContent ?? ""
-            return label === "20" || label === "30"
+            const title = el.getAttribute("title") ?? ""
+            return title.startsWith("Đã chọn câu ")
         })
         const values = chips.map((el) => el.textContent)
         expect(values.filter((v) => v === "20")).toHaveLength(1)

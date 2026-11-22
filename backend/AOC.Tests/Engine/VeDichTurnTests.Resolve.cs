@@ -155,7 +155,7 @@ public partial class VeDichTurnTests
         var confirmed = VeDichTurn.ConfirmPicks(picked);
         Assert.True(confirmed.PicksConfirmed);
 
-        Assert.Equal("WRONG_PHASE", CodeOf(() =>
+        Assert.Equal("NOTHING_PICKED", CodeOf(() =>
             VeDichTurn.ConfirmPicks(VeDichTurn.CreateVeDich(Pool, OrderedPlayers))));
         Assert.Equal("NOTHING_PICKED", CodeOf(() =>
             VeDichTurn.ConfirmPicks(VeDichTurn.BeginPhase2(VeDichTurn.CreateVeDich(Pool, OrderedPlayers)))));
@@ -165,6 +165,30 @@ public partial class VeDichTurnTests
         Assert.False(VeDichTurn.PickPhase2(confirmed, "c", ["50-1", "40-1"]).PicksConfirmed);
         Assert.False(VeDichTurn.AdvanceTurn(confirmed).PicksConfirmed);
         Assert.False(VeDichTurn.SetTurn(confirmed, "a").PicksConfirmed);
+    }
+
+    [Fact]
+    public void ConfirmPicks_ClosesTheChungBoardWithoutOpeningAnything()
+    {
+        var s = Phase1("a", "b");
+        var ids = s.Remaining.Where(q => q.Value == 20).Take(2).Select(q => q.Id).ToList();
+
+        var picked = VeDichTurn.PickRound(s, ids);
+        Assert.False(picked.PicksConfirmed);
+        Assert.Equal(ids.Count, picked.PendingPicks.Count);
+
+        var confirmed = VeDichTurn.ConfirmPicks(picked);
+        Assert.True(confirmed.PicksConfirmed);
+        Assert.Null(confirmed.Open);
+        Assert.Equal(1, confirmed.Phase);
+        Assert.Equal(ids, confirmed.PendingPicks.Select(q => q.Id).ToList());
+
+        var repicked = VeDichTurn.PickRound(confirmed, [ids[0]]);
+        Assert.False(repicked.PicksConfirmed);
+
+        var cleared = VeDichTurn.ClearPicks(confirmed);
+        Assert.False(cleared.PicksConfirmed);
+        Assert.Empty(cleared.PendingPicks);
     }
 
     [Fact]

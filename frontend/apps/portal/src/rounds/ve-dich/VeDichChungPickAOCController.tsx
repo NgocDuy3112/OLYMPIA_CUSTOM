@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { ConsoleStage, QuestionCard, QuestionChips, Rail, Timer, ValueCells } from "@/components/stage/deck"
+import { ConsoleStage, QuestionCard, QuestionChips, Rail, Timer, VeDichPickBoard } from "@/components/stage/deck"
 import { backToLobbyAction } from "@/components/stage/actions"
 import type { ConsoleQuestion, VeDichConsole } from "@/lib/live"
 import type { ScreenCore } from "@/rounds/types"
@@ -25,19 +25,6 @@ export function VeDichChungPickAOCController({ ctx }: { ctx: VeDichChungPickCtx 
         setSeenPending(pendingKey)
         setChosen(pendingIds)
     }
-    const openNow = projection.open[0] ?? null
-
-    const pickRandomOf = (value: number) => {
-        if (openNow || chosen.length >= need) return
-        const pool = (projection.board ?? []).filter(
-            (c) => c.value === value && c.where === "free" && !chosen.includes(c.questionId),
-        )
-        if (pool.length === 0) return
-        const random = pool[Math.floor(Math.random() * pool.length)]
-        const next = [...chosen, random.questionId]
-        setChosen(next)
-        ctx.send({ kind: "ve-dich.pickRound", questionIds: next })
-    }
 
     const boardCells = projection.board ?? []
     const stagedCells: Array<{ questionId: string; value: number }> = []
@@ -45,14 +32,21 @@ export function VeDichChungPickAOCController({ ctx }: { ctx: VeDichChungPickCtx 
         const cell = boardCells.find((c) => c.questionId === id)
         if (cell) stagedCells.push({ questionId: cell.questionId, value: cell.value })
     }
-    const dropPick = (id: string) => {
-        const next = chosen.filter((picked) => picked !== id)
+
+    const togglePick = (questionId: string) => {
+        if (chosen.includes(questionId)) {
+            const next = chosen.filter((picked) => picked !== questionId)
+            setChosen(next)
+            ctx.send({ kind: "ve-dich.pickRound", questionIds: next })
+            return
+        }
+        if (chosen.length >= need) return
+        const next = [...chosen, questionId]
         setChosen(next)
         ctx.send({ kind: "ve-dich.pickRound", questionIds: next })
     }
 
-
-
+    const ready = chosen.length >= need
 
     return (
         <ConsoleStage
@@ -60,8 +54,8 @@ export function VeDichChungPickAOCController({ ctx }: { ctx: VeDichChungPickCtx 
             actions={[
                 {
                     label: "Xác nhận",
-                    onClick: chosen.length >= need
-                        ? () => ctx.send({ kind: "ve-dich.pickRound", questionIds: chosen })
+                    onClick: ready
+                        ? () => ctx.send({ kind: "ve-dich.confirmPicks" })
                         : undefined,
                 },
                 {
@@ -90,24 +84,13 @@ export function VeDichChungPickAOCController({ ctx }: { ctx: VeDichChungPickCtx 
                                 clickable: true,
                                 title: `Bỏ câu ${cell.value} điểm`,
                             }))}
-                            onSelect={(id: string) => dropPick(id)}
+                            onSelect={(id: string) => togglePick(id)}
                         />
                         <Timer remaining={null} />
                     </span>
                 }
             >
-                <ValueCells
-                    cells={[20, 30].map((value) => ({
-                        value,
-                        remaining: (projection.board ?? []).filter(
-                            (c) => c.value === value && c.where === "free" && !chosen.includes(c.questionId),
-                        ).length,
-                        chosen: chosen.filter(
-                            (id) => (projection.board ?? []).find((c) => c.questionId === id)?.value === value,
-                        ).length,
-                    }))}
-                    onPick={pickRandomOf}
-                />
+                <VeDichPickBoard cells={boardCells} pickedIds={chosen} onPick={togglePick} />
             </QuestionCard>
         </ConsoleStage>
     )

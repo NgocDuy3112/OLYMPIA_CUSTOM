@@ -1,5 +1,5 @@
 import { PlayerStage, QuestionCard, QuestionChips, Rail, Timer, type PlayerCore } from "../player-deck"
-import { ValueCells } from "../value-cells"
+import { VeDichPickBoard } from "../ve-dich-pick-board"
 
 type VeDichChungPickPlayerCtx = PlayerCore
 
@@ -29,24 +29,14 @@ export function VeDichChungPickPlayer({ ctx }: { ctx: VeDichChungPickPlayerCtx }
                                 id: cell.id,
                                 label: String(cell.value),
                                 active: true,
-                                title: `Câu ${cell.value} điểm đã được chọn`,
+                                title: `Đã chọn câu ${cell.value} điểm`,
                             }))}
                         />
                         <Timer remaining={null} />
                     </span>
                 }
             >
-                <ValueCells
-                    cells={[20, 30].map((value) => ({
-                        value,
-                        remaining: board.filter(
-                            (c) => c.value === value && c.where === "free" && !pickedIds.includes(c.questionId),
-                        ).length,
-                        chosen: pickedIds.filter(
-                            (id) => board.find((c) => c.questionId === id)?.value === value,
-                        ).length,
-                    }))}
-                />
+                <VeDichPickBoard cells={board} pickedIds={pickedIds} />
             </QuestionCard>
         </PlayerStage>
     )

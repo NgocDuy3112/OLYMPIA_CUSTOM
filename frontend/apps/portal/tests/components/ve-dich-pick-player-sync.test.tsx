@@ -46,10 +46,20 @@ const ctx = (v: PlayerView) => ({
     command: vi.fn(),
 })
 
+const chungView = (): PlayerView => view({
+    stage: "phase1",
+    board: [
+        { questionId: "a", value: 20, where: "pending" },
+        { questionId: "b", value: 30, where: "pending" },
+        { questionId: "c", value: 20, where: "free" },
+    ],
+    me: { pickedTiles: [], hintVerdicts: {}, pendingPicks: ["a", "b"] },
+})
+
 describe("VeDich pick players — staged picks from the server", () => {
     it("chung: shows a chip for every staged pick", () => {
-        render(<VeDichChungPickPlayer ctx={ctx(view())} />)
-        expect(screen.getAllByTitle(/Câu 40 điểm đã được chọn/)).toHaveLength(2)
+        render(<VeDichChungPickPlayer ctx={ctx(chungView())} />)
+        expect(screen.getAllByTitle(/Đã chọn câu /)).toHaveLength(2)
     })
 
     it("rieng: shows a chip for every staged pick", () => {

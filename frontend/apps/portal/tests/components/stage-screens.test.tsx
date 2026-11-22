@@ -355,7 +355,7 @@ describe("GiaiMa — S3", () => {
         expect(f.commitHint).not.toHaveBeenCalled()
     })
 
-    it("Hiện đáp án — gợi ý targets the hint on the table; từ khoá has its own", async () => {
+    it("HIỆN TRẢ LỜI — gợi ý targets the hint on the table; từ khoá has its own", async () => {
         const user = userEvent.setup()
         const keyword = {
             _id: "kw", roundId: "giai-ma", turnId: "keyword", position: 0,
@@ -368,18 +368,18 @@ describe("GiaiMa — S3", () => {
             [keyword],
         )
 
-        await user.click(screen.getByRole("button", { name: "Hiện đáp án gợi ý" }))
+        await user.click(screen.getByRole("button", { name: "HIỆN TRẢ LỜI gợi ý" }))
         expect(f.send).toHaveBeenCalledWith({ kind: "reveal.answer", questionId: "h1" })
 
-        await user.click(screen.getByRole("button", { name: "Hiện đáp án từ khoá" }))
+        await user.click(screen.getByRole("button", { name: "HIỆN TRẢ LỜI từ khoá" }))
         expect(f.send).toHaveBeenCalledWith({ kind: "reveal.answer", questionId: "kw" })
     })
 
-    it("Hiện đáp án gợi ý is inert before the first hint", () => {
+    it("HIỆN TRẢ LỜI gợi ý is inert before the first hint", () => {
         renderRound("giai-ma", {}, {}, {
             hintsRemaining: ["h1"], hintsPicked: [], openHintId: null, players: [],
         })
-        expect(screen.queryByRole("button", { name: "Hiện đáp án gợi ý" })).toBeNull()
+        expect(screen.queryByRole("button", { name: "HIỆN TRẢ LỜI gợi ý" })).toBeNull()
     })
 
     it("Đếm giờ is armed in the gap between the pick and the window", async () => {
@@ -727,7 +727,7 @@ describe("VeDichPick — S5/S6, the board", () => {
     })
     const freeCell = (id: string, value: number) => ({ questionId: id, value, where: "free" as const })
 
-it("phase 1: clicking a value cell random-picks one question of that value", async () => {
+it("phase 1: clicking a board cell stages that cell, clicking it again drops it", async () => {
         const user = userEvent.setup()
         const f = renderRound(
             "ve-dich",
@@ -737,15 +737,15 @@ it("phase 1: clicking a value cell random-picks one question of that value", asy
             [veQuestion("q30", 30), veQuestion("q20", 20)],
         )
 
-        await user.click(screen.getByTitle("Chọn ngẫu nhiên 1 câu 20"))
+        await user.click(screen.getByTitle("Chọn câu 20 điểm"))
         expect(f.send).toHaveBeenCalledWith({
             kind: "ve-dich.pickRound",
             questionIds: ["q20"],
         })
-        await user.click(screen.getByTitle("Chọn ngẫu nhiên 1 câu 30"))
+        await user.click(screen.getByTitle("Chọn câu 30 điểm"))
         expect(f.send).toHaveBeenLastCalledWith({
             kind: "ve-dich.pickRound",
-            questionIds: expect.arrayContaining(["q20", "q30"]),
+            questionIds: ["q20", "q30"],
         })
     })
 
@@ -783,11 +783,11 @@ it("phase 1: clicking a value cell random-picks one question of that value", asy
             [veQuestion("a", 20), veQuestion("b", 30), veQuestion("c", 20)],
         )
 
-        await user.click(screen.getByTitle("Chọn ngẫu nhiên 1 câu 20"))
+        await user.click(screen.getAllByTitle("Chọn câu 20 điểm")[0])
         expect(screen.queryByRole("button", { name: "Xác nhận" })).toBeNull()
-        await user.click(screen.getByTitle("Chọn ngẫu nhiên 1 câu 30"))
+        await user.click(screen.getByTitle("Chọn câu 30 điểm"))
         expect(screen.queryByRole("button", { name: "Xác nhận" })).toBeNull()
-        await user.click(screen.getByTitle("Chọn ngẫu nhiên 1 câu 20"))
+        await user.click(screen.getAllByTitle("Chọn câu 20 điểm")[0])
         expect(screen.getByRole("button", { name: "Xác nhận" })).toBeInTheDocument()
     })
 
@@ -803,7 +803,7 @@ it("phase 1: clicking a value cell random-picks one question of that value", asy
 
         expect(screen.queryByRole("button", { name: "Chốt 3 câu" })).toBeNull()
 
-        for (let i = 0; i < 3; i++) {
+        for (let index = 0; index < 3; index++) {
             await user.click(screen.getByTitle("Chọn ngẫu nhiên 1 câu 40"))
         }
         const call = (f.send as unknown as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0]
@@ -813,17 +813,24 @@ it("phase 1: clicking a value cell random-picks one question of that value", asy
         for (const id of call.questionIds) expect(["a", "b", "c"]).toContain(id)
     })
 
-it("phase 1: a value with no free question is inert", () => {
+it("phase 1: a used question is drawn but inert", () => {
         renderRound(
             "ve-dich",
             {},
-            { open: [], board: [freeCell("q30", 30)], table: TWO_PLAYERS },
+            {
+                open: [],
+                board: [
+                    freeCell("q30", 30),
+                    { questionId: "q20", value: 20, where: "taken" as const },
+                ],
+                table: TWO_PLAYERS,
+            },
             veDichMc({ phase: 1, turnPlayerId: null }),
-            [veQuestion("q30", 30)],
+            [veQuestion("q30", 30), veQuestion("q20", 20)],
         )
 
-        expect(screen.getAllByTitle("Hết câu 20")).toHaveLength(1)
-        expect(screen.getAllByTitle("Chọn ngẫu nhiên 1 câu 30")).toHaveLength(1)
+        expect(screen.getAllByTitle("Câu 20 điểm đã dùng")).toHaveLength(1)
+        expect(screen.getAllByTitle("Chọn câu 30 điểm")).toHaveLength(1)
     })
 
 it("phase 1: with nothing picked, there is no confirm — Chọn lại clears", async () => {
@@ -953,8 +960,6 @@ describe("VeDichChung — S7, phase 1 question", () => {
             veDichMc({ phase: 1 }),
         )
 
-        expect(screen.getAllByTitle("Bỏ câu 20 điểm")).toHaveLength(2)
-        expect(screen.getAllByTitle("Bỏ câu 30 điểm")).toHaveLength(1)
         expect(screen.getByRole("button", { name: "Xác nhận" })).toBeInTheDocument()
     })
 

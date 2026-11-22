@@ -7,6 +7,7 @@ export {
     QuestionCard,
     HintBars,
     ValueCells,
+    VeDichPickBoard,
     QuestionChips,
     QuestionStepper,
     StageLayout,
