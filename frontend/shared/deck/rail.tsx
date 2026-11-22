@@ -46,8 +46,12 @@ export function Rail({ view, myId, currentQid }: {
         <>
             {view.table.slice(0, 4).map((row) => {
                 const mine = myId !== null && row.id === myId
+                const isSelected = view.selectedPlayerId === row.id
+                const keywordSubmitted = mine && view.me.keywordLocked === true
                 const state = railCardState({
                     buzzing: view.me.buzzer === row.id,
+                    picked: isSelected,
+                    submitted: keywordSubmitted,
                 })
                 const activeRun = view.oral?.playerId === row.id
                 const buzzed = view.me.buzzer === row.id

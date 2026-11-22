@@ -46,6 +46,20 @@ public static partial class LiveView
         return false;
     }
 
+    private static string? SelectedPlayerOf(
+        VeDichState state, OpenQuestion? open, string? turnPlayerId)
+    {
+        if (state.Ended) return null;
+
+        if (state.Phase == 1) return turnPlayerId;
+
+        if (open is null) return turnPlayerId;
+
+        var assigned = AssignedToId(open);
+        if (assigned is not null) return assigned;
+        return open.Answerer;
+    }
+
     private static Dictionary<string, object?> VeDichView(ViewInput input, VeDichState state)
     {
         var player = state.Players.FirstOrDefault(p => p.Id == input.UserId);
@@ -174,6 +188,8 @@ public static partial class LiveView
         view["board"] = board;
         if (audioGate is not null) view["audioGate"] = audioGate;
         if (mediaPolicy is not null) view["mediaPolicy"] = mediaPolicy;
+        string? selectedPlayerId = SelectedPlayerOf(state, open, turnPlayerId);
+        view["selectedPlayerId"] = selectedPlayerId;
         view["turnPlayerId"] = turnPlayerId;
         view["answererId"] = state.Open?.Answerer;
         view["assignedToId"] = AssignedToId(state.Open);

@@ -75,6 +75,7 @@ export interface PlayerView {
         value: number
         where: "free" | "pending" | "open" | "taken" | "deferred"
     }>
+    selectedPlayerId?: string | null
     turnPlayerId?: string | null
     answererId?: string | null
     assignedToId?: string | null

@@ -86,6 +86,7 @@ public static partial class LiveView
             : null;
         var view = Base(input.MatchId, input.RoundId, input.Version,
             state.Step, open, RankTable(input.Table, input.TieBreak), me);
+        view["selectedPlayerId"] = null;
         view["keywordDeadlineAt"] = keywordDeadlineAt;
         view["keywordLength"] = keywordCompact.Length;
         view["keywordKind"] = keywordKind;

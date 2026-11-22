@@ -20,7 +20,7 @@ function view(over: Partial<PlayerView> = {}): PlayerView {
             { questionId: "q30a", value: 30, where: "pending" },
             { questionId: "q30b", value: 30, where: "free" },
         ],
-        me: { pendingPicks: ["q20a", "q30a"] },
+        me: { pickedTiles: [], hintVerdicts: {}, pendingPicks: ["q20a", "q30a"] },
         ...over,
     } as PlayerView
 }
@@ -60,7 +60,7 @@ describe("VeDichChungPickPlayer — staged picks", () => {
     })
 
     it("renders no chips while nothing has been picked yet", () => {
-        render(<VeDichChungPickPlayer ctx={ctx(view({ me: { pendingPicks: [] } }))} />)
+        render(<VeDichChungPickPlayer ctx={ctx(view({ me: { pickedTiles: [], hintVerdicts: {}, pendingPicks: [] } }))} />)
 
         const disabled = screen.getAllByRole("button").filter(
             (el) => el.getAttribute("aria-disabled") === "true"

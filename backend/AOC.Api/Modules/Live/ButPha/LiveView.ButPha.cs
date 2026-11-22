@@ -29,7 +29,9 @@ public static partial class LiveView
                 input.Submitted, questionId, QuestionMatchOf(input, questionId))
         };
 
-        return Base(input.MatchId, input.RoundId, input.Version,
+        var view = Base(input.MatchId, input.RoundId, input.Version,
             state.Ended ? "ended" : "question", open, RankTable(input.Table, input.TieBreak), me);
+        view["selectedPlayerId"] = null;
+        return view;
     }
 }

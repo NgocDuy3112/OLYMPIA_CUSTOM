@@ -28,6 +28,7 @@ public static partial class LiveView
 
             var view = Base(input.MatchId, input.RoundId, input.Version,
                 state.Ended ? "ended" : "phase1", [], RankTable(input.Table, input.TieBreak), me);
+            view["selectedPlayerId"] = activeId;
             if (run is not null && currentId is not null)
             {
                 view["oral"] = new Dictionary<string, object?>
@@ -73,7 +74,9 @@ public static partial class LiveView
             ["verdicts"] = VerdictsOf(input.Submitted)
         };
 
-        return Base(input.MatchId, input.RoundId, input.Version,
+        var phase2View = Base(input.MatchId, input.RoundId, input.Version,
             state.Ended ? "ended" : "phase2", open, RankTable(input.Table, input.TieBreak), p2me);
+        phase2View["selectedPlayerId"] = null;
+        return phase2View;
     }
 }
