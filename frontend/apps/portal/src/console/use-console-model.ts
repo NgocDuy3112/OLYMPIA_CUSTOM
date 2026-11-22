@@ -168,7 +168,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     }
 
     const prepareLobby = (l: LobbyData): LobbyData =>
-        lobbyViewOf({ lobby: l, stagePhase, videoOf: (id) => peers.get(id)?.video ?? null })
+        lobbyViewOf({ lobby: l, stagePhase, videoOf: (id) => peers.get(id)?.video ?? null, peerControls })
 
     if (live.isPending) return { phase: "loading", control, ...adjust }
 
