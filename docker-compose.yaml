@@ -118,3 +118,4 @@ volumes:
   aoc-postgresql:
     external: true
   aoc-redis:
+    external: true

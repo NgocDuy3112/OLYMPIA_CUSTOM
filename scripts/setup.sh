@@ -12,6 +12,11 @@ source configs/.env
 
 COMPOSE=(podman compose --env-file configs/.env)
 
+if ! podman volume exists aoc-redis >/dev/null 2>&1; then
+    echo "==> Creating volume aoc-redis"
+    podman volume create aoc-redis >/dev/null
+fi
+
 if ! podman volume exists aoc-postgresql >/dev/null 2>&1; then
     echo "==> Creating volume aoc-postgresql"
     podman volume create aoc-postgresql >/dev/null

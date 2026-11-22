@@ -109,13 +109,6 @@ The egress worker is **out of docker-compose**: it rendered the audience page in
 - Use OBS *Application Audio Capture* on that tab for the room mix and the SFX; keep the tab visible — a hidden/minimized Chrome tab freezes its video.
 - Push finished files into the bucket the show already uses:
 
-```bash
-scripts/recordings/upload.sh ~/Videos/aoc        # DRY_RUN=1 to preview first
-```
-
-  → `s3://aoc/recordings/`, which is public-read, so every link plays anywhere.
-- The built-in recorder was **removed from the code** (backend routes, portal tab, stage toggle, audience record page) — restoring it means bringing `Modules/Recording` and the `egress` service back from git history.
-
 ## Sound effects (SFX)
 
 Cues live in `s3://aoc/sfx/` and the backend pushes each one to the **console** and **audience** hubs as an `sfx` frame carrying a **presigned URL** (ten-minute signature — the bucket needs no public policy at all, and a leaked link dies on its own). Player devices never receive a frame. The whole action→file table is one file: `backend/AOC.Api/Modules/Live/Sfx.cs`.

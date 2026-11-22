@@ -211,6 +211,14 @@ public sealed partial class LiveService
         await ClaimControlAsync(matchId, actorId, takeover: false);
     }
 
+    public async Task<bool> IsTournamentPublicAsync(Guid tournamentId)
+    {
+        var row = await db.Tournaments.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == tournamentId && t.DeletedAt == null);
+        if (row is null) return false;
+        return row.Visibility == Visibility.PUBLIC;
+    }
+
     public async Task<ConsoleView?> AudienceViewOfAsync(Guid matchId)
     {
         var full = await ConsoleViewOfAsync(matchId, revealAll: false);

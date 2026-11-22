@@ -8,6 +8,7 @@ public static class TournamentAccess
     public static bool CanView(TournamentEntity row, UserEntity user)
     {
         if (row.Visibility == Visibility.PUBLIC) return true;
+        if (row.OwnerId == user.Id) return true;
         return user.Role == UserRole.ADMIN;
     }
 
