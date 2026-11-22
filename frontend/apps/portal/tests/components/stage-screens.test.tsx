@@ -93,6 +93,7 @@ const veDichMc = (over: Partial<VeDichConsole> = {}): VeDichConsole => ({
     stagedPower: null,
     turnPowerUsed: false,
     turnPicked: 0,
+    powersLeft: ["STAR", "ASSIGN"],
     ...over,
 })
 
@@ -505,15 +506,43 @@ describe("VeDichRieng — the powers and the duel", () => {
         })
     })
 
-    it("one power per turn: the buttons go inert once the turn spent one", () => {
+    it("one power per turn: the buttons go inert once the turn's only power was spent", () => {
         renderRound(
             "ve-dich", {}, opened,
-            veDichMc({ phase: 2, turnPlayerId: "u1", pendingQuestionId: "a", turnPowerUsed: true }),
+            veDichMc({ phase: 2, turnPlayerId: "u1", pendingQuestionId: "a", powersLeft: [] }),
             [stagedQuestion],
         )
         expect(screen.queryByRole("button", { name: "Ngôi sao hy vọng" })).toBeNull()
         expect(screen.queryByRole("button", { name: "Chỉ định đối kháng" })).toBeNull()
         expect(screen.getByText("đã chốt")).toBeInTheDocument()
+    })
+
+    it("…but a new turn re-arms both powers — locked only when the set is empty", () => {
+        renderRound(
+            "ve-dich", {}, pickBoard,
+            veDichMc({ phase: 2, turnPlayerId: "u1", pendingQuestionId: "a", picksConfirmed: true, powersLeft: ["STAR", "ASSIGN"] }),
+            [stagedQuestion],
+        )
+        expect(screen.getByRole("button", { name: "Ngôi sao hy vọng" })).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Chỉ định đối kháng" })).toBeInTheDocument()
+    })
+
+    it("after staging a power the buttons stay live so the MC can cancel and re-pick", async () => {
+        const user = userEvent.setup()
+        const f = renderRound(
+            "ve-dich", {}, pickBoard,
+            veDichMc({
+                phase: 2, turnPlayerId: "u1", pendingQuestionId: "a", picksConfirmed: true,
+                powersLeft: ["STAR", "ASSIGN"], turnPowerUsed: true,
+                stagedPower: { power: "ASSIGN", targetId: "u2" },
+            }),
+            [stagedQuestion],
+        )
+        // The button is a real control, not a muted label.
+        await user.click(screen.getByRole("button", { name: "Ngôi sao hy vọng" }))
+        expect(f.send).toHaveBeenCalledWith({
+            kind: "ve-dich.declarePower", playerId: "u1", power: "STAR",
+        })
     })
 
     it("the power buttons are muted once the question started", () => {
@@ -710,7 +739,6 @@ const answerRow = (userId: string, verdict: "CORRECT" | "INCORRECT" | null) => (
     userId,
     value: { text: "đáp án" },
     verdict,
-    judged: verdict !== null,
     pointsAwarded: verdict === "CORRECT" ? 20 : 0,
 })
 
@@ -1056,6 +1084,75 @@ it("offers no Hết lượt in the chung phase — and strip buttons carry no to
         ])
     })
 
+    it("Chấm điểm is offered even when nobody submitted an answer", async () => {
+        const user = userEvent.setup()
+        const f = renderRound(
+            "ve-dich",
+            { sendChain: vi.fn(), rows: [] },
+            { open: [openQ], table: TWO_PLAYERS },
+            veDichMc({ phase: 1 }),
+        )
+
+        await user.click(screen.getByRole("button", { name: "Chấm điểm" }))
+        expect(f.sendChain).toHaveBeenCalledWith([
+            { kind: "ve-dich.judge", playerId: "u1", correct: false },
+            { kind: "ve-dich.judge", playerId: "u2", correct: false },
+        ])
+    })
+
+    it("one press with no card ticked deducts from every player", async () => {
+        const user = userEvent.setup()
+        const f = renderRound(
+            "ve-dich",
+            { sendChain: vi.fn(), rows: [answerRow("u1", null)], selectedIds: new Set<string>() },
+            { open: [openQ], table: TWO_PLAYERS },
+            veDichMc({ phase: 1 }),
+        )
+
+        await user.click(screen.getByRole("button", { name: "Chấm điểm" }))
+        expect(f.sendChain).toHaveBeenCalledWith([
+            { kind: "ve-dich.judge", playerId: "u1", correct: false },
+            { kind: "ve-dich.judge", playerId: "u2", correct: false },
+        ])
+    })
+
+    it("a ticked card earns the points while everyone else keeps losing them", async () => {
+        const user = userEvent.setup()
+        const f = renderRound(
+            "ve-dich",
+            { sendChain: vi.fn(), rows: [], selectedIds: new Set(["u2"]) },
+            { open: [openQ], table: TWO_PLAYERS },
+            veDichMc({ phase: 1 }),
+        )
+
+        await user.click(screen.getByRole("button", { name: "Chấm điểm" }))
+        expect(f.sendChain).toHaveBeenCalledWith([
+            { kind: "ve-dich.judge", playerId: "u1", correct: false },
+            { kind: "ve-dich.judge", playerId: "u2", correct: true },
+        ])
+    })
+
+    it("a ticked card is clearly highlighted on the rail", () => {
+        renderRound(
+            "ve-dich",
+            {
+                rows: [],
+                selectedIds: new Set(["u1"]),
+                baseCards: [
+                    { id: "u1", name: "An", points: 10 },
+                    { id: "u2", name: "Bình", points: 0 },
+                ],
+            },
+            { open: [openQ], table: TWO_PLAYERS },
+            veDichMc({ phase: 1 }),
+        )
+
+        const picked = document.querySelector('[aria-pressed="true"]')
+        expect(picked?.textContent).toContain("An")
+        expect(picked?.className).toContain("ring-4")
+        expect(document.querySelectorAll('[aria-pressed="true"]')).toHaveLength(1)
+    })
+
     it("Hiện trả lời reveals the open question's answer once the clock ran out", async () => {
         const user = userEvent.setup()
         const f = renderRound("ve-dich", {}, { open: [openQ] }, veDichMc({ phase: 1, clockStarted: true }))
@@ -1063,9 +1160,84 @@ it("offers no Hết lượt in the chung phase — and strip buttons carry no to
         await user.click(screen.getByRole("button", { name: "Hiện trả lời" }))
         expect(f.send).toHaveBeenCalledWith({ kind: "reveal.answer", questionId: "q1" })
     })
+
+    it("has no Câu tiếp — the controller opens the staged questions directly", () => {
+        renderRound(
+            "ve-dich",
+            { hetLuot: vi.fn(), rows: [answerRow("u1", "CORRECT"), answerRow("u2", "INCORRECT")] },
+            { open: [openQ] },
+            veDichMc({ phase: 1 }),
+        )
+
+        expect(screen.queryByText("Câu tiếp")).toBeNull()
+        expectButtonsInOrder(["Chấm điểm", "Về sảnh"])
+    })
+
+    it("switches to another staged question once the open one is fully judged", async () => {
+        const user = userEvent.setup()
+        const f = renderRound(
+            "ve-dich",
+            { sendChain: vi.fn(), rows: [answerRow("u1", "CORRECT"), answerRow("u2", "INCORRECT")] },
+            {
+                open: [openQ],
+                board: [
+                    { questionId: "q1", value: 20, where: "open" },
+                    { questionId: "q2", value: 30, where: "pending" },
+                ],
+            },
+            veDichMc({ phase: 1, revealed: false }),
+        )
+
+        await user.click(screen.getByRole("button", { name: /^30$/ }))
+        expect(f.sendChain).toHaveBeenCalledWith([
+            { kind: "ve-dich.openPending", questionId: "q2" },
+            { kind: "ve-dich.reveal" },
+        ])
+    })
+
+    it("refuses to switch away while an answer is still unjudged", async () => {
+        const user = userEvent.setup()
+        const f = renderRound(
+            "ve-dich",
+            { sendChain: vi.fn(), rows: [answerRow("u1", null)] },
+            {
+                open: [openQ],
+                board: [
+                    { questionId: "q1", value: 20, where: "open" },
+                    { questionId: "q2", value: 30, where: "pending" },
+                ],
+            },
+            veDichMc({ phase: 1, revealed: false }),
+        )
+
+        const other = screen.getByRole("button", { name: /^30$/ })
+        expect(other).toHaveAttribute("aria-disabled", "true")
+        await user.click(other)
+        expect(f.sendChain).not.toHaveBeenCalled()
+    })
 })
 
 describe("VeDichRieng — S8, phase 2 question", () => {
+    it("a ticked card is clearly highlighted on the rail, like the chung screen", () => {
+        renderRound(
+            "ve-dich",
+            {
+                selectedIds: new Set(["u1"]),
+                baseCards: [
+                    { id: "u1", name: "An", points: 10 },
+                    { id: "u2", name: "Bình", points: 0 },
+                ],
+            },
+            { open: [openQ], table: TWO_PLAYERS },
+            veDichMc({ phase: 2 }),
+        )
+
+        const picked = document.querySelector('[aria-pressed="true"]')
+        expect(picked?.textContent).toContain("An")
+        expect(picked?.className).toContain("ring-4")
+        expect(document.querySelectorAll('[aria-pressed="true"]')).toHaveLength(1)
+    })
+
     it("offers the full turn strip: chuông, verdicts, hết lượt, về sảnh", async () => {
         const user = userEvent.setup()
         const f = renderRound(

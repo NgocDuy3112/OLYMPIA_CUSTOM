@@ -29,20 +29,19 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
         if (ctx.target !== null) return [ctx.target]
         return []
     }
-    const canMark = markedIds().length > 0
 
+    // Grading is always available: a ticked card earns the points, every other
+    // card keeps losing them — no tick means everyone loses.
     const grade = () => {
         const ids = markedIds()
-        if (ids.length === 0) return
-        const actions = projection.table.map((seat) => {
-            let correct = false
-            if (ids.includes(seat.id)) correct = true
-            return { kind: "ve-dich.judge" as const, playerId: seat.id, correct }
-        })
+        const actions = projection.table.map((seat) => ({
+            kind: "ve-dich.judge" as const,
+            playerId: seat.id,
+            correct: ids.includes(seat.id),
+        }))
         ctx.sendChain(actions)
     }
-    let gradeClick: (() => void) | undefined
-    if (canMark) gradeClick = grade
+    const gradeClick: (() => void) | undefined = grade
 
     let counting = false
     if (openNow?.deadlineAt && (remaining ?? 0) > 0) counting = true
@@ -64,14 +63,27 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
     if (openNow?.deadlineAt) timerRemaining = remaining
 
     const unjudged = rows.some((row) => row.verdict === null)
-    let nextQuestion: (() => void) | undefined = undefined
-    if (openNow && !unjudged) {
-        nextQuestion = () => ctx.send({ kind: "ve-dich.nextQuestion" })
+    // The controller opens any staged question at will — there is no "Câu tiếp".
+    // Switching away from an open question is refused until its answers are
+    // all judged, or the plays of the going-away question would be lost.
+    let canSwitch = !openNow || !unjudged
+
+    // The console only lights a "selected" card while a question is being
+    // judged, and the chung screen never is — so stamp the ticked card's ring
+    // here, otherwise clicking a card would never show.
+    const ticked = markedIds()
+    let cards = baseCards
+    if (ticked.length > 0) {
+        const selected = new Set(ticked)
+        cards = baseCards.map((card) => {
+            if (!selected.has(card.id)) return card
+            return { ...card, ring: "selected" as const }
+        })
     }
 
     return (
         <ConsoleStage
-            rail={<Rail cards={baseCards} onSelect={ctx.toggleSelect} onScoreClick={ctx.openRegrade} />}
+            rail={<Rail cards={cards} onSelect={ctx.toggleSelect} onScoreClick={ctx.openRegrade} />}
             actions={[
                 {
                     label: "Đếm giờ",
@@ -85,10 +97,6 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
                     label: "Chấm điểm",
                     onClick: gradeClick,
                 },
-                {
-                    label: "Câu tiếp",
-                    onClick: nextQuestion,
-                },
                 backToLobbyAction(ctx.backToLobby),
             ]}
             flash={flash}
@@ -99,12 +107,17 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
                 right={
                     <span className="flex items-center gap-[1.2cqw]">
                         <QuestionChips
-                            chips={stripCells.map((cell) => ({
-                                id: cell.questionId,
-                                label: String(cell.value),
-                                active: cell.where === "open",
-                                clickable: !revealed,
-                            }))}
+                            chips={stripCells.map((cell) => {
+                                // The open cell always works (it only re-reveals);
+                                // other staged cells wait for the open one to be judged.
+                                const isOpen = cell.questionId === openNow?.questionId
+                                return {
+                                    id: cell.questionId,
+                                    label: String(cell.value),
+                                    active: cell.where === "open",
+                                    clickable: (isOpen || canSwitch) && !revealed,
+                                }
+                            })}
                             onSelect={(id: string) => {
                                 const actions: LiveAction[] = []
                                 if (openNow === null || id !== openNow.questionId) {

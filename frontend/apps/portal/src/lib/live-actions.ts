@@ -49,7 +49,6 @@ export type LiveAction =
     | { kind: "ve-dich.openPending"; questionId: string }
     | { kind: "ve-dich.switchQuestion"; questionId: string }
     | { kind: "ve-dich.closeQuestion" }
-    | { kind: "ve-dich.nextQuestion" }
     | { kind: "ve-dich.clearPicks" }
     | { kind: "ve-dich.judge"; playerId: string; correct: boolean }
     | { kind: "round.goTo"; roundId: string }

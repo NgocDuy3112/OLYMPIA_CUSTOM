@@ -42,8 +42,12 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
     let powerStorable = true
     if (consoleVeDich?.phase !== 2) powerStorable = false
     if (openNow !== null) powerStorable = false
-    if (consoleVeDich?.turnPowerUsed !== false) powerStorable = false
     if (consoleVeDich?.turnPlayerId === null) powerStorable = false
+    // One power per turn, re-armed every turn — only an empty set locks it.
+    // (An absent field is not "empty": keep the buttons live.)
+    const turnPowers = consoleVeDich?.powersLeft
+    const hasPower = turnPowers === undefined || turnPowers.length > 0
+    if (!hasPower) powerStorable = false
     const [assignArmed, setAssignArmed] = useState(false)
     let armed = assignArmed
     if (!powerStorable) armed = false
@@ -58,7 +62,7 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
     let toggleAssign: (() => void) | undefined
     if (powerStorable) toggleAssign = () => setAssignArmed((was) => !was)
     let starSpent = false
-    if (!powerStorable && consoleVeDich?.turnPowerUsed === true) starSpent = true
+    if (!hasPower) starSpent = true
     let starContent: string | undefined
     if (starSpent) starContent = "đã chốt"
 
@@ -108,9 +112,21 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
     let canVerdict = false
     if (openNow !== null) canVerdict = true
 
+    // Mirror the chung screen: clicking a card must show which one is ticked.
+    // The console only lights a "selected" card while a question is being
+    // judged, and the rieng screen never is — so stamp the ring here. While
+    // ASSIGN is armed the click hands the question over instead of ticking.
+    let cards = baseCards
+    if (ctx.selectedIds.size > 0) {
+        cards = baseCards.map((card) => {
+            if (!ctx.selectedIds.has(card.id)) return card
+            return { ...card, ring: "selected" as const }
+        })
+    }
+
     return (
         <ConsoleStage
-            rail={<Rail cards={baseCards} onSelect={railSelect} onScoreClick={ctx.openRegrade} selectHint={armed} />}
+            rail={<Rail cards={cards} onSelect={railSelect} onScoreClick={ctx.openRegrade} selectHint={armed} />}
             actions={[
                 {
                     label: COPY.powerStar,
