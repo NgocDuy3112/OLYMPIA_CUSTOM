@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import { Hand } from "lucide-react"
-import { AnswerBand, AudienceFace, PlayerStage, QuestionCard, Rail, Timer, VeDichStripCells, type PlayerCore } from "../player-deck"
+import { AnswerBand, AudienceFace, PlayerStage, QuestionCard, Rail, Timer, VeDichStripCells, type PlayerCore , SubmissionLog, type SubmissionEntry } from "../player-deck"
 import { STRIP_R } from "../geometry"
 import { stripCellsOf } from "../ve-dich-board"
 import { timerRemainingOf } from "@shared/lib/clock"
@@ -17,6 +17,10 @@ export type VeDichRiengPlayerCtx = PlayerCore & {
 
 export function VeDichRiengAOCPlayer({ ctx }: { ctx: VeDichRiengPlayerCtx }) {
     const { v, remaining, myId, flash, answerBusy, submitAnswer, cmdBusy, command, audience } = ctx
+    const submissions: SubmissionEntry[] = []
+    if (v.me.mySubmission) {
+        submissions.push({ kind: "answer", answer: v.me.mySubmission.answer, elapsedS: v.me.mySubmission.elapsedS })
+    }
     const openQ = ctx.open[0] ?? null
     const qid = openQ?.questionId ?? null
     const timerRemaining = timerRemainingOf(openQ, remaining)
@@ -47,7 +51,6 @@ export function VeDichRiengAOCPlayer({ ctx }: { ctx: VeDichRiengPlayerCtx }) {
                         <AnswerBand
                             question={openQ.question}
                             answerState={v.me.answerState}
-                            mySubmission={v.me.mySubmission}
                             disabled={remaining <= 0}
                             busy={answerBusy}
                             error={flash}
@@ -72,6 +75,7 @@ export function VeDichRiengAOCPlayer({ ctx }: { ctx: VeDichRiengPlayerCtx }) {
                 face={faceSlot}
             />
             <>{actionSlot}</>
+            <SubmissionLog entries={submissions} />
         </PlayerStage>
     )
 }

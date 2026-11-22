@@ -1,4 +1,4 @@
-import { AnswerBand, PlayerStage, QuestionCard, QuestionStepper, Rail, Timer, type PlayerCore } from "../player-deck"
+import { AnswerBand, PlayerStage, QuestionCard, QuestionStepper, Rail, Timer, type PlayerCore , SubmissionLog, type SubmissionEntry } from "../player-deck"
 import type { AnswerValue } from "../types"
 import { timerRemainingOf } from "@shared/lib/clock"
 
@@ -12,6 +12,10 @@ const TOTAL_QUESTIONS = 4
 
 export function ButPhaAOCPlayer({ ctx }: { ctx: ButPhaPlayerCtx }) {
     const { v, remaining, myId, flash, answerBusy, submitAnswer } = ctx
+    const submissions: SubmissionEntry[] = []
+    if (v.me.mySubmission) {
+        submissions.push({ kind: "answer", answer: v.me.mySubmission.answer, elapsedS: v.me.mySubmission.elapsedS })
+    }
     const openQ = ctx.open[0] ?? null
     let active: number | null = null
     let done = 0
@@ -45,13 +49,13 @@ export function ButPhaAOCPlayer({ ctx }: { ctx: ButPhaPlayerCtx }) {
                 <AnswerBand
                     question={openQ.question}
                     answerState={v.me.answerState}
-                    mySubmission={v.me.mySubmission}
                     disabled={remaining <= 0}
                     busy={answerBusy}
                     error={flash}
                     onSubmit={(value) => submitAnswer(openQ.questionId, value)}
                 />
             )}
+            <SubmissionLog entries={submissions} />
         </PlayerStage>
     )
 }

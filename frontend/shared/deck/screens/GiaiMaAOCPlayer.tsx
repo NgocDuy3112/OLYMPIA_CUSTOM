@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import { useCountdown, type ServerClock } from "@shared/lib/clock"
-import { AnswerBand, AnswerBandIdle, HintBars, KeywordBox, KeywordLengthBanner, PlayerStage, QuestionCard, Rail, Timer, type PlayerCore } from "../player-deck"
+import { AnswerBand, AnswerBandIdle, HintBars, KeywordBox, KeywordLengthBanner, PlayerStage, QuestionCard, Rail, SubmissionLog, Timer, type PlayerCore, type SubmissionEntry } from "../player-deck"
 import { STRIP_R, pt } from "../geometry"
 import type { AnswerValue } from "../types"
 
@@ -20,7 +20,8 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
     const eliminated = v.me.eliminated === true
     const codeLength = v.keywordLength
     const keywordRemaining = useCountdown(v.keywordDeadlineAt, ctx.clock)
-    const keywordOpen = v.keywordDeadlineAt !== null && keywordRemaining > 0
+    let keywordOpen = true
+    if (v.keywordDeadlineAt !== null) keywordOpen = keywordRemaining > 0
 
     let keywordSlot: ReactNode = null
     if (keyword) {
@@ -40,6 +41,14 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
         )
     }
 
+    const submissions: SubmissionEntry[] = []
+    if (v.me.mySubmission) {
+        submissions.push({ kind: "answer", answer: v.me.mySubmission.answer, elapsedS: v.me.mySubmission.elapsedS })
+    }
+    if (v.me.myKeywordSubmission) {
+        submissions.push({ kind: "keyword", answer: v.me.myKeywordSubmission.answer, elapsedS: v.me.myKeywordSubmission.elapsedS })
+    }
+
     let timerRemaining: number | null = null
     if (keywordOpen) timerRemaining = keywordRemaining
     else if (hintWindow) {
@@ -53,7 +62,6 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
             <AnswerBand
                 question={hintWindow.question}
                 answerState={v.me.answerState}
-                mySubmission={v.me.mySubmission}
                 disabled={remaining <= 0 || keywordOpen}
                 busy={answerBusy}
                 error={flash}
@@ -85,6 +93,7 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
             <div className="flex w-full flex-col gap-[0.7cqw]">
                 {answerSlot}
                 {keywordSlot}
+                <SubmissionLog entries={submissions} />
             </div>
         </PlayerStage>
     )

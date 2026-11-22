@@ -17,7 +17,9 @@ export { QuestionStepper } from "./stepper"
 
 export { Rail } from "./rail"
 
-export { AnswerBand, AnswerBandIdle, KeywordBox } from "./answer-controls"
+export { AnswerBand, AnswerBandIdle, KeywordBox, SubmissionLog } from "./answer-controls"
+
+export type { SubmissionEntry } from "./submission-log"
 
 export { PlayerStage } from "./screen"
 

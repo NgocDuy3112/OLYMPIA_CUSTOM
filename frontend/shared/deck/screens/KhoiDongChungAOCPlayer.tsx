@@ -1,4 +1,4 @@
-import { AnswerBand, PlayerStage, Progress, QuestionCard, Rail, Timer, type PlayerCore } from "../player-deck"
+import { AnswerBand, PlayerStage, Progress, QuestionCard, Rail, Timer, type PlayerCore , SubmissionLog, type SubmissionEntry } from "../player-deck"
 import type { AnswerValue } from "../types"
 
 type KhoiDongChungPlayerCtx = PlayerCore & {
@@ -9,6 +9,10 @@ type KhoiDongChungPlayerCtx = PlayerCore & {
 
 export function KhoiDongChungAOCPlayer({ ctx }: { ctx: KhoiDongChungPlayerCtx }) {
     const { v, remaining, myId, flash, answerBusy, submitAnswer } = ctx
+    const submissions: SubmissionEntry[] = []
+    if (v.me.mySubmission) {
+        submissions.push({ kind: "answer", answer: v.me.mySubmission.answer, elapsedS: v.me.mySubmission.elapsedS })
+    }
     const openQ = ctx.open[0]
     const windowOpen = v.me.windowOpen === true
     const locked = !windowOpen || remaining <= 0
@@ -39,13 +43,13 @@ export function KhoiDongChungAOCPlayer({ ctx }: { ctx: KhoiDongChungPlayerCtx })
                 <AnswerBand
                     question={openQ.question}
                     answerState={v.me.answerState}
-                    mySubmission={v.me.mySubmission}
                     disabled={locked}
                     busy={answerBusy}
                     error={flash}
                     onSubmit={(value) => submitAnswer(openQ.questionId, value)}
                 />
             )}
+            <SubmissionLog entries={submissions} />
         </PlayerStage>
     )
 }

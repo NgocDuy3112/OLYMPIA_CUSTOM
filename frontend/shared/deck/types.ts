@@ -21,6 +21,7 @@ export interface PlayerMe {
     verdicts?: Record<string, "CORRECT" | "INCORRECT">
     answerState?: "none" | "draft" | "final"
     mySubmission?: { answer: string; elapsedS: number } | null
+    myKeywordSubmission?: { answer: string; elapsedS: number } | null
     isMyRun?: boolean
     points?: number
     answered?: string[]

@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
-import { AnswerBand } from "@shared/deck/answer-controls"
+import { AnswerBand, SubmissionLog } from "@shared/deck/answer-controls"
 
 const QUESTION = {
     questionId: "q1",
@@ -13,19 +13,32 @@ const QUESTION = {
 }
 
 describe("AnswerBand — submission feedback", () => {
-    it("shows what was submitted and how long it took", () => {
+    it("shows what was submitted in its own section", () => {
         render(
-            <AnswerBand
-                question={QUESTION}
-                answerState="draft"
-                mySubmission={{ answer: "Hà Nội", elapsedS: 3.5 }}
-                onSubmit={vi.fn()}
+            <SubmissionLog entries={[{ kind: "answer", answer: "Hà Nội", elapsedS: 3.5 }]} />
+        )
+
+        expect(screen.getByLabelText("Trạng thái nộp bài")).toBeInTheDocument()
+        expect(screen.getByRole("status").textContent).toBe(
+            "Bạn đã nộp đáp án: Hà Nội (3.500s)"
+        )
+    })
+
+    it("labels keyword submissions apart from answers", () => {
+        render(
+            <SubmissionLog
+                entries={[
+                    { kind: "answer", answer: "Hà Nội", elapsedS: 3.5 },
+                    { kind: "keyword", answer: "AOMASAO", elapsedS: 10.834 },
+                ]}
             />
         )
 
-        expect(screen.getByRole("status").textContent).toBe(
-            "Bạn đã nộp đáp án: Hà Nội (3.5s)"
-        )
+        const rows = screen.getAllByRole("status")
+        expect(rows.map((r) => r.textContent)).toEqual([
+            "Bạn đã nộp đáp án: Hà Nội (3.500s)",
+            "Bạn đã nộp từ khóa: AOMASAO (10.834s)",
+        ])
     })
 
     it("clears the input as soon as the answer is sent", async () => {
@@ -51,7 +64,6 @@ describe("AnswerBand — submission feedback", () => {
             <AnswerBand
                 question={QUESTION}
                 answerState="draft"
-                mySubmission={{ answer: "Hà Nội", elapsedS: 3.5 }}
                 onSubmit={vi.fn()}
             />
         )
@@ -63,15 +75,11 @@ describe("AnswerBand — submission feedback", () => {
         rerender(
             <AnswerBand
                 question={QUESTION}
-                answerState="draft"
-                mySubmission={{ answer: "Sài Gòn", elapsedS: 6.2 }}
+                answerState="final"
                 onSubmit={vi.fn()}
             />
         )
 
         expect(input.value).toBe("")
-        expect(screen.getByRole("status").textContent).toBe(
-            "Bạn đã nộp đáp án: Sài Gòn (6.2s)"
-        )
     })
 })

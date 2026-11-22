@@ -78,7 +78,11 @@ public static partial class LiveView
             ["hintsRevealed"] = player?.HintsRevealed ?? 0,
             ["answerState"] = answerState,
             ["mySubmission"] = MySubmissionOf(
-                input.Submitted, openQuestionId, QuestionMatchOf(input, openQuestionId))
+                input.Submitted, openQuestionId, QuestionMatchOf(input, openQuestionId)),
+            ["myKeywordSubmission"] = keywordQuestion is null
+                ? null
+                : MySubmissionOf(input.Submitted, keywordQuestion.Id,
+                    QuestionMatchOf(input, keywordQuestion.Id))
         };
 
         var keywordDeadlineAt = GiaiMaTurn.KeywordWindowRunning(state, input.Now)

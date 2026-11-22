@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from "react"
+import { useState } from "react"
+import { formatElapsed, type SubmissionEntry } from "./submission-log"
 import { STRIP_R, pt } from "./geometry"
 import { COPY } from "./copy"
 import type { AnswerValue, PlayerQuestion } from "./types"
@@ -20,10 +21,9 @@ const submitClass = (ready: boolean): string => {
     return `${SUBMIT} ${cursor}`
 }
 
-export function AnswerBand({ question, answerState, mySubmission, disabled, busy, error, onSubmit }: {
+export function AnswerBand({ question, answerState, disabled, busy, error, onSubmit }: {
     question: PlayerQuestion | null
     answerState?: "none" | "draft" | "final"
-    mySubmission?: { answer: string; elapsedS: number } | null
     disabled?: boolean
     busy?: boolean
     error?: string | null
@@ -34,16 +34,10 @@ export function AnswerBand({ question, answerState, mySubmission, disabled, busy
     let state = { qid, picked: "", text: "" }
     if (draft.qid === qid) state = draft
 
-    const submissionKey = mySubmission
-        ? `${mySubmission.answer}@${mySubmission.elapsedS}`
-        : ""
-    const [lastReset, setLastReset] = useState({ qid, answerState, submissionKey })
-    const stale =
-        lastReset.qid !== qid ||
-        lastReset.answerState !== answerState ||
-        lastReset.submissionKey !== submissionKey
+    const [lastReset, setLastReset] = useState({ qid, answerState })
+    const stale = lastReset.qid !== qid || lastReset.answerState !== answerState
     if (stale) {
-        setLastReset({ qid, answerState, submissionKey })
+        setLastReset({ qid, answerState })
         setDraft({ qid: "", picked: "", text: "" })
     }
     let sendLabel: string = COPY.send
@@ -54,18 +48,6 @@ export function AnswerBand({ question, answerState, mySubmission, disabled, busy
         onSubmit(value)
     }
 
-    let submissionLine: ReactNode = null
-    if (mySubmission) {
-        submissionLine = (
-            <p
-                className="font-sans text-muted-foreground"
-                style={{ fontSize: pt(11) }}
-                role="status"
-            >
-                Bạn đã nộp đáp án: <b>{mySubmission.answer}</b> ({mySubmission.elapsedS}s)
-            </p>
-        )
-    }
 
     if (!question) {
         return <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}></span>
@@ -100,7 +82,6 @@ export function AnswerBand({ question, answerState, mySubmission, disabled, busy
                 >
                     {sendLabel}
                 </button>
-                {submissionLine}
             </div>
         )
     }
@@ -134,8 +115,32 @@ export function AnswerBand({ question, answerState, mySubmission, disabled, busy
             >
                 {sendLabel}
             </button>
-            {submissionLine}
         </div>
+    )
+}
+
+export function SubmissionLog({ entries }: { entries: SubmissionEntry[] }) {
+    if (entries.length === 0) return null
+    return (
+        <section
+            className="flex w-full flex-col gap-[0.4cqw] rounded-lg bg-muted/40 px-[1.2cqw] py-[0.8cqw] ring-1 ring-border"
+            aria-label="Trạng thái nộp bài"
+        >
+            {entries.map((entry) => {
+                let label = "đáp án"
+                if (entry.kind === "keyword") label = "từ khóa"
+                return (
+                    <p
+                        key={`${entry.kind}:${entry.answer}:${entry.elapsedS}`}
+                        role="status"
+                        className="font-sans text-muted-foreground"
+                        style={{ fontSize: pt(12) }}
+                    >
+                        Bạn đã nộp {label}: <b>{entry.answer}</b> ({formatElapsed(entry.elapsedS)}s)
+                    </p>
+                )
+            })}
+        </section>
     )
 }
 
@@ -168,6 +173,9 @@ export function KeywordBox({ busy, disabled, onSubmit }: { busy: boolean; disabl
     const [confirming, setConfirming] = useState(false)
     if (draft.locked) {
         return <span className="inline-flex items-center gap-[0.5cqw] font-sans font-semibold text-emerald-600" style={{ fontSize: pt(12) }}>Đã nộp từ khóa — chờ điều hành chốt</span>
+    }
+    if (disabled) {
+        return <span role="status" className="inline-flex items-center gap-[0.5cqw] font-sans font-semibold text-muted-foreground" style={{ fontSize: pt(12) }}>Từ khóa đã hết giờ — không nộp được nữa</span>
     }
     const commit = () => {
         if (!draft.text.trim() || busy) return
