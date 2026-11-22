@@ -11,7 +11,7 @@ export {
 
 export { AudienceFace, KeywordLengthBanner, QuestionCard } from "./question"
 
-export { VeDichStripCells } from "./strip"
+export { QuestionChips, VeDichStripCells } from "./strip"
 
 export { QuestionStepper } from "./stepper"
 
