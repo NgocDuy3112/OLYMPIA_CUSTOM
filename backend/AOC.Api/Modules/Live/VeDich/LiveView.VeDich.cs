@@ -210,6 +210,8 @@ public static partial class LiveView
         view["console"] = new Dictionary<string, object?>
         {
             ["picksConfirmed"] = state.PicksConfirmed,
+            ["turnQuestions"] = (state.TurnQuestions ?? []).Select(q => q.Id).ToList(),
+            ["turnValues"] = (state.TurnQuestions ?? []).Select(q => q.Value).ToList(),
             ["powersLeft"] = state.TurnIndex < state.Players.Count
                 ? state.Players[state.TurnIndex].Powers.Available
                 : []

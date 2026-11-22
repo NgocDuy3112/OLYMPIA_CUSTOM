@@ -80,6 +80,7 @@ public static class VeDichTurn
             Players = OrderForPhase(state.Players, 2),
             TurnIndex = 0,
             PendingPicks = [],
+            TurnQuestions = [],
             Open = null,
             TurnPicked = 0
         };
@@ -148,6 +149,7 @@ public static class VeDichTurn
         {
             Remaining = pool.Where(q => !questionIds.Contains(q.Id)).ToList(),
             PendingPicks = picks,
+            TurnQuestions = picks,
             TurnPicked = questionIds.Count,
             PicksConfirmed = false
         };
@@ -184,6 +186,7 @@ public static class VeDichTurn
         {
             Remaining = pool.Where(q => !questionIds.Contains(q.Id)).ToList(),
             PendingPicks = picks,
+            TurnQuestions = picks,
             PicksConfirmed = false
         };
     }
@@ -248,7 +251,15 @@ public static class VeDichTurn
     {
         if (state.Phase != 1) throw Err("WRONG_PHASE", "closeQuestion only applies in Phase 1");
         if (state.Open is null) return state;
-        return state with { Open = null };
+        // Put the question back at the head of the strip: it is still part of the
+        // turn, and the console may switch back to it.
+        if (state.PendingPicks.Any(q => q.Id == state.Open.Question.Id))
+            return state with { Open = null };
+        return state with
+        {
+            Open = null,
+            PendingPicks = [state.Open.Question, .. state.PendingPicks]
+        };
     }
 
     public static VeDichState NextQuestion(VeDichState state)
@@ -565,6 +576,7 @@ public static class VeDichTurn
         {
             TurnIndex = state.TurnIndex + 1,
             PendingPicks = [],
+            TurnQuestions = [],
             Players = state.Players.Select(p => p with { Powers = p.Powers.ResetForTurn() }).ToList(),
             TurnPicked = 0,
             PicksConfirmed = false
@@ -585,6 +597,7 @@ public static class VeDichTurn
             TurnIndex = index,
             Remaining = state.Remaining.Concat(state.PendingPicks).ToList(),
             PendingPicks = [],
+            TurnQuestions = [],
             Players = state.Players.Select(p => p with { Powers = p.Powers.ResetForTurn() }).ToList(),
             TurnPicked = 0,
             PicksConfirmed = false

@@ -81,6 +81,8 @@ public static class LiveFacts
                     ["assignedToId"] = LiveView.AssignedToId(open),
                     ["pendingQuestionId"] = state.PendingPicks.Count > 0 ? state.PendingPicks[0].Id : null,
                     ["pendingValues"] = state.PendingPicks.Select(q => q.Value).ToList(),
+                    ["turnQuestions"] = (state.TurnQuestions ?? []).Select(q => q.Id).ToList(),
+                    ["turnValues"] = (state.TurnQuestions ?? []).Select(q => q.Value).ToList(),
                     ["turnPicked"] = state.TurnPicked,
                     ["picksConfirmed"] = state.PicksConfirmed,
                     ["powersLeft"] = turnPlayer?.Powers.Available ?? [],

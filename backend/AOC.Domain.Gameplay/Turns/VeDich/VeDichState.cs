@@ -16,6 +16,12 @@ public sealed record VeDichState
 
     [JsonPropertyName("turnIndex")] public int TurnIndex { get; init; }
     [JsonPropertyName("pendingPicks")] public List<VeDichQuestion> PendingPicks { get; init; } = [];
+
+    /// <summary>The questions picked for the current turn — kept after they are
+    /// opened so the console can always show the whole turn's strip.</summary>
+    [JsonPropertyName("turnQuestions")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<VeDichQuestion>? TurnQuestions { get; init; }
     [JsonPropertyName("open")] public OpenQuestion? Open { get; init; }
 
     [JsonPropertyName("ended")] public bool Ended { get; init; }
