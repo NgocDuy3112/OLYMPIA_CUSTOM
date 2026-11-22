@@ -65,13 +65,16 @@ public class PowersTests
     }
 
     [Fact]
-    public void ASpentPowerIsGoneForTheRound()
+    public void ASpentPowerIsGoneForTheTurn()
     {
         var spent = PowerSet.Fresh().Spend(PowerKind.STAR);
 
-        Assert.Equal([PowerKind.ASSIGN], spent.Available);
+        // One power per turn: the other one does not become available.
+        Assert.Empty(spent.Available);
         Assert.Equal("POWER_UNAVAILABLE", CodeOf(() => spent.Spend(PowerKind.STAR)));
+        Assert.Equal("POWER_UNAVAILABLE", CodeOf(() => spent.Spend(PowerKind.ASSIGN)));
         Assert.Equal("POWER_UNAVAILABLE", CodeOf(() => spent.Stage(PowerKind.STAR, null)));
+        Assert.Equal("POWER_UNAVAILABLE", CodeOf(() => spent.Stage(PowerKind.ASSIGN, "b")));
     }
 
     [Fact]
@@ -81,7 +84,7 @@ public class PowersTests
         var spent = staged.Spend(PowerKind.ASSIGN);
 
         Assert.True(spent.UsedThisTurn);
-        Assert.Equal([PowerKind.STAR], spent.Available);
+        Assert.Empty(spent.Available);
     }
 
     [Fact]
@@ -95,12 +98,29 @@ public class PowersTests
     }
 
     [Fact]
-    public void ASpentPowerStaysSpentAcrossTurns()
+    public void ANextTurnReArmsTheFullSet()
     {
-        var next = PowerSet.Fresh().Stage(PowerKind.STAR, null)
+        var spent = PowerSet.Fresh().Stage(PowerKind.STAR, null)
             .Spend(PowerKind.STAR).ClearTurn();
+        Assert.Empty(spent.Available);
 
-        Assert.Equal([PowerKind.ASSIGN], next.Available);
+        var next = spent.ResetForTurn();
+
+        Assert.Equal([PowerKind.STAR, PowerKind.ASSIGN], next.Available);
         Assert.False(next.UsedThisTurn);
+        Assert.Null(next.Staged);
+    }
+
+    [Fact]
+    public void UnstagingHandsTheTurnPowerBack()
+    {
+        var staged = PowerSet.Fresh().Stage(PowerKind.STAR, null);
+
+        var back = staged.Unstage();
+
+        Assert.Null(back.Staged);
+        Assert.False(back.UsedThisTurn);
+        Assert.Equal([PowerKind.STAR, PowerKind.ASSIGN], back.Available);
+        Assert.Equal(PowerKind.ASSIGN, back.Stage(PowerKind.ASSIGN, "b").Staged!.Power);
     }
 }

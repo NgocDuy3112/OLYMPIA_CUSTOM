@@ -303,7 +303,14 @@ public static class VeDichTurn
             throw Err("NOT_YOUR_TURN", "only the current player's power may be staged");
         if (state.PendingPicks.Count == 0)
             throw Err("NOTHING_OPEN", "pick the turn's questions first");
-        if (power is null) return state;
+        if (power is null)
+        {
+            // Nothing was spent yet — cancelling hands the turn's power back.
+            var cleared = state.Players.Select(p => p.Id == playerId
+                ? p with { Powers = p.Powers.Unstage() }
+                : p).ToList();
+            return state with { Players = cleared };
+        }
 
         if (power == PowerKind.ASSIGN)
         {
@@ -314,6 +321,9 @@ public static class VeDichTurn
         }
 
         var owner = state.Players.First(p => p.Id == playerId);
+        // An empty set means the turn's single power was already spent.
+        if (owner.Powers.Available.Count == 0)
+            throw Err("POWER_UNAVAILABLE", "the turn's power was already used");
         if (owner.Powers.UsedThisTurn)
             throw Err("ONE_POWER_PER_TURN", "the turn has already chosen its power");
         if (!owner.Powers.Available.Contains(power.Value))
@@ -555,7 +565,7 @@ public static class VeDichTurn
         {
             TurnIndex = state.TurnIndex + 1,
             PendingPicks = [],
-            Players = state.Players.Select(p => p with { Powers = p.Powers.ClearTurn() }).ToList(),
+            Players = state.Players.Select(p => p with { Powers = p.Powers.ResetForTurn() }).ToList(),
             TurnPicked = 0,
             PicksConfirmed = false
         };
@@ -575,7 +585,7 @@ public static class VeDichTurn
             TurnIndex = index,
             Remaining = state.Remaining.Concat(state.PendingPicks).ToList(),
             PendingPicks = [],
-            Players = state.Players.Select(p => p with { Powers = p.Powers.ClearTurn() }).ToList(),
+            Players = state.Players.Select(p => p with { Powers = p.Powers.ResetForTurn() }).ToList(),
             TurnPicked = 0,
             PicksConfirmed = false
         };

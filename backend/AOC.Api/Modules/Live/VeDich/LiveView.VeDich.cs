@@ -207,6 +207,13 @@ public static partial class LiveView
         view["assignedToId"] = AssignedToId(state.Open);
         view["stagedPower"] = StagedPowerOf(
             state.TurnIndex < state.Players.Count ? state.Players[state.TurnIndex] : null);
+        view["console"] = new Dictionary<string, object?>
+        {
+            ["picksConfirmed"] = state.PicksConfirmed,
+            ["powersLeft"] = state.TurnIndex < state.Players.Count
+                ? state.Players[state.TurnIndex].Powers.Available
+                : []
+        };
         return view;
     }
 }

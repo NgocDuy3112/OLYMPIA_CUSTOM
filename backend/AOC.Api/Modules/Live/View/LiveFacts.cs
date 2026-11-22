@@ -83,6 +83,7 @@ public static class LiveFacts
                     ["pendingValues"] = state.PendingPicks.Select(q => q.Value).ToList(),
                     ["turnPicked"] = state.TurnPicked,
                     ["picksConfirmed"] = state.PicksConfirmed,
+                    ["powersLeft"] = turnPlayer?.Powers.Available ?? [],
                     ["stagedPower"] = LiveView.StagedPowerOf(turnPlayer),
                     ["turnPowerUsed"] = turnPlayer?.Powers.UsedThisTurn ?? false
                 };

@@ -44,8 +44,19 @@ public sealed record PowerSet
     public PowerSet Spend(PowerKind kind)
     {
         AssertAvailable(kind);
-        return this with { Available = Available.Where(x => x != kind).ToList() };
+        // One power per turn (Về đích Riêng): spending either one uses the
+        // turn's only power — the other never becomes available.
+        return this with { Available = [] };
     }
 
     public PowerSet ClearTurn() => this with { UsedThisTurn = false, Staged = null };
+
+    /// <summary>
+    /// A new turn re-arms the full power set: each contestant gets one fresh
+    /// STAR/ASSIGN choice on their own turn.
+    /// </summary>
+    public PowerSet ResetForTurn() => Fresh();
+
+    /// <summary>Un-staging hands the turn's power back — nothing was spent yet.</summary>
+    public PowerSet Unstage() => this with { Staged = null, UsedThisTurn = false };
 }
