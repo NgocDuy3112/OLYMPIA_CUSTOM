@@ -242,7 +242,7 @@ const FIELD_CSS = `
 
 export function IconField() {
     return (
-        <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
             <style>{FIELD_CSS}</style>
             {FIELD_ITEMS.map(({ Icon, style, key }) => (
                 <span key={key} style={style} className="stage-field-float absolute block">

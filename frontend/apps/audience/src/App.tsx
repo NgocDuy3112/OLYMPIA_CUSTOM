@@ -22,6 +22,7 @@ export function App() {
             <QueryClientProvider client={client}>
                 <div className="audience relative min-h-dvh text-foreground">
                     <IconField />
+                    <div className="relative z-10">
                     <Routes>
                         <Route
                             path="/tournaments/:tournamentId/matches/:matchId"
@@ -33,6 +34,7 @@ export function App() {
                         />
                         <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
+                    </div>
                     <SfxUnlockBar />
                 </div>
             </QueryClientProvider>

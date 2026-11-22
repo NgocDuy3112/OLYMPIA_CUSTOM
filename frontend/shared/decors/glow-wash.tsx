@@ -21,7 +21,7 @@ const GLOW_WASH_CSS = `
 
 export function GlowWash() {
     return (
-        <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
             <style>{GLOW_WASH_CSS}</style>
             <div
                 className="stage-glow-wash absolute"

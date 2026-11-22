@@ -20,6 +20,7 @@ export default function App() {
     <ErrorBoundary scope="portal">
       <IconField />
       <GlowWash />
+      <div className="relative z-10">
       <BrowserRouter>
       <Routes>
         <Route
@@ -62,6 +63,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       </BrowserRouter>
+      </div>
     </ErrorBoundary>
   )
 }
