@@ -252,3 +252,7 @@
 @media (prefers-reduced-motion: reduce) {
   .icon-pop { animation: none; }
 }
+
+.audience.led-mode {
+  zoom: 1.12;
+}

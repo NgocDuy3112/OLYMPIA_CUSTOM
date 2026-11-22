@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { Navigate, Route, Routes } from "react-router-dom"
+import { Navigate, Route, Routes, useParams } from "react-router-dom"
 import { LivePage } from "@/pages/LivePage"
 import { IconField } from "@shared/decors/icon-field"
 import { SfxUnlockBar } from "@shared/ui/sfx-unlock-bar"
@@ -9,6 +9,13 @@ const client = new QueryClient({
     defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
 })
 
+function LegacyLiveRedirect() {
+    const { tournamentId = "", matchId = "" } = useParams()
+    if (!tournamentId || !matchId) return <Navigate to="/" replace />
+    const target = `/tournaments/${tournamentId}/matches/${matchId}`
+    return <Navigate to={target} replace />
+}
+
 export function App() {
     return (
         <ErrorBoundary scope="audience">
@@ -16,8 +23,15 @@ export function App() {
                 <div className="audience relative min-h-dvh text-foreground">
                     <IconField />
                     <Routes>
-                        <Route path="/live/:tournamentId/:matchId" element={<LivePage />} />
-                        <Route path="*" element={<Navigate to="/live" replace />} />
+                        <Route
+                            path="/tournaments/:tournamentId/matches/:matchId"
+                            element={<LivePage />}
+                        />
+                        <Route
+                            path="/live/:tournamentId/:matchId"
+                            element={<LegacyLiveRedirect />}
+                        />
+                        <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                     <SfxUnlockBar />
                 </div>
