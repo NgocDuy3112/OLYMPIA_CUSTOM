@@ -1,6 +1,6 @@
-import { AnswerBand, PlayerStage, QuestionCard, Rail, Timer, VeDichStripCells, type PlayerCore , SubmissionLog, type SubmissionEntry } from "../player-deck"
+import { AnswerBand, PlayerStage, QuestionCard, QuestionChips, Rail, Timer, type PlayerCore , SubmissionLog, type SubmissionEntry } from "../player-deck"
 import type { AnswerValue } from "../types"
-import { stripCellsOf } from "../ve-dich-board"
+import { playerTurnChips } from "../ve-dich-board"
 import { timerRemainingOf } from "@shared/lib/clock"
 
 type VeDichChungPlayerCtx = PlayerCore & {
@@ -27,7 +27,7 @@ export function VeDichChungAOCPlayer({ ctx }: { ctx: VeDichChungPlayerCtx }) {
                 mode="Lượt chung"
                 right={
                     <span className="flex items-center gap-[1.2cqw]">
-                        <VeDichStripCells cells={stripCellsOf(v.board)} />
+                        <QuestionChips chips={playerTurnChips(v)} />
                         <Timer remaining={timerRemaining} />
                     </span>
                 }

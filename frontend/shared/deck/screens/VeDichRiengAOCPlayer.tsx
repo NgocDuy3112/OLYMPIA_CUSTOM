@@ -1,8 +1,8 @@
 import type { ReactNode } from "react"
 import { Hand } from "lucide-react"
-import { AnswerBand, AudienceFace, PlayerStage, QuestionCard, Rail, Timer, VeDichStripCells, type PlayerCore , SubmissionLog, type SubmissionEntry } from "../player-deck"
+import { AnswerBand, AudienceFace, PlayerStage, QuestionCard, QuestionChips, Rail, Timer, type PlayerCore , SubmissionLog, type SubmissionEntry } from "../player-deck"
 import { STRIP_R } from "../geometry"
-import { stripCellsOf } from "../ve-dich-board"
+import { playerTurnChips } from "../ve-dich-board"
 import { timerRemainingOf } from "@shared/lib/clock"
 import { COPY } from "../copy"
 import type { AnswerValue, VeDichCommand } from "../types"
@@ -70,7 +70,7 @@ export function VeDichRiengAOCPlayer({ ctx }: { ctx: VeDichRiengPlayerCtx }) {
                 mode="Lượt cá nhân"
                 right={
                     <span className="flex items-center gap-[1.2cqw]">
-                        <VeDichStripCells cells={stripCellsOf(v.board)} />
+                        <QuestionChips chips={playerTurnChips(v)} />
                         <Timer remaining={timerRemaining} />
                     </span>
                 }

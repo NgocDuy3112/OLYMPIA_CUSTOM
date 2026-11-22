@@ -12,7 +12,6 @@ export {
     QuestionStepper,
     StageLayout,
     Timer,
-    VeDichStripCells,
 } from "@shared/deck/stage"
 
 export { Rail, type CardData } from "./rail"

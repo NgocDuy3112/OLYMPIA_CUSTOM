@@ -81,7 +81,7 @@ export interface PlayerView {
     answererId?: string | null
     assignedToId?: string | null
     stagedPower?: { power: "STAR" | "ASSIGN"; targetId?: string } | null
-    console?: { picksConfirmed?: boolean } | null
+    console?: { picksConfirmed?: boolean; turnQuestions?: string[]; turnValues?: number[] } | null
     keyword?: { questionId: string; question: PlayerQuestion | null } | null
     keywordCode?: string | null
     hintAnswers: Record<string, string>

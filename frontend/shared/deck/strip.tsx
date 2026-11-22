@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { DECK_PAD, STRIP_R, pt } from "./geometry"
+import { STRIP_R, pt } from "./geometry"
 
 
 export type StripItem = { label: string; content?: ReactNode; onClick?: () => void; title?: string; muted?: boolean; empty?: boolean }
@@ -56,74 +56,7 @@ export function Strip({ items }: { items: StripItem[] }) {
     )
 }
 
-export function VeDichStripCells({ cells }: {
-    cells: Array<{ questionId: string; value: number; where: string }>
-}) {
-    return (
-        <>
-            {cells.map((c) => {
-                let cellTone = "bg-muted ring-border"
-                if (c.where === "open") cellTone = "bg-primary text-primary-foreground ring-primary"
-                return (
-                    <span
-                        key={c.questionId}
-                        className={`flex h-[4.43cqw] min-w-0 max-w-[10cqw] flex-1 flex-col items-center justify-center rounded-lg shadow-sm ring-1 ${cellTone}`}
-                        style={DECK_PAD}
-                    >
-                        <b className="font-display leading-none" style={{ fontSize: pt(20) }}>{c.value}</b>
-                    </span>
-                )
-            })}
-        </>
-    )
-}
 
-
-export function Chip({ value, tone = "gray", clickable, onClick, title }: {
-    value: string | number | null
-    tone?: "purple" | "gray"
-    clickable?: boolean
-    onClick?: () => void
-    title?: string
-}) {
-    const toneClass = tone === "purple"
-        ? "bg-primary text-primary-foreground ring-primary"
-        : "bg-muted text-foreground ring-border"
-    return (
-        <button
-            type="button"
-            onClick={clickable ? onClick : undefined}
-            aria-disabled={clickable ? undefined : true}
-            title={title}
-            className={`flex h-[4.43cqw] min-w-[7cqw] shrink-0 items-center justify-center rounded-lg px-[1.4cqw] shadow-sm ring-1 font-display leading-none ${toneClass} ${clickable ? "cursor-pointer transition hover:brightness-95" : "cursor-default"}`}
-            style={DECK_PAD}
-        >
-            <span style={{ fontSize: pt(34) }}>{value ?? ""}</span>
-        </button>
-    )
-}
-
-export function QuestionChips({ chips, onSelect }: {
-    chips: Array<{ id: string; label: string; active: boolean; clickable?: boolean; title?: string }>
-    onSelect?: (id: string) => void
-}) {
-    return (
-        <span className="flex min-w-0 flex-1 items-center gap-[1.2cqw]">
-            {chips.map((chip) => {
-                let click: (() => void) | undefined = undefined
-                if (chip.clickable && onSelect) click = () => onSelect(chip.id)
-                const canClick = Boolean(click)
-                return (
-                    <Chip
-                        key={chip.id}
-                        value={chip.label}
-                        tone={chip.active ? "purple" : "gray"}
-                        clickable={canClick}
-                        onClick={click}
-                        title={chip.title}
-                    />
-                )
-            })}
-        </span>
-    )
-}
+// The Về đích question chips live in their own module so the console and the
+// player deck can import the same component.
+export { QuestionChip as Chip, QuestionChips } from "./question-chip"

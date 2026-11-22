@@ -51,3 +51,75 @@ export function boardRows<T>(cells: readonly T[], valueOf: (cell: T) => number):
 export function stripCellsOf<T extends { where: string }>(board: readonly T[] | null | undefined): T[] {
     return (board ?? []).filter((cell) => cell.where === "open" || cell.where === "pending")
 }
+
+export type TurnChipState = "open" | "waiting" | "done"
+
+export interface TurnChip {
+    questionId: string
+    value: number
+    where: TurnChipState
+}
+
+/**
+ * Every question picked for the turn, in pick order, whatever its state.
+ * `turnQuestions` is the turn's record; the board only says which one is open.
+ * Falls back to the board's open/pending cells for older frames.
+ */
+export function turnChipsOf(input: {
+    turnQuestions?: string[] | null
+    turnValues?: number[] | null
+    board?: ReadonlyArray<{ questionId: string; value: number; where: string }> | null
+    openId: string | null
+}): TurnChip[] {
+    const board = input.board ?? []
+    const whereOf = (questionId: string): TurnChipState => {
+        if (questionId === input.openId) return "open"
+        const cell = board.find((c) => c.questionId === questionId)
+        if (cell?.where === "pending") return "waiting"
+        if (!cell) return "waiting"
+        return "done"
+    }
+    const ids = input.turnQuestions ?? []
+    const values = input.turnValues ?? []
+    if (ids.length > 0) {
+        return ids.map((questionId, index) => ({
+            questionId,
+            value: values[index] ?? board.find((c) => c.questionId === questionId)?.value ?? 0,
+            where: whereOf(questionId),
+        }))
+    }
+    return stripCellsOf(board).map((cell) => ({
+        questionId: cell.questionId,
+        value: cell.value,
+        where: whereOf(cell.questionId),
+    }))
+}
+
+export function turnChipHint(where: TurnChipState, value: number): string {
+    if (where === "open") return `Câu ${value} đang mở`
+    if (where === "done") return `Mở lại câu ${value} điểm`
+    return `Mở câu ${value} điểm`
+}
+
+/**
+ * The player sees the same strip as the console: every question of the turn,
+ * the open one highlighted. Read-only — players never switch questions.
+ */
+export function playerTurnChips(view: {
+    board?: ReadonlyArray<{ questionId: string; value: number; where: string }> | null
+    open?: ReadonlyArray<{ questionId: string }>
+    console?: { turnQuestions?: string[]; turnValues?: number[] } | null
+}): Array<{ id: string; label: string; active: boolean; title: string }> {
+    const chips = turnChipsOf({
+        turnQuestions: view.console?.turnQuestions ?? null,
+        turnValues: view.console?.turnValues ?? null,
+        board: view.board ?? null,
+        openId: view.open?.[0]?.questionId ?? null,
+    })
+    return chips.map((chip) => ({
+        id: chip.questionId,
+        label: String(chip.value),
+        active: chip.where === "open",
+        title: turnChipHint(chip.where, chip.value),
+    }))
+}

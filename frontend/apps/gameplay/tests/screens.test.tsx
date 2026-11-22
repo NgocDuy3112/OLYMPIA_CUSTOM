@@ -260,8 +260,32 @@ describe("player screens render from a plain fixture", () => {
         expect(getAllByText("Bấm chuông").length).toBeGreaterThan(0)
     })
 
-    it("về đích · lượt cá nhân — the strip sits in the header's right slot too", () => {
+    it("về đích · câu hỏi chung — the strip shows the whole turn, not just what waits", () => {
         const v = view({
+            roundId: "ve-dich",
+            stage: "phase1",
+            open: [openQ],
+            board: [
+                { questionId: "q1", value: 20, where: "open" },
+                { questionId: "q2", value: 20, where: "pending" },
+                { questionId: "q3", value: 30, where: "taken" },
+                { questionId: "q4", value: 30, where: "taken" },
+            ],
+            console: { picksConfirmed: true, turnQuestions: ["q1", "q2", "q3", "q4"], turnValues: [20, 20, 30, 30] },
+        })
+        const { container } = render(<VeDichChungAOCPlayer ctx={ctx({ v })} />)
+
+        const chips = Array.from(container.querySelectorAll("button")).filter((el) =>
+            el.className.includes("h-[4.43cqw]"))
+        expect(chips).toHaveLength(4)
+        // Same component as the console: fixed width, never stretched.
+        for (const chip of chips) {
+            expect(chip.className).toContain("w-[7cqw]")
+            expect(chip.className).toContain("rounded-lg")
+        }
+    })
+
+    it("về đích · lượt cá nhân — the strip sits in the header's right slot too", () => {        const v = view({
             roundId: "ve-dich",
             stage: "phase2",
             open: [openQ],

@@ -11,9 +11,11 @@ export {
 
 export { AudienceFace, KeywordLengthBanner, QuestionCard } from "./question"
 
-export { QuestionChips, VeDichStripCells } from "./strip"
+export { QuestionChip, QuestionChips } from "./question-chip"
 
-export { QuestionStepper } from "./stepper"
+export { QuestionNumber, QuestionNumbers, type QuestionNumberState } from "./question-number"
+
+export { QuestionNumbers as QuestionStepper } from "./question-number"
 
 export { Rail } from "./rail"
 

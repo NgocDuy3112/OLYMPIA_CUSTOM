@@ -93,7 +93,7 @@ export interface LiveView {
         value: number
         where: "free" | "pending" | "open" | "taken" | "deferred"
     }>
-    console?: { picksConfirmed?: boolean } | null
+    console?: { picksConfirmed?: boolean; turnQuestions?: string[]; turnValues?: number[] } | null
     keyword?: { questionId: string; question: LiveQuestion | null } | null
     hintAnswers: Record<string, string>
     tiebreak?: TieBreakView | null
