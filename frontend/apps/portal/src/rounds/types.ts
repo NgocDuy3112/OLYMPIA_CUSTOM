@@ -26,6 +26,7 @@ export type ScreenCore = Pick<
     | "v"
     | "flash"
     | "baseCards"
+    | "peerControls"
     | "send"
     | "sendChain"
     | "backToLobby"
@@ -38,11 +39,11 @@ export type ScreenCore = Pick<
 
 export function screenCore(facts: ConsoleFacts): ScreenCore {
     const {
-        v, flash, baseCards, send, sendChain, backToLobby, openAdjust, openRegrade,
+        v, flash, baseCards, peerControls, send, sendChain, backToLobby, openAdjust, openRegrade,
         toggleSelect, selectedIds, remaining,
     } = facts
     return {
-        v, flash, baseCards, send, sendChain, backToLobby, openAdjust, openRegrade,
+        v, flash, baseCards, peerControls, send, sendChain, backToLobby, openAdjust, openRegrade,
         toggleSelect, selectedIds, remaining,
     }
 }

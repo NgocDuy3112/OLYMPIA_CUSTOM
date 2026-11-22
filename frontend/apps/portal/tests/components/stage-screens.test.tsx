@@ -36,6 +36,7 @@ function facts(
         remaining: 30,
         rows: [],
         baseCards: [],
+        peerControls: new Map(),
         judgingId: null,
         target: null,
         setSelectedQ: vi.fn(),

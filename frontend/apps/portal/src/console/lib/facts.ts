@@ -25,6 +25,7 @@ export function consoleFactsOf(parts: ConsoleFactsParts): ConsoleFacts {
         oralRemaining: transport.oralRemaining,
         rows: judging.rows,
         baseCards: parts.baseCards,
+        peerControls: transport.peerControls,
         judgingId: judging.judgingId,
         target: judging.target,
         setSelectedQ: judging.setSelectedQ,

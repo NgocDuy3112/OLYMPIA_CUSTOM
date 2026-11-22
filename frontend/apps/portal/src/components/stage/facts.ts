@@ -1,5 +1,6 @@
 import type { ConsoleQuestion, LiveResponse, QuestionAnswerRow } from "@/lib/live"
 import type { LiveAction } from "@/lib/live-actions"
+import type { RtcPeerControlsMap } from "@shared/lib/rtc"
 import type { CardData } from "./rail"
 
 export interface ConsoleFacts {
@@ -10,6 +11,7 @@ export interface ConsoleFacts {
     oralRemaining: number | null
     rows: QuestionAnswerRow[]
     baseCards: CardData[]
+    peerControls: RtcPeerControlsMap
     judgingId: string | null
     target: string | null
     setSelectedQ: (questionId: string | null) => void

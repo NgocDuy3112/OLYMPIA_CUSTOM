@@ -2,6 +2,7 @@ import { useParams } from "react-router-dom"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { ConsoleStage, QuestionCard, Rail, Timer } from "@/components/stage/deck"
 import { backToLobbyAction } from "@/components/stage/actions"
+import type { CardData } from "@/components/stage/rail"
 import { api, ApiError } from "@shared/lib/api"
 import { useCountdown, useServerClock } from "@shared/lib/clock"
 import type { ScreenCore } from "@/rounds/types"
@@ -137,14 +138,26 @@ export function TieBreakAOCController({ ctx }: { ctx: TieBreakCtx }) {
         }
     }
 
-    const cards = view === null ? ctx.baseCards : view.players.map((player) => ({
-        id: player.id,
-        name: player.displayName,
-        points: player.points,
-        dimmed: player.eliminated,
-        buzzing: view.window.buzzer === player.id,
-        ring: ctx.selectedIds.has(player.id) ? ("selected" as const) : undefined,
-    }))
+    const cards = view === null ? ctx.baseCards : view.players.map((player) => {
+        const card: CardData = {
+            id: player.id,
+            name: player.displayName,
+            points: player.points,
+            dimmed: player.eliminated,
+            buzzing: view.window.buzzer === player.id,
+            ring: ctx.selectedIds.has(player.id) ? ("selected" as const) : undefined,
+        }
+        const controls = ctx.peerControls.get(player.id)
+        if (controls) {
+            card.micOn = controls.isMicOn
+            card.audioMuted = controls.isAudioMuted
+            card.videoHidden = controls.isVideoHidden
+            card.onToggleAudio = () => controls.togglePlayerAudio(player.id)
+            card.onToggleVideo = () => controls.togglePlayerVideo(player.id)
+            card.onToggleMic = () => controls.togglePlayerMic(player.id)
+        }
+        return card
+    })
 
     let timerRemaining: number | null = null
     if (view?.deadlineAt) timerRemaining = remaining
