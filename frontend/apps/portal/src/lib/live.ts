@@ -67,6 +67,7 @@ export interface Projection {
         }>
     }
     audioGate?: { allowed: string[] }
+    mediaPolicy?: { mode: "all" | "countdown" | "assign"; turnPlayerId: string | null; answererId: string | null; assignedToId: string | null; buzzerId: string | null; allowed: string[] }
 }
 
 export interface GiaiMaConsole {
@@ -153,6 +154,12 @@ export interface LobbyData {
         points: number
         rank: number
         video?: import("livekit-client").RemoteVideoTrack | null
+        micOn?: boolean
+        audioMuted?: boolean
+        videoHidden?: boolean
+        onToggleAudio?: () => void
+        onToggleVideo?: () => void
+        onToggleMic?: () => void
     }>
     connected: string[]
 }

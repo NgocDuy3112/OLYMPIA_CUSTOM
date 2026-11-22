@@ -10,6 +10,7 @@ import type {
     VeDichConsole,
 } from "@/lib/live"
 import { formatDurationMs } from "@shared/lib/clock"
+import type { RtcPeerControlsMap } from "@shared/lib/rtc"
 
 export interface RailCardsInput {
     table: Projection["table"]
@@ -23,6 +24,7 @@ export interface RailCardsInput {
     target: string | null
     selectedIds: ReadonlySet<string>
     videoOf: (id: string) => RemoteVideoTrack | null
+    peerControls: RtcPeerControlsMap
     giaiMa: GiaiMaConsole | null
     veDich: VeDichConsole | null
     khoiDong: KhoiDongConsole | null
@@ -120,6 +122,15 @@ export function railCardsOf(input: RailCardsInput): CardData[] {
             points: seat.points,
             ring: ringOf(seat.id, input),
             video: input.videoOf(seat.id),
+        }
+        const controls = input.peerControls.get(seat.id)
+        if (controls) {
+            card.micOn = controls.isMicOn
+            card.audioMuted = controls.isAudioMuted
+            card.videoHidden = controls.isVideoHidden
+            card.onToggleAudio = () => controls.togglePlayerAudio(seat.id)
+            card.onToggleVideo = () => controls.togglePlayerVideo(seat.id)
+            card.onToggleMic = () => controls.togglePlayerMic(seat.id)
         }
         applyAnswer(card, rowsFor(seat.id), input)
         applyGiaiMa(card, input)

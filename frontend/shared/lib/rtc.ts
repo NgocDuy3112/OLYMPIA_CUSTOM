@@ -35,6 +35,15 @@ interface RtcPeerTracks {
     audio?: RemoteAudioTrack;
 }
 
+export type MediaPolicy = {
+    mode: "all" | "countdown" | "assign"
+    turnPlayerId: string | null
+    answererId: string | null
+    assignedToId: string | null
+    buzzerId: string | null
+    allowed: string[]
+}
+
 type RtcPeerTracksMap = ReadonlyMap<string, RtcPeerTracks>;
 
 
@@ -205,6 +214,8 @@ function peersOf(room: Room): RtcPeerTracksMap {
 const PEER_EVENTS = [
     RoomEvent.TrackSubscribed,
     RoomEvent.TrackUnsubscribed,
+    RoomEvent.TrackMuted,
+    RoomEvent.TrackUnmuted,
     RoomEvent.ParticipantDisconnected,
     RoomEvent.ParticipantConnected,
     RoomEvent.Disconnected,
@@ -319,6 +330,59 @@ export function useAudioGate(room: Room | null, gate: { allowed: string[] } | nu
     }, [apply, room]);
 }
 
+export function useMediaPolicy(room: Room | null, policy: MediaPolicy | null | undefined): void {
+    useEffect(() => {
+        if (!room) return
+        const sync = () => {
+            const allowed = new Set(policy?.allowed ?? [])
+            const mode = policy?.mode ?? "all"
+            for (const participant of room.remoteParticipants.values()) {
+                for (const publication of participant.trackPublications.values()) {
+                    if (publication.kind !== "audio") continue
+                    const identity = participant.identity
+                    let wantSubscribed = true
+                    let wantVolume = 1
+                    if (mode === "countdown") {
+                        wantSubscribed = identity === policy?.turnPlayerId
+                        wantVolume = identity === policy?.turnPlayerId ? 1 : 0
+                    }
+                    if (mode === "assign") {
+                        const allow = identity === policy?.turnPlayerId || identity === policy?.assignedToId
+                        wantSubscribed = allow
+                        wantVolume = allow ? 1 : 0
+                    }
+                    if (mode === "all") {
+                        wantSubscribed = true
+                        wantVolume = 1
+                    }
+                    if (allowed.size > 0 && mode !== "all") {
+                        const allow = allowed.has(identity)
+                        if (!allow) {
+                            wantSubscribed = false
+                            wantVolume = 0
+                        }
+                    }
+                    if (publication.isSubscribed !== wantSubscribed) publication.setSubscribed(wantSubscribed)
+                    const track = publication.track
+                    if (track) (track as RemoteAudioTrack).setVolume(wantVolume)
+                }
+            }
+        }
+        sync()
+        const events = [
+            RoomEvent.TrackSubscribed,
+            RoomEvent.TrackPublished,
+            RoomEvent.TrackUnpublished,
+            RoomEvent.ParticipantConnected,
+            RoomEvent.ParticipantDisconnected,
+        ] as const
+        for (const event of events) room.on(event, sync)
+        return () => {
+            for (const event of events) room.off(event, sync)
+        }
+    }, [room, policy])
+}
+
 export async function probeMediaPermission(devices: {
     getUserMedia: (constraints: MediaStreamConstraints) => Promise<MediaStream>
 }): Promise<string | null> {
@@ -388,8 +452,38 @@ export function useSelfBroadcast(matchId: string): SelfBroadcast {
     }, [room, status]);
 
     useEffect(() => {
-        if (status !== "connected" && status !== "reconnecting") setVideo(null);
-    }, [status]);
+        if (!room) return;
+        const handleData = (payload: Uint8Array) => {
+            try {
+                const text = new TextDecoder().decode(payload);
+                const msg = JSON.parse(text) as { type?: string; targetId?: string; muted?: boolean };
+                if (msg.targetId === room.localParticipant.identity) {
+                    if (msg.type === "mute_mic") {
+                        const shouldMute = msg.muted ?? true;
+                        micIntent.current = !shouldMute;
+                        setMicOn(!shouldMute);
+                        void room.localParticipant.setMicrophoneEnabled(!shouldMute);
+                    } else if (msg.type === "mute_cam") {
+                        const shouldMute = msg.muted ?? true;
+                        setCamOn(!shouldMute);
+                        if (shouldMute) setVideo(null);
+                        void room.localParticipant.setCameraEnabled(!shouldMute).then((pub) => {
+                            if (!shouldMute && pub?.track && pub.track.kind === "video") {
+                                setVideo(pub.track as LocalVideoTrack);
+                            }
+                        });
+                    }
+                }
+            } catch {
+                // Ignore malformed packets
+            }
+        };
+
+        room.on(RoomEvent.DataReceived, handleData);
+        return () => {
+            room.off(RoomEvent.DataReceived, handleData);
+        };
+    }, [room]);
 
     useEffect(() => {
         if (!room) return;
@@ -481,8 +575,10 @@ export interface HostBroadcast {
     video: LocalVideoTrack | null
     camOn: boolean
     micOn: boolean
+    deafen: boolean
     toggleCam: () => void
     toggleMic: () => void
+    toggleDeafen: () => void
 }
 
 export function useHostBroadcast(room: Room | null): HostBroadcast {
@@ -490,6 +586,7 @@ export function useHostBroadcast(room: Room | null): HostBroadcast {
     const [camOn, setCamOn] = useState(false)
     const [micOn, setMicOn] = useState(false)
     const [mediaError, setMediaError] = useState<string | null>(null)
+    const [deafen, setDeafen] = useState(false)
     const [prevRoom, setPrevRoom] = useState(room)
     if (room !== prevRoom) {
         setPrevRoom(room)
@@ -499,6 +596,37 @@ export function useHostBroadcast(room: Room | null): HostBroadcast {
             setMicOn(false)
         }
     }
+
+    useEffect(() => {
+        if (!room) return
+        const sync = () => {
+            for (const participant of room.remoteParticipants.values()) {
+                for (const publication of participant.trackPublications.values()) {
+                    if (publication.kind !== "audio") continue
+                    const want = !deafen
+                    if (publication.isSubscribed !== want) publication.setSubscribed(want)
+                    const track = publication.track
+                    if (track) {
+                        let volume = 0
+                        if (!deafen) volume = 1
+                        ;(track as RemoteAudioTrack).setVolume(volume)
+                    }
+                }
+            }
+        }
+        sync()
+        const events = [
+            RoomEvent.TrackPublished,
+            RoomEvent.TrackSubscribed,
+            RoomEvent.TrackUnpublished,
+            RoomEvent.ParticipantConnected,
+            RoomEvent.ParticipantDisconnected,
+        ] as const
+        for (const event of events) room.on(event, sync)
+        return () => {
+            for (const event of events) room.off(event, sync)
+        }
+    }, [room, deafen])
 
     const toggleCam = () => {
         if (!room) return
@@ -526,13 +654,143 @@ export function useHostBroadcast(room: Room | null): HostBroadcast {
             .catch((e: unknown) => setMediaError(mediaErrorOf(e)))
     }
 
+    const toggleDeafen = () => setDeafen((prev) => !prev)
+
     return {
         connected: room !== null,
         mediaError,
         video,
         camOn,
         micOn,
+        deafen,
         toggleCam,
         toggleMic,
+        toggleDeafen,
     }
+}
+
+export interface PeerControls {
+    isMicOn: boolean
+    isAudioMuted: boolean
+    isVideoHidden: boolean
+    togglePlayerAudio: (id: string) => void
+    togglePlayerVideo: (id: string) => void
+    togglePlayerMic: (id: string) => void
+    togglePlayerCam: (id: string) => void
+}
+
+export type RtcPeerControlsMap = ReadonlyMap<string, PeerControls>;
+
+export function useRtcPeerControls(room: Room | null): RtcPeerControlsMap {
+    const [audioMuted, setAudioMuted] = useState<ReadonlySet<string>>(new Set())
+    const [videoHidden, setVideoHidden] = useState<ReadonlySet<string>>(new Set())
+    const tracks = useRtcPeerTracks(room)
+
+    useEffect(() => {
+        if (!room) return
+        for (const id of audioMuted) applyPeerAudio(room, id, true)
+        for (const id of videoHidden) applyPeerVideo(room, id, false)
+    }, [room, audioMuted, videoHidden])
+
+    const togglePlayerAudio = (id: string) => {
+        setAudioMuted((prev) => {
+            const next = new Set(prev)
+            if (next.has(id)) next.delete(id)
+            else next.add(id)
+            if (room) applyPeerAudio(room, id, next.has(id))
+            return next
+        })
+    }
+
+    const togglePlayerVideo = (id: string) => {
+        setVideoHidden((prev) => {
+            const next = new Set(prev)
+            if (next.has(id)) next.delete(id)
+            else next.add(id)
+            if (room) applyPeerVideo(room, id, !next.has(id))
+            return next
+        })
+    }
+
+    const togglePlayerMic = (id: string) => {
+        if (!room) return
+        const peer = tracks.get(id)
+        const micOn = peerMicOn(peer?.audio)
+        publishPlayerOrder(room, "mute_mic", id, micOn)
+    }
+
+    const togglePlayerCam = (id: string) => {
+        if (!room) return
+        const peer = tracks.get(id)
+        const camOn = Boolean(peer?.video)
+        publishPlayerOrder(room, "mute_cam", id, camOn)
+    }
+
+    const controls = new Map<string, PeerControls>()
+    if (room) {
+        for (const id of room.remoteParticipants.keys()) {
+            const peer = tracks.get(id)
+            controls.set(id, {
+                isMicOn: peerMicOn(peer?.audio),
+                isAudioMuted: audioMuted.has(id),
+                isVideoHidden: videoHidden.has(id),
+                togglePlayerAudio,
+                togglePlayerVideo,
+                togglePlayerMic,
+                togglePlayerCam,
+            })
+        }
+    }
+
+    return controls
+}
+
+function publishPlayerOrder(room: Room, type: string, targetId: string, currentOn: boolean) {
+    const payload = new TextEncoder().encode(
+        JSON.stringify({ type, targetId, muted: currentOn })
+    )
+    void room.localParticipant.publishData(payload, { reliable: true })
+}
+
+function peerMicOn(track: RemoteAudioTrack | undefined): boolean {
+    if (!track) return false
+    return !track.isMuted
+}
+
+function peerAudioPublication(room: Room, id: string) {
+    const participant = room.remoteParticipants.get(id)
+    if (!participant) return null
+    for (const publication of participant.trackPublications.values()) {
+        if (publication.kind !== "audio") continue
+        return publication
+    }
+    return null
+}
+
+function peerVideoPublication(room: Room, id: string) {
+    const participant = room.remoteParticipants.get(id)
+    if (!participant) return null
+    for (const publication of participant.trackPublications.values()) {
+        if (publication.kind !== "video") continue
+        return publication
+    }
+    return null
+}
+
+function applyPeerAudio(room: Room, id: string, muted: boolean) {
+    const publication = peerAudioPublication(room, id)
+    if (!publication) return
+    const want = !muted
+    if (publication.isSubscribed !== want) publication.setSubscribed(want)
+    const track = publication.track
+    if (!track) return
+    let volume = 0
+    if (!muted) volume = 1
+    ;(track as RemoteAudioTrack).setVolume(volume)
+}
+
+function applyPeerVideo(room: Room, id: string, visible: boolean) {
+    const publication = peerVideoPublication(room, id)
+    if (!publication) return
+    if (publication.isSubscribed !== visible) publication.setSubscribed(visible)
 }

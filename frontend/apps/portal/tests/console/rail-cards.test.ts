@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { railCardsOf, type RailCardsInput } from "@/console/lib/rail-cards"
 import type { GiaiMaConsole, KhoiDongConsole, QuestionAnswerRow, VeDichConsole } from "@/lib/live"
+import type { PeerControls } from "@shared/lib/rtc"
 
 
 const TABLE = [
@@ -32,6 +33,7 @@ function input(over: Partial<RailCardsInput> = {}): RailCardsInput {
         target: null,
         selectedIds: new Set<string>(),
         videoOf: () => null,
+        peerControls: new Map(),
         giaiMa: null,
         veDich: null,
         khoiDong: null,
@@ -212,5 +214,82 @@ describe("railCardsOf — badges belong to the round", () => {
         const veDich = { power: "STAR", answererId: "u1", assignedToId: null } as unknown as VeDichConsole
         const cards = railCardsOf(input({ roundId: "giai-ma", veDich }))
         expect(cards.every((c) => c.icon === undefined)).toBe(true)
+    })
+})
+
+describe("railCardsOf — peer controls per player", () => {
+    const controlsFor = (over: Partial<PeerControls> = {}) => {
+        const togglePlayerAudio = vi.fn()
+        const togglePlayerVideo = vi.fn()
+        const togglePlayerMic = vi.fn()
+        const togglePlayerCam = vi.fn()
+        const controls = {
+            isMicOn: true,
+            isAudioMuted: false,
+            isVideoHidden: false,
+            togglePlayerAudio,
+            togglePlayerVideo,
+            togglePlayerMic,
+            togglePlayerCam,
+            ...over,
+        }
+        return { controls, togglePlayerAudio, togglePlayerVideo, togglePlayerMic }
+    }
+
+    it("copies mic and mute state onto the matching card only", () => {
+        const u1 = controlsFor({ isMicOn: false, isAudioMuted: true })
+        const u2 = controlsFor({ isMicOn: true, isAudioMuted: false })
+        const cards = railCardsOf(input({
+            peerControls: new Map([
+                ["u1", u1.controls],
+                ["u2", u2.controls],
+            ]),
+        }))
+
+        const an = cards.find((c) => c.id === "u1")
+        const binh = cards.find((c) => c.id === "u2")
+        expect(an?.micOn).toBe(false)
+        expect(an?.audioMuted).toBe(true)
+        expect(binh?.micOn).toBe(true)
+        expect(binh?.audioMuted).toBe(false)
+    })
+
+    it("routes each toggle to the player it belongs to", () => {
+        const u1 = controlsFor()
+        const cards = railCardsOf(input({
+            peerControls: new Map([["u1", u1.controls]]),
+        }))
+        cards.find((c) => c.id === "u1")?.onToggleAudio?.()
+        cards.find((c) => c.id === "u1")?.onToggleVideo?.()
+        expect(u1.togglePlayerAudio).toHaveBeenCalledWith("u1")
+        expect(u1.togglePlayerVideo).toHaveBeenCalledWith("u1")
+    })
+
+    it("routes the mic command to the player it belongs to", () => {
+        const u1 = controlsFor()
+        const cards = railCardsOf(input({
+            peerControls: new Map([["u1", u1.controls]]),
+        }))
+        cards.find((c) => c.id === "u1")?.onToggleMic?.()
+        expect(u1.togglePlayerMic).toHaveBeenCalledWith("u1")
+        expect(u1.togglePlayerAudio).not.toHaveBeenCalled()
+        expect(u1.togglePlayerVideo).not.toHaveBeenCalled()
+    })
+
+    it("leaves a card without controls bare so the widget stays hidden", () => {
+        const cards = railCardsOf(input({ peerControls: new Map() }))
+        const an = cards.find((c) => c.id === "u1")
+        expect(an?.onToggleAudio).toBeUndefined()
+        expect(an?.onToggleVideo).toBeUndefined()
+    })
+
+    it("still carries controls when the player has no track at all — the muted-everything case", () => {
+        const silent = controlsFor({ isMicOn: false, isAudioMuted: false, isVideoHidden: false })
+        const cards = railCardsOf(input({
+            peerControls: new Map([["u1", silent.controls]]),
+        }))
+        const an = cards.find((c) => c.id === "u1")
+        expect(an?.micOn).toBe(false)
+        expect(typeof an?.onToggleAudio).toBe("function")
     })
 })

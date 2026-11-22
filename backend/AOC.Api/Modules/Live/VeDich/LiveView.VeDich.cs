@@ -112,17 +112,38 @@ public static partial class LiveView
             .ToList();
 
         Dictionary<string, object?>? audioGate = null;
+        Dictionary<string, object?>? mediaPolicy = null;
+        var allowedIds = new List<string>();
         if (state.Phase == 2 && open is not null)
         {
-            var allowed = new[]
+            allowedIds = new[]
             {
                 open.Answerer, open.Window.PairA, open.Window.PairB, open.Window.Buzzer
             }
-                .Where(id => !string.IsNullOrEmpty(id))
+                .OfType<string>()
+                .Where(id => id.Length > 0)
                 .Distinct()
-                .Cast<string>()
                 .ToList();
-            audioGate = new Dictionary<string, object?> { ["allowed"] = allowed };
+            audioGate = new Dictionary<string, object?> { ["allowed"] = allowedIds };
+        }
+
+        var turnPlayerId = state.TurnIndex < state.Players.Count ? state.Players[state.TurnIndex].Id : null;
+        if (state.Phase == 2)
+        {
+            string mode = "countdown";
+            if (open is null) mode = "all";
+            else if (open.Window.Eligibility == AnswerEligibility.Pair) mode = "assign";
+
+            var policy = new Dictionary<string, object?>
+            {
+                ["mode"] = mode,
+                ["turnPlayerId"] = turnPlayerId,
+                ["answererId"] = open?.Answerer,
+                ["assignedToId"] = AssignedToId(open),
+                ["buzzerId"] = open?.Window.Buzzer,
+                ["allowed"] = allowedIds
+            };
+            mediaPolicy = policy;
         }
 
         var isMyTurn = !state.Ended && open is null
@@ -150,8 +171,7 @@ public static partial class LiveView
             state.Ended ? "ended" : $"phase{state.Phase}", openList, RankTable(input.Table, input.TieBreak), me);
         view["board"] = board;
         if (audioGate is not null) view["audioGate"] = audioGate;
-        string? turnPlayerId = null;
-        if (state.TurnIndex < state.Players.Count) turnPlayerId = state.Players[state.TurnIndex].Id;
+        if (mediaPolicy is not null) view["mediaPolicy"] = mediaPolicy;
         view["turnPlayerId"] = turnPlayerId;
         view["answererId"] = state.Open?.Answerer;
         view["assignedToId"] = AssignedToId(state.Open);

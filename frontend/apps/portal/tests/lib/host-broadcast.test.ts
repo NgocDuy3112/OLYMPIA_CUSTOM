@@ -20,10 +20,38 @@ function fakeRoom(over: { camRejects?: boolean } = {}): FakeRoom {
     const setMicrophoneEnabled = vi.fn(async () => undefined)
     const room = {
         localParticipant: { setCameraEnabled, setMicrophoneEnabled },
+        remoteParticipants: new Map(),
+        on: vi.fn(),
+        off: vi.fn(),
     } as unknown as Room
     return { room, setCameraEnabled, setMicrophoneEnabled }
 }
 
+
+
+function fakeRoomWithAudio() {
+    const setVolume = vi.fn()
+    const delivery: { isSubscribed: boolean } = { isSubscribed: true }
+    const setSubscribed = vi.fn((value: boolean) => {
+        delivery.isSubscribed = value
+    })
+    const publication = {
+        kind: "audio",
+        get isSubscribed() {
+            return delivery.isSubscribed
+        },
+        setSubscribed,
+        track: { setVolume },
+    }
+    const participant = { identity: "peer-1", trackPublications: new Map([[ "pub-1", publication ]]) }
+    const room = {
+        localParticipant: { setCameraEnabled: vi.fn(), setMicrophoneEnabled: vi.fn() },
+        remoteParticipants: new Map([[participant.identity, participant]]),
+        on: vi.fn(),
+        off: vi.fn(),
+    } as unknown as Room
+    return { room, setSubscribed, setVolume }
+}
 
 describe("useHostBroadcast", () => {
     it("is inert without a room — toggles neither publish nor throw", () => {
@@ -84,5 +112,48 @@ describe("useHostBroadcast", () => {
         expect(result.current.connected).toBe(false)
         expect(result.current.camOn).toBe(false)
         expect(result.current.video).toBeNull()
+    })
+
+    it("starts with deafen off", () => {
+        const { result } = renderHook(() => useHostBroadcast(null))
+        expect(result.current.deafen).toBe(false)
+    })
+
+    it("toggleDeafen flips the deafen flag", () => {
+        const { result } = renderHook(() => useHostBroadcast(null))
+
+        act(() => result.current.toggleDeafen())
+        expect(result.current.deafen).toBe(true)
+
+        act(() => result.current.toggleDeafen())
+        expect(result.current.deafen).toBe(false)
+    })
+
+    it("deafen silences remote audio and undeafen restores it", () => {
+        const fake = fakeRoomWithAudio()
+        const { result } = renderHook(() => useHostBroadcast(fake.room))
+
+        expect(fake.setVolume).toHaveBeenLastCalledWith(1)
+
+        act(() => result.current.toggleDeafen())
+        expect(result.current.deafen).toBe(true)
+        expect(fake.setVolume).toHaveBeenLastCalledWith(0)
+        expect(fake.setSubscribed).toHaveBeenLastCalledWith(false)
+
+        act(() => result.current.toggleDeafen())
+        expect(result.current.deafen).toBe(false)
+        expect(fake.setVolume).toHaveBeenLastCalledWith(1)
+        expect(fake.setSubscribed).toHaveBeenLastCalledWith(true)
+    })
+
+    it("deafen leaves local cam and mic state alone", async () => {
+        const fake = fakeRoom()
+        const { result } = renderHook(() => useHostBroadcast(fake.room))
+
+        await act(async () => result.current.toggleMic())
+        act(() => result.current.toggleDeafen())
+
+        expect(result.current.micOn).toBe(true)
+        expect(fake.setMicrophoneEnabled).toHaveBeenCalledTimes(1)
     })
 })

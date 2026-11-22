@@ -68,7 +68,7 @@ type ConsoleModel = {
 
 export function useConsoleModel(tournamentId: string, matchId: string): ConsoleModel {
     const transport = useConsoleTransport(tournamentId, matchId)
-    const { live, writer, v, projection, roundId, stage, open, questions, table, byId, peers, send, sendChain, userSeats } = transport
+    const { live, writer, v, projection, roundId, stage, open, questions, table, byId, peers, peerControls, send, sendChain, userSeats } = transport
 
     const nav = useConsoleNav()
     const transition = useTransitionMatch(tournamentId)
@@ -257,6 +257,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         target,
         selectedIds,
         videoOf: (id) => peers.get(id)?.video ?? null,
+        peerControls,
         keywordQuestionId: judging.keywordQuestionId,
         giaiMa: consoleGiaiMa,
         veDich: consoleVeDich,

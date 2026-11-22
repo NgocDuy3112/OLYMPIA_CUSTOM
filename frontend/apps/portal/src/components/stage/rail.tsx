@@ -1,9 +1,10 @@
-import { useEffect, useRef, type ReactNode } from "react"
+import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react"
 import type { RemoteVideoTrack } from "livekit-client"
 import { RailAnswerLine } from "@shared/deck/rail-answer"
 import { initialsOf, pt } from "@shared/deck/geometry"
 import { railCardClass, railCardState, railScoreClass } from "@shared/deck/rail-card"
 import { TurnIcon } from "@shared/deck/stage"
+import { PlayerCamControls } from "@shared/deck/player-cam-controls"
 
 export interface CardData {
     id: string
@@ -18,6 +19,12 @@ export interface CardData {
     dimmed?: boolean       
     video?: RemoteVideoTrack | null
     buzzing?: boolean
+    micOn?: boolean
+    audioMuted?: boolean
+    videoHidden?: boolean
+    onToggleAudio?: () => void
+    onToggleVideo?: () => void
+    onToggleMic?: () => void
 }
 
 const PILL_TONE: Record<NonNullable<CardData["badge"]>["tone"], string> = {
@@ -89,12 +96,30 @@ export function Rail({ cards, onSelect, onScoreClick, selectHint }: { cards: Car
                         </div>
                     )
                 }
-                let interactiveProps: { type: "button"; onClick: () => void; "aria-pressed": boolean } | undefined = undefined
+                const hasControls =
+                    Boolean(c.onToggleAudio) || Boolean(c.onToggleVideo) || Boolean(c.onToggleMic)
+                let Tag: "button" | "div" = Interactive
+                let interactiveProps: Record<string, unknown> | undefined = undefined
                 if (onSelect) {
-                    interactiveProps = {
-                        type: "button",
-                        onClick: () => onSelect(c.id),
-                        "aria-pressed": c.ring === "selected",
+                    const selected = c.ring === "selected"
+                    if (hasControls) {
+                        Tag = "div"
+                        interactiveProps = {
+                            role: "button",
+                            tabIndex: 0,
+                            onClick: () => onSelect(c.id),
+                            onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
+                                if (event.key !== "Enter") return
+                                onSelect(c.id)
+                            },
+                            "aria-pressed": selected,
+                        }
+                    } else {
+                        interactiveProps = {
+                            type: "button",
+                            onClick: () => onSelect(c.id),
+                            "aria-pressed": selected,
+                        }
                     }
                 }
                 const cardHeight = "h-[9.3cqw]"
@@ -109,7 +134,7 @@ export function Rail({ cards, onSelect, onScoreClick, selectHint }: { cards: Car
                     ringCls = "ring-2 ring-emerald-400 console-armed"
                 }
                 return (
-                <Interactive
+                <Tag
                     key={c.id}
                     {...(interactiveProps ?? {})}
                     title={hintTitle}
@@ -125,6 +150,17 @@ export function Rail({ cards, onSelect, onScoreClick, selectHint }: { cards: Car
                                 {initialsOf(c.name)}
                             </div>
                             {c.video && <CardVideo track={c.video} />}
+                            {hasControls && (
+                                <PlayerCamControls
+                                    playerId={c.id}
+                                    micOn={c.micOn}
+                                    audioMuted={c.audioMuted}
+                                    videoOff={c.videoHidden}
+                                    onToggleMic={c.onToggleMic}
+                                    onToggleAudio={c.onToggleAudio}
+                                    onToggleVideo={c.onToggleVideo}
+                                />
+                            )}
                         </div>
                         <div className="flex min-w-0 flex-1 flex-col justify-start gap-[0.3cqw] pt-[0.2cqw] text-center">
                             <span className="flex min-w-0 items-center justify-center gap-[0.3cqw] font-display font-semibold leading-none text-foreground" style={{ fontSize: pt(16) }}>
@@ -148,7 +184,7 @@ export function Rail({ cards, onSelect, onScoreClick, selectHint }: { cards: Car
                             {statusLine}
                         </div>
                     </div>
-                </Interactive>
+                </Tag>
                 )
             })}
         </>
