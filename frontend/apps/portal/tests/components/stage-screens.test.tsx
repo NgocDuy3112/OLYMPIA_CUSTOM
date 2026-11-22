@@ -939,20 +939,16 @@ it("keeps Hết lượt locked while an answer is still unjudged", () => {
         expect(screen.queryByRole("button", { name: "Hết lượt" })).toBeNull()
     })
 
-it("unlocks Hết lượt once every answer is judged — and strip buttons carry no tooltips", async () => {
-        const user = userEvent.setup()
-        const f = renderRound(
+it("offers no Hết lượt in the chung phase — and strip buttons carry no tooltips", async () => {
+        renderRound(
             "ve-dich",
             { hetLuot: vi.fn(), rows: [answerRow("u1", "CORRECT")], target: "u1" },
             { open: [openQ] },
             veDichMc({ phase: 1 }),
         )
 
-        expectButtonsInOrder(["Chấm điểm", "Hết lượt", "Về sảnh"])
-        const het = screen.getByRole("button", { name: "Hết lượt" })
-        await user.click(het)
-        expect(f.hetLuot).toHaveBeenCalledOnce()
-        expect(het).not.toHaveAttribute("title")
+        expectButtonsInOrder(["Chấm điểm", "Về sảnh"])
+        expect(screen.queryByRole("button", { name: "Hết lượt" })).toBeNull()
         expect(screen.getByRole("button", { name: "Về sảnh" })).not.toHaveAttribute("title")
     })
 

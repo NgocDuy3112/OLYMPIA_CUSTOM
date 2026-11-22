@@ -5,7 +5,6 @@ export {
     MainCard,
     Progress,
     QuestionCard,
-    Chip,
     HintBars,
     ValueCells,
     QuestionChips,

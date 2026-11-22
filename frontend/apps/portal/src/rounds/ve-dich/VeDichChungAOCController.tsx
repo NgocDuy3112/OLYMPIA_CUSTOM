@@ -3,7 +3,6 @@ import { backToLobbyAction } from "@/components/stage/actions"
 import type { LiveAction } from "@/lib/live-actions"
 import type { QuestionAnswerRow, VeDichConsole } from "@/lib/live"
 import type { ScreenCore } from "@/rounds/types"
-import { COPY } from "@shared/deck/copy"
 import { stripCellsOf } from "@shared/deck/ve-dich-board"
 
 export type VeDichChungCtx = ScreenCore & {
@@ -25,7 +24,6 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
     const boardCells = projection.board ?? []
     const stripCells = stripCellsOf(boardCells)
     const revealed = consoleVeDich?.revealed ?? false
-    const needsVerdict = rows.some((r) => r.verdict === null)
     const gradeableIds = () => {
         const answered = (id: string) => rows.some((r) => r.userId === id)
         if (ctx.selectedIds.size > 0) return [...ctx.selectedIds].filter(answered)
@@ -65,9 +63,6 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
         }
         if (clockDone) revealAnswer = () => ctx.send({ kind: "reveal.answer", questionId: openNow.questionId })
     }
-    let endTurn: (() => void) | undefined = () => ctx.hetLuot()
-    if (needsVerdict) endTurn = undefined
-    if (openNow === null) endTurn = undefined
     let timerRemaining: number | null = null
     if (openNow?.deadlineAt) timerRemaining = remaining
 
@@ -87,7 +82,6 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
                     label: "Chấm điểm",
                     onClick: gradeClick,
                 },
-                { label: COPY.endTurn, onClick: endTurn },
                 backToLobbyAction(ctx.backToLobby),
             ]}
             flash={flash}

@@ -92,13 +92,13 @@ export function Chip({ value, tone = "gray", clickable, onClick, title }: {
     return (
         <button
             type="button"
-            onClick={onClick}
-            disabled={!clickable}
+            onClick={clickable ? onClick : undefined}
+            aria-disabled={clickable ? undefined : true}
             title={title}
-            className={`flex h-[4.43cqw] min-w-0 flex-1 max-w-[10cqw] items-center justify-center rounded-lg shadow-sm ring-1 font-display leading-none ${toneClass} ${clickable ? "cursor-pointer transition hover:brightness-95" : "cursor-default"}`}
-            style={{ ...DECK_PAD, fontSize: pt(28) }}
+            className={`flex h-[4.43cqw] min-w-[7cqw] shrink-0 items-center justify-center rounded-lg px-[1.4cqw] shadow-sm ring-1 font-display leading-none ${toneClass} ${clickable ? "cursor-pointer transition hover:brightness-95" : "cursor-default"}`}
+            style={DECK_PAD}
         >
-            {value ?? ""}
+            <span style={{ fontSize: pt(34) }}>{value ?? ""}</span>
         </button>
     )
 }
@@ -112,12 +112,13 @@ export function QuestionChips({ chips, onSelect }: {
             {chips.map((chip) => {
                 let click: (() => void) | undefined = undefined
                 if (chip.clickable && onSelect) click = () => onSelect(chip.id)
+                const canClick = Boolean(click)
                 return (
                     <Chip
                         key={chip.id}
                         value={chip.label}
                         tone={chip.active ? "purple" : "gray"}
-                        clickable={Boolean(click)}
+                        clickable={canClick}
                         onClick={click}
                         title={chip.title}
                     />
