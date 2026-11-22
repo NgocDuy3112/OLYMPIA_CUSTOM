@@ -849,6 +849,27 @@ it("phase 1: with nothing picked, there is no confirm — Chọn lại clears", 
         expect(f.send).toHaveBeenCalledWith({ kind: "ve-dich.confirmPicks" })
     })
 
+    it("phase 1: after confirming, the board hands over to the play screen", () => {
+        const f = renderRound(
+            "ve-dich",
+            {},
+            {
+                open: [],
+                board: [
+                    { questionId: "q20", value: 20, where: "pending" as const },
+                    { questionId: "q30", value: 30, where: "pending" as const },
+                ],
+                table: TWO_PLAYERS,
+            },
+            veDichMc({ phase: 1, picksConfirmed: true }),
+        )
+
+        expect(f.v.console).toMatchObject({ picksConfirmed: true })
+        expect(screen.queryByRole("button", { name: "Xác nhận" })).toBeNull()
+        expect(screen.queryByRole("button", { name: "Chọn lại" })).toBeNull()
+        expect(screen.getByText("Đếm giờ")).toBeInTheDocument()
+    })
+
     it("phase 2: Xác nhận waits for the whole turn — three questions, one turn", () => {
         renderRound("ve-dich", {}, {
             open: [],

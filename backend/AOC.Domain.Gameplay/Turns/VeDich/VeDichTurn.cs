@@ -184,7 +184,8 @@ public static class VeDichTurn
         return state with
         {
             Remaining = pool.Where(q => !questionIds.Contains(q.Id)).ToList(),
-            PendingPicks = picks
+            PendingPicks = picks,
+            PicksConfirmed = picks.Count > 0
         };
     }
 

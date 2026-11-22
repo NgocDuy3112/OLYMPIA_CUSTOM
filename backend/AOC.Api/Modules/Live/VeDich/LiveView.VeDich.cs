@@ -72,7 +72,7 @@ public static partial class LiveView
     {
         if (state.Ended) return null;
 
-        if (state.Phase == 1) return turnPlayerId;
+        if (state.Phase == 1) return null;
 
         if (open is null) return turnPlayerId;
 

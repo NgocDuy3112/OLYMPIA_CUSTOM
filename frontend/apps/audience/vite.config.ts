@@ -18,7 +18,7 @@ export default defineConfig({
         },
     },
     server: {
-        port: 5176,
+        port: 5177,
         host: true,
         allowedHosts: ["host.containers.internal"],
         proxy: {
