@@ -748,6 +748,26 @@ it("phase 1: clicking a value cell random-picks one question of that value", asy
         })
     })
 
+    it("phase 1: shows a chip for every pick the server already staged", () => {
+        renderRound(
+            "ve-dich",
+            {},
+            {
+                open: [],
+                board: [
+                    { questionId: "q20", value: 20, where: "pending" as const },
+                    { questionId: "q30", value: 30, where: "pending" as const },
+                ],
+                table: TWO_PLAYERS,
+            },
+            veDichMc({ phase: 1, turnPlayerId: "u1" }),
+            [veQuestion("q20", 20), veQuestion("q30", 30)],
+        )
+
+        const html = document.body.innerHTML
+        expect(html).toContain("Bỏ câu 20 điểm")
+    })
+
     it("phase 1: Xác nhận waits for the full N — one pick per player", async () => {
         const user = userEvent.setup()
         renderRound(
@@ -896,7 +916,7 @@ describe("VeDichChung — S7, phase 1 question", () => {
         ])
     })
 
-    it("the board carries one chip per staged pick — N, not a fixed 4", () => {
+    it("the pick board carries one chip per staged pick — N, not a fixed 4", () => {
         renderRound(
             "ve-dich",
             {},
@@ -911,9 +931,9 @@ describe("VeDichChung — S7, phase 1 question", () => {
             veDichMc({ phase: 1 }),
         )
 
-        expect(screen.getAllByRole("button", { name: "20" })).toHaveLength(2)
-        expect(screen.getAllByRole("button", { name: "30" })).toHaveLength(1)
-        expect(screen.queryByRole("button", { name: "Xác nhận" })).toBeNull()
+        expect(screen.getAllByTitle("Bỏ câu 20 điểm")).toHaveLength(2)
+        expect(screen.getAllByTitle("Bỏ câu 30 điểm")).toHaveLength(1)
+        expect(screen.getByRole("button", { name: "Xác nhận" })).toBeInTheDocument()
     })
 
     it("Đếm giờ starts the clock once the question is revealed", async () => {

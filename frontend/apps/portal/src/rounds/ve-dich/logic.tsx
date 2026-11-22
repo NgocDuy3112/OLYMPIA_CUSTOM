@@ -59,7 +59,6 @@ export const veDichAOC: RoundModule = {
                 }
                 return <VeDichRiengPickAOCController ctx={pickCtx(f)} />
             }
-            if (pendingStaged) return <VeDichChungAOCController ctx={chungCtx(f)} />
             return <VeDichChungPickAOCController ctx={pickCtx(f)} />
         }
         const consoleView = f.v.console as VeDichConsole | null

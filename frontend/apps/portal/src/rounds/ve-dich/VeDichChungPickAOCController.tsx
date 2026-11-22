@@ -15,7 +15,16 @@ export function VeDichChungPickAOCController({ ctx }: { ctx: VeDichChungPickCtx 
     const projection = v.projection
 
     const need = Math.max(1, projection.table.length)
-    const [chosen, setChosen] = useState<string[]>([])
+    const pendingIds = (projection.board ?? [])
+        .filter((c) => c.where === "pending")
+        .map((c) => c.questionId)
+    const pendingKey = pendingIds.join(",")
+    const [chosen, setChosen] = useState<string[]>(pendingIds)
+    const [seenPending, setSeenPending] = useState(pendingKey)
+    if (seenPending !== pendingKey) {
+        setSeenPending(pendingKey)
+        setChosen(pendingIds)
+    }
     const openNow = projection.open[0] ?? null
 
     const pickRandomOf = (value: number) => {
