@@ -148,8 +148,8 @@ const FIELD_ICONS: LucideIcon[] = [
     Repeat2,
 ]
 
-const GRID_COLS = 12
-const GRID_ROWS = 9
+const GRID_COLS = 16
+const GRID_ROWS = 13
 const GRID_TOTAL = GRID_COLS * GRID_ROWS
 
 type FieldItem = { Icon: LucideIcon; style: CSSProperties; key: number }
@@ -157,15 +157,15 @@ type FieldItem = { Icon: LucideIcon; style: CSSProperties; key: number }
 function itemStyle(index: number): CSSProperties {
     const col = index % GRID_COLS
     const row = Math.floor(index / GRID_COLS) % GRID_ROWS
-    const left = col * 8.33 + (((index * 17) % 40) / 10)
-    const top = row * 11.1 + (((index * 29) % 50) / 10)
+    const left = col * 6.25 + (((index * 17) % 30) / 10)
+    const top = row * 7.69 + (((index * 29) % 38) / 10)
     const size = 14 + ((index * 7) % 11)
     const rotate = ((index * 47) % 60) - 30
     const duration = 9 + (index % 7) * 2.2
     const delay = -((index * 13) % 90) / 10
-    const base = 0.07 + (index % 3) * 0.02
-    const peak = 0.3 + (index % 4) * 0.04
-    const flashWindow = index % 5 === 0
+    const base = 0.06 + (index % 3) * 0.02
+    const peak = 0.42 + (index % 3) * 0.04
+    const flashWindow = index % 5 < 2
     const driftX = (((index * 31) % 96) - 48) * 0.55
     const driftY = (((index * 23) % 68) - 34) * 0.55
     const floatDuration = 7.5 + (index % 6) * 1.8
@@ -185,7 +185,6 @@ function itemStyle(index: number): CSSProperties {
         "--icon-drift-y": `${driftY}px`,
         "--float-duration": `${floatDuration}s`,
         "--float-delay": `${floatDelay}s`,
-
     } as CSSProperties
 }
 
