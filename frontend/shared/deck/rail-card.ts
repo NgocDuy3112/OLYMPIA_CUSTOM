@@ -1,23 +1,27 @@
-type RailCardState = "waiting" | "wrong" | "buzzing"
+type RailCardState = "waiting" | "wrong" | "buzzing" | "picked"
 
 const STATE: Record<RailCardState, string> = {
     wrong: "bg-[#101116] text-muted-foreground ring-1 ring-white/10",
     buzzing: "bg-[#2a2f38] text-foreground ring-1 ring-white/40 outline-4 outline-dashed outline-white",
+    picked: "bg-primary/20 text-foreground ring-2 ring-primary shadow-[0_0_0_4px] shadow-primary/30",
     waiting: "bg-[#16181e] ring-1 ring-white/10",
 }
 
 const SCORE: Record<RailCardState, string> = {
     wrong: "text-muted-foreground",
     buzzing: "text-white",
+    picked: "text-primary",
     waiting: "text-foreground",
 }
 
 export function railCardState(input: {
     locked?: boolean
     buzzing?: boolean
+    picked?: boolean
 }): RailCardState {
     if (input.locked) return "wrong"
     if (input.buzzing) return "buzzing"
+    if (input.picked) return "picked"
     return "waiting"
 }
 

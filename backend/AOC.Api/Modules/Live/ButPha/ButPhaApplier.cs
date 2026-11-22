@@ -45,14 +45,18 @@ public static class ButPhaApplier
                 var results = new List<FinalResult>();
                 foreach (var (playerId, correct) in finalize.Verdicts)
                 {
-                    if (!times.TryGetValue(playerId, out var answeredMs) || answeredMs is null)
+                    if (!times.TryGetValue(playerId, out var answeredMs))
                         throw new RuleError("NO_ANSWER", $"no submitted answer from {playerId}");
+                    if (answeredMs is null)
+                        throw new RuleError("NO_ANSWER", $"answer from {playerId} has no elapsed time");
                     results.Add(new FinalResult(playerId, correct, answeredMs.Value / 1000.0));
                 }
 
                 var next = ButPhaTurn.FinalizeQuestion(state, results);
 
-                var recorded = next.Answers[questionId].ToDictionary(a => a.PlayerId, a => a.Correct);
+                if (!next.Answers.TryGetValue(questionId, out var recordedAnswers))
+                    throw new RuleError("NO_ANSWER", $"question {questionId} has no finalized answers");
+                var recorded = recordedAnswers.ToDictionary(a => a.PlayerId, a => a.Correct);
                 var facts = results.Select(r => (LiveFact)new JudgeFact(
                     questionId, r.PlayerId,
                     recorded.GetValueOrDefault(r.PlayerId) ? Verdict.CORRECT : Verdict.INCORRECT,

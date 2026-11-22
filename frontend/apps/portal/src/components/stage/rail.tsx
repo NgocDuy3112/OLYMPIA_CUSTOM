@@ -69,7 +69,8 @@ export function Rail({ cards, onSelect, onScoreClick, selectHint }: { cards: Car
             {cards.map((c) => {
                 const state = railCardState({
                     locked: c.dimmed === true,
-                    buzzing: c.buzzing === true
+                    buzzing: c.buzzing === true,
+                    picked: c.ring === "selected"
                 })
                 let badgeNode: ReactNode = null
                 if (c.badge) {
