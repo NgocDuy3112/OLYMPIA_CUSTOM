@@ -41,10 +41,10 @@ export default function App() {
 
         
         <Route
-          path="/tournaments/:tournamentId/matches/:matchId/stage"
+          path="/tournaments/:tournamentId/matches/:matchId/control"
           element={
             <RequireAuth>
-              <ErrorBoundary scope="portal:stage">
+              <ErrorBoundary scope="portal:control">
                 <StagePage />
               </ErrorBoundary>
             </RequireAuth>
