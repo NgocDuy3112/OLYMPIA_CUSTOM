@@ -4,7 +4,7 @@ const STATE: Record<RailCardState, string> = {
     wrong: "bg-[#101116] text-muted-foreground ring-1 ring-white/10",
     buzzing: "bg-[#3a4150] text-white ring-4 ring-white shadow-[0_0_0_6px] shadow-white/40",
     picked: "bg-[#3a4150] text-white ring-4 ring-white shadow-[0_0_0_6px] shadow-white/40",
-    active: "bg-[#242936] text-white ring-2 ring-amber-400 shadow-[0_0_0_4px] shadow-amber-400/25",
+    active: "bg-[#242936] text-white ring-2 ring-white-400 shadow-[0_0_0_4px] shadow-white-400/25",
     submitted: "bg-[#3a4150] text-white ring-4 ring-white shadow-[0_0_0_6px] shadow-white/40",
     waiting: "bg-[#16181e] ring-1 ring-white/10",
 }
