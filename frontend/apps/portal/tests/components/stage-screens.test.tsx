@@ -398,7 +398,7 @@ describe("GiaiMa — S3", () => {
         const user = userEvent.setup()
         const f = renderRound("giai-ma", {}, {}, {
             hintsRemaining: ["h2"], hintsPicked: ["h1"], openHintId: "h1",
-            windowOpen: false, players: [],
+            windowOpen: false, keywordWindowOpen: false, players: [],
         })
 
         await user.click(screen.getByRole("button", { name: "Đếm giờ" }))
@@ -408,9 +408,21 @@ describe("GiaiMa — S3", () => {
     it("Đếm giờ goes inert while the 15 s is already running", () => {
         renderRound("giai-ma", {}, {}, {
             hintsRemaining: ["h2"], hintsPicked: ["h1"], openHintId: "h1",
-            windowOpen: true, players: [],
+            windowOpen: true, keywordWindowOpen: true, players: [],
         })
         expect(screen.queryByRole("button", { name: "Đếm giờ" })).toBeNull()
+    })
+
+    it("Đếm giờ từ khoá is armed only before the countdown runs", async () => {
+        const user = userEvent.setup()
+        const stale = renderRound("giai-ma", {}, { roundId: "giai-ma" }, {
+            hintsRemaining: ["h2"], hintsPicked: ["h1"], openHintId: "h1",
+            windowOpen: false, keywordWindowOpen: false, players: [],
+        }, [{ _id: "kw", roundId: "giai-ma", kind: "KEYWORD" as const,
+            turnId: "t1", position: 9, questionText: "Từ khoá", points: 0, payload: {} }])
+
+        await user.click(screen.getByRole("button", { name: "Đếm giờ từ khoá" }))
+        expect(stale.send).toHaveBeenCalledWith({ kind: "giai-ma.startKeywordWindow" })
     })
 
     it("draws the fixed EIGHT-tile board, whatever the round's hint count", () => {

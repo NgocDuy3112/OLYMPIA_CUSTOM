@@ -20,8 +20,10 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
     const eliminated = v.me.eliminated === true
     const codeLength = v.keywordLength
     const keywordRemaining = useCountdown(v.keywordDeadlineAt, ctx.clock)
+    const keywordCountdownClosed = v.keywordCountdownClosed === true
     let keywordOpen = true
     if (v.keywordDeadlineAt !== null) keywordOpen = keywordRemaining > 0
+    if (keywordCountdownClosed) keywordOpen = false
 
     let keywordSlot: ReactNode = null
     if (keyword) {
@@ -50,7 +52,7 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
     }
 
     let timerRemaining: number | null = null
-    if (keywordOpen) timerRemaining = keywordRemaining
+    if (v.keywordDeadlineAt !== null) timerRemaining = keywordRemaining
     else if (hintWindow) {
         if (hintWindow.deadlineAt) timerRemaining = remaining
     }

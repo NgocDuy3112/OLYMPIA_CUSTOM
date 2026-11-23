@@ -92,6 +92,8 @@ public static partial class LiveView
             state.Step, open, RankTable(input.Table, input.TieBreak), me);
         view["selectedPlayerId"] = null;
         view["keywordDeadlineAt"] = keywordDeadlineAt;
+        view["keywordCountdownClosed"] = state.KeywordClosesAt is not null
+            && !GiaiMaTurn.KeywordWindowRunning(state, input.Now);
         view["keywordLength"] = keywordCompact.Length;
         view["keywordKind"] = keywordKind;
         if (keywordQuestion is null)

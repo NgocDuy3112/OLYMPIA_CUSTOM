@@ -75,6 +75,7 @@ export interface GiaiMaConsole {
     hintsPicked: string[]
     openHintId: string | null
     windowOpen: boolean
+    keywordWindowOpen?: boolean
     hintsLocked?: boolean
     players: Array<{ id: string; keywordLocked: boolean; eliminated: boolean }>
 }

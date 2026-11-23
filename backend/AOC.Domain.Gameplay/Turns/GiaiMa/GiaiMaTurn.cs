@@ -60,11 +60,12 @@ public static class GiaiMaTurn
             throw Err("NO_OPEN_HINT", "no hint is open — pick a hint first");
         if (state.HintWindow.IsOpen(nowIso))
             throw Err("WINDOW_OPEN", "the answer window is already running");
-        if (KeywordWindowRunning(state, nowIso))
-            throw Err("WINDOW_OPEN", "the keyword countdown is running");
+        if (state.KeywordClosesAt is not null)
+            throw Err("WINDOW_OPEN", "the keyword countdown has already run");
         return state with
         {
-            HintWindow = FreshHintWindow(state).OpenFor(nowIso, state.Rules.HintWindowS)
+            HintWindow = FreshHintWindow(state).OpenFor(nowIso, state.Rules.HintWindowS),
+            KeywordClosesAt = ClosesAfter(nowIso, state.Rules.HintWindowS)
         };
     }
 
@@ -85,20 +86,16 @@ public static class GiaiMaTurn
         if (state.Step != "hints") throw Err("WRONG_STAGE", "hints are over");
         if (state.KeywordClosesAt is not null)
             throw Err("WINDOW_OPEN", "the keyword countdown has already run");
-        return state with
-        {
-            KeywordClosesAt = DateTimeOffset.Parse(nowIso)
-                .AddSeconds(state.Rules.HintWindowS)
-                .UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-        };
+        return state with { KeywordClosesAt = ClosesAfter(nowIso, state.Rules.HintWindowS) };
     }
 
+    private static string ClosesAfter(string nowIso, int seconds)
+        => DateTimeOffset.Parse(nowIso)
+            .AddSeconds(seconds)
+            .UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+
     public static bool IsWindowOpen(GiaiMaState state, string nowIso)
-    {
-        if (!state.HintWindow.IsOpen(nowIso)) return false;
-        if (KeywordWindowRunning(state, nowIso)) return false;
-        return true;
-    }
+        => state.HintWindow.IsOpen(nowIso);
 
     public static bool CanPlayerAnswer(GiaiMaState state, string playerId, string nowIso)
     {

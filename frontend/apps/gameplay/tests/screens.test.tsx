@@ -205,6 +205,17 @@ describe("player screens render from a plain fixture", () => {
         expect(withoutWindow.getByLabelText("Từ khóa của bạn")).toBeTruthy()
     })
 
+    it("giải mã — a closed keyword countdown locks the keyword box", () => {
+        const v = view({
+            roundId: "giai-ma",
+            keyword: { questionId: "k1", question: question("k1", "KEYWORD") },
+            keywordCountdownClosed: true,
+        })
+        const { getByText, queryByLabelText } = render(<GiaiMaAOCPlayer ctx={ctx({ v })} />)
+        expect(getByText("Từ khóa đã hết giờ — không nộp được nữa")).toBeTruthy()
+        expect(queryByLabelText("Từ khóa của bạn")).toBeNull()
+    })
+
     it("giải mã — submitting the keyword asks for confirmation first", async () => {
         const user = userEvent.setup()
         const submitKeyword = vi.fn()

@@ -40,13 +40,17 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
     if (ctx.commitHintReady) commitHint = () => ctx.commitHint()
     let commitKeyword: (() => void) | undefined = undefined
     if (ctx.commitKeywordReady) commitKeyword = () => ctx.commitKeyword()
+    let keywordWindowOpen = false
+    if (consoleGiaiMa) keywordWindowOpen = consoleGiaiMa.keywordWindowOpen === true
     let startWindow: (() => void) | undefined = undefined
     if (openHintId) {
-        if (!consoleGiaiMa?.windowOpen) startWindow = () => ctx.send({ kind: "giai-ma.startWindow" })
+        const windowIdle = consoleGiaiMa?.windowOpen !== true
+        if (windowIdle) startWindow = () => ctx.send({ kind: "giai-ma.startWindow" })
     }
-    const keywordOpen = (ctx.keywordRemaining ?? 0) > 0
+    const keywordAwaitsStart = consoleGiaiMa?.keywordWindowOpen === false
     let startKeywordWindow: (() => void) | undefined = undefined
-    if (keywordQ && !keywordOpen) startKeywordWindow = () => ctx.send({ kind: "giai-ma.startKeywordWindow" })
+    if (keywordQ && keywordAwaitsStart)
+        startKeywordWindow = () => ctx.send({ kind: "giai-ma.startKeywordWindow" })
     const hintsLocked = consoleGiaiMa?.hintsLocked === true
     let revealHint: (() => void) | undefined = undefined
     if (hintTarget && !hintsLocked) {
@@ -58,7 +62,7 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
     let lockHints: (() => void) | undefined = undefined
     if (openHintId && !hintsLocked) lockHints = () => ctx.send({ kind: "giai-ma.lockHints" })
     let timerRemaining: number | null = null
-    if ((ctx.keywordRemaining ?? 0) > 0) timerRemaining = ctx.keywordRemaining
+    if (keywordWindowOpen) timerRemaining = ctx.keywordRemaining
     else if (open[0]?.deadlineAt) timerRemaining = remaining
     let questionText: string | null = null
     if (open.length > 0) questionText = open[0].question?.questionText ?? null

@@ -98,6 +98,7 @@ export interface LiveView {
     hintAnswers: Record<string, string>
     tiebreak?: TieBreakView | null
     keywordDeadlineAt: string | null
+    keywordCountdownClosed?: boolean
     keywordLength: number
     keywordKind: string
     me: LiveMe

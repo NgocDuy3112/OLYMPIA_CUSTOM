@@ -51,6 +51,7 @@ public static class LiveFacts
                     ["hintsPicked"] = state.Picked,
                     ["openHintId"] = state.OpenHint,
                     ["windowOpen"] = GiaiMaTurn.IsWindowOpen(state, now),
+                    ["keywordWindowOpen"] = GiaiMaTurn.KeywordWindowRunning(state, now),
                     ["hintsLocked"] = state.HintWindow.Locked && state.OpenHint is not null,
                     ["players"] = state.Players.Select(p => (object)new Dictionary<string, object?>
                     {

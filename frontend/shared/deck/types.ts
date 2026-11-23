@@ -86,6 +86,7 @@ export interface PlayerView {
     keywordCode?: string | null
     hintAnswers: Record<string, string>
     keywordDeadlineAt: string | null
+    keywordCountdownClosed?: boolean
     keywordLength: number
     keywordKind: string
     me: PlayerMe
