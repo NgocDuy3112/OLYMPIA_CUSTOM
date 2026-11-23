@@ -2,7 +2,6 @@ export {
     Badges,
     CardHeader,
     MainCard,
-    Progress,
     StageLayout,
     Status,
     Timer,

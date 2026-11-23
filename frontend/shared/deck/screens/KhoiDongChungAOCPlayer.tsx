@@ -1,4 +1,4 @@
-import { AnswerBand, PlayerStage, Progress, QuestionCard, Rail, Timer, type PlayerCore , SubmissionLog, type SubmissionEntry } from "../player-deck"
+import { AnswerBand, PlayerStage, QuestionCard, QuestionStepper, Rail, Timer, type PlayerCore , SubmissionLog, type SubmissionEntry } from "../player-deck"
 import type { AnswerValue } from "../types"
 
 type KhoiDongChungPlayerCtx = PlayerCore & {
@@ -28,10 +28,11 @@ export function KhoiDongChungAOCPlayer({ ctx }: { ctx: KhoiDongChungPlayerCtx })
                 mode="Lượt chung"
                 right={
                     <>
-                        <Progress
+                        <QuestionStepper
                             total={v.me.questionCount ?? 6}
                             done={v.me.questionIndex ?? 0}
                             active={v.me.questionIndex ?? 0}
+                            next={null}
                         />
                         <Timer remaining={timerRemaining} />
                     </>

@@ -3,7 +3,6 @@ export {
     CardHeader,
     KeywordLengthBanner,
     MainCard,
-    Progress,
     QuestionCard,
     HintBars,
     ValueCells,

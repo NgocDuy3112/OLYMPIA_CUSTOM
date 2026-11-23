@@ -3,7 +3,6 @@ export {
     CardHeader,
     Gate,
     MainCard,
-    Progress,
     StageLayout,
     Timer,
     VerdictIcon,

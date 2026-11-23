@@ -1,7 +1,7 @@
 import type { ReactNode } from "react"
 import { CheckCircle2, Hourglass, XCircle } from "lucide-react"
 import { formatRemaining } from "@shared/lib/clock"
-import { DECK_PAD, STRIP_R, pt, toClock } from "./geometry"
+import { DECK_PAD, pt, toClock } from "./geometry"
 
 
 export function StageLayout({ rail, children }: { rail?: ReactNode; children: ReactNode }) {
@@ -45,36 +45,6 @@ export function Badges({ round, mode, size = 32 }: {
                     {mode}
                 </span>
             )}
-        </div>
-    )
-}
-
-
-type SquareState = "done" | "active" | "pending"
-const SQUARE: Record<SquareState, string> = {
-    done: "bg-primary text-primary-foreground",
-    active: "bg-card text-foreground ring-2 ring-primary",
-    pending: "bg-card text-muted-foreground ring-1 ring-border",
-}
-const squareState = (i: number, done: number, active: number): SquareState => {
-    if (i < done) return "done"
-    if (i === active) return "active"
-    return "pending"
-}
-
-export function Progress({ total, done, active, onPick }: { total: number; done: number; active: number; onPick?: (i: number) => void }) {
-    return (
-        <div className="flex shrink-0 items-center gap-[0.98cqw]">
-            {Array.from({ length: total }, (_, i) => {
-                let pickHint = ""
-                if (onPick) pickHint = "cursor-pointer hover:ring-sky-500"
-                const className = `flex items-center justify-center font-display font-bold leading-none ${SQUARE[squareState(i, done, active)]} ${pickHint}`
-                const style = { width: "1.95cqw", height: "1.95cqw", fontSize: pt(12), borderRadius: STRIP_R }
-                if (onPick) {
-                    return <button key={i} type="button" onClick={() => onPick(i)} className={className} style={style}>{i + 1}</button>
-                }
-                return <span key={i} className={className} style={style}>{i + 1}</span>
-            })}
         </div>
     )
 }

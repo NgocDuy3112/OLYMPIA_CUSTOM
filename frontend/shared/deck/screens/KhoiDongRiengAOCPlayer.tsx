@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { AudienceFace, PlayerStage, Progress, QuestionCard, Rail, Timer, type PlayerCore } from "../player-deck"
+import { AudienceFace, PlayerStage, QuestionCard, QuestionStepper, Rail, Timer, type PlayerCore } from "../player-deck"
 
 type KhoiDongRiengPlayerCtx = PlayerCore & { oralRemaining: number }
 
@@ -23,7 +23,7 @@ export function KhoiDongRiengAOCPlayer({ ctx }: { ctx: KhoiDongRiengPlayerCtx })
                 mode="Lượt cá nhân"
                 right={
                     <>
-                        <Progress total={oral?.total ?? 6} done={oral?.index ?? 0} active={oral?.index ?? 0} />
+                        <QuestionStepper total={oral?.total ?? 6} done={oral?.index ?? 0} active={oral?.index ?? 0} next={null} />
                         <Timer remaining={oralTimer} />
                     </>
                 }

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { ConsoleStage, Progress, QuestionCard, Rail, Timer } from "@/components/stage/deck"
+import { ConsoleStage, QuestionCard, QuestionStepper, Rail, Timer } from "@/components/stage/deck"
 import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
 import type { ScreenCore } from "@/rounds/types"
 import { COPY } from "@shared/deck/copy"
@@ -50,7 +50,7 @@ export function KhoiDongRiengAOCController({ ctx }: { ctx: KhoiDongRiengCtx }) {
     }
     const rightSlot: ReactNode = (
         <>
-            <Progress total={questionTotal} done={questionDone} active={questionDone} />
+            <QuestionStepper total={questionTotal} done={questionDone} active={questionDone} next={null} showDone={false} />
             <Timer remaining={oralTimerRemaining} />
         </>
     )
