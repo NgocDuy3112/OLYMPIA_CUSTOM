@@ -312,10 +312,11 @@ describe("KhoiDongChung — S2, the timed batch", () => {
         const user = userEvent.setup()
         const f = renderRound("khoi-dong", { stage: "phase2" }, { open: [q1] }, batch({ questionIndex: 1 }))
 
-        await user.click(screen.getAllByRole("button", { name: "3" })[0]!)
+        await user.click(screen.getByRole("button", { name: "3" }))
         expect(f.send).toHaveBeenCalledWith({ kind: "khoi-dong.nextQuestion" })
 
-        await user.click(screen.getAllByRole("button", { name: "1" })[0]!)
+        expect(screen.queryByRole("button", { name: "1" })).toBeNull()
+        await user.click(screen.getByText("1"))
         expect(f.send).toHaveBeenCalledTimes(1)
     })
 

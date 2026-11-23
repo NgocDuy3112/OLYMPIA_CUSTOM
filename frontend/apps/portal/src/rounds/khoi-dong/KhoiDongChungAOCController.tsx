@@ -1,4 +1,4 @@
-import { ConsoleStage, QuestionCard, QuestionChips, Rail, Timer } from "@/components/stage/deck"
+import { ConsoleStage, QuestionCard, QuestionStepper, Rail, Timer } from "@/components/stage/deck"
 import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
 import type { KhoiDongConsole } from "@/lib/live"
 import type { ScreenCore } from "@/rounds/types"
@@ -15,6 +15,8 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
     const openNow = v.projection.open[0]
     const index = consoleKhoiDong?.questionIndex ?? 0
     const total = consoleKhoiDong?.questionCount || 6
+    const nextQuestion = index + 1
+    const advanceQuestion = () => ctx.send({ kind: "khoi-dong.nextQuestion" })
     const windowOpen = consoleKhoiDong?.windowOpen ?? false
     let counting = windowOpen
     if (openNow?.deadlineAt && (remaining ?? 0) > 0) counting = true
@@ -64,19 +66,13 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
                 mode="Lượt chung"
                 right={
                     <span className="flex items-center gap-[1.2cqw]">
-                        <QuestionChips
-                            chips={Array.from({ length: total }, (_, i) => ({
-                                id: `chip-${i}`,
-                                label: String(i + 1),
-                                active: i === index,
-                                clickable: i === index + 1 || (index === -1 && i === 0),
-                            }))}
-                            onSelect={(id: string) => {
-                                const i = Number(id.replace("chip-", ""))
-                                if (i === index + 1 || (index === -1 && i === 0)) {
-                                    ctx.send({ kind: "khoi-dong.nextQuestion" })
-                                }
-                            }}
+                        <QuestionStepper
+                            total={total}
+                            done={index}
+                            active={index}
+                            next={nextQuestion}
+                            onAdvance={advanceQuestion}
+                            showDone={false}
                         />
                         <Timer remaining={timerRemaining} />
                     </span>
