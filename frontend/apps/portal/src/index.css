@@ -5,6 +5,7 @@
 @import "@fontsource-variable/geist";
 /* The room, its light and the stage effects — shared by every surface. */
 @import "../../../shared/styles/stage.css";
+@import "../../../shared/styles/tokens.css";
 
 @source "../../../shared";
 
