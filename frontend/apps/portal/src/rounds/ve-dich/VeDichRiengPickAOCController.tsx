@@ -32,10 +32,11 @@ export function VeDichRiengPickAOCController({ ctx }: { ctx: VeDichRiengPickCtx 
     const openNow = projection.open[0] ?? null
     const need = 3
     const pickedThisTurn = (consoleVeDich?.turnPicked ?? 0) === need
-    const picking = openNow === null && turnPlayer !== null
+    const picking = openNow === null && turnPlayer !== null && (projection.selectedPlayerId ?? null) !== null
 
     const sendPicks = (ids: string[]) => {
         if (!turnPlayer) return
+        if (!picking) return
         ctx.send({ kind: "ve-dich.pickBatch", playerId: turnPlayer, questionIds: ids })
     }
 

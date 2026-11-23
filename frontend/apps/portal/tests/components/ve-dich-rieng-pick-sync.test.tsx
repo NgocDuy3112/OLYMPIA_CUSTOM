@@ -50,6 +50,7 @@ function facts(pending: string[], over: Partial<ConsoleFacts> = {}): ConsoleFact
                 version: 1,
                 stage: "phase2",
                 open: [],
+                selectedPlayerId: "u1",
                 table: TABLE,
                 board: board(pending),
                 hintAnswers: {},

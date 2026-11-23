@@ -98,27 +98,28 @@ const veDichMc = (over: Partial<VeDichConsole> = {}): VeDichConsole => ({
 })
 
 describe("KhoiDongRieng — S1, the oral run", () => {
-    it("lights nothing until a player is marked, even with a run in view", async () => {
-        const user = userEvent.setup()
-        const f = renderRound("khoi-dong", {
+    it("lights nothing until a player is marked, even with a run in view", () => {
+        renderRound("khoi-dong", {
             baseCards: [{ id: "u1", name: "An", points: 10 }, { id: "u2", name: "Bình", points: 5 }],
             oralRemaining: 30,
         }, {
             oral: { questionId: "q1", question: null, playerId: "u1", index: 0, total: 6, elapsedS: 10, budgetS: 45, deadlineAt: "2026-01-01T00:00:40.000Z" },
+            selectedPlayerId: null,
         })
 
         expect(screen.queryByRole("button", { name: "Tính giờ" })).toBeNull()
-        await user.click(screen.getByRole("button", { name: "Đúng" }))
-        expect(f.send).toHaveBeenCalledWith({ kind: "khoi-dong.recordOral", correct: true, spentS: 0 })
+        expect(screen.queryByRole("button", { name: "Đúng" })).toBeNull()
+        expect(screen.queryByRole("button", { name: "Sai" })).toBeNull()
     })
 
     it("shows the stopwatch strip and sends the run's verdict", async () => {
         const user = userEvent.setup()
         const f = renderRound("khoi-dong", {
-            baseCards: [{ id: "u1", name: "An", points: 10, ring: "active" as const }],
+            baseCards: [{ id: "u1", name: "An", points: 10, ring: "selected" as const }],
             oralRemaining: 30,
         }, {
             oral: { questionId: "q1", question: null, playerId: "u1", index: 0, total: 6, elapsedS: 10, budgetS: 45, deadlineAt: "2026-01-01T00:00:40.000Z" },
+            selectedPlayerId: "u1",
         })
 
         expect(screen.getByText("Tính giờ")).toBeInTheDocument()
@@ -140,7 +141,7 @@ describe("KhoiDongRieng — S1, the oral run", () => {
     })
 
     it("after the sixth the QuestionCard is blank: no question text, no verdict buttons", () => {
-        renderRound("khoi-dong", {}, { oral: null })
+        renderRound("khoi-dong", {}, { oral: null, selectedPlayerId: "u1" })
 
         expect(screen.queryByText(/Lượt đã xong/)).toBeNull()
         expect(screen.queryByText(/Chưa chọn người chơi/)).toBeNull()
@@ -200,8 +201,8 @@ describe("KhoiDongRieng — S1, the oral run", () => {
     it("Tính giờ tells the engine to reveal the question — only after a player is marked", async () => {
         const user = userEvent.setup()
         const f = renderRound("khoi-dong", {
-            baseCards: [{ id: "u1", name: "An", points: 10, ring: "active" as const }],
-        }, oralRun)
+            baseCards: [{ id: "u1", name: "An", points: 10, ring: "selected" as const }],
+        }, { ...oralRun, selectedPlayerId: "u1" })
 
         await user.click(screen.getByRole("button", { name: "Tính giờ" }))
 
@@ -223,10 +224,11 @@ describe("KhoiDongRieng — S1, the oral run", () => {
     it("a marked card decides who the verdict is scored against", async () => {
         const user = userEvent.setup()
         const f = renderRound("khoi-dong", {
-            baseCards: [{ id: "u1", name: "An", points: 10 }, { id: "u2", name: "Bình", points: 5, ring: "active" as const }],
+            baseCards: [{ id: "u1", name: "An", points: 10 }, { id: "u2", name: "Bình", points: 5, ring: "selected" as const }],
             oralRemaining: 30,
         }, {
-            oral: { questionId: "q1", question: null, playerId: "u1", index: 0, total: 6, elapsedS: 10, budgetS: 45, deadlineAt: "2026-01-01T00:00:40.000Z" },
+            oral: { questionId: "q1", question: null, playerId: "u2", index: 0, total: 6, elapsedS: 10, budgetS: 45, deadlineAt: "2026-01-01T00:00:40.000Z" },
+            selectedPlayerId: "u2",
         })
 
         await user.click(screen.getByRole("button", { name: "Đúng" }))
@@ -847,7 +849,7 @@ it("phase 1: clicking a board cell stages that cell, clicking it again drops it"
         const f = renderRound(
             "ve-dich",
             {},
-            { open: [], board: [freeCell("a", 40), freeCell("b", 40), freeCell("c", 40)] },
+            { open: [], selectedPlayerId: "u1", board: [freeCell("a", 40), freeCell("b", 40), freeCell("c", 40)] },
             veDichMc({ phase: 2, turnPlayerId: "u1" }),
             [veQuestion("a", 40), veQuestion("b", 40), veQuestion("c", 40)],
         )

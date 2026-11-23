@@ -37,7 +37,6 @@ function input(over: Partial<RailCardsInput> = {}): RailCardsInput {
         giaiMa: null,
         veDich: null,
         khoiDong: null,
-        oralPlayerId: null,
         ...over,
     }
 }
@@ -97,14 +96,14 @@ describe("railCardsOf — the ring: giai-ma marks the multi-select, other rounds
         expect(cards.every((c) => c.ring === undefined)).toBe(true)
     })
 
-    it("lets an open oral run own the ring (active), overriding the target", () => {
+    it("lights only the player the controller picked, never the turn's first seat", () => {
         const cards = railCardsOf(input({
             roundId: "ve-dich",
             resolvingId: "q1",
-            target: "u1",
-            oralPlayerId: "u2",
+            target: "u2",
+            veDich: { phase: 2, turnPlayerId: "u1" } as never,
         }))
-        expect(ringOf(cards, "u2")).toBe("active")
+        expect(ringOf(cards, "u2")).toBe("selected")
         expect(ringOf(cards, "u1")).toBeUndefined()
     })
 })

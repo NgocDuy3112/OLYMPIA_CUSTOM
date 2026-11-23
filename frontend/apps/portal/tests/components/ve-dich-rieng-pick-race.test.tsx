@@ -39,6 +39,7 @@ function facts(pending: string[], send: (a: unknown) => void): ConsoleFacts {
                 version: 1,
                 stage: "phase2",
                 open: [],
+                selectedPlayerId: "u1",
                 table: TABLE,
                 board: ["a", "b", "c", "d"].map((id) => ({
                     questionId: id,

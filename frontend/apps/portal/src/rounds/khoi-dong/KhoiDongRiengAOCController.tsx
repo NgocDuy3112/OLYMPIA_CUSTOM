@@ -12,11 +12,8 @@ export function KhoiDongRiengAOCController({ ctx }: { ctx: KhoiDongRiengCtx }) {
     const { v, baseCards, flash } = ctx
     const oral = v.projection.oral
     const counting = oral?.deadlineAt != null && (ctx.oralRemaining ?? 0) > 0
-    const canVerdict = Boolean(oral?.playerId) && counting
-    let marked: string | null = null
-    for (const card of baseCards) {
-        if (card.ring === "active") marked = card.id
-    }
+    const marked = v.projection.selectedPlayerId ?? null
+    const canVerdict = marked !== null && counting
     const mark = (id: string) => {
         ctx.send({ kind: "khoi-dong.setTurn", playerId: id })
     }

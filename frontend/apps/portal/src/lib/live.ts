@@ -52,6 +52,7 @@ export interface Projection {
     } | null
     board?: Array<{ questionId: string; value: number; where: "free" | "pending" | "open" | "taken" | "deferred" }>
     answers?: QuestionAnswerRow[]
+    selectedPlayerId?: string | null
     keywordDeadlineAt?: string | null
     keywordLength?: number
     keywordKind?: string

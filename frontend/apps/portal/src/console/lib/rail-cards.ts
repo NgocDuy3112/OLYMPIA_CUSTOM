@@ -28,7 +28,6 @@ export interface RailCardsInput {
     giaiMa: GiaiMaConsole | null
     veDich: VeDichConsole | null
     khoiDong: KhoiDongConsole | null
-    oralPlayerId: string | null
     keywordQuestionId?: string | null
 }
 
@@ -49,7 +48,6 @@ function ringOf(id: string, input: RailCardsInput): CardData["ring"] {
     if (input.roundId === "giai-ma") return undefined
     const targetIsLive = (input.judgingId ?? input.resolvingId) !== null
     if (input.target === id && targetIsLive) return "selected"
-    if (input.veDich?.phase === 2 && input.veDich.turnPlayerId === id) return "active"
     return undefined
 }
 
@@ -149,16 +147,6 @@ export function railCardsOf(input: RailCardsInput): CardData[] {
         }
         return card
     })
-
-    if (input.oralPlayerId !== null) {
-        for (const card of cards) {
-            if (card.id === input.oralPlayerId) {
-                card.ring = "active"
-            } else {
-                card.ring = undefined
-            }
-        }
-    }
 
     return cards
 }

@@ -264,7 +264,6 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         giaiMa: consoleGiaiMa,
         veDich: consoleVeDich,
         khoiDong: consoleKhoiDong,
-        oralPlayerId: projection.oral?.playerId ?? null,
     })
 
     const facts = consoleFactsOf({

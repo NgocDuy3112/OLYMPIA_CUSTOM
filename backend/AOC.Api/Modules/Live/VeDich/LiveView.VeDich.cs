@@ -67,14 +67,13 @@ public static partial class LiveView
         return false;
     }
 
-    private static string? SelectedPlayerOf(
-        VeDichState state, OpenQuestion? open, string? turnPlayerId)
+    private static string? SelectedPlayerOf(VeDichState state, OpenQuestion? open)
     {
         if (state.Ended) return null;
 
         if (state.Phase == 1) return null;
 
-        if (open is null) return turnPlayerId;
+        if (open is null) return null;
 
         var assigned = AssignedToId(open);
         if (assigned is not null) return assigned;
@@ -200,7 +199,7 @@ public static partial class LiveView
         view["board"] = board;
         if (audioGate is not null) view["audioGate"] = audioGate;
         if (mediaPolicy is not null) view["mediaPolicy"] = mediaPolicy;
-        string? selectedPlayerId = SelectedPlayerOf(state, open, turnPlayerId);
+        string? selectedPlayerId = SelectedPlayerOf(state, open);
         view["selectedPlayerId"] = selectedPlayerId;
         view["turnPlayerId"] = turnPlayerId;
         view["answererId"] = state.Open?.Answerer;
