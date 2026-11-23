@@ -96,6 +96,17 @@ describe("railCardsOf — the ring: giai-ma marks the multi-select, other rounds
         expect(cards.every((c) => c.ring === undefined)).toBe(true)
     })
 
+    it("rings the seat the controller just picked, before any question opens", () => {
+        const cards = railCardsOf(input({
+            roundId: "ve-dich",
+            target: null,
+            selectedPlayerId: "u2",
+            veDich: { phase: 2, turnPlayerId: "u2" } as never,
+        }))
+        expect(ringOf(cards, "u2")).toBe("selected")
+        expect(ringOf(cards, "u1")).toBeUndefined()
+    })
+
     it("lights only the player the controller picked, never the turn's first seat", () => {
         const cards = railCardsOf(input({
             roundId: "ve-dich",
