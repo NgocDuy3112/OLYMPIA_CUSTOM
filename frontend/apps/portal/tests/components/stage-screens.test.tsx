@@ -886,6 +886,28 @@ it("phase 1: a used question is drawn but inert", () => {
         expect(screen.getAllByTitle("Chọn câu 30 điểm")).toHaveLength(1)
     })
 
+it("phase 2: a question played in lượt chung is drawn but inert", () => {
+        renderRound(
+            "ve-dich",
+            {},
+            {
+                open: [],
+                selectedPlayerId: "u1",
+                board: [
+                    { questionId: "q20", value: 20, where: "taken" as const },
+                    freeCell("q40", 40),
+                ],
+                table: TWO_PLAYERS,
+            },
+            veDichMc({ phase: 2, turnPlayerId: "u1" }),
+            [veQuestion("q20", 20), veQuestion("q40", 40)],
+        )
+
+        expect(screen.getAllByTitle("Câu 20 điểm đã dùng")).toHaveLength(1)
+        expect(screen.getAllByTitle("Chọn câu 40 điểm")).toHaveLength(1)
+        expect(screen.queryByTitle("Chọn câu 20 điểm")).toBeNull()
+    })
+
 it("phase 1: with nothing picked, there is no confirm — Chọn lại clears", async () => {
         renderRound("ve-dich", { send: vi.fn() }, {}, veDichMc({ phase: 1 }))
 

@@ -127,6 +127,20 @@ public partial class VeDichTurnTests
     }
 
     [Fact]
+    public void Phase2_RefusesAQuestionAlreadyPlayedInPhase1()
+    {
+        var state = VeDichTurn.CreateVeDich(Pool, [Player("a", 0), Player("b", 0)]);
+        var played = VeDichTurn.PickPhase1(state, "a", "20-1");
+        var resolved = VeDichTurn.ResolveQuestion(played, new Verdicts(true, null));
+        var ended = VeDichTurn.BeginPhase2(
+            VeDichTurn.AdvanceTurn(VeDichTurn.AdvanceTurn(resolved)));
+
+        Assert.DoesNotContain(ended.Remaining, q => q.Id == "20-1");
+        Assert.Equal("INVALID_QUESTION", CodeOf(() =>
+            VeDichTurn.PickPhase2(ended, ended.Players[0].Id, ["20-1"])));
+    }
+
+    [Fact]
     public void Phase2_TakesUpToThreeDistinctPicksAndReplacesTheSet()
     {
         var state = VeDichTurn.BeginPhase2(VeDichTurn.CreateVeDich(Pool, OrderedPlayers));
