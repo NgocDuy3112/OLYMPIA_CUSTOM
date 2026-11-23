@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react"
+import type { ReactNode } from "react"
 import { ConsoleStage, Progress, QuestionCard, Rail, Timer } from "@/components/stage/deck"
 import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
 import type { ScreenCore } from "@/rounds/types"
@@ -13,9 +13,11 @@ export function KhoiDongRiengAOCController({ ctx }: { ctx: KhoiDongRiengCtx }) {
     const oral = v.projection.oral
     const counting = oral?.deadlineAt != null && (ctx.oralRemaining ?? 0) > 0
     const canVerdict = Boolean(oral?.playerId) && counting
-    const [marked, setMarked] = useState<string | null>(null)
+    let marked: string | null = null
+    for (const card of baseCards) {
+        if (card.ring === "active") marked = card.id
+    }
     const mark = (id: string) => {
-        setMarked(id)
         ctx.send({ kind: "khoi-dong.setTurn", playerId: id })
     }
     const record = (correct: boolean) => {
@@ -30,13 +32,7 @@ export function KhoiDongRiengAOCController({ ctx }: { ctx: KhoiDongRiengCtx }) {
             ctx.send(base)
         }
     }
-    let cards = baseCards
-    if (marked) {
-        cards = baseCards.map((c) => {
-            if (c.id === marked) return { ...c, ring: "selected" as const }
-            return c
-        })
-    }
+    const cards = baseCards
 
     let startClock: (() => void) | undefined = undefined
     if (marked) {

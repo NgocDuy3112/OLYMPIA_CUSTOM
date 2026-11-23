@@ -98,16 +98,29 @@ const veDichMc = (over: Partial<VeDichConsole> = {}): VeDichConsole => ({
 })
 
 describe("KhoiDongRieng — S1, the oral run", () => {
-    it("shows the stopwatch strip and sends the run's verdict", async () => {
+    it("lights nothing until a player is marked, even with a run in view", async () => {
         const user = userEvent.setup()
         const f = renderRound("khoi-dong", {
-            baseCards: [{ id: "u1", name: "An", points: 10 }],
+            baseCards: [{ id: "u1", name: "An", points: 10 }, { id: "u2", name: "Bình", points: 5 }],
             oralRemaining: 30,
         }, {
             oral: { questionId: "q1", question: null, playerId: "u1", index: 0, total: 6, elapsedS: 10, budgetS: 45, deadlineAt: "2026-01-01T00:00:40.000Z" },
         })
 
-        await user.click(screen.getByText("An"))
+        expect(screen.queryByRole("button", { name: "Tính giờ" })).toBeNull()
+        await user.click(screen.getByRole("button", { name: "Đúng" }))
+        expect(f.send).toHaveBeenCalledWith({ kind: "khoi-dong.recordOral", correct: true, spentS: 0 })
+    })
+
+    it("shows the stopwatch strip and sends the run's verdict", async () => {
+        const user = userEvent.setup()
+        const f = renderRound("khoi-dong", {
+            baseCards: [{ id: "u1", name: "An", points: 10, ring: "active" as const }],
+            oralRemaining: 30,
+        }, {
+            oral: { questionId: "q1", question: null, playerId: "u1", index: 0, total: 6, elapsedS: 10, budgetS: 45, deadlineAt: "2026-01-01T00:00:40.000Z" },
+        })
+
         expect(screen.getByText("Tính giờ")).toBeInTheDocument()
         expectButtonsInOrder(["Đúng", "Sai", "Về sảnh"])
         await user.click(screen.getByRole("button", { name: "Đúng" }))
@@ -187,11 +200,9 @@ describe("KhoiDongRieng — S1, the oral run", () => {
     it("Tính giờ tells the engine to reveal the question — only after a player is marked", async () => {
         const user = userEvent.setup()
         const f = renderRound("khoi-dong", {
-            baseCards: [{ id: "u1", name: "An", points: 10 }],
+            baseCards: [{ id: "u1", name: "An", points: 10, ring: "active" as const }],
         }, oralRun)
 
-        expect(screen.queryByRole("button", { name: "Tính giờ" })).toBeNull()
-        await user.click(screen.getByText("An"))
         await user.click(screen.getByRole("button", { name: "Tính giờ" }))
 
         expect(f.send).toHaveBeenCalledWith({ kind: "khoi-dong.startClock" })
@@ -212,13 +223,12 @@ describe("KhoiDongRieng — S1, the oral run", () => {
     it("a marked card decides who the verdict is scored against", async () => {
         const user = userEvent.setup()
         const f = renderRound("khoi-dong", {
-            baseCards: [{ id: "u1", name: "An", points: 10 }, { id: "u2", name: "Bình", points: 5 }],
+            baseCards: [{ id: "u1", name: "An", points: 10 }, { id: "u2", name: "Bình", points: 5, ring: "active" as const }],
             oralRemaining: 30,
         }, {
             oral: { questionId: "q1", question: null, playerId: "u1", index: 0, total: 6, elapsedS: 10, budgetS: 45, deadlineAt: "2026-01-01T00:00:40.000Z" },
         })
 
-        await user.click(screen.getByText("Bình"))
         await user.click(screen.getByRole("button", { name: "Đúng" }))
         expect(f.send).toHaveBeenCalledWith({
             kind: "khoi-dong.recordOral", correct: true, spentS: 0, playerId: "u2",

@@ -28,8 +28,8 @@ public static partial class LiveView
 
             var view = Base(input.MatchId, input.RoundId, input.Version,
                 state.Ended ? "ended" : "phase1", [], RankTable(input.Table, input.TieBreak), me);
-            view["selectedPlayerId"] = activeId;
-            if (run is not null && currentId is not null)
+            view["selectedPlayerId"] = state.Engaged ? activeId : null;
+            if (run is not null && currentId is not null && state.Engaged)
             {
                 view["oral"] = new Dictionary<string, object?>
                 {
