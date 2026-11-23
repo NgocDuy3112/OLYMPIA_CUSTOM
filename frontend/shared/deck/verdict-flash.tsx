@@ -1,23 +1,14 @@
 import { useEffect, useRef, useState } from "react"
+import { Check, X } from "lucide-react"
 import { pt } from "./geometry"
 
-/**
- * A verdict lands on a card: a big delta and a ringed ✔/✖ take over the
- * right half for a beat, then hand the name and score back.
- */
 export interface VerdictFlash {
-    /** Points gained or lost. 0 still shows the mark (a re-grade to the same score). */
     delta: number
-    /** Bumped per flash so an identical delta replays. */
     seq: number
 }
 
-const FLASH_MS = 1500
+const FLASH_MS = 2000
 
-/**
- * Watches a score and reports every change. Works from the view alone, so it
- * survives reconnects and needs nothing from the server.
- */
 export function useScoreFlash(points: number): VerdictFlash | null {
     const previous = useRef(points)
     const [flash, setFlash] = useState<VerdictFlash | null>(null)
@@ -37,14 +28,29 @@ export function useScoreFlash(points: number): VerdictFlash | null {
 }
 
 function fmtDelta(delta: number): string {
-    if (delta > 0) return `+${delta}`
-    return `−${Math.abs(delta)}`
+    if (delta > 0) return "+" + delta
+    return "−" + Math.abs(delta)
 }
 
-/**
- * The overlay itself. It is purely visual: `aria-live` announces the new score
- * for screen readers, and motion is suppressed for reduced-motion users.
- */
+function VerdictRing() {
+    return (
+        <svg className="verdict-flash-ring" viewBox="0 0 52 52" aria-hidden>
+            <circle className="verdict-flash-ring-track" cx="26" cy="26" r="24" />
+            <circle className="verdict-flash-ring-draw" cx="26" cy="26" r="24" />
+        </svg>
+    )
+}
+
+function VerdictMark({ correct, size }: { correct: boolean; size: number }) {
+    const Icon = correct ? Check : X
+    return (
+        <span className="verdict-flash-mark" style={{ width: pt(size), height: pt(size) }}>
+            <VerdictRing />
+            <Icon className="verdict-flash-icon" strokeWidth={3} aria-hidden />
+        </span>
+    )
+}
+
 export function VerdictFlashLayer({ flash, points, size }: {
     flash: VerdictFlash | null
     points: number
@@ -52,18 +58,19 @@ export function VerdictFlashLayer({ flash, points, size }: {
 }) {
     if (!flash) return null
     const correct = flash.delta > 0
+    const markSize = size ? size * 0.7 : 24
+    let tone = "verdict-flash-bad"
+    if (correct) tone = "verdict-flash-good"
     return (
         <div
             key={flash.seq}
-            className="verdict-flash absolute inset-0 z-10 flex flex-col items-center justify-center gap-[0.2cqw] rounded-lg bg-background/80 backdrop-blur-[2px]"
+            className={"verdict-flash " + tone + " absolute inset-0 z-10 flex flex-col items-center justify-center gap-[0.25cqw] rounded-lg bg-background/80 backdrop-blur-[2px]"}
             role="status"
             aria-live="polite"
-            aria-label={`${correct ? "Đúng" : "Sai"}, ${fmtDelta(flash.delta)} điểm, tổng ${points}`}
+            aria-label={(correct ? "Đúng" : "Sai") + ", " + fmtDelta(flash.delta) + " điểm, tổng " + points}
         >
-            <span className="verdict-flash-mark flex items-center justify-center rounded-full" style={{ fontSize: size ? pt(size * 0.7) : pt(24) }}>
-                {correct ? "✔" : "✖"}
-            </span>
-            <span className="font-display font-bold leading-none tabular-nums text-foreground" style={{ fontSize: size ? pt(size * 0.55) : pt(18) }}>
+            <VerdictMark correct={correct} size={markSize} />
+            <span className="verdict-flash-delta font-display font-bold leading-none tabular-nums" style={{ fontSize: size ? pt(size * 0.55) : pt(18) }}>
                 {fmtDelta(flash.delta)}
             </span>
         </div>

@@ -21,7 +21,8 @@ describe("verdict flash — the card's answer lands", () => {
         rerender(<Probe points={40} />)
 
         const status = screen.getByRole("status")
-        expect(status.textContent).toContain("✔")
+        expect(status.querySelector(".lucide-check")).not.toBeNull()
+        expect(status.querySelector(".lucide-x")).toBeNull()
         expect(status.textContent).toContain("+20")
         expect(status.getAttribute("aria-label")).toContain("Đúng")
     })
@@ -31,7 +32,8 @@ describe("verdict flash — the card's answer lands", () => {
         rerender(<Probe points={10} />)
 
         const status = screen.getByRole("status")
-        expect(status.textContent).toContain("✖")
+        expect(status.querySelector(".lucide-x")).not.toBeNull()
+        expect(status.querySelector(".lucide-check")).toBeNull()
         expect(status.textContent).toContain("−10")
         expect(status.getAttribute("aria-label")).toContain("Sai")
     })
@@ -42,7 +44,7 @@ describe("verdict flash — the card's answer lands", () => {
         expect(screen.getByRole("status")).toBeTruthy()
 
         act(() => {
-            vi.advanceTimersByTime(1600)
+            vi.advanceTimersByTime(2100)
         })
         expect(screen.queryByRole("status")).toBeNull()
     })
@@ -53,7 +55,7 @@ describe("verdict flash — the card's answer lands", () => {
         const first = screen.getByRole("status").textContent
 
         act(() => {
-            vi.advanceTimersByTime(1600)
+            vi.advanceTimersByTime(2100)
         })
         rerender(<Probe points={20} />)
         rerender(<Probe points={40} />)
