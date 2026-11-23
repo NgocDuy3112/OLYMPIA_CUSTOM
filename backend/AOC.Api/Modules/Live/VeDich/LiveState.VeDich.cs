@@ -100,6 +100,7 @@ public static partial class LiveState
         }
 
         StateGuard.RequireOptionalBoolean(obj, "turnPowerUsed", details);
+        StateGuard.RequireOptionalString(obj, "selectedPlayerId", details);
 
         if (obj.TryGetProperty("picksConfirmed", out var picksConfirmed)
             && picksConfirmed.ValueKind is not (JsonValueKind.True or JsonValueKind.False))

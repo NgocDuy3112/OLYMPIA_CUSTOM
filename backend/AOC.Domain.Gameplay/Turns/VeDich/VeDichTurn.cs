@@ -79,6 +79,7 @@ public static class VeDichTurn
             Deferred = [],
             Players = OrderForPhase(state.Players, 2),
             TurnIndex = 0,
+            SelectedPlayerId = null,
             PendingPicks = [],
             TurnQuestions = [],
             Open = null,
@@ -575,6 +576,7 @@ public static class VeDichTurn
         return state with
         {
             TurnIndex = state.TurnIndex + 1,
+            SelectedPlayerId = null,
             PendingPicks = [],
             TurnQuestions = [],
             Players = state.Players.Select(p => p with { Powers = p.Powers.ResetForTurn() }).ToList(),
@@ -590,11 +592,13 @@ public static class VeDichTurn
 
         var index = state.Players.FindIndex(p => p.Id == playerId);
         if (index < 0) throw Err("INVALID_PLAYER", $"{playerId} is not playing this round");
-        if (index == state.TurnIndex) return state;
+        if (index == state.TurnIndex)
+            return state with { SelectedPlayerId = playerId };
 
         return state with
         {
             TurnIndex = index,
+            SelectedPlayerId = playerId,
             Remaining = state.Remaining.Concat(state.PendingPicks).ToList(),
             PendingPicks = [],
             TurnQuestions = [],

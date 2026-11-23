@@ -15,6 +15,10 @@ public sealed record VeDichState
     public List<VeDichQuestion>? Deferred { get; init; }
 
     [JsonPropertyName("turnIndex")] public int TurnIndex { get; init; }
+
+    [JsonPropertyName("selectedPlayerId")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SelectedPlayerId { get; init; }
     [JsonPropertyName("pendingPicks")] public List<VeDichQuestion> PendingPicks { get; init; } = [];
 
     /// <summary>The questions picked for the current turn — kept after they are

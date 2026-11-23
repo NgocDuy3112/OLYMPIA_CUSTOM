@@ -314,7 +314,19 @@ public partial class VeDichTurnTests
         Assert.Contains(next.Remaining, q => q.Id == "40-1");
         Assert.Contains(next.Remaining, q => q.Id == "30-1");
 
-        Assert.Same(next, VeDichTurn.SetTurn(next, "a"));
+        Assert.Equal(next.PendingPicks, VeDichTurn.SetTurn(next, "a").PendingPicks);
+    }
+
+    [Fact]
+    public void Phase2_SetTurnRecordsTheSeatEvenWhenItIsAlreadyTheCurrentOne()
+    {
+        var s = VeDichTurn.BeginPhase2(VeDichTurn.CreateVeDich(Pool, [Player("a", 0), Player("b", 0)]));
+        Assert.Null(s.SelectedPlayerId);
+
+        var chosen = VeDichTurn.SetTurn(s, s.Players[0].Id);
+
+        Assert.Equal(s.Players[0].Id, chosen.SelectedPlayerId);
+        Assert.Equal(0, chosen.TurnIndex);
     }
 
     [Fact]

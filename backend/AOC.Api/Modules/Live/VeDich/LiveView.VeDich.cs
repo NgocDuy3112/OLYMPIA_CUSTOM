@@ -73,11 +73,14 @@ public static partial class LiveView
 
         if (state.Phase == 1) return null;
 
-        if (open is null) return null;
+        if (open is not null)
+        {
+            var assigned = AssignedToId(open);
+            if (assigned is not null) return assigned;
+            return open.Answerer;
+        }
 
-        var assigned = AssignedToId(open);
-        if (assigned is not null) return assigned;
-        return open.Answerer;
+        return state.SelectedPlayerId;
     }
 
     private static Dictionary<string, object?> VeDichView(ViewInput input, VeDichState state)
