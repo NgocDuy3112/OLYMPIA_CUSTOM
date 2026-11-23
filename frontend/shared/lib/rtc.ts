@@ -688,7 +688,6 @@ export function useRtcPeerControls(room: Room | null): RtcPeerControlsMap {
         })
     }
 
-    const [reportedMicMuted, setReportedMicMuted] = useState<ReadonlySet<string>>(new Set())
     const [reportedCamOff, setReportedCamOff] = useState<ReadonlySet<string>>(new Set())
     const [reportedAudioOff, setReportedAudioOff] = useState<ReadonlySet<string>>(new Set())
 
@@ -704,15 +703,6 @@ export function useRtcPeerControls(room: Room | null): RtcPeerControlsMap {
                 }
                 if (msg.sourceId === undefined) return
                 if (msg.on === undefined) return
-
-                if (msg.type === "device_mic") {
-                    setReportedMicMuted((prev) => {
-                        const next = new Set(prev)
-                        if (msg.on!) next.delete(msg.sourceId!)
-                        else next.add(msg.sourceId!)
-                        return next
-                    })
-                }
 
                 if (msg.type === "device_cam") {
                     setReportedCamOff((prev) => {
@@ -745,7 +735,7 @@ export function useRtcPeerControls(room: Room | null): RtcPeerControlsMap {
     const togglePlayerMic = (id: string) => {
         if (!room) return
         const peer = tracks.get(id)
-        const currentlyOn = !reportedMicMuted.has(id) && peerMicOn(peer?.audio)
+        const currentlyOn = peerMicOn(peer?.audio)
         publishDeviceOrder(room, "device_mic", id, !currentlyOn)
     }
 
@@ -766,7 +756,7 @@ export function useRtcPeerControls(room: Room | null): RtcPeerControlsMap {
     if (room) {
         for (const id of room.remoteParticipants.keys()) {
             const peer = tracks.get(id)
-            const micOn = !reportedMicMuted.has(id) && peerMicOn(peer?.audio)
+            const micOn = peerMicOn(peer?.audio)
             const camOn = !reportedCamOff.has(id) && Boolean(peer?.video)
             controls.set(id, {
                 isMicOn: micOn,
