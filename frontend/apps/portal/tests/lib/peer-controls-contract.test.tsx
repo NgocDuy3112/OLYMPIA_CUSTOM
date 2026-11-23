@@ -86,14 +86,14 @@ describe("peer controls contract — camera and deafen", () => {
         expect(result.current.get("p1")?.isAudioMuted).toBe(false)
     })
 
-    it("reflects the player's own mic report back on the card", () => {
+    it("reflects the player's mic from the live track state on the card", () => {
         const fake = fakeRoom({ audio: true })
         const { result } = renderHook(() => useRtcPeerControls(fake.room))
 
-        act(() => report(fake.handlers, { type: "device_mic", sourceId: "p1", on: false }))
-        expect(result.current.get("p1")?.isMicOn).toBe(false)
-
-        act(() => report(fake.handlers, { type: "device_mic", sourceId: "p1", on: true }))
         expect(result.current.get("p1")?.isMicOn).toBe(true)
+
+        act(() => result.current.get("p1")?.togglePlayerMic("p1"))
+
+        expect(lastSent(fake.publishData)).toEqual({ type: "device_mic", targetId: "p1", on: false })
     })
 })
