@@ -216,6 +216,25 @@ describe("player screens render from a plain fixture", () => {
         expect(queryByLabelText("Từ khóa của bạn")).toBeNull()
     })
 
+    it("giải mã — a submitted keyword takes both boxes off the stage", () => {
+        const v = view({
+            roundId: "giai-ma",
+            open: [{ questionId: "q1", deadlineAt: null, question: question("q1") }],
+            keyword: { questionId: "k1", question: question("k1", "KEYWORD") },
+            keywordDeadlineAt: "2099-01-01T00:00:00.000Z",
+            me: {
+                keywordLocked: true,
+                pickedTiles: [],
+                hintVerdicts: {},
+                myKeywordSubmission: { answer: "CHUNGKET", elapsedS: 4.2 },
+            },
+        })
+        const { queryByLabelText, getByText } = render(<GiaiMaAOCPlayer ctx={ctx({ v })} />)
+        expect(queryByLabelText("Câu trả lời của bạn")).toBeNull()
+        expect(queryByLabelText("Từ khóa của bạn")).toBeNull()
+        expect(getByText("CHUNGKET")).toBeTruthy()
+    })
+
     it("giải mã — submitting the keyword asks for confirmation first", async () => {
         const user = userEvent.setup()
         const submitKeyword = vi.fn()

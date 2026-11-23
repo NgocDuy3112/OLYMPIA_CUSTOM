@@ -21,25 +21,25 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
     const codeLength = v.keywordLength
     const keywordRemaining = useCountdown(v.keywordDeadlineAt, ctx.clock)
     const keywordCountdownClosed = v.keywordCountdownClosed === true
+    const keywordSubmitted = v.me.keywordLocked === true
     let keywordOpen = true
     if (v.keywordDeadlineAt !== null) keywordOpen = keywordRemaining > 0
     if (keywordCountdownClosed) keywordOpen = false
 
     let keywordSlot: ReactNode = null
-    if (keyword) {
+    if (eliminated) {
+        keywordSlot = (
+            <span className="flex h-[3.3cqw] items-center rounded-lg bg-red-50 px-[1.2cqw] font-sans font-semibold text-red-600 ring-1 ring-red-200" style={{ fontSize: pt(12), borderRadius: STRIP_R }}>
+                Bạn không giải được từ khóa — bị loại vòng này
+            </span>
+        )
+    } else if (keyword && !keywordSubmitted) {
         keywordSlot = (
             <KeywordBox
                 busy={keywordBusy}
                 disabled={!keywordOpen}
                 onSubmit={(text) => submitKeyword(keyword.questionId, text)}
             />
-        )
-    }
-    if (eliminated) {
-        keywordSlot = (
-            <span className="flex h-[3.3cqw] items-center rounded-lg bg-red-50 px-[1.2cqw] font-sans font-semibold text-red-600 ring-1 ring-red-200" style={{ fontSize: pt(12), borderRadius: STRIP_R }}>
-                Bạn không giải được từ khóa — bị loại vòng này
-            </span>
         )
     }
 
@@ -59,7 +59,8 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
     let questionText: string | null = null
     if (hintWindow) questionText = hintWindow.question?.questionText ?? null
     let answerSlot: ReactNode = <AnswerBandIdle />
-    if (hintWindow && hintWindow.deadlineAt) {
+    if (keywordSubmitted) answerSlot = null
+    else if (hintWindow && hintWindow.deadlineAt) {
         answerSlot = (
             <AnswerBand
                 question={hintWindow.question}
