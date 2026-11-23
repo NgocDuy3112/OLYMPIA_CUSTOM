@@ -57,19 +57,19 @@ export function VerdictFlashLayer({ flash, points, size }: {
 }) {
     if (!flash) return null
     const correct = flash.delta > 0
-    const markSize = size ? size * 0.7 : 24
+    const markSize = size ? size * 0.85 : 30
     let tone = "verdict-flash-bad"
     if (correct) tone = "verdict-flash-good"
     return (
         <span
             key={flash.seq}
-            className={"verdict-flash " + tone + " absolute inset-0 z-10 flex flex-col items-center justify-center gap-[0.1cqw]"}
+            className={"verdict-flash " + tone + " absolute inset-0 z-10 flex flex-col items-center justify-center gap-[0.4cqw]"}
             role="status"
             aria-live="polite"
             aria-label={(correct ? "Đúng" : "Sai") + ", " + fmtDelta(flash.delta) + " điểm, tổng " + points}
         >
             <VerdictMark correct={correct} size={markSize} />
-            <span className="verdict-flash-delta font-display font-bold leading-none tabular-nums" style={{ fontSize: size ? pt(size * 0.55) : pt(18) }}>
+            <span className="verdict-flash-delta font-display font-bold leading-none tabular-nums" style={{ fontSize: size ? pt(size * 0.6) : pt(20) }}>
                 {fmtDelta(flash.delta)}
             </span>
         </span>
