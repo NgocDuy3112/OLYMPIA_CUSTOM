@@ -1,23 +1,18 @@
-import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react"
 import type { RemoteVideoTrack } from "livekit-client"
-import { RailAnswerLine } from "@shared/deck/rail-answer"
-import { initialsOf, pt } from "@shared/deck/geometry"
-import { railCardClass, railCardState, railScoreClass } from "@shared/deck/rail-card"
-import { TurnIcon } from "@shared/deck/stage"
-import { PlayerCamControls } from "@shared/deck/player-cam-controls"
-import { useScoreFlash, VerdictFlashLayer } from "@shared/deck/verdict-flash"
+import { PlayerCard, type RailCardData } from "@shared/deck/rail-card-view"
+import { railCardState } from "@shared/deck/rail-card"
 
 export interface CardData {
     id: string
     name: string
     points: number
-    answer?: string        
+    answer?: string
     answeredMs?: number | null
-    value?: string         
+    value?: string
     badge?: { text: string; tone: "primary" | "amber" | "emerald" }
     icon?: "star" | "swords"
     ring?: "selected" | "active"
-    dimmed?: boolean       
+    dimmed?: boolean
     video?: RemoteVideoTrack | null
     buzzing?: boolean
     micOn?: boolean
@@ -28,175 +23,54 @@ export interface CardData {
     onToggleMic?: () => void
 }
 
-const PILL_TONE: Record<NonNullable<CardData["badge"]>["tone"], string> = {
-    primary: "bg-primary text-primary-foreground",
-    amber: "bg-amber-50 text-amber-700 ring-1 ring-amber-300",
-    emerald: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-300",
+function toCard(c: CardData): RailCardData {
+    const keywordSubmitted = c.badge?.text === "TỪ KHOÁ"
+    return {
+        id: c.id,
+        name: c.name,
+        points: c.points,
+        state: railCardState({
+            locked: c.dimmed === true,
+            buzzing: c.buzzing === true,
+            picked: c.ring === "selected",
+            active: c.ring === "active",
+            submitted: keywordSubmitted,
+        }),
+        answer: c.answer ?? null,
+        answeredMs: c.answeredMs ?? null,
+        value: c.value,
+        badge: c.badge,
+        icon: c.icon,
+        video: c.video ?? null,
+        micOn: c.micOn,
+        audioMuted: c.audioMuted,
+        videoHidden: c.videoHidden,
+        onToggleAudio: c.onToggleAudio,
+        onToggleVideo: c.onToggleVideo,
+        onToggleMic: c.onToggleMic,
+    }
 }
 
-const badgePill = (tone: NonNullable<CardData["badge"]>["tone"]): string =>
-    `flex items-center justify-center rounded-full px-[0.6cqw] font-sans font-semibold leading-tight ${PILL_TONE[tone]}`
-
-const cardRing = (ring: CardData["ring"]): string => {
-    if (ring === "selected") return "ring-2 ring-primary"
-    if (ring === "active") return "ring-2 ring-amber-400"
-    return ""
-}
-
-function ScoreVerdict({ points, scoreSize }: { points: number; scoreSize: number }) {
-    const flash = useScoreFlash(points)
-    return <VerdictFlashLayer flash={flash} points={points} size={scoreSize} />
-}
-
-function CardVideo({ track }: { track: RemoteVideoTrack }) {    const holder = useRef<HTMLSpanElement>(null)
-    useEffect(() => {
-        const box = holder.current
-        if (!box) return
-        const video = track.attach()
-        video.className = "absolute inset-0 h-full w-full object-cover"
-        box.append(video)
-        return () => {
-            track.detach(video)
-            video.remove()
-        }
-    }, [track])
-    return <span ref={holder} className="absolute inset-0 overflow-hidden rounded-lg" aria-hidden />
-}
-
-export function Rail({ cards, onSelect, onScoreClick, selectHint }: { cards: CardData[]; onSelect?: (id: string) => void; onScoreClick?: (id: string) => void; selectHint?: boolean }) {
-    let Interactive: "button" | "div" = "div"
-    if (onSelect) Interactive = "button"
+export function Rail({ cards, onSelect, onScoreClick, selectHint }: {
+    cards: CardData[]
+    onSelect?: (id: string) => void
+    onScoreClick?: (id: string) => void
+    selectHint?: boolean
+}) {
     let hintTitle: string | undefined = undefined
     if (selectHint) hintTitle = "Bấm thẻ để chỉ định thí sinh"
-    const scoreSize = 34
     return (
         <>
-            {cards.map((c) => {
-                const keywordSubmitted = c.badge?.text === "TỪ KHOÁ"
-                const state = railCardState({
-                    locked: c.dimmed === true,
-                    buzzing: c.buzzing === true,
-                    picked: c.ring === "selected",
-                    submitted: keywordSubmitted,
-                })
-                let badgeNode: ReactNode = null
-                if (c.badge) {
-                    badgeNode = <span className={badgePill(c.badge.tone)} style={{ fontSize: pt(9) }}>{c.badge.text}</span>
-                }
-                let iconNode: ReactNode = null
-                if (c.icon) iconNode = <TurnIcon kind={c.icon} />
-                const hasAnswer = typeof c.answer === "string" && c.answer !== "" && c.answer !== "—"
-                let showStatus = hasAnswer
-                if (c.badge) showStatus = true
-                if (c.icon) showStatus = true
-                let statusLine: ReactNode = null
-                if (showStatus) {
-                    statusLine = (
-                        <div className="flex min-w-0 flex-col items-center justify-center gap-[0.2cqw] font-sans leading-none text-foreground/85">
-                            {iconNode}
-                            <RailAnswerLine answer={c.answer} answeredMs={c.answeredMs ?? null} />
-                            {!c.badge && typeof c.value === "string" && c.value !== "" && c.value !== "—" && (
-                                <span className={`font-semibold tabular-nums ${railScoreClass(state)}`} style={{ fontSize: pt(12) }}>
-                                    {c.value}
-                                </span>
-                            )}
-                            {badgeNode}
-                        </div>
-                    )
-                }
-                const hasControls =
-                    Boolean(c.onToggleAudio) || Boolean(c.onToggleVideo) || Boolean(c.onToggleMic)
-                let Tag: "button" | "div" = Interactive
-                let interactiveProps: Record<string, unknown> | undefined = undefined
-                if (onSelect) {
-                    const selected = c.ring === "selected"
-                    if (hasControls) {
-                        Tag = "div"
-                        interactiveProps = {
-                            role: "button",
-                            tabIndex: 0,
-                            onClick: () => onSelect(c.id),
-                            onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
-                                if (event.key !== "Enter") return
-                                onSelect(c.id)
-                            },
-                            "aria-pressed": selected,
-                        }
-                    } else {
-                        interactiveProps = {
-                            type: "button",
-                            onClick: () => onSelect(c.id),
-                            "aria-pressed": selected,
-                        }
-                    }
-                }
-                const cardHeight = "h-[9.3cqw]"
-                let hoverCls = ""
-                if (onSelect) {
-                    hoverCls = "cursor-pointer hover:ring-sky-400 active:ring-sky-600"
-                    if (c.ring === "selected") hoverCls = "cursor-pointer"
-                }
-                let ringCls = cardRing(c.ring)
-                if (c.ring === "selected") ringCls = ""
-                if (selectHint) {
-                    hoverCls = "cursor-pointer hover:ring-emerald-400 active:ring-emerald-600"
-                    ringCls = "ring-2 ring-emerald-400 console-armed"
-                }
-                return (
-                <Tag
+            {cards.map((c) => (
+                <PlayerCard
                     key={c.id}
-                    {...(interactiveProps ?? {})}
+                    card={toCard(c)}
+                    onSelect={onSelect}
+                    onScoreClick={onScoreClick}
+                    selectHint={selectHint}
                     title={hintTitle}
-                    className={`flex ${cardHeight} w-full shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl p-[0.9cqw] text-left shadow-sm ${railCardClass(state)} ${hoverCls} ${ringCls}`}
-                >
-                    <div className="flex min-h-0 flex-1 gap-[0.7cqw]">
-                        <div className="relative w-[52%] shrink-0">
-                            <div
-                                className="flex h-full items-center justify-center rounded-lg bg-primary/10 font-display font-bold text-primary/70"
-                                style={{ fontSize: pt(16) }}
-                                aria-hidden
-                            >
-                                {initialsOf(c.name)}
-                            </div>
-                            {c.video && <CardVideo track={c.video} />}
-                            {hasControls && (
-                                <PlayerCamControls
-                                    playerId={c.id}
-                                    micOn={c.micOn}
-                                    audioMuted={c.audioMuted}
-                                    videoOff={c.videoHidden}
-                                    onToggleMic={c.onToggleMic}
-                                    onToggleAudio={c.onToggleAudio}
-                                    onToggleVideo={c.onToggleVideo}
-                                />
-                            )}
-                        </div>
-                        <div className="relative flex min-w-0 flex-1 flex-col justify-start gap-[0.3cqw] pt-[0.2cqw] text-center">
-                            <span className="flex min-w-0 items-center justify-center gap-[0.3cqw] font-display font-semibold leading-none text-foreground" style={{ fontSize: pt(16) }}>
-                                <span className="truncate">{c.name}</span>
-                            </span>
-                            {onScoreClick ? (
-                                <button
-                                    type="button"
-                                    onClick={() => onScoreClick(c.id)}
-                                    title="Sửa điểm câu trả lời"
-                                    className={`cursor-pointer font-display font-bold leading-none tabular-nums transition hover:underline ${railScoreClass(state)}`}
-                                    style={{ fontSize: pt(scoreSize) }}
-                                >
-                                    {c.points}
-                                </button>
-                            ) : (
-                                <span className={`font-display font-bold leading-none tabular-nums ${railScoreClass(state)}`} style={{ fontSize: pt(scoreSize) }}>
-                                    {c.points}
-                                </span>
-                            )}
-                            {statusLine}
-                            <ScoreVerdict points={c.points} scoreSize={scoreSize} />
-                        </div>
-                    </div>
-                </Tag>
-                )
-            })}
+                />
+            ))}
         </>
     )
 }
