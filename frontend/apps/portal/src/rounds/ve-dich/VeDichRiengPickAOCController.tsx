@@ -117,6 +117,7 @@ export function VeDichRiengPickAOCController({ ctx }: { ctx: VeDichRiengPickCtx 
                     cells={boardCells}
                     pickedIds={chosen}
                     values={RIENG_PICK_VALUES}
+                    locked={turnPlayer === null || (projection.selectedPlayerId ?? null) === null}
                     onPick={picking ? togglePick : undefined}
                 />
             </QuestionCard>

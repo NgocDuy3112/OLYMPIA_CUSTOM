@@ -20,6 +20,7 @@ const cellTone = (where: string, picked: boolean, onPick?: (questionId: string) 
 const cellTitle = (value: number, where: string, picked: boolean): string => {
     if (picked) return `Ô câu ${value} điểm — đã chọn`
     if (where === "free") return `Câu ${value} điểm còn trống`
+    if (where === "locked") return `Chọn thí sinh trước`
     return `Câu ${value} điểm đã dùng`
 }
 
@@ -27,10 +28,11 @@ const pickTitle = (value: number): string => `Chọn câu ${value} điểm`
 
 const dropTitle = (value: number): string => `Bỏ câu ${value} điểm`
 
-export function VeDichPickBoard({ cells, pickedIds, values, onPick }: {
+export function VeDichPickBoard({ cells, pickedIds, values, locked, onPick }: {
     cells: PickBoardCell[]
     pickedIds: string[]
     values?: number[]
+    locked?: boolean
     onPick?: (questionId: string) => void
 }) {
     const bands = values ?? CHUNG_PICK_VALUES
@@ -46,19 +48,23 @@ export function VeDichPickBoard({ cells, pickedIds, values, onPick }: {
                         const picked = pickedIds.includes(cell.questionId)
                         const dropped = Boolean(onPick) && picked
                         const pressable = Boolean(onPick) && cell.where === "free"
-                        let title = cellTitle(cell.value, cell.where, picked)
+                        let where = cell.where
+                        if (locked === true) where = "locked"
+                        let title = cellTitle(cell.value, where, picked)
                         if (onPick) {
                             if (picked) title = dropTitle(cell.value)
                             else if (pressable) title = pickTitle(cell.value)
                         }
+                        let disabled = !dropped && !pressable
+                        if (locked === true) disabled = true
                         return (
                             <button
                                 key={cell.questionId}
                                 type="button"
-                                disabled={!dropped && !pressable}
+                                disabled={disabled}
                                 onClick={onPick ? () => onPick(cell.questionId) : undefined}
                                 title={title}
-                                className={cellTone(cell.where, picked, onPick)}
+                                className={cellTone(where, picked, onPick)}
                                 style={{ ...DECK_PAD, gridColumn: `span ${row.span}` }}
                             >
                                 <b className="font-display leading-none" style={{ fontSize: pt(20) }}>{cell.value}</b>

@@ -908,6 +908,25 @@ it("phase 2: a question played in lượt chung is drawn but inert", () => {
         expect(screen.queryByTitle("Chọn câu 20 điểm")).toBeNull()
     })
 
+it("phase 2: the board stays grey until the controller picks a seat", () => {
+        renderRound(
+            "ve-dich",
+            {},
+            {
+                open: [],
+                selectedPlayerId: null,
+                board: [freeCell("q40", 40), freeCell("q50", 50)],
+                table: TWO_PLAYERS,
+            },
+            veDichMc({ phase: 2, turnPlayerId: "u1" }),
+            [veQuestion("q40", 40), veQuestion("q50", 50)],
+        )
+
+        expect(screen.getAllByTitle("Chọn thí sinh trước")).toHaveLength(2)
+        expect(screen.queryByTitle("Chọn câu 40 điểm")).toBeNull()
+        expect(screen.queryByTitle("Chọn câu 50 điểm")).toBeNull()
+    })
+
 it("phase 1: with nothing picked, there is no confirm — Chọn lại clears", async () => {
         renderRound("ve-dich", { send: vi.fn() }, {}, veDichMc({ phase: 1 }))
 

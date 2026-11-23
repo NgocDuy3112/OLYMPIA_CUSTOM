@@ -172,7 +172,8 @@ export function PlayerCard({ card, onSelect, onScoreClick, selectHint, title }: 
 
     if (onSelect) {
         const selected = card.state === "picked"
-        if (hasControls(card)) {
+        const nestedButton = hasControls(card) || Boolean(onScoreClick)
+        if (nestedButton) {
             Tag = "div"
             interactiveProps = {
                 role: "button",
