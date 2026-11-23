@@ -24,11 +24,12 @@ describe("shared stage styles", () => {
         }
     })
 
-    it("each round owns a light direction, not just a colour", () => {
+    it("each round owns its own light colour", () => {
         for (const round of ["khoi-dong", "giai-ma", "but-pha", "ve-dich"]) {
             const block = stageCss.slice(stageCss.indexOf(`[data-glow="${round}"]`))
             const body = block.slice(0, block.indexOf("}"))
-            expect(body, round).toContain("--wash-angle")
+            expect(body, round).toContain("--glow-1")
+            expect(body, round).toContain("--glow-ink")
         }
     })
 

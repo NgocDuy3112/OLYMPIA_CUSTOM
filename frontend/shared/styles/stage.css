@@ -42,12 +42,6 @@
   inherits: true;
   initial-value: 0;
 }
-/* Direction of the room wash, per round: angle in degrees. */
-@property --wash-angle {
-  syntax: "<angle>";
-  inherits: true;
-  initial-value: 0deg;
-}
 
 :root {
   --glow-1: rgb(255 255 255 / 0.16);
@@ -57,17 +51,15 @@
   --glow-ink: rgb(255 255 255);
   --stage-vignette: 0;
   --stage-focus: 0;
-  --wash-angle: 0deg;
   transition:
     --glow-1 800ms ease, --glow-2 800ms ease, --glow-3 800ms ease, --glow-4 800ms ease,
-    --glow-ink 800ms ease, --stage-vignette 800ms ease, --stage-focus 800ms ease,
-    --wash-angle 800ms ease;
+    --glow-ink 800ms ease, --stage-vignette 800ms ease, --stage-focus 800ms ease;
 }
 
 /*
- * Every round owns a "set": colour, and now also where its light points.
- * Khởi động: an even front wash. Giải mã: two side lamps. Bứt phá: a hard
- * diagonal. Về đích chung: a warm ring. Về đích riêng: one spotlight.
+ * Every round owns a "set": the colour of its light.
+ * Khởi động: a green room. Giải mã: amber lamps. Bứt phá: violet heat.
+ * Về đích chung: a warm red ring. Về đích riêng: one red spotlight.
  */
 [data-glow="white"] {
   --glow-1: rgb(255 255 255 / 0.16);
@@ -75,7 +67,6 @@
   --glow-3: rgb(255 255 255 / 0.10);
   --glow-4: rgb(255 255 255 / 0.10);
   --glow-ink: rgb(255 255 255);
-  --wash-angle: 0deg;
 }
 [data-glow="lobby"] {
   --glow-1: rgb(56 128 255 / 0.52);
@@ -83,7 +74,6 @@
   --glow-3: rgb(56 128 255 / 0.30);
   --glow-4: rgb(56 128 255 / 0.26);
   --glow-ink: rgb(56 128 255);
-  --wash-angle: 12deg;
 }
 [data-glow="khoi-dong"] {
   --glow-1: rgb(34 197 94 / 0.45);
@@ -91,7 +81,6 @@
   --glow-3: rgb(34 197 94 / 0.27);
   --glow-4: rgb(34 197 94 / 0.24);
   --glow-ink: rgb(34 197 94);
-  --wash-angle: 0deg;
 }
 [data-glow="giai-ma"] {
   --glow-1: rgb(234 179 8 / 0.41);
@@ -99,7 +88,6 @@
   --glow-3: rgb(234 179 8 / 0.25);
   --glow-4: rgb(234 179 8 / 0.22);
   --glow-ink: rgb(234 179 8);
-  --wash-angle: 180deg;
 }
 [data-glow="but-pha"] {
   --glow-1: rgb(168 85 247 / 0.62);
@@ -107,7 +95,6 @@
   --glow-3: rgb(168 85 247 / 0.38);
   --glow-4: rgb(168 85 247 / 0.33);
   --glow-ink: rgb(168 85 247);
-  --wash-angle: 145deg;
 }
 [data-glow="ve-dich"] {
   --glow-1: rgb(239 68 68 / 0.34);
@@ -115,7 +102,6 @@
   --glow-3: rgb(239 68 68 / 0.20);
   --glow-4: rgb(239 68 68 / 0.17);
   --glow-ink: rgb(239 68 68);
-  --wash-angle: 90deg;
 }
 /* Về đích Riêng: the room goes dark and one red spotlight stays on stage. */
 [data-glow="ve-dich-rieng"] {
@@ -126,7 +112,6 @@
   --glow-ink: rgb(239 68 68 / 0.7);
   --stage-vignette: 1;
   --stage-focus: 1;
-  --wash-angle: 0deg;
 }
 
 @layer base {
