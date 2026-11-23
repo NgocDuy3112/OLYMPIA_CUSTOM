@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
-import { VeDichChungPickPlayer } from "@shared/deck/screens/VeDichChungPickPlayer"
-import { VeDichRiengPickPlayer } from "@shared/deck/screens/VeDichRiengPickPlayer"
+import { VeDichChungPickAOCPlayer } from "@shared/deck/screens/VeDichChungPickAOCPlayer"
+import { VeDichRiengPickAOCPlayer } from "@shared/deck/screens/VeDichRiengPickAOCPlayer"
 import type { PlayerView } from "@shared/deck/types"
 
 function view(over: Partial<PlayerView> = {}): PlayerView {
@@ -58,17 +58,17 @@ const chungView = (): PlayerView => view({
 
 describe("VeDich pick players — staged picks from the server", () => {
     it("chung: shows a chip for every staged pick", () => {
-        render(<VeDichChungPickPlayer ctx={ctx(chungView())} />)
+        render(<VeDichChungPickAOCPlayer ctx={ctx(chungView())} />)
         expect(screen.getAllByTitle(/Đã chọn câu /)).toHaveLength(2)
     })
 
     it("rieng: shows a chip for every staged pick", () => {
-        render(<VeDichRiengPickPlayer ctx={ctx(view())} />)
+        render(<VeDichRiengPickAOCPlayer ctx={ctx(view())} />)
         expect(screen.getAllByTitle(/Câu 40 điểm đã được chọn/)).toHaveLength(2)
     })
 
     it("rieng: the remaining count drops as picks are staged", () => {
-        render(<VeDichRiengPickPlayer ctx={ctx(view())} />)
+        render(<VeDichRiengPickAOCPlayer ctx={ctx(view())} />)
         expect(screen.getByText("còn 1")).toBeInTheDocument()
     })
 })

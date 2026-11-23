@@ -1,11 +1,11 @@
 import { PlayerStage, QuestionCard, QuestionChips, Rail, Timer, type PlayerCore } from "../player-deck"
 import { ValueCells } from "../value-cells"
 
-type VeDichRiengPickPlayerCtx = PlayerCore
+type VeDichRiengPickAOCPlayerCtx = PlayerCore
 
 
 
-export function VeDichRiengPickPlayer({ ctx }: { ctx: VeDichRiengPickPlayerCtx }) {
+export function VeDichRiengPickAOCPlayer({ ctx }: { ctx: VeDichRiengPickAOCPlayerCtx }) {
     const { v } = ctx
     const pickedIds = v.me.pendingPicks ?? []
     const board = v.board ?? []

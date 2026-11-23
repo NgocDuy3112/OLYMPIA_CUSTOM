@@ -1,10 +1,10 @@
 import { PlayerStage, QuestionCard, QuestionChips, Rail, Timer, type PlayerCore } from "../player-deck"
 import { VeDichPickBoard } from "../ve-dich-pick-board"
 
-type VeDichChungPickPlayerCtx = PlayerCore
+type VeDichChungPickAOCPlayerCtx = PlayerCore
 
 
-export function VeDichChungPickPlayer({ ctx }: { ctx: VeDichChungPickPlayerCtx }) {
+export function VeDichChungPickAOCPlayer({ ctx }: { ctx: VeDichChungPickAOCPlayerCtx }) {
     const { v } = ctx
     const pickedIds = v.me.pendingPicks ?? []
     const board = v.board ?? []

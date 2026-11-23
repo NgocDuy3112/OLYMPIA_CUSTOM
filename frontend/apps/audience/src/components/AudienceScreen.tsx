@@ -7,8 +7,8 @@ import { GiaiMaAOCPlayer } from "@shared/deck/screens/GiaiMaAOCPlayer"
 import { KhoiDongChungAOCPlayer } from "@shared/deck/screens/KhoiDongChungAOCPlayer"
 import { KhoiDongRiengAOCPlayer } from "@shared/deck/screens/KhoiDongRiengAOCPlayer"
 import { VeDichChungAOCPlayer } from "@shared/deck/screens/VeDichChungAOCPlayer"
-import { VeDichChungPickPlayer } from "@shared/deck/screens/VeDichChungPickPlayer"
-import { VeDichRiengPickPlayer } from "@shared/deck/screens/VeDichRiengPickPlayer"
+import { VeDichChungPickAOCPlayer } from "@shared/deck/screens/VeDichChungPickAOCPlayer"
+import { VeDichRiengPickAOCPlayer } from "@shared/deck/screens/VeDichRiengPickAOCPlayer"
 import { VeDichRiengAOCPlayer } from "@shared/deck/screens/VeDichRiengAOCPlayer"
 
 
@@ -28,8 +28,8 @@ export function AudienceScreen({ view }: { view: PlayerView }) {
         case "but-pha":
             return <ButPhaAOCPlayer ctx={ctx} />
         case "ve-dich-pick":
-            if (ctx.stage === "phase2") return <VeDichRiengPickPlayer ctx={ctx} />
-            return <VeDichChungPickPlayer ctx={ctx} />
+            if (ctx.stage === "phase2") return <VeDichRiengPickAOCPlayer ctx={ctx} />
+            return <VeDichChungPickAOCPlayer ctx={ctx} />
         case "ve-dich-chung":
             return <VeDichChungAOCPlayer ctx={ctx} />
         case "ve-dich-rieng":

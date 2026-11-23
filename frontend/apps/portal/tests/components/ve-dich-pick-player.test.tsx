@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
-import { VeDichChungPickPlayer } from "@shared/deck/screens/VeDichChungPickPlayer"
+import { VeDichChungPickAOCPlayer } from "@shared/deck/screens/VeDichChungPickAOCPlayer"
 import type { PlayerView } from "@shared/deck/types"
 
 function view(over: Partial<PlayerView> = {}): PlayerView {
@@ -46,9 +46,9 @@ const ctx = (v: PlayerView) => ({
     command: () => {},
 })
 
-describe("VeDichChungPickPlayer — staged picks", () => {
+describe("VeDichChungPickAOCPlayer — staged picks", () => {
     it("shows one chip per picked question, carrying its value", () => {
-        render(<VeDichChungPickPlayer ctx={ctx(view())} />)
+        render(<VeDichChungPickAOCPlayer ctx={ctx(view())} />)
 
         const chips = screen.getAllByRole("button").filter((el) => {
             const title = el.getAttribute("title") ?? ""
@@ -60,7 +60,7 @@ describe("VeDichChungPickPlayer — staged picks", () => {
     })
 
     it("renders no chips while nothing has been picked yet", () => {
-        render(<VeDichChungPickPlayer ctx={ctx(view({ me: { pickedTiles: [], hintVerdicts: {}, pendingPicks: [] } }))} />)
+        render(<VeDichChungPickAOCPlayer ctx={ctx(view({ me: { pickedTiles: [], hintVerdicts: {}, pendingPicks: [] } }))} />)
 
         const disabled = screen.getAllByRole("button").filter(
             (el) => el.getAttribute("aria-disabled") === "true"

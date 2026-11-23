@@ -6,8 +6,8 @@ import { GiaiMaAOCPlayer } from "@shared/deck/screens/GiaiMaAOCPlayer"
 import { ButPhaAOCPlayer } from "@shared/deck/screens/ButPhaAOCPlayer"
 import { KhoiDongChungAOCPlayer } from "@shared/deck/screens/KhoiDongChungAOCPlayer"
 import { VeDichChungAOCPlayer } from "@shared/deck/screens/VeDichChungAOCPlayer"
-import { VeDichChungPickPlayer } from "@shared/deck/screens/VeDichChungPickPlayer"
-import { VeDichRiengPickPlayer } from "@shared/deck/screens/VeDichRiengPickPlayer"
+import { VeDichChungPickAOCPlayer } from "@shared/deck/screens/VeDichChungPickAOCPlayer"
+import { VeDichRiengPickAOCPlayer } from "@shared/deck/screens/VeDichRiengPickAOCPlayer"
 import { VeDichRiengAOCPlayer } from "@shared/deck/screens/VeDichRiengAOCPlayer"
 import { Rail } from "@shared/deck/player-deck"
 
@@ -305,14 +305,14 @@ describe("player screens render from a plain fixture", () => {
 
     it("về đích · the board — a picker with the fixed bands", () => {
         const v = view({ roundId: "ve-dich", stage: "phase2", me: { isMyTurn: true, pickedTiles: [], hintVerdicts: {} } })
-        const { getAllByText } = render(<VeDichRiengPickPlayer ctx={ctx({ v })} />)
+        const { getAllByText } = render(<VeDichRiengPickAOCPlayer ctx={ctx({ v })} />)
         expect(getAllByText("Về đích").length).toBeGreaterThan(0)
         expect(getAllByText("40").length).toBeGreaterThan(0)
     })
 
     it("về đích · the board — display-only: the console picks, the player watches", () => {
         const v = view({ roundId: "ve-dich", stage: "phase2", me: { isMyTurn: true, pickedTiles: [], hintVerdicts: {} } })
-        const { queryByText } = render(<VeDichChungPickPlayer ctx={ctx({ v })} />)
+        const { queryByText } = render(<VeDichChungPickAOCPlayer ctx={ctx({ v })} />)
         expect(queryByText("Chốt 3 câu")).toBeNull()
         expect(queryByText("Chọn câu này")).toBeNull()
         // the status line was removed — the picked cells now sit beside the clock
