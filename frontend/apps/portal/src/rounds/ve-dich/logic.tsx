@@ -50,13 +50,11 @@ export function hetLuotAction(facts: HetLuotFacts): RoundAction | null {
 
 export const veDichAOC: RoundModule = {
     render: (f) => {
-        const pendingStaged = (f.v.projection.board ?? []).filter((c) => c.where === "pending").length > 0
         const consoleView = f.v.console as VeDichConsole | null
         if (f.v.projection.open.length === 0) {
             if (consoleView?.phase === 2) {
                 if (!consoleView.picksConfirmed) return <VeDichRiengPickAOCController ctx={pickCtx(f)} />
-                if (pendingStaged) return <VeDichRiengAOCController ctx={riengCtx(f)} />
-                return <VeDichRiengPickAOCController ctx={pickCtx(f)} />
+                return <VeDichRiengAOCController ctx={riengCtx(f)} />
             }
             if (consoleView?.picksConfirmed) return <VeDichChungAOCController ctx={chungCtx(f)} />
             return <VeDichChungPickAOCController ctx={pickCtx(f)} />
