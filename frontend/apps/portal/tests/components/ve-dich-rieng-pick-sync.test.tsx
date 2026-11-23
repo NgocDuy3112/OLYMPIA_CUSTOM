@@ -92,7 +92,7 @@ describe("VeDichRiengPick — chips sync with the server state", () => {
         const f = facts(["a"])
         const { rerender } = render(<VeDichRiengPickAOCController ctx={f as never} />)
 
-        expect(screen.getAllByTitle("Bỏ câu 40 điểm")).toHaveLength(1)
+        expect(screen.getAllByTitle("Bỏ câu 40 điểm")).toHaveLength(2)
 
         rerender(<VeDichRiengPickAOCController ctx={facts([]) as never} />)
 
@@ -103,7 +103,7 @@ describe("VeDichRiengPick — chips sync with the server state", () => {
         const f = facts(["a", "b"])
         render(<VeDichRiengPickAOCController ctx={f as never} />)
 
-        expect(screen.getAllByTitle("Bỏ câu 40 điểm")).toHaveLength(2)
+        expect(screen.getAllByTitle("Bỏ câu 40 điểm")).toHaveLength(4)
     })
 
     it("re-sends the full batch when a pick is removed", async () => {

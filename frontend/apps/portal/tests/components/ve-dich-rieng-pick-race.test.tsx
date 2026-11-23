@@ -85,14 +85,14 @@ describe("VeDichRiengPick — rapid picks across server echoes", () => {
         const send = vi.fn()
         const { rerender } = render(<VeDichRiengPickAOCController ctx={facts([], send) as never} />)
 
-        await user.click(screen.getByTitle("Chọn ngẫu nhiên 1 câu 40"))
+        await user.click(screen.getAllByTitle("Chọn câu 40 điểm")[0])
         const first = send.mock.calls.at(-1)![0] as { questionIds: string[] }
         expect(first.questionIds).toHaveLength(1)
 
         rerender(<VeDichRiengPickAOCController ctx={facts(first.questionIds, send) as never} />)
-        expect(screen.getAllByTitle("Bỏ câu 40 điểm")).toHaveLength(1)
+        expect(screen.getAllByTitle("Bỏ câu 40 điểm")).toHaveLength(2)
 
-        await user.click(screen.getByTitle("Chọn ngẫu nhiên 1 câu 40"))
+        await user.click(screen.getAllByTitle("Chọn câu 40 điểm")[0])
         const second = send.mock.calls.at(-1)![0] as { questionIds: string[] }
         expect(second.questionIds).toHaveLength(2)
         expect(second.questionIds[0]).toBe(first.questionIds[0])

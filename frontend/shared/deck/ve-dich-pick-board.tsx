@@ -1,13 +1,11 @@
 import { DECK_PAD, pt } from "./geometry"
-import { VE_GRID_COLUMNS, boardRows } from "./ve-dich-board"
+import { CHUNG_PICK_VALUES, VE_GRID_COLUMNS, boardRows } from "./ve-dich-board"
 
 export interface PickBoardCell {
     questionId: string
     value: number
     where: string
 }
-
-const PICK_VALUES = [20, 30]
 
 const CELL_BASE =
     "flex h-[4.43cqw] flex-col items-center justify-center rounded-lg shadow-sm ring-1 transition"
@@ -20,7 +18,7 @@ const cellTone = (where: string, picked: boolean, onPick?: (questionId: string) 
 }
 
 const cellTitle = (value: number, where: string, picked: boolean): string => {
-    if (picked) return `Câu ${value} điểm đã được chọn`
+    if (picked) return `Ô câu ${value} điểm — đã chọn`
     if (where === "free") return `Câu ${value} điểm còn trống`
     return `Câu ${value} điểm đã dùng`
 }
@@ -29,12 +27,14 @@ const pickTitle = (value: number): string => `Chọn câu ${value} điểm`
 
 const dropTitle = (value: number): string => `Bỏ câu ${value} điểm`
 
-export function VeDichPickBoard({ cells, pickedIds, onPick }: {
+export function VeDichPickBoard({ cells, pickedIds, values, onPick }: {
     cells: PickBoardCell[]
     pickedIds: string[]
+    values?: number[]
     onPick?: (questionId: string) => void
 }) {
-    const playable = cells.filter((cell) => PICK_VALUES.includes(cell.value))
+    const bands = values ?? CHUNG_PICK_VALUES
+    const playable = cells.filter((cell) => bands.includes(cell.value))
     const rows = boardRows(playable, (cell) => cell.value)
     if (rows.length === 0) return null
 

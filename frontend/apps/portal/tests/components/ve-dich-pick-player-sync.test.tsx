@@ -65,10 +65,12 @@ describe("VeDich pick players — staged picks from the server", () => {
     it("rieng: shows a chip for every staged pick", () => {
         render(<VeDichRiengPickAOCPlayer ctx={ctx(view())} />)
         expect(screen.getAllByTitle(/Câu 40 điểm đã được chọn/)).toHaveLength(2)
+        expect(screen.getAllByTitle("Ô câu 40 điểm — đã chọn")).toHaveLength(2)
     })
 
-    it("rieng: the remaining count drops as picks are staged", () => {
+    it("rieng: draws the 40s and 50s the turn can pick from", () => {
         render(<VeDichRiengPickAOCPlayer ctx={ctx(view())} />)
-        expect(screen.getByText("còn 1")).toBeInTheDocument()
+        expect(screen.getByTitle("Câu 40 điểm còn trống")).toBeInTheDocument()
+        expect(screen.queryByText(/còn \d/)).toBeNull()
     })
 })

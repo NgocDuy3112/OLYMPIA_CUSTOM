@@ -1,5 +1,6 @@
 import { PlayerStage, QuestionCard, QuestionChips, Rail, Timer, type PlayerCore } from "../player-deck"
-import { ValueCells } from "../value-cells"
+import { RIENG_PICK_VALUES } from "../ve-dich-board"
+import { VeDichPickBoard } from "../ve-dich-pick-board"
 
 type VeDichRiengPickAOCPlayerCtx = PlayerCore
 
@@ -37,17 +38,7 @@ export function VeDichRiengPickAOCPlayer({ ctx }: { ctx: VeDichRiengPickAOCPlaye
                     </span>
                 }
             >
-                <ValueCells
-                    cells={[20, 30, 40, 50].map((value) => ({
-                        value,
-                        remaining: board.filter(
-                            (c) => c.value === value && c.where === "free" && !pickedIds.includes(c.questionId),
-                        ).length,
-                        chosen: pickedIds.filter(
-                            (id) => board.find((c) => c.questionId === id)?.value === value,
-                        ).length,
-                    }))}
-                />
+                <VeDichPickBoard cells={board} pickedIds={pickedIds} values={RIENG_PICK_VALUES} />
             </QuestionCard>
         </PlayerStage>
     )

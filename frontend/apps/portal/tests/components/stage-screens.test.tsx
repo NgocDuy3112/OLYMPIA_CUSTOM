@@ -855,7 +855,7 @@ it("phase 1: clicking a board cell stages that cell, clicking it again drops it"
         expect(screen.queryByRole("button", { name: "Chốt 3 câu" })).toBeNull()
 
         for (let index = 0; index < 3; index++) {
-            await user.click(screen.getByTitle("Chọn ngẫu nhiên 1 câu 40"))
+            await user.click(screen.getAllByTitle("Chọn câu 40 điểm")[0])
         }
         const call = (f.send as unknown as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0]
         expect(call.kind).toBe("ve-dich.pickBatch")

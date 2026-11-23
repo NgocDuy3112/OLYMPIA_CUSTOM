@@ -1,5 +1,6 @@
 import { useState } from "react"
-import { ConsoleStage, QuestionCard, QuestionChips, Rail, Timer, ValueCells } from "@/components/stage/deck"
+import { ConsoleStage, QuestionCard, QuestionChips, Rail, Timer, VeDichPickBoard } from "@/components/stage/deck"
+import { RIENG_PICK_VALUES } from "@shared/deck/ve-dich-board"
 import { backToLobbyAction } from "@/components/stage/actions"
 import type { ConsoleQuestion, VeDichConsole } from "@/lib/live"
 import type { ScreenCore } from "@/rounds/types"
@@ -52,14 +53,14 @@ export function VeDichRiengPickAOCController({ ctx }: { ctx: VeDichRiengPickCtx 
     let clearPicks: (() => void) | undefined
     if (chosen.length > 0) clearPicks = () => sendPicks([])
 
-    const pickRandomOf = (value: number) => {
-        if (!picking || chosen.length >= need) return
-        const pool = (projection.board ?? []).filter(
-            (c) => c.value === value && c.where === "free" && !chosen.includes(c.questionId),
-        )
-        if (pool.length === 0) return
-        const random = pool[Math.floor(Math.random() * pool.length)]
-        const next = [...chosen, random.questionId]
+    const togglePick = (questionId: string) => {
+        if (!picking) return
+        if (chosen.includes(questionId)) {
+            dropPick(questionId)
+            return
+        }
+        if (chosen.length >= need) return
+        const next = [...chosen, questionId]
         setChosen(next)
         sendPicks(next)
     }
@@ -111,22 +112,11 @@ export function VeDichRiengPickAOCController({ ctx }: { ctx: VeDichRiengPickCtx 
                     </span>
                 }
             >
-                <ValueCells
-                    cells={[20, 30, 40, 50].map((value) => {
-                        const picked = chosen
-                        return {
-                            value,
-                            remaining: (projection.board ?? []).filter(
-                                (c) => c.value === value && c.where === "free" && !picked.includes(c.questionId),
-                            ).length,
-                            chosen: picked.filter((id) => {
-                                const cell = (projection.board ?? []).find((c) => c.questionId === id)
-                                if (!cell) return false
-                                return cell.value === value
-                            }).length,
-                        }
-                    })}
-                    onPick={picking ? pickRandomOf : undefined}
+                <VeDichPickBoard
+                    cells={boardCells}
+                    pickedIds={chosen}
+                    values={RIENG_PICK_VALUES}
+                    onPick={picking ? togglePick : undefined}
                 />
             </QuestionCard>
         </ConsoleStage>

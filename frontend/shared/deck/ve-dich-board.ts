@@ -1,5 +1,8 @@
 export const VE_GRID_COLUMNS = 12
 
+export const CHUNG_PICK_VALUES = [20, 30]
+export const RIENG_PICK_VALUES = [20, 30, 40, 50]
+
 interface BandSpec {
     value: number
     count: number
