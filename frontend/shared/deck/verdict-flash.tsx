@@ -27,7 +27,7 @@ export function useScoreFlash(points: number): VerdictFlash | null {
     return flash
 }
 
-function fmtDelta(delta: number): string {
+export function fmtDelta(delta: number): string {
     if (delta > 0) return "+" + delta
     return "−" + Math.abs(delta)
 }
@@ -35,7 +35,6 @@ function fmtDelta(delta: number): string {
 function VerdictRing() {
     return (
         <svg className="verdict-flash-ring" viewBox="0 0 52 52" aria-hidden>
-            <circle className="verdict-flash-ring-track" cx="26" cy="26" r="24" />
             <circle className="verdict-flash-ring-draw" cx="26" cy="26" r="24" />
         </svg>
     )
@@ -62,9 +61,9 @@ export function VerdictFlashLayer({ flash, points, size }: {
     let tone = "verdict-flash-bad"
     if (correct) tone = "verdict-flash-good"
     return (
-        <div
+        <span
             key={flash.seq}
-            className={"verdict-flash " + tone + " absolute inset-0 z-10 flex flex-col items-center justify-center gap-[0.25cqw] rounded-lg bg-background/80 backdrop-blur-[2px]"}
+            className={"verdict-flash " + tone + " absolute inset-0 z-10 flex flex-col items-center justify-center gap-[0.1cqw]"}
             role="status"
             aria-live="polite"
             aria-label={(correct ? "Đúng" : "Sai") + ", " + fmtDelta(flash.delta) + " điểm, tổng " + points}
@@ -73,6 +72,6 @@ export function VerdictFlashLayer({ flash, points, size }: {
             <span className="verdict-flash-delta font-display font-bold leading-none tabular-nums" style={{ fontSize: size ? pt(size * 0.55) : pt(18) }}>
                 {fmtDelta(flash.delta)}
             </span>
-        </div>
+        </span>
     )
 }

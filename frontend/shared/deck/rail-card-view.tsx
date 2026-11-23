@@ -1,4 +1,4 @@
-import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react"
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
 import type { LocalVideoTrack, RemoteVideoTrack } from "livekit-client"
 import { initialsOf, pt } from "./geometry"
 import { PlayerCamControls } from "./player-cam-controls"
@@ -65,8 +65,12 @@ function VideoLayer({ track }: { track: RemoteVideoTrack | LocalVideoTrack }) {
     return <span ref={holder} className="absolute inset-0 overflow-hidden rounded-lg" aria-hidden />
 }
 
-function ScoreVerdict({ points, scoreSize }: { points: number; scoreSize: number }) {
+function ScoreVerdict({ points, scoreSize, onFlash }: { points: number; scoreSize: number; onFlash: (flashing: boolean) => void }) {
     const flash = useScoreFlash(points)
+    const flashing = flash !== null
+    useEffect(() => {
+        onFlash(flashing)
+    }, [flashing, onFlash])
     return <VerdictFlashLayer flash={flash} points={points} size={scoreSize} />
 }
 
@@ -160,6 +164,8 @@ function Avatar({ card }: { card: RailCardData }) {
 
 export function PlayerCard({ card, onSelect, onScoreClick, selectHint, title }: PlayerCardProps) {
     const state = card.state
+    const [flashing, setFlashing] = useState(false)
+    const onFlash = useCallback((next: boolean) => setFlashing(next), [])
     let Tag: "button" | "div" = "div"
     let interactiveProps: Record<string, unknown> | undefined = undefined
     let hoverCls = ""
@@ -214,12 +220,14 @@ export function PlayerCard({ card, onSelect, onScoreClick, selectHint, title }: 
             <div className="flex min-h-0 flex-1 gap-[0.7cqw]">
                 <Avatar card={card} />
                 <div className="relative flex min-w-0 min-h-0 flex-1 flex-col justify-start gap-[0.25cqw] overflow-hidden pt-[0.2cqw] text-center">
-                    <span className="flex min-w-0 items-center justify-center gap-[0.3cqw] font-display font-semibold leading-none text-foreground" style={{ fontSize: pt(16) }}>
-                        <span className="truncate">{card.name}</span>
-                    </span>
-                    <Score card={card} state={state} onScoreClick={onScoreClick} />
-                    {statusNode}
-                    <ScoreVerdict points={card.points} scoreSize={34} />
+                    <div className={flashing ? "contents-faded flex min-h-0 flex-1 flex-col items-center justify-start gap-[0.25cqw]" : "flex min-h-0 flex-1 flex-col items-center justify-start gap-[0.25cqw]"}>
+                        <span className="flex min-w-0 items-center justify-center gap-[0.3cqw] font-display font-semibold leading-none text-foreground" style={{ fontSize: pt(16) }}>
+                            <span className="truncate">{card.name}</span>
+                        </span>
+                        <Score card={card} state={state} onScoreClick={onScoreClick} />
+                        {statusNode}
+                    </div>
+                    <ScoreVerdict points={card.points} scoreSize={34} onFlash={onFlash} />
                 </div>
             </div>
         </Tag>
