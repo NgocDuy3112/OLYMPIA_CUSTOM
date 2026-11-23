@@ -76,6 +76,7 @@ public static partial class LiveState
             details.Add("phase2: expected object or null");
         }
         OptionalRevealedAnswer(obj, details);
+        StateGuard.RequireOptionalString(obj, "selectedPlayerId", details);
     }, UpgradeKhoiDong);
 
     private static void RequireFlow(JsonElement obj, List<string> details)
@@ -105,11 +106,21 @@ public static partial class LiveState
         var next = state;
         if (!raw.TryGetProperty("flow", out _))
             next = next with { Flow = FlowFromStep(raw) };
+        if (!raw.TryGetProperty("selectedPlayerId", out _))
+            next = next with { SelectedPlayerId = EngagedPlayerOf(raw, next) };
 
         if (!raw.TryGetProperty("phase2", out var phase2)) return next;
         if (phase2.ValueKind != JsonValueKind.Object) return next;
         if (next.Phase2 is null) return next;
         return next with { Phase2 = UpgradePhase2(phase2, next.Phase2) };
+    }
+
+    private static string? EngagedPlayerOf(JsonElement raw, KhoiDongState state)
+    {
+        if (!raw.TryGetProperty("engaged", out var engaged)) return null;
+        if (engaged.ValueKind != JsonValueKind.True) return null;
+        if (state.ActiveIndex >= state.Order.Count) return null;
+        return state.Order[state.ActiveIndex];
     }
 
     private static Flow FlowFromStep(JsonElement raw)

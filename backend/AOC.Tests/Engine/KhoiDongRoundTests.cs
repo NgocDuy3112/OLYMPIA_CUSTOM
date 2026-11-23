@@ -93,14 +93,14 @@ public class KhoiDongRoundTests
     public void NoQuestionIsProjectedUntilTheConsolePicksWhoAnswers()
     {
         var started = KhoiDongRound.StartKhoiDong(Players, P1);
-        Assert.False(started.Engaged);
+        Assert.Null(started.SelectedPlayerId);
 
         var marked = KhoiDongRound.SetTurn(started, "p1");
-        Assert.True(marked.Engaged);
+        Assert.Equal("p1", marked.SelectedPlayerId);
         Assert.Equal("p1", KhoiDongRound.ActivePlayerId(marked));
 
         var graded = KhoiDongRound.RecordOral(marked, correct: true, spentS: 1);
-        Assert.True(graded.Engaged);
+        Assert.Equal("p1", graded.SelectedPlayerId);
     }
 
     [Fact]

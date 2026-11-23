@@ -61,7 +61,11 @@ public static class KhoiDongRound
         => state.Order.All(id => state.Runs[id].Results.Count == 0);
 
     private static KhoiDongState AdvanceActive(KhoiDongState state)
-        => state with { ActiveIndex = Math.Min(state.ActiveIndex + 1, state.Order.Count - 1) };
+        => state with
+        {
+            ActiveIndex = Math.Min(state.ActiveIndex + 1, state.Order.Count - 1),
+            SelectedPlayerId = null
+        };
 
     public static KhoiDongState RecordOral(
         KhoiDongState state, bool correct, double spentS, string? playerId = null, string? nowIso = null)
@@ -85,7 +89,7 @@ public static class KhoiDongRound
         {
             [id] = KhoiDongTurn.AnswerPhase1(run, correct, elapsedTotalS)
         };
-        return state with { Runs = runs, Engaged = true };
+        return state with { Runs = runs, SelectedPlayerId = id };
     }
 
     private static double ServerElapsedS(KhoiDongState state, Phase1State run, double spentS, string? nowIso)
@@ -101,7 +105,7 @@ public static class KhoiDongRound
         if (state.Flow != Flow.rieng) Fail("WRONG_STAGE", "phase 1 is over");
         var index = state.Order.IndexOf(playerId);
         if (index < 0) Fail("NO_ACTIVE_PLAYER", $"{playerId} is not answering");
-        return state with { ActiveIndex = index, Engaged = true, ClockStarted = false, ClockStartedAt = null };
+        return state with { ActiveIndex = index, SelectedPlayerId = playerId, ClockStarted = false, ClockStartedAt = null };
     }
 
     public static KhoiDongState StartClock(KhoiDongState state, string nowIso)
@@ -121,7 +125,7 @@ public static class KhoiDongRound
         {
             [id] = KhoiDongTurn.TimeOutPhase1(state.Runs[id])
         };
-        return AdvanceActive(state with { Runs = runs, Engaged = true, ClockStarted = false, ClockStartedAt = null });
+        return AdvanceActive(state with { Runs = runs, ClockStarted = false, ClockStartedAt = null });
     }
 
     public static KhoiDongState BeginPhase2(KhoiDongState state, IReadOnlyList<string> phase2Ids)

@@ -11,7 +11,9 @@ public sealed record KhoiDongState
     [JsonPropertyName("order")] public List<string> Order { get; init; } = [];
     [JsonPropertyName("activeIndex")] public int ActiveIndex { get; init; }
 
-    [JsonPropertyName("engaged")] public bool Engaged { get; init; }
+    [JsonPropertyName("selectedPlayerId")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SelectedPlayerId { get; init; }
     [JsonPropertyName("clockStarted")] public bool ClockStarted { get; init; }
     [JsonPropertyName("clockStartedAt")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

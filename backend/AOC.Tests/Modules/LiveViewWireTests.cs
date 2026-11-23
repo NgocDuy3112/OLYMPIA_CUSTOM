@@ -72,7 +72,7 @@ public class LiveViewWireTests
         Flow = Flow.rieng,
         Order = ["u1"],
         ActiveIndex = 0,
-        Engaged = true,
+        SelectedPlayerId = "u1",
         ClockStarted = true,
         ClockStartedAt = T0,
         Runs = new Dictionary<string, Phase1State>
