@@ -21,7 +21,7 @@ function wsBase(): string {
 }
 
 interface Frame {
-    protocol?: string
+    error?: string
     type?: number | string
     target?: string
     arguments?: unknown[]
@@ -178,8 +178,16 @@ export function useHubInvoker(
                         continue
                     }
 
-                    if (frame.protocol === "json") {
-                        // Handshake answered: a fresh, usable connection.
+                    if (frame.type === undefined && frame.target === undefined) {
+                        // Handshake response. SignalR answers with a bare object
+                        // (`{}` here; some versions echo `{"protocol":"json"}`), and
+                        // every hub message after it carries `type` or `target`.
+                        if (frame.error) {
+                            logError("ws", `handshake refused · ${frame.error}`)
+                            continue
+                        }
+                        // One ack per connection: a repeat is not a new connection.
+                        if (readyRef.current) continue
                         readyRef.current = true
                         attempt = 0
                         report("live")

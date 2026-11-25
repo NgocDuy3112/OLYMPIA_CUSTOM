@@ -2,7 +2,11 @@ import { act, renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { useSocketStream, useHubInvoker } from "@shared/lib/ws"
 
-const HANDSHAKE = { protocol: "json", version: 1 }
+/**
+ * The handshake ack ASP.NET Core SignalR really sends: a bare JSON object with no
+ * `type` (`{}`, captured from the live server). Every hub message after it carries `type`.
+ */
+const HANDSHAKE_ACK = {}
 
 class FakeSocket {
     static all: FakeSocket[] = []
@@ -56,23 +60,49 @@ afterEach(() => {
 })
 
 describe("useSocketStream — connection state and resync signal", () => {
-    it("reports live after the handshake and bumps generation", () => {
+    it("reports live on the empty ack the server sends, and bumps generation", () => {
         const { result } = renderHook(() => useSocketStream("/live/stream", true, () => {}))
         expect(result.current.status).toBe("connecting")
 
         act(() => {
             last().open()
-            last().push(HANDSHAKE)
+            last().push(HANDSHAKE_ACK)
         })
         expect(result.current.status).toBe("live")
         expect(result.current.generation).toBe(1)
+
+        // A repeated ack is not a new connection, so it must not force a resync.
+        act(() => {
+            last().push(HANDSHAKE_ACK)
+        })
+        expect(result.current.generation).toBe(1)
+    })
+
+    it("also accepts a negotiated protocol echo as the handshake ack", () => {
+        const { result } = renderHook(() => useSocketStream("/live/stream", true, () => {}))
+        act(() => {
+            last().open()
+            last().push({ protocol: "json", version: 1 })
+        })
+        expect(result.current.status).toBe("live")
+        expect(result.current.generation).toBe(1)
+    })
+
+    it("does not go live on a refused handshake", () => {
+        const { result } = renderHook(() => useSocketStream("/live/stream", true, () => {}))
+        act(() => {
+            last().open()
+            last().push({ error: "Requested protocol 'json' is not available." })
+        })
+        expect(result.current.status).toBe("connecting")
+        expect(result.current.generation).toBe(0)
     })
 
     it("reconnects after a drop and bumps generation again", () => {
         const { result } = renderHook(() => useSocketStream("/live/stream", true, () => {}))
         act(() => {
             last().open()
-            last().push(HANDSHAKE)
+            last().push(HANDSHAKE_ACK)
         })
         const first = last()
 
@@ -88,7 +118,7 @@ describe("useSocketStream — connection state and resync signal", () => {
         expect(second).not.toBe(first)
         act(() => {
             second.open()
-            second.push(HANDSHAKE)
+            second.push(HANDSHAKE_ACK)
         })
         expect(result.current.status).toBe("live")
         expect(result.current.generation).toBe(2)
@@ -140,7 +170,7 @@ describe("useHubInvoker — an ack never leaves a button pending forever", () =>
         const { result } = renderHook(() => useHubInvoker("/live/stream", true))
         act(() => {
             last().open()
-            last().push(HANDSHAKE)
+            last().push(HANDSHAKE_ACK)
         })
         expect(result.current.ready).toBe(true)
 
@@ -159,7 +189,7 @@ describe("useHubInvoker — an ack never leaves a button pending forever", () =>
         const { result } = renderHook(() => useHubInvoker("/live/stream", true))
         act(() => {
             last().open()
-            last().push(HANDSHAKE)
+            last().push(HANDSHAKE_ACK)
         })
 
         let error: Error | null = null
@@ -199,7 +229,7 @@ describe("one hub — view frames and invocations share a single socket", () => 
         )
         act(() => {
             last().open()
-            last().push(HANDSHAKE)
+            last().push(HANDSHAKE_ACK)
         })
         expect(FakeSocket.all).toHaveLength(1)
 
@@ -238,7 +268,7 @@ describe("one hub — view frames and invocations share a single socket", () => 
         })
         act(() => {
             last().open()
-            last().push(HANDSHAKE)
+            last().push(HANDSHAKE_ACK)
         })
         expect(result.current.status).toBe("live")
         expect(FakeSocket.all).toHaveLength(1)
