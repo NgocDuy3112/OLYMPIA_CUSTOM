@@ -30,8 +30,9 @@ export function VeDichRiengPickAOCController({ ctx }: { ctx: VeDichRiengPickCtx 
         setChosen(pendingIds)
     }
     const openNow = projection.open[0] ?? null
-    const need = 3
-    const pickedThisTurn = (consoleVeDich?.turnPicked ?? 0) === need
+    // The rule allows AT MOST three questions per turn — one is already a batch.
+    const maxPicks = 3
+    const pickedThisTurn = (consoleVeDich?.turnPicked ?? 0) >= 1
     const picking = openNow === null && turnPlayer !== null && (projection.selectedPlayerId ?? null) !== null
 
     const sendPicks = (ids: string[]) => {
@@ -60,7 +61,7 @@ export function VeDichRiengPickAOCController({ ctx }: { ctx: VeDichRiengPickCtx 
             dropPick(questionId)
             return
         }
-        if (chosen.length >= need) return
+        if (chosen.length >= maxPicks) return
         const next = [...chosen, questionId]
         setChosen(next)
         sendPicks(next)

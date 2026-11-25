@@ -42,6 +42,7 @@ export function VeDichChungAOCPlayer({ ctx }: { ctx: VeDichChungPlayerCtx }) {
                         disabled={remaining <= 0}
                         busy={answerBusy}
                         error={flash}
+                        typedOnly
                         onSubmit={(value) => submitAnswer(openQ.questionId, value)}
                     />
                 )}

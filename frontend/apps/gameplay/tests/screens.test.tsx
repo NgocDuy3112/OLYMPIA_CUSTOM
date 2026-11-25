@@ -264,6 +264,17 @@ describe("player screens render from a plain fixture", () => {
         expect(getByText("Về đích")).toBeTruthy()
     })
 
+    it("về đích · câu hỏi chung — even a CHOICE question offers only the text box", () => {
+        const v = view({
+            roundId: "ve-dich",
+            stage: "phase1",
+            open: [{ questionId: "q1", deadlineAt: null, question: question("q1", "CHOICE") }],
+        })
+        const { getByLabelText, queryByText } = render(<VeDichChungAOCPlayer ctx={ctx({ v })} />)
+        expect(getByLabelText("Câu trả lời của bạn")).toBeTruthy()
+        expect(queryByText(/A\./)).toBeNull()
+    })
+
     it("về đích · câu hỏi chung — the strip sits in the header's right slot, beside the clock", () => {
         const v = view({
             roundId: "ve-dich",

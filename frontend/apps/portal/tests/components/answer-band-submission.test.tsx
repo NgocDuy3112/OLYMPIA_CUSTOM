@@ -12,6 +12,15 @@ const QUESTION = {
     payload: {},
 }
 
+const CHOICE = {
+    questionId: "q2",
+    kind: "CHOICE" as const,
+    position: 1,
+    questionText: "Thủ đô của Việt Nam?",
+    media: null,
+    payload: { options: [{ id: "o1", text: "Hà Nội" }, { id: "o2", text: "Huế" }] },
+}
+
 describe("AnswerBand — submission feedback", () => {
     it("shows what was answered in its own section", () => {
         render(
@@ -81,5 +90,23 @@ describe("AnswerBand — submission feedback", () => {
         )
 
         expect(input.value).toBe("")
+    })
+
+    it("renders the option buttons for a CHOICE question", () => {
+        render(
+            <AnswerBand question={CHOICE} answered={false} onSubmit={vi.fn()} />
+        )
+
+        expect(screen.getByRole("button", { name: /A\./ })).toBeInTheDocument()
+        expect(screen.queryByLabelText("Câu trả lời của bạn")).toBeNull()
+    })
+
+    it("typedOnly drops the option buttons — Về đích chung only takes text", () => {
+        render(
+            <AnswerBand question={CHOICE} answered={false} typedOnly onSubmit={vi.fn()} />
+        )
+
+        expect(screen.queryByRole("button", { name: /A\./ })).toBeNull()
+        expect(screen.getByLabelText("Câu trả lời của bạn")).toBeInTheDocument()
     })
 })

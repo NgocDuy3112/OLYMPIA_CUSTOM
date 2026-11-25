@@ -531,6 +531,21 @@ describe("VeDichRieng — the powers and the duel", () => {
         })
     })
 
+    it("an armed ASSIGN leaves the turn player off the rail — they cannot be the target", async () => {
+        const user = userEvent.setup()
+        renderRound(
+            "ve-dich",
+            { baseCards: [{ id: "u1", name: "An", points: 10 }, { id: "u2", name: "Bình", points: 5 }] },
+            pickBoard,
+            veDichMc({ phase: 2, turnPlayerId: "u1", pendingQuestionId: "a", picksConfirmed: true }),
+            [stagedQuestion],
+        )
+        expect(screen.getByText("An")).toBeInTheDocument()
+        await user.click(screen.getByRole("button", { name: "Chỉ định đối kháng" }))
+        expect(screen.queryByText("An")).toBeNull()
+        expect(screen.getByText("Bình")).toBeInTheDocument()
+    })
+
     it("one power per turn: the buttons go inert once the turn's only power was spent", () => {
         renderRound(
             "ve-dich", {}, opened,
@@ -552,7 +567,7 @@ describe("VeDichRieng — the powers and the duel", () => {
         expect(screen.getByRole("button", { name: "Chỉ định đối kháng" })).toBeInTheDocument()
     })
 
-    it("after staging a power the buttons stay live so the MC can cancel and re-pick", async () => {
+    it("after staging a power the buttons are inert — only cancelling frees the turn", async () => {
         const user = userEvent.setup()
         const f = renderRound(
             "ve-dich", {}, pickBoard,
@@ -563,11 +578,22 @@ describe("VeDichRieng — the powers and the duel", () => {
             }),
             [stagedQuestion],
         )
-        // The button is a real control, not a muted label.
-        await user.click(screen.getByRole("button", { name: "Ngôi sao hy vọng" }))
+        expect(screen.queryByRole("button", { name: "Ngôi sao hy vọng" })).toBeNull()
+        expect(screen.queryByRole("button", { name: "Chỉ định đối kháng" })).toBeNull()
+
+        await user.click(screen.getByRole("button", { name: "Không dùng quyền năng" }))
         expect(f.send).toHaveBeenCalledWith({
-            kind: "ve-dich.declarePower", playerId: "u1", power: "STAR",
+            kind: "ve-dich.declarePower", playerId: "u1", power: null, targetId: undefined,
         })
+    })
+
+    it("no cancel while nothing is staged", () => {
+        renderRound(
+            "ve-dich", {}, pickBoard,
+            veDichMc({ phase: 2, turnPlayerId: "u1", pendingQuestionId: "a", picksConfirmed: true }),
+            [stagedQuestion],
+        )
+        expect(screen.queryByRole("button", { name: "Không dùng quyền năng" })).toBeNull()
     })
 
     it("the power buttons are muted once the question started", () => {
@@ -626,16 +652,24 @@ describe("VeDichRieng — the powers and the duel", () => {
     it("a live race can be ended: Khoá chuông sends the lock", async () => {
         const user = userEvent.setup()
         const f = renderRound("ve-dich", {}, opened, veDichMc({
-            phase: 2, power: "ASSIGN", assignedToId: "u2", openStage: "buzz"
+            phase: 2, power: "ASSIGN", assignedToId: "u2", openStage: "buzz", clockStarted: true,
         }))
 
         await user.click(screen.getByText("Khoá chuông", BUTTON))
         expect(f.send).toHaveBeenCalledWith({ kind: "ve-dich.lockBuzz" })
     })
 
+    it("the lock is inert until the buzz window actually started", () => {
+        renderRound("ve-dich", {}, opened, veDichMc({
+            phase: 2, power: "ASSIGN", assignedToId: "u2", openStage: "buzz", clockStarted: false,
+        }))
+        expect(screen.queryByText("Khoá chuông", BUTTON)).toBeNull()
+        expect(screen.getByText("Khoá chuông")).toBeInTheDocument()
+    })
+
     it("the lock is inert once someone buzzed — the race is already settled", () => {
         renderRound("ve-dich", {}, opened, veDichMc({
-            phase: 2, power: "ASSIGN", openStage: "buzz", buzzerId: "u2"
+            phase: 2, power: "ASSIGN", openStage: "buzz", clockStarted: true, buzzerId: "u2",
         }))
         expect(screen.queryByText("Khoá chuông", BUTTON)).toBeNull()
         expect(screen.getByText("Khoá chuông")).toBeInTheDocument()
@@ -971,8 +1005,40 @@ it("phase 1: with nothing picked, there is no confirm — Chọn lại clears", 
         expect(screen.getByText("Đếm giờ")).toBeInTheDocument()
     })
 
-    it("phase 2: Xác nhận waits for the whole turn — three questions, one turn", () => {
-        renderRound("ve-dich", {}, {
+    it("phase 2: Xác nhận is live from the first pick — three is a ceiling, not a target", async () => {
+        const user = userEvent.setup()
+        const f = renderRound("ve-dich", { send: vi.fn() }, {
+            open: [],
+            board: [
+                { questionId: "q9", value: 40, where: "pending" as const },
+                { questionId: "q10", value: 40, where: "pending" as const },
+            ],
+        }, veDichMc({ phase: 2, pendingQuestionId: "q9", turnPicked: 1 }))
+
+        await user.click(screen.getByRole("button", { name: "Xác nhận" }))
+        expect(f.send).toHaveBeenCalledWith({ kind: "ve-dich.confirmPicks" })
+    })
+
+    it("phase 2: the batch stops at three — a fourth cell sends nothing", async () => {
+        const user = userEvent.setup()
+        const f = renderRound("ve-dich", {}, {
+            open: [],
+            board: [
+                { questionId: "q9", value: 20, where: "pending" as const },
+                { questionId: "q10", value: 30, where: "pending" as const },
+                { questionId: "q11", value: 40, where: "pending" as const },
+                { questionId: "q12", value: 50, where: "free" as const },
+            ],
+            selectedPlayerId: "u1",
+        }, veDichMc({ phase: 2, pendingQuestionId: "q9", turnPicked: 3 }))
+
+        await user.click(screen.getByTitle("Chọn câu 50 điểm"))
+        expect(f.send).not.toHaveBeenCalled()
+    })
+
+    it("phase 2: two picks already confirm the batch", async () => {
+        const user = userEvent.setup()
+        const f = renderRound("ve-dich", { send: vi.fn() }, {
             open: [],
             board: [
                 { questionId: "q9", value: 40, where: "pending" as const },
@@ -980,8 +1046,8 @@ it("phase 1: with nothing picked, there is no confirm — Chọn lại clears", 
             ],
         }, veDichMc({ phase: 2, pendingQuestionId: "q9", turnPicked: 2 }))
 
-        expect(screen.getByText("Xác nhận")).toBeInTheDocument()
-        expect(screen.queryByRole("button", { name: "Xác nhận" })).toBeNull()
+        await user.click(screen.getByRole("button", { name: "Xác nhận" }))
+        expect(f.send).toHaveBeenCalledWith({ kind: "ve-dich.confirmPicks" })
     })
 
     it("…but confirms once the turn was picked as three", async () => {

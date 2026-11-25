@@ -40,7 +40,10 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
     const turnOpen = needsVerdict || buzzerMissing
 
     const racing = consoleVeDich?.power === "ASSIGN"
+    // `openStage` names the window's mode, not that it is running: the engine
+    // only takes a lock once the window started (LockBuzzWindow: HasStarted).
     const canLockBuzz = consoleVeDich?.openStage === "buzz" && consoleVeDich.buzzerId === null
+        && consoleVeDich.clockStarted === true
 
     let counting = false
     if (openNow?.deadlineAt && (remaining ?? 0) > 0) counting = true
@@ -54,10 +57,15 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
     const turnPowers = consoleVeDich?.powersLeft
     const hasPower = turnPowers === undefined || turnPowers.length > 0
     if (!hasPower) powerStorable = false
+    // Staging spends the turn's only power (engine: ONE_POWER_PER_TURN), so a
+    // used or already-staged power keeps the buttons inert until it is cancelled.
+    const stagedPower = consoleVeDich?.stagedPower ?? null
+    if (consoleVeDich?.turnPowerUsed || stagedPower !== null) powerStorable = false
     const [assignArmed, setAssignArmed] = useState(false)
     let armed = assignArmed
     if (!powerStorable) armed = false
-    const declarePower = (power: "STAR" | "ASSIGN", targetId?: string) => {
+    const turnPlayerId = consoleVeDich?.turnPlayerId ?? null
+    const declarePower = (power: "STAR" | "ASSIGN" | null, targetId?: string) => {
         const playerId = consoleVeDich?.turnPlayerId
         if (!playerId) return
         ctx.send({ kind: "ve-dich.declarePower", playerId, power, targetId })
@@ -67,6 +75,11 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
     if (powerStorable) stageStar = () => declarePower("STAR")
     let toggleAssign: (() => void) | undefined
     if (powerStorable) toggleAssign = () => setAssignArmed((was) => !was)
+    // Cancelling hands the turn's power back (engine: DeclarePower(power: null)).
+    let unstagePower: (() => void) | undefined = undefined
+    if (openNow === null && stagedPower !== null && turnPlayerId !== null) {
+        unstagePower = () => declarePower(null)
+    }
     let starSpent = false
     if (!hasPower) starSpent = true
     let starContent: string | undefined
@@ -122,9 +135,15 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
     // The console only lights a "selected" card while a question is being
     // judged, and the rieng screen never is — so stamp the ring here. While
     // ASSIGN is armed the click hands the question over instead of ticking.
-    let cards = baseCards
+    // An armed ASSIGN cannot name the player whose turn it is — the engine
+    // rejects it (INVALID_TARGET), so that card leaves the rail while arming.
+    let railCards = baseCards
+    if (armed && turnPlayerId !== null) {
+        railCards = baseCards.filter((card) => card.id !== turnPlayerId)
+    }
+    let cards = railCards
     if (ctx.selectedIds.size > 0) {
-        cards = baseCards.map((card) => {
+        cards = railCards.map((card) => {
             if (!ctx.selectedIds.has(card.id)) return card
             return { ...card, ring: "selected" as const }
         })
@@ -144,6 +163,11 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
                     label: COPY.powerAssign,
                     onClick: toggleAssign,
                     muted: !powerStorable,
+                },
+                {
+                    label: COPY.powerNone,
+                    onClick: unstagePower,
+                    empty: unstagePower === undefined,
                 },
                 {
                     label: "chọn thẻ để chỉ định",

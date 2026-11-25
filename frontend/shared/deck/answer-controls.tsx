@@ -21,12 +21,14 @@ const submitClass = (ready: boolean): string => {
     return `${SUBMIT} ${cursor}`
 }
 
-export function AnswerBand({ question, answered, disabled, busy, error, onSubmit }: {
+export function AnswerBand({ question, answered, disabled, busy, error, typedOnly, onSubmit }: {
     question: PlayerQuestion | null
     answered?: boolean
     disabled?: boolean
     busy?: boolean
     error?: string | null
+    // Về đích chung only ever takes a typed answer — no option buttons there.
+    typedOnly?: boolean
     onSubmit: (value: AnswerValue) => void
 }) {
     const [draft, setDraft] = useState({ qid: "", picked: "", text: "" })
@@ -54,7 +56,7 @@ export function AnswerBand({ question, answered, disabled, busy, error, onSubmit
         return <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}></span>
     }
     const options = question.payload.options ?? []
-    const isMc = question.kind === "CHOICE" && options.length > 0
+    const isMc = question.kind === "CHOICE" && options.length > 0 && !typedOnly
 
     if (isMc) {
         return (
