@@ -439,4 +439,45 @@ public partial class VeDichTurnTests
         Assert.Empty(cleared.PendingPicks);
         Assert.Equal(before, cleared.Remaining.Count);
     }
+
+    [Fact]
+    public void ConfirmPicks_Phase1NeedsOneQuestionPerPlayer()
+    {
+        var s = Phase1("a", "b");
+        var one = s.Remaining.First(q => q.Value == 20).Id;
+        Assert.Equal("INVALID_PICKS", CodeOf(() =>
+            VeDichTurn.ConfirmPicks(VeDichTurn.PickRound(s, [one]))));
+
+        var two = s.Remaining.Where(q => q.Value == 20).Take(2).Select(q => q.Id).ToList();
+        Assert.True(VeDichTurn.ConfirmPicks(VeDichTurn.PickRound(s, two)).PicksConfirmed);
+    }
+
+    [Fact]
+    public void AdvanceTurn_ReturnsUnplayedPicksToThePool()
+    {
+        var picked = Picked3();
+        picked = VeDichTurn.ResolveQuestion(
+            VeDichTurn.CloseCurrentAnswer(VeDichTurn.OpenPhase2Question(picked, "50-1"), Now),
+            new Verdicts(true, null));
+
+        var next = VeDichTurn.AdvanceTurn(picked);
+
+        Assert.Empty(next.PendingPicks);
+        Assert.Contains(next.Remaining, q => q.Id == "40-1");
+        Assert.Contains(next.Remaining, q => q.Id == "30-1");
+        Assert.DoesNotContain(next.Remaining, q => q.Id == "50-1");
+    }
+
+    [Fact]
+    public void PickPhase2_UsesTheRulePickCount()
+    {
+        var rules = RuleBatches.VeDich with { PickCount = 2 };
+        var state = VeDichTurn.BeginPhase2(
+            VeDichTurn.CreateVeDich(Pool, OrderedPlayers, rules));
+
+        Assert.Equal("NO_ERROR", CodeOf(() =>
+            VeDichTurn.PickPhase2(state, "c", ["50-1", "40-1"])));
+        Assert.Equal("INVALID_QUESTION", CodeOf(() =>
+            VeDichTurn.PickPhase2(state, "c", ["50-1", "40-1", "30-1"])));
+    }
 }

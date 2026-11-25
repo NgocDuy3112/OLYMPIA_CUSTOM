@@ -19,8 +19,19 @@ public sealed partial class LiveService
         LiveAction action, ILiveRecordView<JsonElement> current, ILiveTx<JsonElement> tx,
         MatchEntity match, Guid matchId, Guid actorId, string now)
     {
+        // Phase 2 continues the board left by phase 1, so a start{phase:2} on a
+        // round that already has state must load it instead of rebuilding it.
+        var hasState = current.State.ValueKind == JsonValueKind.Object
+            && current.State.EnumerateObject().Any()
+            && !LiveFacts.IsWaitingState(current.State);
+        var startPhase2 = action is LiveAction.VeDichStart { Phase: 2 };
+
         VeDichState engine;
-        if (action is LiveAction.VeDichStart)
+        if (startPhase2 && hasState)
+        {
+            engine = LiveState.ParseVeDich(current.State);
+        }
+        else if (action is LiveAction.VeDichStart)
         {
             engine = new VeDichState
             {
@@ -42,8 +53,10 @@ public sealed partial class LiveService
         }
 
         Dictionary<string, int> sums;
-        if (action is LiveAction.VeDichStart)
+        if (action is LiveAction.VeDichStart or LiveAction.VeDichBeginPhase2)
         {
+            // Phase 2 sorts turns lowest-score-first: the totals must include the
+            // points judged in phase 1, which only live in the answers table.
             sums = await reader.SumPointsByPlayerAsync(matchId);
         }
         else

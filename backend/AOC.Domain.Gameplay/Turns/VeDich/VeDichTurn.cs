@@ -138,7 +138,8 @@ public static class VeDichTurn
         if (state.Phase != 2) throw Err("WRONG_PHASE", "pickPhase2 only applies in Phase 2");
         if (state.Open is not null) throw Err("ALREADY_OPEN", "a question is already open");
         if (CurrentPlayer(state).Id != playerId) throw Err("NOT_YOUR_TURN", "not this player's turn");
-        if (questionIds.Count > 3) throw Err("INVALID_QUESTION", "Phase 2 takes at most 3 picks");
+        if (questionIds.Count > state.Rules.PickCount)
+            throw Err("INVALID_QUESTION", $"Phase 2 takes at most {state.Rules.PickCount} picks");
         if (questionIds.Distinct().Count() != questionIds.Count)
             throw Err("INVALID_QUESTION", "picks must be distinct");
 
@@ -160,6 +161,11 @@ public static class VeDichTurn
     {
         if (state.Open is not null) throw Err("ALREADY_OPEN", "a question is already open");
         if (state.PendingPicks.Count == 0) throw Err("NOTHING_PICKED", "pick the questions first");
+        // L6: the chung board gives every player one question of their own before
+        // the console confirms the batch.
+        if (state.Phase == 1 && state.PendingPicks.Count != state.Players.Count)
+            throw Err("INVALID_PICKS",
+                $"phase 1 confirms one question per player — picked {state.PendingPicks.Count} for {state.Players.Count} players");
         return state with { PicksConfirmed = true };
     }
 
@@ -577,6 +583,8 @@ public static class VeDichTurn
         {
             TurnIndex = state.TurnIndex + 1,
             SelectedPlayerId = null,
+            // Unplayed picks go back to the pool so a later turn can play them.
+            Remaining = state.Remaining.Concat(state.PendingPicks).ToList(),
             PendingPicks = [],
             TurnQuestions = [],
             Players = state.Players.Select(p => p with { Powers = p.Powers.ResetForTurn() }).ToList(),

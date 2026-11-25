@@ -19,6 +19,12 @@ public static class VeDichApplier
         {
             case LiveAction.VeDichStart start:
             {
+                // Phase 2 opens the board left after phase 1 — rebuilding it would
+                // put already-scored questions back in play. The engine state comes
+                // from the live row when the round was already started.
+                if (start.Phase == 2 && state.Players.Count > 0)
+                    return (VeDichTurn.BeginPhase2(WithScores(state, ctx.Players)), []);
+
                 var players = ctx.Players.Select(p => new VeDichPlayerState
                 {
                     Id = p.Id,
@@ -190,7 +196,10 @@ public static class VeDichApplier
                 return (VeDichTurn.SetTurn(state, setTurn.PlayerId), []);
 
             case LiveAction.VeDichBeginPhase2:
-                return (VeDichTurn.BeginPhase2(state), []);
+                // The turn order sorts by score, so it must see the points judged in
+                // phase 1 (the judge action only records them as facts). ctx.Players
+                // carries the match totals read from the answers table.
+                return (VeDichTurn.BeginPhase2(WithScores(state, ctx.Players)), []);
 
             case LiveAction.VeDichEndRound:
                 return (VeDichTurn.EndVeDich(state), []);
@@ -198,5 +207,17 @@ public static class VeDichApplier
             default:
                 throw new RuleError("VALIDATION", $"unhandled ve-dich action {action.Kind}");
         }
+    }
+
+    private static VeDichState WithScores(VeDichState state, IReadOnlyList<(string Id, int Score)> players)
+    {
+        if (players.Count == 0) return state;
+        var scores = players.ToDictionary(p => p.Id, p => p.Score);
+        return state with
+        {
+            Players = state.Players
+                .Select(p => scores.TryGetValue(p.Id, out var score) ? p with { Score = score } : p)
+                .ToList()
+        };
     }
 }
