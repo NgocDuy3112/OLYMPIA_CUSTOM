@@ -223,6 +223,7 @@ public sealed partial class LiveService
     {
         var full = await ConsoleViewOfAsync(matchId, revealAll: false);
         if (full is null) return null;
+        full.Projection.Remove("answers");
         return full with
         {
             Questions = LiveFacts.PublicQuestions(full.Questions),

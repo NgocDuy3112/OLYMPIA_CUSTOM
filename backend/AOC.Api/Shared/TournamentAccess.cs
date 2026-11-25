@@ -15,6 +15,6 @@ public static class TournamentAccess
     public static bool CanWrite(TournamentEntity row, UserEntity user)
     {
         if (user.Role == UserRole.ADMIN) return true;
-        return row.Visibility == Visibility.PUBLIC && row.OwnerId == user.Id;
+        return row.OwnerId == user.Id;
     }
 }

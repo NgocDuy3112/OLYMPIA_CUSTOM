@@ -13,13 +13,6 @@ namespace AOC.Api.Modules.Live;
 
 public static class LiveRoutes
 {
-    private static async Task AssertSpectatableAsync(HttpContext http, string tournamentId)
-    {
-        var service = http.RequestServices.GetRequiredService<LiveService>();
-        var visible = await service.IsTournamentPublicAsync(Guid.Parse(tournamentId));
-        if (!visible) throw ApiException.NotFound($"tournament {tournamentId} not found");
-    }
-
     public static IEndpointRouteBuilder MapLiveRoutes(this IEndpointRouteBuilder app)
     {
         app.MapPost("/portal/tournaments/{tournamentId}/matches/{matchId}/live/actions", async (HttpContext http) =>
@@ -200,8 +193,10 @@ public static class LiveRoutes
 
         app.MapGet("/portal/tournaments/{tournamentId}/matches/{matchId}/live", async (HttpContext http) =>
         {
-            await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
+            var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
+            var tournamentId = Validate.RouteUuid(http, "tournamentId");
             var matchId = Validate.RouteUuid(http, "matchId");
+            await LiveMatchGuard.RequirePortalAsync(http, tournamentId, matchId, user);
             var service = http.RequestServices.GetRequiredService<LiveService>();
             var payload = await service.ConsoleViewOfAsync(Guid.Parse(matchId));
             if (payload is null) throw ApiException.NotFound("no live round");
@@ -212,7 +207,7 @@ public static class LiveRoutes
         {
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
             var matchId = Validate.RouteUuid(http, "matchId");
-            await AssertSpectatableAsync(http, tournamentId);
+            await LiveMatchGuard.RequireSpectatableAsync(http, tournamentId, matchId);
             var service = http.RequestServices.GetRequiredService<LiveService>();
             var payload = await service.AudienceViewOfAsync(Guid.Parse(matchId));
             if (payload is null) throw ApiException.NotFound("no live round");
@@ -221,8 +216,10 @@ public static class LiveRoutes
 
         app.MapGet("/portal/tournaments/{tournamentId}/matches/{matchId}/lobby", async (HttpContext http) =>
         {
-            await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
+            var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
+            var tournamentId = Validate.RouteUuid(http, "tournamentId");
             var matchId = Validate.RouteUuid(http, "matchId");
+            await LiveMatchGuard.RequirePortalAsync(http, tournamentId, matchId, user);
             var service = http.RequestServices.GetRequiredService<LiveService>();
             return Results.Json(await service.LobbyOfAsync(Guid.Parse(matchId)), JsonApi.Options);
         });
@@ -231,7 +228,7 @@ public static class LiveRoutes
         {
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
             var matchId = Validate.RouteUuid(http, "matchId");
-            await AssertSpectatableAsync(http, tournamentId);
+            await LiveMatchGuard.RequireSpectatableAsync(http, tournamentId, matchId);
             var service = http.RequestServices.GetRequiredService<LiveService>();
             return Results.Json(await service.LobbyOfAsync(Guid.Parse(matchId)), JsonApi.Options);
         }).RequireRateLimiting("public60");

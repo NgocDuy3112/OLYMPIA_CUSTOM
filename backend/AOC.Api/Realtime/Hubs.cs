@@ -17,6 +17,8 @@ public abstract class LiveHubBase(MatchHubRegistry registry) : Hub
 {
     protected string MatchId = "";
 
+    private Action? stopSubscription;
+
     protected IClientProxy? Self { get; private set; }
 
     protected void ArmSelf(IClientProxy self) => Self = self;
@@ -28,6 +30,23 @@ public abstract class LiveHubBase(MatchHubRegistry registry) : Hub
             if (segments[i] == "matches")
                 return segments[i + 1];
         throw new ApiException(400, "Bad Request", "match id missing from hub path");
+    }
+
+    protected static string ParseTournamentIdFromPath(HttpContext http)
+    {
+        var segments = http.Request.Path.Value?.Split('/', StringSplitOptions.RemoveEmptyEntries) ?? [];
+        for (var i = 0; i < segments.Length - 1; i++)
+            if (segments[i] == "tournaments")
+                return segments[i + 1];
+        throw new ApiException(400, "Bad Request", "tournament id missing from hub path");
+    }
+
+    protected void HoldSubscription(Action unsubscribe) => stopSubscription = unsubscribe;
+
+    protected void ReleaseSubscription()
+    {
+        stopSubscription?.Invoke();
+        stopSubscription = null;
     }
 
     protected async Task<string> ResolveMatchIdAsync()
@@ -110,6 +129,7 @@ public sealed class PlayerLiveHub(
         }
 
         var stop = Subscribe(userId.ToString(), SendAsync, "player");
+        HoldSubscription(stop);
 
         _ = Task.Run(async () =>
         {
@@ -154,6 +174,7 @@ public sealed class PlayerLiveHub(
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
+        ReleaseSubscription();
         await base.OnDisconnectedAsync(exception);
     }
 
@@ -286,6 +307,18 @@ public sealed class ConsoleLiveHub(
             return;
         }
 
+        try
+        {
+            await LiveMatchGuard.RequirePortalAsync(
+                http, ParseTournamentIdFromPath(http), MatchId, user);
+        }
+        catch (ApiException ex)
+        {
+            await Clients.Caller.SendAsync("message", Protocol.Error(ex.Error, ex.Message));
+            Context.Abort();
+            return;
+        }
+
         async Task SendAsync()
         {
             using var scope = scopes.CreateScope();
@@ -300,6 +333,7 @@ public sealed class ConsoleLiveHub(
         }
 
         var stop = Subscribe("__console__", SendAsync, "console");
+        HoldSubscription(stop);
 
         var userId = user.Id;
         var tokenVersion = user.TokenVersion;
@@ -343,6 +377,12 @@ public sealed class ConsoleLiveHub(
 
         await base.OnConnectedAsync();
     }
+
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        ReleaseSubscription();
+        await base.OnDisconnectedAsync(exception);
+    }
 }
 
 public sealed class SpectateLiveHub(
@@ -366,6 +406,18 @@ public sealed class SpectateLiveHub(
             return;
         }
 
+        try
+        {
+            await LiveMatchGuard.RequireSpectatableAsync(
+                http, ParseTournamentIdFromPath(http), MatchId);
+        }
+        catch (ApiException ex)
+        {
+            await Clients.Caller.SendAsync("message", Protocol.Error(ex.Error, ex.Message));
+            Context.Abort();
+            return;
+        }
+
         async Task SendAsync()
         {
             using var scope = scopes.CreateScope();
@@ -380,6 +432,7 @@ public sealed class SpectateLiveHub(
         }
 
         var stop = Subscribe("__console__", SendAsync, "spectate");
+        HoldSubscription(stop);
         try
         {
             await SendAsync();
@@ -391,5 +444,11 @@ public sealed class SpectateLiveHub(
         }
 
         await base.OnConnectedAsync();
+    }
+
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        ReleaseSubscription();
+        await base.OnDisconnectedAsync(exception);
     }
 }

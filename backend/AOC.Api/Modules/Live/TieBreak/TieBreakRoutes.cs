@@ -61,8 +61,10 @@ public static class TieBreakRoutes
 
         app.MapGet("/portal/tournaments/{tournamentId}/matches/{matchId}/live/tiebreak", async (HttpContext http) =>
         {
-            await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
+            var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
+            var tournamentId = Validate.RouteUuid(http, "tournamentId");
             var matchId = Validate.RouteUuid(http, "matchId");
+            await LiveMatchGuard.RequirePortalAsync(http, tournamentId, matchId, user);
             var service = http.RequestServices.GetRequiredService<TieBreakService>();
             var view = await service.ViewAsync(Guid.Parse(matchId), null);
             if (view is null) throw ApiException.NotFound("no tie-break is running");
