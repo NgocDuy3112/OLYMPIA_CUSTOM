@@ -1,6 +1,7 @@
 import { act, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { useScoreFlash, VerdictFlashLayer } from "@shared/deck/verdict-flash"
+import { useScoreFlash } from "@shared/deck/score-flash"
+import { VerdictFlashLayer } from "@shared/deck/verdict-flash"
 
 function Probe({ points }: { points: number }) {
     const flash = useScoreFlash(points)

@@ -5,7 +5,8 @@ import { PlayerCamControls } from "./player-cam-controls"
 import { RailAnswerLine } from "./rail-answer"
 import { railCardClass, railScoreClass, railSelfRingClass, type RailCardState } from "./rail-card"
 import { TurnIcon, type TurnIconKind } from "./turn-icon"
-import { useScoreFlash, VerdictFlashLayer } from "./verdict-flash"
+import { useScoreFlash } from "./score-flash"
+import { VerdictFlashLayer } from "./verdict-flash"
 
 export interface RailCardData {
     id: string
