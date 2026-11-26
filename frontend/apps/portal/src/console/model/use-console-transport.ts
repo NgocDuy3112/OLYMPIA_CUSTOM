@@ -4,6 +4,7 @@ import { useLive, useLiveAction, type ConsoleQuestion, type LiveResponse, type P
 import type { LiveAction } from "@/lib/live-actions"
 import { collapseKeywordVerdicts } from "@/lib/live-actions"
 import { useControllerHeartbeat } from "./use-controller-heartbeat"
+import { useConsoleAssistant, type AssistantSurface } from "./use-console-assistant"
 
 export interface ConsoleTransport {
     clock: ReturnType<typeof useServerClock>
@@ -26,6 +27,7 @@ export interface ConsoleTransport {
     peers: ReturnType<typeof useRtcPeerTracks>
     peerControls: RtcPeerControlsMap
     host: HostBroadcast
+    assistant: AssistantSurface
     send: (action: LiveAction) => void
     sendChain: (actions: LiveAction[]) => Promise<void>
     flash: string | null
@@ -33,11 +35,12 @@ export interface ConsoleTransport {
 
 export function useConsoleTransport(tournamentId: string, matchId: string): ConsoleTransport {
     const clock = useServerClock()
-    const live = useLive(tournamentId, matchId, clock.sync)
     const writer = useLiveAction(tournamentId, matchId)
     const chainWriter = useLiveAction(tournamentId, matchId)
     const scoreWriter = useLiveAction(tournamentId, matchId)
     const heartbeatError = useControllerHeartbeat(tournamentId, matchId)
+    const assistant = useConsoleAssistant()
+    const live = useLive(tournamentId, matchId, clock.sync)
 
     const v = live.data
     const projection = v?.projection
@@ -109,6 +112,7 @@ export function useConsoleTransport(tournamentId: string, matchId: string): Cons
         peers,
         peerControls,
         host,
+        assistant,
         send,
         sendChain,
         flash,

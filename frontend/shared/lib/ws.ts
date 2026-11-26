@@ -27,6 +27,23 @@ interface Frame {
     arguments?: unknown[]
 }
 
+export interface AssistantToolCall {
+    proposalId: string
+    action: unknown
+    rationale?: string
+}
+
+export interface AssistantFrame {
+    turnId: string
+    delta?: string
+    toolCall?: AssistantToolCall
+    done?: boolean
+}
+
+export type AssistantFrameRead =
+    | { ok: true; frame: AssistantFrame }
+    | { ok: false; error: string }
+
 function envelopeOf(frame: Frame): unknown {
     if (frame.target !== "message" || !Array.isArray(frame.arguments)) return undefined
     return frame.arguments[0]

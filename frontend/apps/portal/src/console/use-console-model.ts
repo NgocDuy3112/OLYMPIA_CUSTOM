@@ -10,6 +10,7 @@ import { consoleOf } from "@shared/wire/live"
 import { ApiError } from "@shared/lib/api"
 import { setGlow, roundGlowOf, glowKeyOf } from "@shared/lib/glow"
 import { useConsoleTransport } from "./model/use-console-transport"
+import type { AssistantSurface } from "./model/use-console-assistant"
 import { useConsoleJudging } from "./model/use-console-judging"
 import { useConsoleCommits } from "./model/use-console-commits"
 import { useConsoleNav } from "./model/use-console-nav"
@@ -68,7 +69,7 @@ type ConsoleModel = {
         endMatch: () => void
         endingMatch: boolean
     }
-    | { phase: "deck"; facts: ConsoleFacts; roundModule: RoundModule | null; host: HostBroadcast }
+    | { phase: "deck"; facts: ConsoleFacts; roundModule: RoundModule | null; host: HostBroadcast; assistant: AssistantSurface }
 )
 
 export function useConsoleModel(tournamentId: string, matchId: string): ConsoleModel {
@@ -284,5 +285,5 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         openRegrade: adjust.openRegrade,
     })
     const roundModule = projection.tiebreak !== undefined ? tieBreakModule : roundModuleOf(roundId)
-    return { phase: "deck", control, facts, roundModule, host: transport.host, ...adjust }
+    return { phase: "deck", control, facts, roundModule, host: transport.host, assistant: transport.assistant, ...adjust }
 }

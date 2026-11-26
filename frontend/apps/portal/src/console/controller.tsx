@@ -6,6 +6,7 @@ import { ROUND_LABEL, pt } from "@shared/deck/geometry"
 import { useGlow, glowKeyOf, type GlowKey } from "@shared/lib/glow"
 import { Button } from "@shared/ui/button"
 import { AdjustScoreDialog } from "./AdjustScoreDialog"
+import { AssistantSheet } from "./AssistantSheet"
 import { RegradeDialog } from "./RegradeDialog"
 import { useConsoleModel, type ConsoleControl } from "./use-console-model"
 import { ConsoleControlContext } from "./control-context"
@@ -123,6 +124,7 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
                 <StageShell fullHeight>
                     <ControlBanner control={model.control} />
                     {screen}
+                    <AssistantSheet surface={model.assistant} />
                     {model.adjustFor && (
                         <AdjustScoreDialog
                             playerName={facts.baseCards.find((c) => c.id === model.adjustFor)?.name ?? model.adjustFor}
