@@ -14,7 +14,7 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.MatchCodes;
 
-public sealed class MatchCodesService(AOCDbContext db)
+public sealed class MatchCodesService(AOCDbContext db, ClaimAttemptLimiter attempts)
 {
     private const int RoomCodeTtlMs = 24 * 60 * 60 * 1000;
     private const string Alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -101,22 +101,36 @@ public sealed class MatchCodesService(AOCDbContext db)
 
     public async Task<ClaimResult> ClaimSeatAsync(string userId, string rawCode)
     {
+        var uid = Guid.Parse(userId);
+        attempts.AssertAllowed(uid);
+
         var code = NormalizeCode(rawCode);
         var now = DateTime.UtcNow;
+
+        await using var transaction = await db.Database.BeginTransactionAsync();
 
         var codeRow = await db.MatchCodes.AsNoTracking()
             .FirstOrDefaultAsync(c => c.Code == code && c.ExpiresAt > now);
         if (codeRow is null)
+        {
+            attempts.RegisterFailure(uid);
             throw new CodeError(CodeErrorCode.NOT_FOUND,
                 "Mã không đúng hoặc đã hết hạn — xin hỏi lại ban điều hành.");
+        }
         var matchId = codeRow.MatchId;
 
-        var match = await db.Matches.AsNoTracking().FirstOrDefaultAsync(m => m.Id == matchId);
-        if (match is null || match.DeletedAt is not null)
+        var lockedId = await db.Database
+            .SqlQueryRaw<Guid>(
+                "SELECT id AS \"Value\" FROM matches WHERE id = {0} AND deleted_at IS NULL FOR UPDATE",
+                matchId)
+            .FirstOrDefaultAsync();
+        if (lockedId == Guid.Empty)
             throw new CodeError(CodeErrorCode.NOT_FOUND,
                 "Mã không đúng hoặc đã hết hạn — xin hỏi lại ban điều hành.");
-        if (match.Status == MatchStatus.FINISHED)
-            throw new CodeError(CodeErrorCode.CONFLICT, "Trận này đã kết thúc.");
+
+        var match = await db.Matches.FirstAsync(m => m.Id == lockedId);
+        if (match.Status == MatchStatus.LIVE || match.Status == MatchStatus.FINISHED)
+            throw new CodeError(CodeErrorCode.CONFLICT, "Trận này đã bắt đầu hoặc đã kết thúc.");
 
         var tournament = await db.Tournaments.AsNoTracking()
             .FirstOrDefaultAsync(t => t.Id == match.TournamentId);
@@ -125,18 +139,13 @@ public sealed class MatchCodesService(AOCDbContext db)
                 "Mã không đúng hoặc đã hết hạn — xin hỏi lại ban điều hành.");
 
         var capacity = tournament.FormatValue.AllowedSeatCounts().Max();
-
-        var locked = await db.Matches.FirstAsync(m => m.Id == matchId);
-        if (locked.DeletedAt is not null)
-            throw new CodeError(CodeErrorCode.NOT_FOUND,
-                "Mã không đúng hoặc đã hết hạn — xin hỏi lại ban điều hành.");
-        if (locked.Status == MatchStatus.FINISHED)
-            throw new CodeError(CodeErrorCode.CONFLICT, "Trận này đã kết thúc.");
-
-        var seats = locked.PlayersList;
-        var uid = Guid.Parse(userId);
+        var seats = match.PlayersList;
         if (MatchSeats.IsSeatedInMatch(seats, uid))
+        {
+            await transaction.CommitAsync();
+            attempts.Reset(uid);
             return new ClaimResult(matchId, tournament.Id.ToString(), tournament.Slug, match.Label);
+        }
 
         if (seats.Count >= capacity)
             throw new CodeError(CodeErrorCode.CONFLICT,
@@ -145,10 +154,12 @@ public sealed class MatchCodesService(AOCDbContext db)
         var seed = seats.Count == 0 ? 1 : seats.Max(s => s.Seed) + 1;
         var next = seats.Append(new Seat { Kind = "user", UserId = userId, Seed = seed }).ToList();
 
-        locked.Players = JsonDefaults.Serialize(next);
-        locked.UpdatedAt = DateTime.UtcNow;
+        match.Players = JsonDefaults.Serialize(next);
+        match.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
+        await transaction.CommitAsync();
 
+        attempts.Reset(uid);
         return new ClaimResult(matchId, tournament.Id.ToString(), tournament.Slug, match.Label);
     }
 }

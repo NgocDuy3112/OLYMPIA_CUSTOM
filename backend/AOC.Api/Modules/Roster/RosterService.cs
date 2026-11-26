@@ -36,13 +36,18 @@ public sealed class RosterService(AOCDbContext db)
         {
             await db.SaveChangesAsync();
         }
-        catch (DbUpdateException)
+        catch (DbUpdateException error) when (IsUniqueViolation(error))
         {
             db.ChangeTracker.Clear();
+            throw new TournamentError(TournamentErrorCode.CONFLICT,
+                "one or more players are already enrolled in this tournament");
         }
 
         return await db.TournamentPlayers.CountAsync(p => p.TournamentId == tournamentId);
     }
+
+    private static bool IsUniqueViolation(DbUpdateException error)
+        => error.InnerException is PostgresException { SqlState: "23505" };
 
     public sealed record PlayerEnrollment(
         string TournamentId,

@@ -62,6 +62,7 @@ builder.Services.AddSingleton<IEmailService, SmtpEmailService>();
 builder.Services.AddSingleton<GoogleOidcService>();
 builder.Services.AddScoped<AOC.Infrastructure.Audit.AuditService>();
 builder.Services.AddSingleton<MatchHubRegistry>();
+builder.Services.AddSingleton<AOC.Api.Modules.MatchCodes.ClaimAttemptLimiter>();
 
 builder.Services.AddScoped<AOC.Api.Modules.Auth.AuthService>();
 builder.Services.AddScoped<TournamentsService>();
