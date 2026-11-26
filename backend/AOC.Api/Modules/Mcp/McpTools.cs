@@ -9,6 +9,7 @@ using AOC.Api.Modules.Matches;
 using AOC.Api.Modules.Questions;
 using AOC.Api.Modules.Questions.Reads;
 using AOC.Api.Modules.McpKeys;
+using AOC.Api.Realtime;
 using AOC.Api.Shared;
 using AOC.Infrastructure.Audit;
 using AOC.Infrastructure.Data;
@@ -24,6 +25,7 @@ public sealed partial class McpTools(
     MatchesService matches,
     MatchTransitionService transitions,
     LiveService liveService,
+    MatchHubRegistry hub,
     AuditService audit,
     IHttpContextAccessor httpContextAccessor)
 {
@@ -34,12 +36,11 @@ public sealed partial class McpTools(
 
     private sealed record McpToolPayload(object Data, int? Total = null);
 
-    private McpActor Actor()
-    {
-        var http = httpContextAccessor.HttpContext
-            ?? throw new ToolError("UNAUTHORIZED", "Missing MCP authentication context");
-        return McpActorAccessor.Require(http);
-    }
+    private HttpContext Http()
+        => httpContextAccessor.HttpContext
+           ?? throw new ToolError("UNAUTHORIZED", "Missing MCP authentication context");
+
+    private McpActor Actor() => McpActorAccessor.Require(Http());
 
     private async Task<UserEntity> ActorUserAsync(McpActor actor)
     {

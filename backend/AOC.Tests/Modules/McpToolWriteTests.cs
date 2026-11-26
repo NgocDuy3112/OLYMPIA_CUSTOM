@@ -1,4 +1,5 @@
 using System.Text.Json;
+using AOC.Api.Realtime;
 using AOC.Domain.Contracts;
 using AOC.Infrastructure.Data;
 using AOC.Infrastructure.Data.Entities;
@@ -254,6 +255,45 @@ public class McpToolWriteTests
             Json("""{"kind":"round.waiting"}"""));
         Assert.True(own.IsError is not true);
         Assert.Equal(ownerId, harness.ControllerOf(matchId));
+    }
+
+    [DbFact]
+    public async Task Live_action_publishes_the_view_and_writes_the_action_audit()
+    {
+        await AuthTestDb.EnsureSchemaAsync();
+        using var harness = McpToolHarness.Open();
+        var ownerId = await harness.SeedUserAsync(UserRole.OPERATOR);
+        var playerId = await harness.SeedUserAsync(UserRole.PLAYER);
+        var tournamentId = await harness.SeedTournamentAsync(ownerId, Visibility.PRIVATE, "but-pha");
+        var matchId = await harness.SeedMatchAsync(tournamentId, MatchStatus.LIVE);
+        await harness.SeedSeatAsync(matchId, playerId);
+        await harness.SeedLiveAsync(matchId, version: 3);
+
+        var pushes = 0;
+        var unsubscribe = harness.Hub.Subscribe(matchId.ToString(),
+            new HubSubscriber("console", (scope, token) =>
+            {
+                _ = scope;
+                _ = token;
+                pushes++;
+                return Task.CompletedTask;
+            }));
+
+        var result = await harness.As(ownerId, "WRITE").LiveAction(
+            tournamentId.ToString(), matchId.ToString(), 3,
+            Json($$"""{"kind":"score.adjust","userId":"{{playerId}}","delta":5,"reason":"mcp"}"""));
+
+        Assert.True(result.IsError is not true);
+        Assert.Equal(1, pushes);
+
+        var audit = await harness.Db.AuditEvents.AsNoTracking()
+            .Where(e => e.Action == "score_adjusted")
+            .ToListAsync();
+        var row = Assert.Single(audit);
+        Assert.Equal(ownerId, row.ActorId);
+        Assert.Equal(matchId, row.MatchId);
+        Assert.Equal(playerId, row.Details!.Value.GetProperty("userId").GetGuid());
+        unsubscribe();
     }
 
     [DbFact]

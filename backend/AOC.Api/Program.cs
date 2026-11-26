@@ -207,6 +207,7 @@ static object BuildMcpTools(ModelContextProtocol.Server.RequestContext<ModelCont
         services.GetRequiredService<AOC.Api.Modules.Matches.MatchesService>(),
         services.GetRequiredService<AOC.Api.Modules.Matches.MatchTransitionService>(),
         services.GetRequiredService<AOC.Api.Modules.Live.LiveService>(),
+        services.GetRequiredService<AOC.Api.Realtime.MatchHubRegistry>(),
         services.GetRequiredService<AOC.Infrastructure.Audit.AuditService>(),
         services.GetRequiredService<IHttpContextAccessor>());
 }

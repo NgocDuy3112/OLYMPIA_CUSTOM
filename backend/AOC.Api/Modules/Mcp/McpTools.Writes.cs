@@ -127,6 +127,8 @@ public sealed partial class McpTools
                 var result = await assembly.PatchAssembleAsync(
                     tournamentId, matchId, input, ActorIdOf(actor), dryRun);
 
+                if (!dryRun) await hub.PublishAsync(matchId);
+
                 return new McpToolPayload(new
                 {
                     dryRun,
@@ -162,6 +164,8 @@ public sealed partial class McpTools
                 }
 
                 var match = await transitions.TransitionMatchAsync(tournamentId, matchId, status);
+                await MatchStatusChange.NotifyAsync(Http(), hub, audit, ActorIdOf(actor),
+                    ParseTournamentId(tournamentId), matchId, scope.Match.Status, match);
                 return new McpToolPayload(new { match.Status, version = (int)match.Status });
             });
 
@@ -206,10 +210,9 @@ public sealed partial class McpTools
                     });
                 }
 
-                await liveService.RequireControllerAsync(scope.Match, actorId);
-                var next = await liveService.ApplyLiveActionAsync(
-                    ParseTournamentId(tournamentId), ParseMatchId(matchId), expectedVersion, parsed,
-                    actorId);
+                var next = await LiveActionRun.ApplyAsync(Http(), liveService, hub, audit,
+                    scope.Match, actorId, ParseTournamentId(tournamentId), ParseMatchId(matchId),
+                    expectedVersion, parsed);
 
                 return new McpToolPayload(new
                 {

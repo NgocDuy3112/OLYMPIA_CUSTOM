@@ -7,6 +7,7 @@ using AOC.Api.Realtime;
 using AOC.Api.Shared;
 using AOC.Domain.Contracts;
 using AOC.Domain.Gameplay;
+using AOC.Infrastructure.Audit;
 using AOC.Infrastructure.Configuration;
 using AOC.Infrastructure.Data;
 
@@ -42,17 +43,12 @@ public static class LiveRoutes
 
             var matchScope = await TournamentAccess.RequireMatchAsync(http, tournamentId, matchId, write: true);
 
-            var service = http.RequestServices.GetRequiredService<LiveService>();
-            await service.RequireControllerAsync(matchScope.Match, user.Id);
-            var next = await service.ApplyLiveActionAsync(
-                Guid.Parse(tournamentId), Guid.Parse(matchId), expectedVersion, action, user.Id);
-
-            var hubRegistry = http.RequestServices.GetRequiredService<MatchHubRegistry>();
-            await hubRegistry.PublishAsync(matchId);
-
-            var audit = http.RequestServices.GetRequiredService<AOC.Infrastructure.Audit.AuditService>();
-            if (action.Describe(next.RoundId) is { } described)
-                await audit.AuditAsync(http, AuditTarget.Match(matchId), described.Action, described.Details);
+            var next = await LiveActionRun.ApplyAsync(http,
+                http.RequestServices.GetRequiredService<LiveService>(),
+                http.RequestServices.GetRequiredService<MatchHubRegistry>(),
+                http.RequestServices.GetRequiredService<AuditService>(),
+                matchScope.Match, user.Id, Guid.Parse(tournamentId), Guid.Parse(matchId),
+                expectedVersion, action);
 
             return Results.Json(new
             {

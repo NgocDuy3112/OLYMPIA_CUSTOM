@@ -71,6 +71,7 @@ internal sealed class McpToolHarness : IDisposable
             services.GetRequiredService<MatchesService>(),
             services.GetRequiredService<MatchTransitionService>(),
             services.GetRequiredService<LiveService>(),
+            Hub,
             new AuditService(Db, NullLogger<AuditService>.Instance),
             new HttpContextAccessor { HttpContext = http });
     }
@@ -153,6 +154,17 @@ internal sealed class McpToolHarness : IDisposable
         });
         await Db.SaveChangesAsync();
         return id;
+    }
+
+    public async Task SeedSeatAsync(Guid matchId, Guid userId)
+    {
+        var match = await Db.Matches.AsNoTracking().FirstAsync(m => m.Id == matchId);
+        var seats = match.PlayersList;
+        seats.Add(new Seat { Kind = "user", UserId = userId.ToString(), Seed = seats.Count + 1 });
+        var players = JsonDefaults.Serialize(seats);
+        await Db.Matches.Where(m => m.Id == matchId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(m => m.Players, players));
+        Db.ChangeTracker.Clear();
     }
 
     public async Task SeedControllerAsync(Guid matchId, Guid controllerId, TimeSpan? age = null)

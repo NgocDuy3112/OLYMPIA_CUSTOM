@@ -39,23 +39,13 @@ public static class MatchScoringRoutes
             var transitions = http.RequestServices.GetRequiredService<MatchTransitionService>();
 
             var status = MatchSchemas.ParseTransition(body);
-            var previous = routeMatch.Scope.Match;
+            var previous = routeMatch.Scope.Match.Status;
             var match = await transitions.TransitionMatchAsync(tournamentId, matchId, status);
 
-            if (match.Status != previous.Status)
-            {
-                var hubRegistry = http.RequestServices.GetRequiredService<AOC.Api.Realtime.MatchHubRegistry>();
-                await hubRegistry.PublishAsync(matchId);
-            }
-
-            if (match.Status != previous.Status)
-            {
-                var action = match.Status == MatchStatus.LIVE ? "match_started" : "match_ended";
-                var audit = http.RequestServices.GetRequiredService<AuditService>();
-                await audit.AuditAsync(http, AuditTarget.Match(matchId), action,
-                    new MatchStatusAudit(tournamentId, previous.Status.ToString(), match.Status.ToString(),
-                        match.Label));
-            }
+            await MatchStatusChange.NotifyAsync(http,
+                http.RequestServices.GetRequiredService<AOC.Api.Realtime.MatchHubRegistry>(),
+                http.RequestServices.GetRequiredService<AuditService>(),
+                routeMatch.User.Id, routeMatch.Scope.Match.TournamentId, matchId, previous, match);
 
             return Results.Json(match, JsonApi.Options);
         });
@@ -67,6 +57,4 @@ public static class MatchScoringRoutes
         string TournamentId, bool Manual, List<MatchTotalAudit> Totals);
 
     private sealed record MatchTotalAudit(string UserId, int Score);
-
-    private sealed record MatchStatusAudit(string TournamentId, string From, string To, string Label);
 }
