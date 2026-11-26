@@ -73,7 +73,8 @@ public sealed class AssemblePatchService(AOCDbContext db)
     }
 
     public async Task<(int AssemblyRevision, int Added, int Removed)> PatchAssembleAsync(
-        string tournamentId, string matchId, MatchSchemas.PatchAssembleInput input, Guid actorId)
+        string tournamentId, string matchId, MatchSchemas.PatchAssembleInput input, Guid actorId,
+        bool dryRun = false)
     {
         var mid = Guid.Parse(matchId);
         var tid = Guid.Parse(tournamentId);
@@ -99,6 +100,10 @@ public sealed class AssemblePatchService(AOCDbContext db)
             .Select(q => q.SourceId)
             .ToList();
         var counts = DiffCounts(oldIds, entries.Select(e => e.SourceId).ToList());
+
+        if (existing.AssemblyRevision != input.BaseRevision)
+            throw new StaleRevisionError(existing.AssemblyRevision, input.BaseRevision);
+        if (dryRun) return (existing.AssemblyRevision + 1, counts.Added, counts.Removed);
 
         await using var connection = await RawSql.OpenAsync(db);
         await using var update = connection.CreateCommand();

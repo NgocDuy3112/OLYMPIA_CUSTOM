@@ -12,6 +12,7 @@ using AOC.Api.Modules.Questions.Reads;
 using AOC.Api.Modules.Standings;
 using AOC.Api.Realtime;
 using AOC.Domain.Contracts;
+using AOC.Domain.Gameplay;
 using AOC.Infrastructure.Audit;
 using AOC.Infrastructure.Data;
 using AOC.Infrastructure.Data.Entities;
@@ -59,8 +60,13 @@ internal sealed class McpToolHarness : IDisposable
         var http = new DefaultHttpContext { RequestServices = services };
         http.Items[McpActorAccessor.ItemKey] = new McpActor(keyId, [.. scopes], actorId, null);
         return new McpTools(
-            services.GetRequiredService<QuestionReadStore>(),
             Db,
+            services.GetRequiredService<QuestionReadStore>(),
+            services.GetRequiredService<QuestionsService>(),
+            services.GetRequiredService<AssemblePatchService>(),
+            services.GetRequiredService<MatchesService>(),
+            services.GetRequiredService<MatchTransitionService>(),
+            services.GetRequiredService<LiveService>(),
             new AuditService(Db, NullLogger<AuditService>.Instance),
             new HttpContextAccessor { HttpContext = http });
     }
@@ -94,7 +100,7 @@ internal sealed class McpToolHarness : IDisposable
         return id;
     }
 
-    public async Task<Guid> SeedTournamentAsync(Guid ownerId, Visibility visibility)
+    public async Task<Guid> SeedTournamentAsync(Guid ownerId, Visibility visibility, params string[] rounds)
     {
         var id = Guid.NewGuid();
         var now = DateTime.UtcNow;
@@ -105,7 +111,13 @@ internal sealed class McpToolHarness : IDisposable
             Slug = Guid.NewGuid().ToString("N")[..12],
             Visibility = visibility,
             OwnerId = ownerId,
-            Rounds = JsonDefaults.Serialize(Array.Empty<TournamentRound>()),
+            Rounds = JsonDefaults.Serialize(rounds.Select((round, index) => new TournamentRound
+            {
+                Id = round,
+                Name = round,
+                Order = index,
+                Chart = "bars"
+            }).ToList()),
             Format = JsonDefaults.Serialize(new { }),
             Stages = JsonDefaults.Serialize(Array.Empty<object>()),
             CreatedAt = now,
@@ -114,6 +126,66 @@ internal sealed class McpToolHarness : IDisposable
         await Db.SaveChangesAsync();
         return id;
     }
+
+    public async Task<Guid> SeedMatchAsync(Guid tournamentId, MatchStatus status = MatchStatus.UPCOMING)
+    {
+        var id = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        var butPha = AocRulebook.AocRoundConfig("but-pha")!;
+        Db.Matches.Add(new MatchEntity
+        {
+            Id = id,
+            TournamentId = tournamentId,
+            StageId = "s1",
+            ScheduledAt = now,
+            Label = "Vòng 1",
+            Status = status,
+            Players = JsonDefaults.Serialize(Array.Empty<Seat>()),
+            RoundConfigs = JsonDefaults.Serialize(
+                new Dictionary<string, RoundConfig> { ["but-pha"] = butPha }),
+            Questions = JsonDefaults.Serialize(Array.Empty<MatchQuestion>()),
+            CreatedAt = now,
+            UpdatedAt = now
+        });
+        await Db.SaveChangesAsync();
+        return id;
+    }
+
+    public async Task SeedLiveAsync(Guid matchId, int version = 3)
+    {
+        Db.MatchLive.Add(new MatchLiveEntity
+        {
+            MatchId = matchId,
+            Version = version,
+            RoundId = "but-pha",
+            State = JsonDefaults.Serialize(new { type = "BUT_PHA" }),
+            Archive = JsonDefaults.EmptyObject,
+            UpdatedAt = DateTime.UtcNow
+        });
+        await Db.SaveChangesAsync();
+    }
+
+    public async Task<Guid> SeedBucketQuestionAsync(Guid createdBy, string bucket)
+    {
+        var id = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        Db.QuestionBank.Add(new QuestionBankEntity
+        {
+            Id = id,
+            Kind = QuestionKind.TEXT,
+            QuestionText = "MCP bucket question " + Guid.NewGuid().ToString("N")[..8],
+            Payload = JsonDefaults.Serialize(new { type = "TEXT", acceptedAnswers = new[] { "x" } }),
+            Status = QuestionStatus.PUBLISHED,
+            Tags = [bucket],
+            CreatedBy = createdBy,
+            CreatedAt = now,
+            UpdatedAt = now
+        });
+        await Db.SaveChangesAsync();
+        return id;
+    }
+
+    public static string ButPhaTurnId() => AocRulebook.AocRoundConfig("but-pha")!.Turns[0].Id;
 
     public async Task<Guid> SeedQuestionAsync(Guid createdBy, QuestionStatus status = QuestionStatus.PUBLISHED)
     {

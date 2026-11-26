@@ -20,6 +20,9 @@ public sealed class MatchTransitionService(
         [MatchStatus.FINISHED] = []
     };
 
+    public static bool CanTransition(MatchStatus from, MatchStatus to)
+        => Edges.TryGetValue(from, out var allowed) && allowed.Contains(to);
+
     public async Task<MatchEntity> TransitionMatchAsync(string tournamentId, string matchId, string nextRaw)
     {
         var next = Enum.Parse<MatchStatus>(nextRaw);

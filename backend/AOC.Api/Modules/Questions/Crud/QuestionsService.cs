@@ -95,12 +95,14 @@ public sealed class QuestionsService(AOCDbContext db)
                 $"this set already holds {HintsPerSet}/{HintsPerSet} hints");
     }
 
-    public async Task<QuestionBankEntity> CreateQuestionAsync(WriteContext ctx, CreateQuestionDto input)
+    public async Task<QuestionBankEntity> CreateQuestionAsync(
+        WriteContext ctx, CreateQuestionDto input, bool dryRun = false)
     {
         AssertQuestionPayload(input);
         await AssertHintSetAsync(input.Kind, input.KeywordId);
 
         var row = QuestionValues(ctx, input);
+        if (dryRun) return row;
         db.QuestionBank.Add(row);
         await db.SaveChangesAsync();
         return row;

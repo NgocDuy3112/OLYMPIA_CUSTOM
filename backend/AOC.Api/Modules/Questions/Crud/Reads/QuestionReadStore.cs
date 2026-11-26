@@ -118,6 +118,15 @@ public sealed class QuestionReadStore(AOCDbContext db) : IQuestionReads
         return Pagination.Result(rows.Select(row => WithUsage(row, usage)).ToList(), total, page);
     }
 
+    public async Task<DateTime> RequireLockedUpdatedAtAsync(Guid questionId)
+        => await db.Database
+               .SqlQueryRaw<DateTime>(
+                   "SELECT updated_at AS \"Value\" FROM question_bank WHERE id = {0} FOR UPDATE", questionId)
+               .FirstOrDefaultAsync()
+           is { } updatedAt && updatedAt != default
+            ? updatedAt
+            : throw new QuestionError(QuestionErrorCode.NOT_FOUND, $"question {questionId} not found");
+
     public async Task<QuestionRow> RequireAsync(string id)
     {
         var row = await db.QuestionBank.AsNoTracking().FirstOrDefaultAsync(q => q.Id == Guid.Parse(id))

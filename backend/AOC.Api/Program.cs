@@ -196,8 +196,13 @@ static object BuildMcpTools(ModelContextProtocol.Server.RequestContext<ModelCont
 {
     var services = context.Services;
     return new AOC.Api.Modules.Mcp.McpTools(
-        services.GetRequiredService<AOC.Api.Modules.Questions.Reads.QuestionReadStore>(),
         services.GetRequiredService<AOC.Infrastructure.Data.AOCDbContext>(),
+        services.GetRequiredService<AOC.Api.Modules.Questions.Reads.QuestionReadStore>(),
+        services.GetRequiredService<AOC.Api.Modules.Questions.QuestionsService>(),
+        services.GetRequiredService<AOC.Api.Modules.Matches.AssemblePatchService>(),
+        services.GetRequiredService<AOC.Api.Modules.Matches.MatchesService>(),
+        services.GetRequiredService<AOC.Api.Modules.Matches.MatchTransitionService>(),
+        services.GetRequiredService<AOC.Api.Modules.Live.LiveService>(),
         services.GetRequiredService<AOC.Infrastructure.Audit.AuditService>(),
         services.GetRequiredService<IHttpContextAccessor>());
 }
