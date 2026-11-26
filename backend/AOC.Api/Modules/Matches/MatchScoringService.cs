@@ -124,17 +124,7 @@ public sealed class MatchScoringService(AOCDbContext db)
                 "totals must cover exactly the players seated in this match",
                 [$"seated: {seated.Count}, given: {totals.Count}"]);
 
-        var results = totals
-            .OrderByDescending(t => t.Score)
-            .Select((row, index) => new ResultEntry
-            {
-                Kind = "user",
-                UserId = row.UserId,
-                TotalScore = row.Score,
-                Rank = index + 1,
-                RoundScores = new Dictionary<string, int>()
-            })
-            .ToList();
+        var results = MatchScoring.BuildManualResults(totals);
 
         var existingResult = await db.MatchResults.FirstOrDefaultAsync(r => r.MatchId == mid);
         if (existingResult is null)

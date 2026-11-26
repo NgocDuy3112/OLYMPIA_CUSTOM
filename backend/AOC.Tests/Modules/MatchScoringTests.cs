@@ -42,6 +42,24 @@ public class MatchScoringTests
     }
 
     [Fact]
+    public void BuildManual_EqualTotalsShareARank()
+    {
+        var results = MatchScoring.BuildManualResults([("a", 90), ("b", 90), ("c", 80)]);
+
+        Assert.Equal(new[] { ("a", 90, 1), ("b", 90, 1), ("c", 80, 2) },
+            results.Select(r => (r.UserId, r.TotalScore, r.Rank)));
+    }
+
+    [Fact]
+    public void BuildManual_RanksDescendWithScore()
+    {
+        var results = MatchScoring.BuildManualResults([("a", 30), ("b", 100), ("c", 60)]);
+
+        Assert.Equal(new[] { ("b", 1), ("c", 2), ("a", 3) },
+            results.Select(r => (r.UserId, r.Rank)));
+    }
+
+    [Fact]
     public void Build_SumsPerRoundAndOverall()
     {
         var results = MatchScoring.BuildMatchResults(new MatchScoring.MatchResultInput(

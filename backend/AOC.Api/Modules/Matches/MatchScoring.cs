@@ -44,6 +44,24 @@ public static class MatchScoring
         return ranks;
     }
 
+    public static List<ResultEntry> BuildManualResults(IEnumerable<(string UserId, int Score)> totals)
+    {
+        var rows = totals.ToList();
+        var ranks = DenseRanks(rows.Select(row => (row.UserId, row.Score)));
+        return rows
+            .Select(row => new ResultEntry
+            {
+                Kind = "user",
+                UserId = row.UserId,
+                TotalScore = row.Score,
+                Rank = ranks[row.UserId],
+                RoundScores = new Dictionary<string, int>()
+            })
+            .OrderBy(row => row.Rank)
+            .ThenBy(row => row.UserId, StringComparer.Ordinal)
+            .ToList();
+    }
+
     public static List<ResultEntry> BuildMatchResults(MatchResultInput input)
     {
         var byUser = new Dictionary<string, (int Total, Dictionary<string, int> RoundScores)>();
