@@ -22,7 +22,7 @@ const draftRow = {
 
 const list = (items: unknown[], total = items.length) => ({ body: { items, total } })
 
-function stubBank() {
+function stubBank(extra: Record<string, { body: unknown; status?: number }> = {}) {
     return stubFetch({
         "GET /portal/auth/me": {
             body: { id: "u1", username: "ada", displayName: "Ada", role: "ADMIN", emailVerified: true, totpEnabled: true, avatarUrl: null },
@@ -34,6 +34,7 @@ function stubBank() {
         },
         "POST /portal/questions": { body: { id: "q2" } },
         "PATCH /portal/questions/q1/status": { body: { ...draftRow, status: "PUBLISHED" } },
+        ...extra,
     })
 }
 
@@ -144,6 +145,26 @@ describe("QuestionsPage", () => {
         expect(patch).toBeTruthy()
         expect(JSON.parse(patch![1]?.body as string)).toEqual({ status: "PUBLISHED" })
         expect(await screen.findByText(draftRow.questionText)).toBeInTheDocument()
+    })
+
+    it("archives through the confirm dialog with DELETE, not a status PATCH", async () => {
+        const user = userEvent.setup()
+        const fetchMock = stubBank({
+            "DELETE /portal/questions/q1": { status: 204, body: undefined },
+        })
+        renderWithProviders(<QuestionsPage />)
+
+        await user.click(await screen.findByRole("button", { name: /Archive/ }))
+        const dialog = await screen.findByRole("dialog")
+        await user.click(within(dialog).getByRole("button", { name: "Archive" }))
+
+        const call = fetchMock.mock.calls.find(
+            ([url, init]) => url === "/portal/questions/q1" && init?.method === "DELETE"
+        )
+        expect(call).toBeTruthy()
+        expect(
+            fetchMock.mock.calls.some(([, init]) => init?.method === "PATCH")
+        ).toBe(false)
     })
 
     it("shows assigned matches in the table column", async () => {

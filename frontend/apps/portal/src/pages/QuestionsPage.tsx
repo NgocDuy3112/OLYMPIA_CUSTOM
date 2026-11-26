@@ -105,6 +105,19 @@ export function QuestionsPage() {
         onError: (cause, input) => setFlash({ id: input.id, message: messageOf(cause) }),
     })
 
+    const archive = useMutation({
+        mutationFn: (id: string) =>
+            api<void>(`/portal/questions/${id}`, { method: "DELETE" }),
+        onSuccess: () => {
+            setFlash(null)
+            setConfirming(null)
+            void queryClient.invalidateQueries({ queryKey: ["questions"] })
+            void queryClient.invalidateQueries({ queryKey: ["bucket-counts"] })
+            void queryClient.invalidateQueries({ queryKey: ["keyword-hints"] })
+        },
+        onError: (cause, id) => setFlash({ id, message: messageOf(cause) }),
+    })
+
     const [editing, setEditing] = useState<{
         open: boolean
         row: BankQuestion | null
@@ -228,9 +241,7 @@ export function QuestionsPage() {
     }
 
     let confirmError: string | null = null
-    if (confirming) {
-        if (transition.isError) confirmError = messageOf(transition.error)
-    }
+    if (confirming && archive.isError) confirmError = messageOf(archive.error)
 
     return (
         <Page>
@@ -451,10 +462,10 @@ export function QuestionsPage() {
             <ArchiveConfirmDialog
                 row={confirming}
                 error={confirmError}
-                pending={transition.isPending}
+                pending={archive.isPending}
                 onCancel={() => setConfirming(null)}
                 onConfirm={() => {
-                    if (confirming) transition.mutate({ id: confirming.id, to: "ARCHIVED" })
+                    if (confirming) archive.mutate(confirming.id)
                 }}
             />
 
