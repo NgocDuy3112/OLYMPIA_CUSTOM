@@ -119,7 +119,9 @@ public static class MatchRoutes
             var body = await Validate.ReadJsonBodyAsync(http);
             var transitions = http.RequestServices.GetRequiredService<MatchTransitionService>();
 
-            var scope = await TournamentAccess.RequireMatchAsync(http, tournamentId, matchId, write: true);
+            await TournamentAccess.RequireWriteAsync(http, tournamentId);
+            var scope = await http.RequestServices.GetRequiredService<MatchesService>()
+                .RequireMatchScopeAsync(tournamentId, matchId);
 
             var status = MatchSchemas.ParseTransition(body);
             var previous = scope.Match;

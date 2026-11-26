@@ -45,8 +45,12 @@ public static class TournamentAccess
         var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
         var matches = http.RequestServices.GetRequiredService<MatchesService>();
         var scope = await matches.RequireMatchScopeAsync(tournamentId, matchId);
+        if (write)
+        {
+            if (!CanWrite(scope.Tournament, user)) throw Forbidden();
+            return scope;
+        }
         if (!CanView(scope.Tournament, user)) throw NotFound(tournamentId);
-        if (write && !CanWrite(scope.Tournament, user)) throw Forbidden();
         return scope;
     }
 
