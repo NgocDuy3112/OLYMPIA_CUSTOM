@@ -174,8 +174,9 @@ public sealed partial class McpTools
                 Filters(new { expectedVersion })),
             async actor =>
             {
-                await RequireWritableMatchAsync(
+                var scope = await RequireWritableMatchAsync(
                     ParseTournamentId(tournamentId), ParseMatchId(matchId), actor);
+                var actorId = ActorIdOf(actor);
 
                 LiveAction parsed;
                 try
@@ -205,9 +206,10 @@ public sealed partial class McpTools
                     });
                 }
 
+                await liveService.RequireControllerAsync(scope.Match, actorId);
                 var next = await liveService.ApplyLiveActionAsync(
                     ParseTournamentId(tournamentId), ParseMatchId(matchId), expectedVersion, parsed,
-                    ActorIdOf(actor));
+                    actorId);
 
                 return new McpToolPayload(new
                 {

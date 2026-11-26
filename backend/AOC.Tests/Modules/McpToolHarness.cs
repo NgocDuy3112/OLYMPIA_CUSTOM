@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using ModelContextProtocol.Protocol;
@@ -26,10 +27,13 @@ internal sealed class McpToolHarness : IDisposable
 
     public AOCDbContext Db { get; }
 
+    public MatchHubRegistry Hub { get; }
+
     private McpToolHarness(AOCDbContext db)
     {
         Db = db;
         var hub = new MatchHubRegistry(NullLogger<MatchHubRegistry>.Instance);
+        Hub = hub;
         var matches = new MatchesService(db, new MatchAssemblyService(db));
         var reader = new LiveReader(db);
         var tieBreak = new TieBreakService(db, new QuestionReadStore(db), reader, hub);
@@ -151,8 +155,22 @@ internal sealed class McpToolHarness : IDisposable
         return id;
     }
 
-    public async Task SeedLiveAsync(Guid matchId, int version = 3)
+    public async Task SeedControllerAsync(Guid matchId, Guid controllerId, TimeSpan? age = null)
     {
+        var at = DateTime.UtcNow - (age ?? TimeSpan.Zero);
+        await Db.Matches.Where(m => m.Id == matchId).ExecuteUpdateAsync(setters => setters
+            .SetProperty(m => m.ControllerId, controllerId)
+            .SetProperty(m => m.ControllerHeartbeatAt, at));
+    }
+
+    public Guid? ControllerOf(Guid matchId)
+    {
+        Db.ChangeTracker.Clear();
+        return Db.Matches.AsNoTracking().Where(m => m.Id == matchId)
+            .Select(m => m.ControllerId).First();
+    }
+
+    public async Task SeedLiveAsync(Guid matchId, int version = 3)    {
         Db.MatchLive.Add(new MatchLiveEntity
         {
             MatchId = matchId,

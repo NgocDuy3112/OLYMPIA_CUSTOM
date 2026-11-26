@@ -206,6 +206,57 @@ public class McpToolWriteTests
     }
 
     [DbFact]
+    public async Task Live_action_is_refused_while_a_human_holds_the_controller_lease()
+    {
+        await AuthTestDb.EnsureSchemaAsync();
+        using var harness = McpToolHarness.Open();
+        var ownerId = await harness.SeedUserAsync(UserRole.OPERATOR);
+        var humanId = await harness.SeedUserAsync(UserRole.OPERATOR);
+        var tournamentId = await harness.SeedTournamentAsync(ownerId, Visibility.PRIVATE, "but-pha");
+        var matchId = await harness.SeedMatchAsync(tournamentId, MatchStatus.LIVE);
+        await harness.SeedLiveAsync(matchId, version: 3);
+        await harness.SeedControllerAsync(matchId, humanId);
+
+        var result = await harness.As(ownerId, "WRITE").LiveAction(
+            tournamentId.ToString(), matchId.ToString(), 3, Json("""{"kind":"round.waiting"}"""));
+
+        Assert.Equal("CONFLICT", McpToolHarness.ErrorCode(result));
+        Assert.Equal(humanId, harness.ControllerOf(matchId));
+        harness.Db.ChangeTracker.Clear();
+        Assert.Equal(3, (await harness.Db.MatchLive.AsNoTracking()
+            .FirstAsync(l => l.MatchId == matchId)).Version);
+    }
+
+    [DbFact]
+    public async Task Live_action_acquires_an_empty_or_stale_lease_and_keeps_its_own()
+    {
+        await AuthTestDb.EnsureSchemaAsync();
+        using var harness = McpToolHarness.Open();
+        var ownerId = await harness.SeedUserAsync(UserRole.OPERATOR);
+        var humanId = await harness.SeedUserAsync(UserRole.OPERATOR);
+        var tournamentId = await harness.SeedTournamentAsync(ownerId, Visibility.PRIVATE, "but-pha");
+        var matchId = await harness.SeedMatchAsync(tournamentId, MatchStatus.LIVE);
+        await harness.SeedLiveAsync(matchId, version: 3);
+        var tools = harness.As(ownerId, "WRITE");
+
+        var empty = await tools.LiveAction(tournamentId.ToString(), matchId.ToString(), 3,
+            Json("""{"kind":"round.waiting"}"""));
+        Assert.True(empty.IsError is not true);
+        Assert.Equal(ownerId, harness.ControllerOf(matchId));
+
+        await harness.SeedControllerAsync(matchId, humanId, TimeSpan.FromSeconds(91));
+        var stale = await tools.LiveAction(tournamentId.ToString(), matchId.ToString(), 4,
+            Json("""{"kind":"round.waiting"}"""));
+        Assert.True(stale.IsError is not true);
+        Assert.Equal(ownerId, harness.ControllerOf(matchId));
+
+        var own = await tools.LiveAction(tournamentId.ToString(), matchId.ToString(), 5,
+            Json("""{"kind":"round.waiting"}"""));
+        Assert.True(own.IsError is not true);
+        Assert.Equal(ownerId, harness.ControllerOf(matchId));
+    }
+
+    [DbFact]
     public async Task A_write_tool_without_the_write_scope_leaves_a_denied_row()
     {
         await AuthTestDb.EnsureSchemaAsync();
