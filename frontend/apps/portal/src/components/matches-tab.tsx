@@ -1,20 +1,23 @@
 import { useState, type ReactNode } from "react"
 import { Link } from "react-router-dom"
-import { RefreshCw, X } from "lucide-react"
+import { RefreshCw, Trash2, X } from "lucide-react"
 import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
 import { allowedSeatsOf, seatsPhrase } from "@/lib/tournaments"
 import {
+    useDeleteMatch,
     useEjectSeat,
     useEnrolled,
     useMatchCodes,
     useMatches,
     useRotateMatchCode,
     useTransitionMatch,
+    type MatchSummary,
     type TournamentDetail,
 } from "@/lib/tournament"
+import { ConfirmDeleteDialog } from "./confirm-delete-dialog"
 import { NewMatchDialog } from "./new-match-dialog"
 
 
@@ -35,9 +38,11 @@ export function MatchesTab({
     const codes = useMatchCodes(tournamentId)
     const rotate = useRotateMatchCode(tournamentId)
     const eject = useEjectSeat(tournamentId)
+    const remove = useDeleteMatch(tournamentId)
     const allowedSeats = allowedSeatsOf(tournament.format)
 
     const [creating, setCreating] = useState(false)
+    const [deleting, setDeleting] = useState<MatchSummary | null>(null)
     const transition = useTransitionMatch(tournamentId)
 
     const openStage = (match: { id: string; status: string }) => {
@@ -62,6 +67,8 @@ export function MatchesTab({
     if (data.items.length === 1) plural = ""
     let matchSummary = `${data.items.length} match${plural}`
     if (data.items.length === 0) matchSummary = "No matches yet. Create the first one."
+    let deleteError: string | null = null
+    if (remove.isError) deleteError = remove.error.message
 
     let matchesSlot: ReactNode = (
         <Table>
@@ -131,6 +138,8 @@ export function MatchesTab({
                     if (match.status === "FINISHED") {
                         statusSlot = <Badge variant="secondary">FINISHED</Badge>
                     }
+                    let deleteTitle = "Only an UPCOMING match can be deleted"
+                    if (match.status === "UPCOMING") deleteTitle = "Delete match"
                     return (
                         <TableRow key={match.id}>
                             <TableCell className="pl-6">
@@ -178,7 +187,19 @@ export function MatchesTab({
                                 </div>
                             </TableCell>
                             <TableCell className="pr-6 text-right">
-                                {statusSlot}
+                                <div className="flex items-center justify-end gap-1">
+                                    {statusSlot}
+                                    <Button
+                                        size="icon-sm"
+                                        variant="ghost"
+                                        aria-label={`Delete match ${match.label}`}
+                                        title={deleteTitle}
+                                        disabled={match.status !== "UPCOMING" || remove.isPending}
+                                        onClick={() => setDeleting(match)}
+                                    >
+                                        <Trash2 className="size-3.5" aria-hidden />
+                                    </Button>
+                                </div>
                             </TableCell>
                         </TableRow>
                     )
@@ -229,6 +250,18 @@ export function MatchesTab({
                     allowedSeats={allowedSeats}
                     open
                     onOpenChange={(open) => { if (!open) setCreating(false) }}
+                />
+            )}
+
+            {deleting && (
+                <ConfirmDeleteDialog
+                    title="Delete this match?"
+                    subject={deleting.label}
+                    description="The match disappears from the tournament. Only UPCOMING matches can be deleted."
+                    error={deleteError}
+                    pending={remove.isPending}
+                    onCancel={() => setDeleting(null)}
+                    onConfirm={() => remove.mutate(deleting.id, { onSuccess: () => setDeleting(null) })}
                 />
             )}
         </div>

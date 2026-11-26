@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react"
+import { screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router-dom"
 import { describe, expect, it } from "vitest"
@@ -152,5 +152,47 @@ describe("taking a seat back", () => {
 
         expect(await screen.findByText("An")).toBeInTheDocument()
         expect(screen.queryByRole("button", { name: /Gỡ/ })).toBeNull()
+    })
+})
+
+describe("deleting a match", () => {
+    const DELETE_URL = (matchId: string) =>
+        `DELETE /portal/tournaments/${TOURNAMENT}/matches/${matchId}`
+
+    it("confirms, then DELETEs the match", async () => {
+        const { fetchMock } = draw({
+            [CODES_URL]: { body: { items: [] } },
+            [DELETE_URL("m1")]: { status: 204, body: undefined },
+        })
+
+        await userEvent.click(await screen.findByRole("button", { name: "Delete match Bảng 1" }))
+        const dialog = await screen.findByRole("dialog")
+        await userEvent.click(within(dialog).getByRole("button", { name: "Delete" }))
+
+        await waitFor(() => expect(callOf(fetchMock!, DELETE_URL("m1"))).toBeTruthy())
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+    })
+
+    it("offers no delete once the match is under way", async () => {
+        draw({
+            [MATCHES_URL]: { body: { items: [match({ status: "LIVE" })], total: 1, limit: 100, offset: 0 } },
+            [CODES_URL]: { body: { items: [] } },
+        })
+
+        expect(await screen.findByRole("button", { name: "Delete match Bảng 1" })).toBeDisabled()
+    })
+
+    it("keeps the server's refusal in the dialog", async () => {
+        draw({
+            [CODES_URL]: { body: { items: [] } },
+            [DELETE_URL("m1")]: { status: 409, body: { message: "match m1 is LIVE and cannot be deleted" } },
+        })
+
+        await userEvent.click(await screen.findByRole("button", { name: "Delete match Bảng 1" }))
+        const dialog = await screen.findByRole("dialog")
+        await userEvent.click(within(dialog).getByRole("button", { name: "Delete" }))
+
+        expect(await screen.findByRole("alert")).toHaveTextContent(/cannot be deleted/)
+        expect(screen.getByRole("dialog")).toBeInTheDocument()
     })
 })

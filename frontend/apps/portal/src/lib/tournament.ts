@@ -327,6 +327,19 @@ export function useDeleteTournament(tournamentId: string) {
     })
 }
 
+export function useDeleteMatch(tournamentId: string) {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: (matchId: string) =>
+            api<void>(`/portal/tournaments/${tournamentId}/matches/${matchId}`, {
+                method: "DELETE",
+            }),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ["matches", tournamentId] })
+        },
+    })
+}
+
 export function useEjectSeat(tournamentId: string) {
     const queryClient = useQueryClient()
 
