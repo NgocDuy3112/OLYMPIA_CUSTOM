@@ -1,8 +1,7 @@
-import { useState, type ReactNode } from "react"
-import { useMutation, useQuery } from "@tanstack/react-query"
-import { Link2, Plus, Save, Upload, X } from "lucide-react"
+import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { Link2, Plus, Save, X } from "lucide-react"
 import { api } from "@shared/lib/api"
-import { errorMessage } from "@shared/lib/error-text"
 import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
 import {
@@ -13,43 +12,32 @@ import {
     DialogTitle,
 } from "@shared/ui/dialog"
 import { Input } from "@shared/ui/input"
+import {
+    BUCKET_GROUPS,
+    BUCKET_VALUES,
+    HINT_MAX,
+    buildPayload,
+    draftFrom,
+    kindFor,
+    nextOptionId,
+    payloadShapeOf,
+    reasonFor,
+    stripBridge,
+    type AuthorDraft,
+    type AuthorRow,
+    type AuthorSave,
+} from "./question-author/payload-shape"
+import { AudiencePreview } from "./question-author/AudiencePreview"
+import { MediaField } from "./question-author/MediaField"
 
-export type PayloadShape = "choice" | "keyword" | "text"
-export type QuestionKind = "TEXT" | "KEYWORD"
-
-export interface QuestionMedia {
-    url: string
-    type: "image" | "audio" | "video"
-}
-
-export interface AuthorDraft {
-    bucket: string
-    questionText: string
-    accepted: string 
-    options: Array<{ id: string; text: string }>
-    correct: string[] 
-    code: string
-    keywordId: string 
-    media: QuestionMedia | null
-}
-
-export interface AuthorSave {
-    kind: QuestionKind
-    questionText: string
-    keywordId: string | null
-    payload: Record<string, unknown>
-    tags: string[]
-    media: QuestionMedia | null
-}
-
-export interface AuthorRow {
-    kind?: string 
-    questionText: string
-    keywordId?: string | null
-    payload?: Record<string, unknown>
-    tags?: string[]
-    media?: QuestionMedia | null
-}
+export type {
+    AuthorDraft,
+    AuthorRow,
+    AuthorSave,
+    PayloadShape,
+    QuestionKind,
+    QuestionMedia,
+} from "./question-author/payload-shape"
 
 export interface AuthorDialogProps {
     open: boolean
@@ -61,185 +49,6 @@ export interface AuthorDialogProps {
     onCancel: () => void
     onSave: (input: AuthorSave) => void | Promise<void>
 }
-
-const HINT_MAX = 8
-
-
-interface BucketChoice {
-    value: string
-    label: string
-}
-
-const BUCKET_GROUPS: Array<{ group: string; choices: BucketChoice[] }> = [
-    {
-        group: "Khởi động",
-        choices: [
-            { value: "khoi-dong:rieng", label: "Riêng" },
-            { value: "khoi-dong:chung", label: "Chung" },
-        ],
-    },
-    { group: "Giải mã", choices: [{ value: "giai-ma", label: "Từ khóa" }] },
-    { group: "Bứt phá", choices: [{ value: "but-pha", label: "Bứt phá" }] },
-    {
-        group: "Câu hỏi phụ",
-        choices: [{ value: "cau-hoi-phu", label: "Câu hỏi phụ" }],
-    },
-    {
-        group: "Về đích",
-        choices: [
-            { value: "ve-dich:20", label: "20 điểm" },
-            { value: "ve-dich:30", label: "30 điểm" },
-            { value: "ve-dich:40", label: "40 điểm" },
-            { value: "ve-dich:50", label: "50 điểm" },
-        ],
-    },
-]
-
-const BUCKET_VALUES = new Set(BUCKET_GROUPS.flatMap((g) => g.choices.map((c) => c.value)))
-
-function payloadShapeOf(bucket: string, linked: boolean): PayloadShape {
-    if (linked) return "text" 
-    switch (bucket) {
-        case "khoi-dong:rieng":
-        case "ve-dich:40":
-        case "ve-dich:50":
-            return "choice"
-        case "giai-ma":
-            return "keyword"
-        default:
-            return "text"
-    }
-}
-
-function kindFor(shape: PayloadShape, keywordId: string): QuestionKind {
-    if (keywordId) return "TEXT"
-    if (shape === "keyword") return "KEYWORD"
-    return "TEXT"
-}
-
-
-function nextOptionId(existing: string[]): string {
-    for (let i = 0; i < 26; i += 1) {
-        const id = String.fromCharCode(97 + i)
-        if (!existing.includes(id)) return id
-    }
-    return `o${existing.length}`
-}
-
-function draftFrom(row: AuthorRow | null | undefined, bucket?: string, presetKeywordId?: string): AuthorDraft {
-    const base: AuthorDraft = {
-        bucket: bucket ?? "",
-        questionText: row?.questionText ?? "",
-        accepted: "",
-        options: [
-            { id: "a", text: "" },
-            { id: "b", text: "" },
-        ],
-        correct: [],
-        code: "",
-        keywordId: row?.keywordId ?? presetKeywordId ?? "",
-        media: row?.media ?? null,
-    }
-    if (!base.bucket && (presetKeywordId || row?.keywordId != null)) base.bucket = "giai-ma"
-    if (!base.bucket && row) {
-        let carried = (row.tags ?? []).find((tag) => BUCKET_VALUES.has(tag))
-        if (carried === undefined) {
-            const carrier = row.payload?.bucket
-            if (typeof carrier === "string") {
-                if (BUCKET_VALUES.has(carrier)) carried = carrier
-            }
-        }
-        if (carried) base.bucket = carried
-    }
-    if (!row?.payload) return base
-    const payload = row.payload
-    if (Array.isArray(payload.options)) {
-        base.options = (payload.options as Array<{ id: string; text: string }>).map((o) => ({
-            id: o.id,
-            text: o.text,
-        }))
-        base.correct = []
-        if (Array.isArray(payload.correctSet)) base.correct = [...(payload.correctSet as string[])]
-    }
-    if (Array.isArray(payload.acceptedAnswers)) {
-        base.accepted = (payload.acceptedAnswers as string[]).join("\n")
-    }
-    if (typeof payload.code === "string") base.code = payload.code
-    return base
-}
-
-function buildPayload(shape: PayloadShape, draft: AuthorDraft): Record<string, unknown> | null {
-    if (shape === "keyword") {
-        if (!draft.code.trim()) return null
-        return { code: draft.code.trim() }
-    }
-    const acceptedAnswers = draft.accepted
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean)
-    if (acceptedAnswers.length === 0) return null
-    if (shape === "text") return { acceptedAnswers }
-    const options = draft.options
-        .filter((o) => o.text.trim())
-        .map((o) => ({ id: o.id, text: o.text.trim() }))
-    if (options.length < 2) return null
-    const ids = new Set(options.map((o) => o.id))
-    const correct = draft.correct.filter((id) => ids.has(id))
-    if (correct.length !== 1) return null
-    return { acceptedAnswers, options, correctSet: correct }
-}
-
-function stripBridge(value: Record<string, unknown>): Record<string, unknown> {
-    const rest = { ...value }
-    delete rest.type
-    delete rest.bucket
-    return rest
-}
-
-function reasonFor(shape: PayloadShape): string {
-    if (shape === "choice") {
-        return "This group needs an answer line, at least 2 options and exactly one correct choice (the audience face)."
-    }
-    if (shape === "keyword") return "A keyword needs its code."
-    return "This group needs at least one accepted answer (one per line)."
-}
-
-
-function AudiencePreview({ shape, draft }: { shape: PayloadShape; draft: AuthorDraft }) {
-    const options = draft.options.filter((o) => o.text.trim())
-    const showsChoice = options.length > 0 && shape === "choice"
-    let audienceNote = " — ô nhập như thí sinh"
-    if (showsChoice) audienceNote = " — trắc nghiệm"
-    let previewSlot: ReactNode = (
-        <div className="rounded-md border border-input bg-background px-2 py-1 text-xs text-muted-foreground">
-            Câu trả lời của bạn
-        </div>
-    )
-    if (showsChoice) {
-        previewSlot = (
-            <div className="flex flex-wrap gap-1.5">
-                {options.map((option, index) => (
-                    <span
-                        key={option.id}
-                        className="rounded-md border border-input bg-background px-2 py-1 text-xs"
-                    >
-                        <b>{String.fromCharCode(65 + index)}.</b> {option.text}
-                    </span>
-                ))}
-            </div>
-        )
-    }
-    return (
-        <div className="grid gap-2 rounded-lg border border-border bg-muted/40 p-3">
-            <span className="text-xs font-medium text-muted-foreground">
-                Khán giả thấy
-                {audienceNote}
-            </span>
-            {previewSlot}
-        </div>
-    )
-}
-
 
 export function QuestionAuthorDialog({
     open,
@@ -257,21 +66,6 @@ export function QuestionAuthorDialog({
     const hintMode = row?.keywordId != null || Boolean(presetKeywordId)
 
     const patch = (part: Partial<AuthorDraft>) => setDraft((prev) => ({ ...prev, ...part }))
-
-    const [uploadError, setUploadError] = useState<string | null>(null)
-
-    const upload = useMutation({
-        mutationFn: (file: File) => {
-            const form = new FormData()
-            form.append("file", file, file.name)
-            return api<QuestionMedia>("/portal/questions/media", { method: "POST", body: form })
-        },
-        onSuccess: (media) => {
-            setUploadError(null)
-            patch({ media })
-        },
-        onError: (cause) => setUploadError(errorMessage(cause)),
-    })
 
     const shape = payloadShapeOf(draft.bucket, linking)
     const showLink = draft.bucket === "giai-ma" && (linking || hintMode)
@@ -399,61 +193,6 @@ export function QuestionAuthorDialog({
     if (hintCapFull) hintCapCls = "text-destructive"
     let capNote = ""
     if (hintCapFull) capNote = " — convert or archive one first."
-    let uploadLabel = "Tải ảnh / video / âm thanh"
-    if (upload.isPending) uploadLabel = "Đang tải lên…"
-
-    let mediaSlot: ReactNode = (
-        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-5 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground">
-            <Upload className="size-4" aria-hidden />
-            <span>
-                {uploadLabel}
-            </span>
-            <input
-                type="file"
-                accept="image/*,audio/*,video/*"
-                className="sr-only"
-                disabled={upload.isPending}
-                onChange={(event) => {
-                    const file = event.target.files?.[0]
-                    if (file) upload.mutate(file)
-                    event.target.value = ""
-                }}
-            />
-        </label>
-    )
-    if (draft.media) {
-        let mediaPreview: ReactNode = (
-            <span className="flex size-14 shrink-0 items-center justify-center rounded-md border bg-muted text-xs text-muted-foreground">
-                {draft.media.type}
-            </span>
-        )
-        if (draft.media.type === "image") {
-            mediaPreview = (
-                <img
-                    src={draft.media.url}
-                    alt=""
-                    className="size-14 shrink-0 rounded-md border object-cover"
-                />
-            )
-        }
-        mediaSlot = (
-            <div className="flex items-center gap-3 rounded-lg border p-2">
-                {mediaPreview}
-                <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-                    {draft.media.url}
-                </span>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label="Gỡ media"
-                    title="Gỡ media"
-                    onClick={() => patch({ media: null })}
-                >
-                    <X className="size-4" aria-hidden />
-                </Button>
-            </div>
-        )
-    }
 
     return (
         <Dialog open={open} onOpenChange={(next) => { if (!next) onCancel() }}>
@@ -503,7 +242,6 @@ export function QuestionAuthorDialog({
                         />
                     </div>
 
-                    
                     {shape !== "keyword" && (
                         <div className="grid gap-2">
                             <label className="text-sm font-medium" htmlFor="q-accepted">
@@ -584,7 +322,6 @@ export function QuestionAuthorDialog({
                         </div>
                     )}
 
-                    
                     {showLink && (
                         <div className="grid gap-1 border-t pt-2">
                             <label className="text-sm font-medium" htmlFor="q-set">
@@ -639,12 +376,7 @@ export function QuestionAuthorDialog({
 
                     <div className="grid gap-2">
                         <span className="text-sm font-medium">Media (optional)</span>
-                        {mediaSlot}
-                        {uploadError && (
-                            <p role="alert" className="text-xs text-destructive">
-                                {uploadError}
-                            </p>
-                        )}
+                        <MediaField media={draft.media} onChange={(media) => patch({ media })} />
                     </div>
 
                     <AudiencePreview shape={shape} draft={draft} />
