@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { consoleOf, WireError } from "../wire/live"
 import type { AnswerWindow } from "../wire/tiebreak"
+import type { AuditEventRow } from "../wire/audit"
 
 const giaiMa = {
     hintsRemaining: ["q1"],
@@ -63,5 +64,47 @@ describe("AnswerWindow", () => {
 
         expect(Object.keys(window)).toEqual(keys)
         expect(Object.keys(window)).not.toContain("buzzer")
+    })
+})
+
+const auditRowFields: Array<keyof AuditEventRow> = [
+    "id",
+    "action",
+    "actorId",
+    "actorName",
+    "targetId",
+    "targetName",
+    "matchId",
+    "details",
+    "ip",
+    "userAgent",
+    "createdAt",
+]
+
+type AuditRowExtra = Exclude<keyof AuditEventRow, (typeof auditRowFields)[number]>
+type AuditRowMissing = Exclude<(typeof auditRowFields)[number], keyof AuditEventRow>
+
+const auditRowHasNoExtraField: [AuditRowExtra] extends [never] ? true : never = true
+const auditRowHasNoMissingField: [AuditRowMissing] extends [never] ? true : never = true
+
+describe("AuditEventRow", () => {
+    it("declares exactly the contract's eleven fields", () => {
+        const row = {
+            id: "e1",
+            action: "login",
+            actorId: null,
+            actorName: null,
+            targetId: null,
+            targetName: null,
+            matchId: null,
+            details: { ok: true },
+            ip: null,
+            userAgent: null,
+            createdAt: "2026-11-26T12:24:07.137664Z",
+        } satisfies AuditEventRow
+
+        expect(Object.keys(row)).toEqual(auditRowFields)
+        expect(auditRowHasNoExtraField).toBe(true)
+        expect(auditRowHasNoMissingField).toBe(true)
     })
 })
