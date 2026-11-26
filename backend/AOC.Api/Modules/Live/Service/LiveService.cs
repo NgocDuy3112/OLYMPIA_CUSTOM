@@ -231,12 +231,12 @@ public sealed partial class LiveService
         return new MatchController(holderId, name, MatchControl.IsFresh(row.ControllerHeartbeatAt, now));
     }
 
-    public async Task<MatchController> ClaimControlAsync(Guid matchId, Guid actorId, bool takeover)
+    public async Task<MatchController> ClaimControlAsync(MatchEntity match, Guid actorId, bool takeover)
     {
         var now = DateTime.UtcNow;
         var cutoff = now - MatchControl.StaleAfter;
         var claimed = await db.Matches
-            .Where(m => m.Id == matchId &&
+            .Where(m => m.Id == match.Id &&
                 (takeover || m.ControllerId == null || m.ControllerId == actorId ||
                  m.ControllerHeartbeatAt == null || m.ControllerHeartbeatAt < cutoff))
             .ExecuteUpdateAsync(setters => setters
@@ -244,16 +244,16 @@ public sealed partial class LiveService
                 .SetProperty(m => m.ControllerHeartbeatAt, now));
         if (claimed == 0)
         {
-            var holder = await ControllerOfAsync(matchId);
+            var holder = await ControllerOfAsync(match.Id);
             throw ApiException.Conflict(
                 $"match is controlled by {holder?.Name ?? "another operator"}");
         }
-        return (await ControllerOfAsync(matchId))!;
+        return (await ControllerOfAsync(match.Id))!;
     }
 
-    public async Task RequireControllerAsync(Guid matchId, Guid actorId)
+    public async Task RequireControllerAsync(MatchEntity match, Guid actorId)
     {
-        await ClaimControlAsync(matchId, actorId, takeover: false);
+        await ClaimControlAsync(match, actorId, takeover: false);
     }
 
     public async Task<bool> IsTournamentPublicAsync(Guid tournamentId)

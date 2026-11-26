@@ -22,7 +22,7 @@ public sealed class MatchesService(
         [MatchStatus.FINISHED] = []
     };
 
-    public sealed record MatchScope(TournamentEntity Tournament);
+    public sealed record MatchScope(TournamentEntity Tournament, MatchEntity Match);
 
 
     public async Task<TournamentEntity> RequireTournamentAsync(Guid tournamentId)
@@ -30,8 +30,12 @@ public sealed class MatchesService(
                .FirstOrDefaultAsync(t => t.Id == tournamentId && t.DeletedAt == null)
            ?? throw new MatchError(MatchErrorCode.NOT_FOUND, $"tournament {tournamentId} not found");
 
-    public async Task<MatchScope> RequireMatchScopeAsync(string tournamentId)
-        => new(await RequireTournamentAsync(Guid.Parse(tournamentId)));
+    public async Task<MatchScope> RequireMatchScopeAsync(string tournamentId, string matchId)
+    {
+        var tournament = await RequireTournamentAsync(Guid.Parse(tournamentId));
+        var match = await GetMatchAsync(tournamentId, matchId);
+        return new MatchScope(tournament, match);
+    }
 
     public async Task<MatchEntity> GetMatchAsync(string tournamentId, string matchId)
         => await FindMatchAsync(Guid.Parse(tournamentId), Guid.Parse(matchId))

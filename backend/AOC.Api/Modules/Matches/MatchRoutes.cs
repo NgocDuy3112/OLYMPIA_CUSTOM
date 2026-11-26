@@ -19,9 +19,9 @@ public static class MatchRoutes
             var body = await Validate.ReadJsonBodyAsync(http);
             var service = http.RequestServices.GetRequiredService<MatchesService>();
 
-            var scope = await service.RequireMatchScopeAsync(tournamentId);
-            AssertView(scope.Tournament, user, tournamentId);
-            AssertWrite(scope.Tournament, user);
+            var tournament = await service.RequireTournamentAsync(Guid.Parse(tournamentId));
+            AssertView(tournament, user, tournamentId);
+            AssertWrite(tournament, user);
 
             var input = MatchSchemas.ParseCreate(body);
             var row = await service.CreateMatchAsync(tournamentId, input);
@@ -36,8 +36,8 @@ public static class MatchRoutes
             var query = Validate.Query(http);
             var service = http.RequestServices.GetRequiredService<MatchesService>();
 
-            var scope = await service.RequireMatchScopeAsync(tournamentId);
-            AssertView(scope.Tournament, user, tournamentId);
+            var tournament = await service.RequireTournamentAsync(Guid.Parse(tournamentId));
+            AssertView(tournament, user, tournamentId);
 
             var status = query.GetValueOrDefault("status");
             if (status is not null && status is not ("UPCOMING" or "LIVE" or "FINISHED"))
@@ -54,10 +54,10 @@ public static class MatchRoutes
             var matchId = Validate.RouteUuid(http, "matchId");
             var service = http.RequestServices.GetRequiredService<MatchesService>();
 
-            var scope = await service.RequireMatchScopeAsync(tournamentId);
+            var scope = await service.RequireMatchScopeAsync(tournamentId, matchId);
             AssertView(scope.Tournament, user, tournamentId);
 
-            var match = await service.GetMatchAsync(tournamentId, matchId);
+            var match = scope.Match;
             var payload = JsonSerializer
                 .SerializeToElement(match, JsonDefaults.Options)
                 .Deserialize<Dictionary<string, JsonElement>>()!;
@@ -74,7 +74,7 @@ public static class MatchRoutes
             var body = await Validate.ReadJsonBodyAsync(http);
             var service = http.RequestServices.GetRequiredService<MatchesService>();
 
-            var scope = await service.RequireMatchScopeAsync(tournamentId);
+            var scope = await service.RequireMatchScopeAsync(tournamentId, matchId);
             AssertView(scope.Tournament, user, tournamentId);
             AssertWrite(scope.Tournament, user);
 
@@ -99,11 +99,10 @@ public static class MatchRoutes
             var body = await Validate.ReadJsonBodyAsync(http);
             var service = http.RequestServices.GetRequiredService<MatchesService>();
 
-            var scope = await service.RequireMatchScopeAsync(tournamentId);
+            var scope = await service.RequireMatchScopeAsync(tournamentId, matchId);
             AssertView(scope.Tournament, user, tournamentId);
             AssertWrite(scope.Tournament, user);
 
-            await service.GetMatchAsync(tournamentId, matchId);
             var patch = MatchSchemas.ParseUpdate(body);
             var row = await service.UpdateMatchAsync(tournamentId, matchId, patch);
             return Results.Json(row, JsonApi.Options);
@@ -117,11 +116,10 @@ public static class MatchRoutes
             var body = await Validate.ReadJsonBodyAsync(http);
             var service = http.RequestServices.GetRequiredService<MatchesService>();
 
-            var scope = await service.RequireMatchScopeAsync(tournamentId);
+            var scope = await service.RequireMatchScopeAsync(tournamentId, matchId);
             AssertView(scope.Tournament, user, tournamentId);
             AssertWrite(scope.Tournament, user);
 
-            await service.GetMatchAsync(tournamentId, matchId);
             var entries = MatchSchemas.ParseAssemble(body);
             var row = await service.AssembleMatchAsync(tournamentId, matchId, entries);
             return Results.Json(row, JsonApi.Options);
@@ -136,7 +134,7 @@ public static class MatchRoutes
             var service = http.RequestServices.GetRequiredService<MatchesService>();
             var assembly = http.RequestServices.GetRequiredService<AssemblePatchService>();
 
-            var scope = await service.RequireMatchScopeAsync(tournamentId);
+            var scope = await service.RequireMatchScopeAsync(tournamentId, matchId);
             if (!TournamentAccess.CanView(scope.Tournament, user))
                 throw new MatchError(MatchErrorCode.NOT_FOUND, $"tournament {tournamentId} not found");
             if (!TournamentAccess.CanWrite(scope.Tournament, user))
@@ -156,12 +154,12 @@ public static class MatchRoutes
             var body = await Validate.ReadJsonBodyAsync(http);
             var service = http.RequestServices.GetRequiredService<MatchesService>();
 
-            var scope = await service.RequireMatchScopeAsync(tournamentId);
+            var scope = await service.RequireMatchScopeAsync(tournamentId, matchId);
             AssertView(scope.Tournament, user, tournamentId);
             AssertWrite(scope.Tournament, user);
 
             var status = MatchSchemas.ParseTransition(body);
-            var previous = await service.GetMatchAsync(tournamentId, matchId);
+            var previous = scope.Match;
             var match = await service.TransitionMatchAsync(tournamentId, matchId, status);
 
             if (match.Status != previous.Status)
@@ -193,7 +191,7 @@ public static class MatchRoutes
             var userId = Validate.RouteUuid(http, "userId");
             var service = http.RequestServices.GetRequiredService<MatchesService>();
 
-            var scope = await service.RequireMatchScopeAsync(tournamentId);
+            var scope = await service.RequireMatchScopeAsync(tournamentId, matchId);
             AssertView(scope.Tournament, user, tournamentId);
             AssertWrite(scope.Tournament, user);
 
@@ -215,7 +213,7 @@ public static class MatchRoutes
             var matchId = Validate.RouteUuid(http, "matchId");
             var service = http.RequestServices.GetRequiredService<MatchesService>();
 
-            await service.RequireMatchScopeAsync(tournamentId);
+            await service.RequireMatchScopeAsync(tournamentId, matchId);
             await service.DeleteMatchAsync(tournamentId, matchId);
             http.Response.StatusCode = 204;
             return Results.Empty;

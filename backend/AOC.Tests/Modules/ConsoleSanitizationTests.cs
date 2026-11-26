@@ -165,7 +165,7 @@ public class ConsoleSanitizationTests
         var matches = new MatchesService(
             db, new StandingsService(db), NullLogger<MatchesService>.Instance);
         var reader = new LiveReader(db);
-        var tieBreak = new TieBreakService(db, matches, new QuestionsService(db), reader, hub);
+        var tieBreak = new TieBreakService(db, new QuestionsService(db), reader, hub);
         return new LiveService(db, reader, hub, matches, tieBreak, NullLogger<LiveService>.Instance);
     }
 

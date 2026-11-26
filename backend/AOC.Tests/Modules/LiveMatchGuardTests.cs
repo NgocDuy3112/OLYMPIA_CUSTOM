@@ -87,7 +87,7 @@ public class LiveMatchGuardTests
             db, new StandingsService(db), NullLogger<MatchesService>.Instance);
         var reader = new LiveReader(db);
         var tieBreak = new TieBreakService(
-            db, matches, new QuestionsService(db), reader, hub);
+            db, new QuestionsService(db), reader, hub);
 
         var services = new ServiceCollection();
         services.AddSingleton(db);

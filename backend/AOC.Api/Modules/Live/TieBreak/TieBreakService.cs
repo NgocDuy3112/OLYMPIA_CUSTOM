@@ -12,7 +12,6 @@ namespace AOC.Api.Modules.Live.TieBreak;
 
 public sealed class TieBreakService(
     AOCDbContext db,
-    MatchesService matches,
     QuestionsService questions,
     LiveReader reader,
     MatchHubRegistry hubs)
@@ -44,9 +43,8 @@ public sealed class TieBreakService(
     }
 
     public async Task<TieBreakState> StartAsync(
-        Guid matchId, IReadOnlyList<string> playerIds, int expectedVersion)
+        MatchEntity match, IReadOnlyList<string> playerIds, int expectedVersion)
     {
-        var match = await matches.GetMatchByIdAsync(matchId.ToString());
         if (match.Status != MatchStatus.LIVE) throw ApiException.Conflict("match is not LIVE");
 
         var seated = match.PlayersList
@@ -64,7 +62,7 @@ public sealed class TieBreakService(
         var state = TieBreakTurn.StartTieBreak(
             playerIds, bank.Select(question => question.Id.ToString()).ToList());
 
-        var store = new TieBreakStore(db, matchId);
+        var store = new TieBreakStore(db, match.Id);
         var next = await store.Transact(tx =>
         {
             LiveConflictError.AssertVersion(expectedVersion, tx.Version);
@@ -74,7 +72,7 @@ public sealed class TieBreakService(
             return Task.FromResult(state);
         });
 
-        await hubs.PublishAsync(matchId.ToString());
+        await hubs.PublishAsync(match.Id.ToString());
         return next;
     }
 

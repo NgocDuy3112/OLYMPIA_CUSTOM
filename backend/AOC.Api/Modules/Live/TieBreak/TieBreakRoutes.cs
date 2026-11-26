@@ -20,18 +20,18 @@ public static class TieBreakRoutes
             var expectedVersion = TieBreakSchemas.ExpectedVersion(body);
 
             var matches = http.RequestServices.GetRequiredService<MatchesService>();
-            var tournament = await matches.RequireMatchScopeAsync(tournamentId);
-            if (!TournamentAccess.CanWrite(tournament.Tournament, user))
+            var scope = await matches.RequireMatchScopeAsync(tournamentId, matchId);
+            if (!TournamentAccess.CanWrite(scope.Tournament, user))
                 throw ApiException.Forbidden("Only the owner or an admin may drive a live match");
 
             var live = http.RequestServices.GetRequiredService<LiveService>();
-            await live.RequireControllerAsync(Guid.Parse(matchId), user.Id);
+            await live.RequireControllerAsync(scope.Match, user.Id);
 
             var service = http.RequestServices.GetRequiredService<TieBreakService>();
             var state = action switch
             {
                 TieBreakAction.Start start => await service.StartAsync(
-                    Guid.Parse(matchId), start.PlayerIds, expectedVersion),
+                    scope.Match, start.PlayerIds, expectedVersion),
                 TieBreakAction.OpenBuzz => await service.OpenBuzzAsync(Guid.Parse(matchId), expectedVersion),
                 TieBreakAction.LockBuzz => await service.LockBuzzAsync(Guid.Parse(matchId), expectedVersion),
                 TieBreakAction.Judge judge => await service.JudgeAsync(

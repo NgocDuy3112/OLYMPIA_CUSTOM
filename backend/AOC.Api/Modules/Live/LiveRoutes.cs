@@ -40,12 +40,12 @@ public static class LiveRoutes
             }
 
             var scope = http.RequestServices.GetRequiredService<MatchesService>();
-            var tournament = await scope.RequireMatchScopeAsync(tournamentId);
-            if (!Shared.TournamentAccess.CanWrite(tournament.Tournament, user))
+            var matchScope = await scope.RequireMatchScopeAsync(tournamentId, matchId);
+            if (!Shared.TournamentAccess.CanWrite(matchScope.Tournament, user))
                 throw ApiException.Forbidden("Only the owner or an admin may drive a live match");
 
             var service = http.RequestServices.GetRequiredService<LiveService>();
-            await service.RequireControllerAsync(Guid.Parse(matchId), user.Id);
+            await service.RequireControllerAsync(matchScope.Match, user.Id);
             var next = await service.ApplyLiveActionAsync(
                 Guid.Parse(tournamentId), Guid.Parse(matchId), expectedVersion, action, user.Id);
 
@@ -175,13 +175,13 @@ public static class LiveRoutes
                 takeoverEl.ValueKind == JsonValueKind.True;
 
             var scope = http.RequestServices.GetRequiredService<MatchesService>();
-            var tournament = await scope.RequireMatchScopeAsync(tournamentId);
-            if (!Shared.TournamentAccess.CanWrite(tournament.Tournament, user))
+            var matchScope = await scope.RequireMatchScopeAsync(tournamentId, matchId);
+            if (!Shared.TournamentAccess.CanWrite(matchScope.Tournament, user))
                 throw ApiException.Forbidden("Only the owner or an admin may drive a live match");
 
             var service = http.RequestServices.GetRequiredService<LiveService>();
             var before = await service.ControllerOfAsync(Guid.Parse(matchId));
-            var controller = await service.ClaimControlAsync(Guid.Parse(matchId), user.Id, takeover);
+            var controller = await service.ClaimControlAsync(matchScope.Match, user.Id, takeover);
 
             if (before?.Id != controller.Id)
             {

@@ -27,10 +27,11 @@ public static class RtcRoutes
         app.MapPost("/portal/tournaments/{tournamentId}/matches/{matchId}/rtc/token", async (HttpContext http) =>
         {
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
+            var tournamentId = Validate.RouteUuid(http, "tournamentId");
             var matchId = Validate.RouteUuid(http, "matchId");
             var matches = http.RequestServices.GetRequiredService<Matches.MatchesService>();
 
-            var match = await matches.GetMatchByIdAsync(matchId);
+            await matches.RequireMatchScopeAsync(tournamentId, matchId);
             return Results.Json(MintFor(matchId, RtcRole.Operator, user.Id, user.DisplayName), JsonApi.Options);
         });
 
