@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.RateLimiting;
 using AOC.Api.Http;
+using AOC.Api.Modules.Live;
 using AOC.Api.Modules.Matches;
 using AOC.Api.Shared;
 using AOC.Infrastructure.Configuration;
@@ -29,9 +30,8 @@ public static class RtcRoutes
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
             var matchId = Validate.RouteUuid(http, "matchId");
-            var matches = http.RequestServices.GetRequiredService<Matches.MatchesService>();
 
-            await matches.RequireMatchScopeAsync(tournamentId, matchId);
+            await LiveMatchGuard.RequirePortalWriteAsync(http, tournamentId, matchId, user);
             return Results.Json(MintFor(matchId, RtcRole.Operator, user.Id, user.DisplayName), JsonApi.Options);
         });
 
