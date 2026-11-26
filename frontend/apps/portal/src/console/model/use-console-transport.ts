@@ -38,8 +38,9 @@ export function useConsoleTransport(tournamentId: string, matchId: string): Cons
     const writer = useLiveAction(tournamentId, matchId)
     const chainWriter = useLiveAction(tournamentId, matchId)
     const scoreWriter = useLiveAction(tournamentId, matchId)
+    const send = (action: LiveAction) => writer.mutate(action)
     const heartbeatError = useControllerHeartbeat(tournamentId, matchId)
-    const assistant = useConsoleAssistant()
+    const assistant = useConsoleAssistant(send)
     const live = useLive(tournamentId, matchId, clock.sync)
 
     const v = live.data
@@ -61,9 +62,6 @@ export function useConsoleTransport(tournamentId: string, matchId: string): Cons
     const host = useHostBroadcast(rtc.room)
     useAudioGate(rtc.room, projection?.audioGate)
     useMediaPolicy(rtc.room, projection?.mediaPolicy)
-
-    const send = (action: LiveAction) =>
-        writer.mutate(action)
 
     const sendChain = async (actions: LiveAction[]) => {
         for (const action of collapseKeywordVerdicts(actions)) {

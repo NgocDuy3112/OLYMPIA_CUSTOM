@@ -1,9 +1,13 @@
 import { pt } from "@shared/deck/geometry"
+import { Button } from "@shared/ui/button"
 import type { AssistantSurface } from "./model/use-console-assistant"
 
 export function AssistantSheet({ surface }: { surface: AssistantSurface }) {
     const hasContent =
-        surface.transcript.length > 0 || surface.proposals.length > 0 || surface.error !== null
+        surface.transcript.length > 0 ||
+        surface.proposals.length > 0 ||
+        surface.decisions.length > 0 ||
+        surface.error !== null
     if (!hasContent) return null
     return (
         <aside
@@ -26,7 +30,20 @@ export function AssistantSheet({ surface }: { surface: AssistantSurface }) {
                     {proposal.rationale !== undefined && (
                         <span className="text-foreground">{proposal.rationale}</span>
                     )}
+                    <div className="flex gap-[0.5cqw]">
+                        <Button size="sm" onClick={() => surface.apply(proposal.proposalId)}>
+                            Áp dụng
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => surface.dismiss(proposal.proposalId)}>
+                            Bỏ qua
+                        </Button>
+                    </div>
                 </div>
+            ))}
+            {surface.decisions.map((decision) => (
+                <p key={decision.proposalId} className="text-muted-foreground">
+                    {decision.outcome === "applied" ? "Đã áp dụng" : "Đã bỏ qua"} · {decision.action.kind}
+                </p>
             ))}
         </aside>
     )

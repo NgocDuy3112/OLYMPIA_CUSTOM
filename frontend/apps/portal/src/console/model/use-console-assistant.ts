@@ -14,16 +14,26 @@ export interface AssistantTranscriptEntry {
     done: boolean
 }
 
+export interface AssistantDecision {
+    proposalId: string
+    action: LiveAction
+    outcome: "applied" | "dismissed"
+}
+
 export interface AssistantSurface {
     transcript: AssistantTranscriptEntry[]
     proposals: AssistantProposal[]
+    decisions: AssistantDecision[]
     error: string | null
     ingest: (read: AssistantFrameRead) => void
+    apply: (proposalId: string) => void
+    dismiss: (proposalId: string) => void
 }
 
-export function useConsoleAssistant(): AssistantSurface {
+export function useConsoleAssistant(send: (action: LiveAction) => void): AssistantSurface {
     const [transcript, setTranscript] = useState<AssistantTranscriptEntry[]>([])
     const [proposals, setProposals] = useState<AssistantProposal[]>([])
+    const [decisions, setDecisions] = useState<AssistantDecision[]>([])
     const [error, setError] = useState<string | null>(null)
 
     const ingest = (read: AssistantFrameRead) => {
@@ -60,5 +70,21 @@ export function useConsoleAssistant(): AssistantSurface {
         }
     }
 
-    return { transcript, proposals, error, ingest }
+    const decide = (proposalId: string, outcome: AssistantDecision["outcome"]) => {
+        const proposal = proposals.find((item) => item.proposalId === proposalId)
+        if (proposal === undefined) return
+        if (outcome === "applied") send(proposal.action)
+        setProposals((current) => current.filter((item) => item.proposalId !== proposalId))
+        setDecisions((current) => [...current, { proposalId, action: proposal.action, outcome }])
+    }
+
+    return {
+        transcript,
+        proposals,
+        decisions,
+        error,
+        ingest,
+        apply: (proposalId) => decide(proposalId, "applied"),
+        dismiss: (proposalId) => decide(proposalId, "dismissed"),
+    }
 }
