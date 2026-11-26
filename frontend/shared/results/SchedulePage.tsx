@@ -9,6 +9,7 @@ import { MatchDrawer } from "@shared/results/schedule/MatchDrawer"
 import { StageTimeline } from "@shared/results/schedule/StageTimeline"
 import { ScheduleHeader } from "@shared/results/schedule/ScheduleHeader"
 import { formatDay } from "@shared/results/format"
+import { EmptyState } from "@shared/ui/state"
 import { Inbox } from "lucide-react"
 
 interface SchedulePageProps {
@@ -121,7 +122,13 @@ export function SchedulePage({
                     />
                 ))}
 
-                {groups.length === 0 && !liveMatch && <EmptyState />}
+                {groups.length === 0 && !liveMatch && (
+                    <EmptyState
+                        icon={Inbox}
+                        title="Hôm nay thật yên bình"
+                        description="Không có trận đấu nào diễn ra và hôm nay"
+                    />
+                )}
             </div>
 
         </div>
@@ -148,19 +155,6 @@ export function SchedulePage({
                     if (!next) closeMatch()
                 }}
             />
-        </div>
-    )
-}
-
-
-function EmptyState() {
-    return (
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed px-6 py-12 text-center">
-            <Inbox className="size-6 text-muted-foreground" aria-hidden />
-            <p className="font-medium">Hôm nay thật yên bình</p>
-            <p className="text-sm text-muted-foreground">
-                Không có trận đấu nào diễn ra và hôm nay
-            </p>
         </div>
     )
 }

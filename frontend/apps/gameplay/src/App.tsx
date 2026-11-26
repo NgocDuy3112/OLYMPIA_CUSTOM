@@ -11,42 +11,13 @@ import { useSchedule, useTournament, type TournamentDetail } from "@shared/resul
 import { IconField } from "@shared/decors/icon-field"
 import { GlowWash } from "@shared/decors/glow-wash"
 import { ErrorBoundary } from "@shared/lib/error-boundary"
+import { ErrorPanel, LoadingState } from "@shared/ui/state"
 import { ChangePasswordPage } from "@shared/results/ChangePasswordPage"
 
 interface TournamentContext { tournament: TournamentDetail }
 
 function isNotFound(error: unknown): boolean {
     return error instanceof ApiError && error.status === 404
-}
-
-function LoadingState() {
-    return (
-        <div
-            role="status"
-            aria-label="Đang tải"
-            className="mx-auto w-full max-w-360 px-4 py-6 md:py-10"
-        >
-            <div className="h-96 animate-pulse rounded-xl bg-muted" />
-        </div>
-    )
-}
-
-function ErrorState({ onRetry }: { onRetry: () => void }) {
-    return (
-        <div className="mx-auto flex w-full max-w-360 flex-col items-center gap-3 px-4 py-16 text-center">
-            <p className="font-medium">Không tải được dữ liệu giải đấu</p>
-            <p className="text-sm text-muted-foreground">
-                Kết nối tới máy chủ thất bại. Vui lòng thử lại.
-            </p>
-            <button
-                type="button"
-                onClick={onRetry}
-                className="rounded-md border border-border px-3 py-1.5 text-sm transition-colors hover:bg-muted"
-            >
-                Thử lại
-            </button>
-        </div>
-    )
 }
 
 function TournamentLayout() {
@@ -56,7 +27,11 @@ function TournamentLayout() {
     if (query.isPending) return <LoadingState />
     if (query.error) {
         if (isNotFound(query.error)) return <NotFoundPage />
-        return <ErrorState onRetry={() => void query.refetch()} />
+        return <ErrorPanel
+                title="Không tải được dữ liệu giải đấu"
+                message="Kết nối tới máy chủ thất bại. Vui lòng thử lại."
+                onRetry={() => void query.refetch()}
+            />
     }
 
     return <Outlet context={{ tournament: query.data }} />
@@ -69,7 +44,11 @@ function MatchRoute() {
     const selfCam = useSelfBroadcast(id ?? "")
 
     if (schedule.isPending) return <LoadingState />
-    if (schedule.error) return <ErrorState onRetry={() => void schedule.refetch()} />
+    if (schedule.error) return <ErrorPanel
+                title="Không tải được dữ liệu giải đấu"
+                message="Kết nối tới máy chủ thất bại. Vui lòng thử lại."
+                onRetry={() => void schedule.refetch()}
+            />
 
     const row = schedule.data.items.find((m) => m.id === id)
     if (!row) return <NotFoundPage />

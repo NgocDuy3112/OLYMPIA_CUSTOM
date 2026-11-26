@@ -20,6 +20,7 @@ import { CodePage } from "./pages/CodePage"
 import { ErrorBoundary } from "@shared/lib/error-boundary"
 import { IconField } from "@shared/decors/icon-field"
 import { GlowWash } from "@shared/decors/glow-wash"
+import { ErrorPanel, LoadingState } from "@shared/ui/state"
 
 export function ResultsNav({ tournamentId }: { tournamentId?: string }) {
     const [enterOpen, setEnterOpen] = useState(false)
@@ -115,30 +116,6 @@ function AppShell() {
     )
 }
 
-function LoadingState() {
-    return (
-        <div role="status" aria-label="Đang tải" className="mx-auto w-full max-w-360 px-4 py-6 md:py-10">
-            <div className="h-96 animate-pulse rounded-xl bg-muted" />
-        </div>
-    )
-}
-
-function ErrorState({ onRetry }: { onRetry: () => void }) {
-    return (
-        <div className="mx-auto flex w-full max-w-360 flex-col items-center gap-3 px-4 py-16 text-center">
-            <p className="font-medium">Không tải được dữ liệu giải đấu</p>
-            <p className="text-sm text-muted-foreground">Kết nối tới máy chủ thất bại. Vui lòng thử lại.</p>
-            <button
-                type="button"
-                onClick={onRetry}
-                className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
-            >
-                Thử lại
-            </button>
-        </div>
-    )
-}
-
 interface TournamentContext {
     tournament: TournamentDetail
 }
@@ -148,7 +125,13 @@ function TournamentLayout() {
     const query = useTournament(tournamentId ?? "")
 
     if (query.isPending) return <LoadingState />
-    if (query.error) return <ErrorState onRetry={() => void query.refetch()} />
+    if (query.error) return (
+        <ErrorPanel
+            title="Không tải được dữ liệu giải đấu"
+            message="Kết nối tới máy chủ thất bại. Vui lòng thử lại."
+            onRetry={() => void query.refetch()}
+        />
+    )
 
     return (
         <>
@@ -197,7 +180,13 @@ function RootRedirect() {
     const list = useTournamentList()
 
     if (list.isPending || !list.data) return <LoadingState />
-    if (list.error) return <ErrorState onRetry={() => void list.refetch()} />
+    if (list.error) return (
+        <ErrorPanel
+            title="Không tải được dữ liệu giải đấu"
+            message="Kết nối tới máy chủ thất bại. Vui lòng thử lại."
+            onRetry={() => void list.refetch()}
+        />
+    )
 
     const tournaments = list.data.tournaments
     const current = tournaments.find((t) => t.current) ?? tournaments[tournaments.length - 1]
