@@ -44,6 +44,57 @@ export type AssistantFrameRead =
     | { ok: true; frame: AssistantFrame }
     | { ok: false; error: string }
 
+const INVALID_ASSISTANT_FRAME = "Khung assistant không hợp lệ"
+
+function readToolCall(value: unknown): AssistantToolCall | null {
+    if (typeof value !== "object" || value === null) return null
+    const call = value as { proposalId?: unknown; action?: unknown; rationale?: unknown }
+    if (typeof call.proposalId !== "string" || call.proposalId.length === 0) return null
+    if (typeof call.action !== "object" || call.action === null) return null
+    if (typeof (call.action as { kind?: unknown }).kind !== "string") return null
+    if (call.rationale !== undefined && typeof call.rationale !== "string") return null
+    const toolCall: AssistantToolCall = { proposalId: call.proposalId, action: call.action }
+    if (call.rationale !== undefined) toolCall.rationale = call.rationale
+    return toolCall
+}
+
+export function readAssistantFrame(envelope: unknown): AssistantFrameRead {
+    if (typeof envelope !== "object" || envelope === null) {
+        return { ok: false, error: INVALID_ASSISTANT_FRAME }
+    }
+    const { type, data } = envelope as { type?: unknown; data?: unknown }
+    if (type !== "assistant") return { ok: false, error: INVALID_ASSISTANT_FRAME }
+    if (typeof data !== "object" || data === null) {
+        return { ok: false, error: "Khung assistant không có dữ liệu" }
+    }
+    const payload = data as { turnId?: unknown; delta?: unknown; toolCall?: unknown; done?: unknown }
+    if (typeof payload.turnId !== "string" || payload.turnId.length === 0) {
+        return { ok: false, error: "Khung assistant thiếu turnId" }
+    }
+    const frame: AssistantFrame = { turnId: payload.turnId }
+    if (payload.delta !== undefined) {
+        if (typeof payload.delta !== "string") {
+            return { ok: false, error: "Khung assistant có delta không hợp lệ" }
+        }
+        frame.delta = payload.delta
+    }
+    if (payload.done !== undefined) {
+        if (typeof payload.done !== "boolean") {
+            return { ok: false, error: "Khung assistant có done không hợp lệ" }
+        }
+        frame.done = payload.done
+    }
+    if (payload.toolCall !== undefined) {
+        const toolCall = readToolCall(payload.toolCall)
+        if (toolCall === null) return { ok: false, error: "Đề xuất assistant không hợp lệ" }
+        frame.toolCall = toolCall
+    }
+    if (frame.delta === undefined && frame.toolCall === undefined && frame.done !== true) {
+        return { ok: false, error: "Khung assistant không có nội dung" }
+    }
+    return { ok: true, frame }
+}
+
 function envelopeOf(frame: Frame): unknown {
     if (frame.target !== "message" || !Array.isArray(frame.arguments)) return undefined
     return frame.arguments[0]

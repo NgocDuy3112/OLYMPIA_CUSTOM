@@ -41,7 +41,7 @@ export function useConsoleTransport(tournamentId: string, matchId: string): Cons
     const send = (action: LiveAction) => writer.mutate(action)
     const heartbeatError = useControllerHeartbeat(tournamentId, matchId)
     const assistant = useConsoleAssistant(send)
-    const live = useLive(tournamentId, matchId, clock.sync)
+    const live = useLive(tournamentId, matchId, clock.sync, assistant.ingest)
 
     const v = live.data
     const projection = v?.projection

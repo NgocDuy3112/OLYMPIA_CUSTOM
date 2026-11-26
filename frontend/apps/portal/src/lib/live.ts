@@ -3,7 +3,7 @@ import { api } from "@shared/lib/api"
 import { logError } from "@shared/lib/log"
 import { playSfx, stopSfx } from "@shared/lib/sfx"
 import { isOlderView, keepNewestRead } from "@shared/lib/view-version"
-import { useSocketStream, type StreamStatus } from "@shared/lib/ws"
+import { readAssistantFrame, useSocketStream, type AssistantFrameRead, type StreamStatus } from "@shared/lib/ws"
 import type { LiveAction, Verdict } from "./live-actions"
 import type {
     ButPhaConsole,
@@ -78,12 +78,17 @@ const liveKey = (tournamentId: string, matchId: string) =>
 
 interface ConsoleStreamFrame {
     v?: number
-    type?: "console" | "error" | "sfx"
+    type?: "console" | "error" | "sfx" | "assistant"
     at?: string
     data?: { view?: LiveResponse; name?: string; url?: string; stop?: boolean }
 }
 
-export function useLive(tournamentId: string, matchId: string, onFrame?: (at: string) => void) {
+export function useLive(
+    tournamentId: string,
+    matchId: string,
+    onFrame?: (at: string) => void,
+    onAssistant?: (read: AssistantFrameRead) => void
+) {
     const queryClient = useQueryClient()
 
     const stream = useSocketStream(
@@ -96,6 +101,11 @@ export function useLive(tournamentId: string, matchId: string, onFrame?: (at: st
             if (frame.type === "sfx") {
                 if (frame.data?.stop === true) stopSfx()
                 else if (frame.data?.url) playSfx(frame.data.url)
+                return
+            }
+
+            if (frame.type === "assistant") {
+                onAssistant?.(readAssistantFrame(frame))
                 return
             }
 
