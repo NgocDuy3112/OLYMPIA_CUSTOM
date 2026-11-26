@@ -69,7 +69,7 @@ type ConsoleModel = {
 
 export function useConsoleModel(tournamentId: string, matchId: string): ConsoleModel {
     const transport = useConsoleTransport(tournamentId, matchId)
-    const { live, writer, v, projection, roundId, stage, open, questions, table, byId, peers, peerControls, send, sendChain, userSeats } = transport
+    const { live, writer, v, projection, roundId, stage, open, questions, table, byId, peers, peerControls, send, sendChain } = transport
 
     const nav = useConsoleNav()
     const transition = useTransitionMatch(tournamentId)
@@ -192,7 +192,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
                     const plan = navigatorStartPlan(
                         lobby.data!,
                         roundId,
-                        startAction(roundId, { phase, playerIds: userSeats, questions })
+                        startAction(roundId, { phase, playerIds: lobby.data.table.map((row) => row.id), questions })
                     )
                     for (const action of plan) {
                         await writer.mutateAsync(action)

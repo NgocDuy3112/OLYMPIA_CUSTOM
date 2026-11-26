@@ -113,6 +113,14 @@ describe("the console's phase machine — which screen a phase draws", () => {
         expect(await screen.findByRole("button", { name: "Về sảnh" })).toBeTruthy()
     })
 
+    it("never asks for the tournament's match list", async () => {
+        const { fetchMock } = draw()
+        await screen.findByRole("button", { name: "Về sảnh" })
+
+        const requested = fetchMock.mock.calls.map(([input, init]) => `${init?.method ?? "GET"} ${String(input)}`)
+        expect(requested).not.toContain(MATCHES)
+    })
+
     it("shows the waiting room when the read fails and the lobby answers", async () => {
         draw({ [LIVE]: { body: { message: "Trận chưa mở" }, status: 500 } })
         expect(await screen.findByRole("button", { name: /Khởi động · Riêng/ })).toBeInTheDocument()

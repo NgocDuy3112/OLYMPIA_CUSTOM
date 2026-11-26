@@ -3,7 +3,6 @@ import { fetchOperatorRtcToken, useAudioGate, useHostBroadcast, useMediaPolicy, 
 import { useLive, useLiveAction, type ConsoleQuestion, type LiveResponse, type Projection } from "@/lib/live"
 import type { LiveAction } from "@/lib/live-actions"
 import { collapseKeywordVerdicts } from "@/lib/live-actions"
-import { useMatches } from "@/lib/tournament"
 import { useControllerHeartbeat } from "./use-controller-heartbeat"
 
 export interface ConsoleTransport {
@@ -33,7 +32,6 @@ export interface ConsoleTransport {
 export function useConsoleTransport(tournamentId: string, matchId: string): ConsoleTransport {
     const clock = useServerClock()
     const live = useLive(tournamentId, matchId, clock.sync)
-    const matches = useMatches(tournamentId)
     const writer = useLiveAction(tournamentId, matchId)
     const heartbeatError = useControllerHeartbeat(tournamentId, matchId)
 
@@ -70,8 +68,7 @@ export function useConsoleTransport(tournamentId: string, matchId: string): Cons
         }
     }
 
-    const userSeats = (matches.data?.items.find((m) => m.id === matchId)?.players ?? [])
-        .map((seat) => seat.userId)
+    const userSeats = (projection?.table ?? []).map((row) => row.id)
 
     let flash: string | null = null
     if (heartbeatError !== null) flash = heartbeatError
