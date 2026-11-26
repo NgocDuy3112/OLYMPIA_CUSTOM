@@ -1,7 +1,8 @@
 import { Link, Outlet, useLocation } from "react-router-dom"
-import { BookOpen, KeyRound, Trophy, Users, UsersRound } from "lucide-react"
+import { BookOpen, KeyRound, LogOut, Trophy, Users, UsersRound } from "lucide-react"
+import { Button } from "@shared/ui/button"
 import { SfxUnlockBar } from "@shared/ui/sfx-unlock-bar"
-import { useMe } from "@/lib/session"
+import { useLogout, useMe } from "@/lib/session"
 
 
 const NAV = [
@@ -20,6 +21,7 @@ const NAV = [
 
 export function PortalShell() {
     const { data: me } = useMe()
+    const logout = useLogout()
     const { pathname } = useLocation()
 
     return (
@@ -60,6 +62,19 @@ export function PortalShell() {
                         )
                     })}
                 </nav>
+
+                <div className="mt-auto border-t p-2">
+                    <Button
+                        variant="ghost"
+                        className="w-full justify-start gap-2.5"
+                        aria-label="Sign out"
+                        disabled={logout.isPending}
+                        onClick={() => logout.mutate()}
+                    >
+                        <LogOut className="size-4 shrink-0" aria-hidden />
+                        Sign out
+                    </Button>
+                </div>
             </aside>
 
             <main className="min-w-0 flex-1">

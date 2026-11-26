@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api, ApiError } from "@shared/lib/api"
 
 export const ME_QUERY_KEY = ["me"] as const
@@ -22,6 +22,16 @@ export function useMe() {
     })
 }
 
+
+export function useLogout() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: () => api<{ ok: true }>("/portal/auth/logout", { method: "POST" }),
+        onSuccess: () => {
+            queryClient.setQueryData(ME_QUERY_KEY, null)
+        },
+    })
+}
 
 export function isUnauthorized(error: unknown): boolean {
     return error instanceof ApiError && error.status === 401

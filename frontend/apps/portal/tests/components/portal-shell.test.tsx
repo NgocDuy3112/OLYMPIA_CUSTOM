@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { screen } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { MemoryRouter, Route, Routes } from "react-router-dom"
 
 import { PortalShell } from "@/components/portal-shell"
@@ -49,7 +50,7 @@ describe("PortalShell", () => {
         expect(screen.getByText("Questions")).toBeInTheDocument()
         expect(screen.getByText("MCP keys")).toBeInTheDocument()
         expect(await screen.findByText("Operators")).toBeInTheDocument()
-        expect(screen.queryByRole("button", { name: /Sign out/ })).toBeNull()
+        expect(screen.getByRole("button", { name: /Sign out/ })).toBeInTheDocument()
     })
 
     it("hides the Operators item from a non-admin", async () => {
@@ -88,5 +89,27 @@ describe("PortalShell", () => {
         expect(await screen.findByText("tournament page")).toBeInTheDocument()
         expect(screen.queryByText(/LIVE/)).toBeNull()
         expect(screen.queryByText(/t1/)).toBeNull()
+    })
+
+    it("signs out through the portal endpoint", async () => {
+        const user = userEvent.setup()
+        const fetchMock = stubFetch({
+            "GET /portal/auth/me": me("ADMIN"),
+            "POST /portal/auth/logout": { body: { ok: true } },
+        })
+        renderShell("/")
+
+        await user.click(await screen.findByRole("button", { name: /Sign out/ }))
+
+        expect(
+            fetchMock.mock.calls.some(
+                ([url, init]) => url === "/portal/auth/logout" && init?.method === "POST"
+            )
+        ).toBe(true)
+        expect(
+            fetchMock.mock.calls.some(
+                ([url, init]) => url === "/api/auth/logout" && init?.method === "POST"
+            )
+        ).toBe(false)
     })
 })
