@@ -146,6 +146,7 @@ public class AuditStreamHubTests : IDisposable
             Assert.True(context.Aborted);
             var envelope = Assert.IsType<Dictionary<string, object?>>(Assert.Single(Assert.Single(sent).Args));
             Assert.Equal("error", envelope["type"]);
+            Assert.Equal(4401, envelope["code"]);
         }
         finally
         {
@@ -164,6 +165,7 @@ public class AuditStreamHubTests : IDisposable
             Assert.True(context.Aborted);
             var envelope = Assert.IsType<Dictionary<string, object?>>(Assert.Single(Assert.Single(sent).Args));
             Assert.Equal("error", envelope["type"]);
+            Assert.Equal(4403, envelope["code"]);
         }
         finally
         {

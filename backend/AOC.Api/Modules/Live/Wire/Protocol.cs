@@ -9,19 +9,31 @@ public static class Protocol
 
     public const int MaxClientMessageBytes = 64 * 1024;
 
-    public const int SessionEndedCloseCode = 4401;
-    public const int NotSeatedCloseCode = 4403;
+    public const int UnauthenticatedCloseCode = 4401;
+    public const int ForbiddenCloseCode = 4403;
+
+    public static int? CloseCodeFor(int status) => status switch
+    {
+        401 => UnauthenticatedCloseCode,
+        403 => ForbiddenCloseCode,
+        _ => null
+    };
 
     private static string NowIso() => DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
 
-    private static Dictionary<string, object?> Envelope(string type, string? requestId, object data) => new()
+    private static Dictionary<string, object?> Envelope(string type, string? requestId, object data, int? closeCode = null)
     {
-        ["v"] = Version,
-        ["type"] = type,
-        ["at"] = NowIso(),
-        ["requestId"] = requestId,
-        ["data"] = data
-    };
+        Dictionary<string, object?> envelope = new()
+        {
+            ["v"] = Version,
+            ["type"] = type,
+            ["at"] = NowIso(),
+            ["requestId"] = requestId,
+            ["data"] = data
+        };
+        if (closeCode is not null) envelope["code"] = closeCode;
+        return envelope;
+    }
 
     public static Dictionary<string, object?> View(object view, string? requestId = null)
         => Envelope("view", requestId, new Dictionary<string, object?> { ["view"] = view });
@@ -36,12 +48,13 @@ public static class Protocol
             ["result"] = result
         });
 
-    public static Dictionary<string, object?> Error(string code, string message, string? requestId = null)
+    public static Dictionary<string, object?> Error(
+        string code, string message, string? requestId = null, int? closeCode = null)
         => Envelope("error", requestId, new Dictionary<string, object?>
         {
             ["code"] = code,
             ["message"] = message
-        });
+        }, closeCode);
 
     public static Dictionary<string, object?> Sfx(string name, string url)
         => Envelope("sfx", null, new Dictionary<string, object?>

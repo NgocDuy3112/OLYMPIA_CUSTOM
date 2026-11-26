@@ -16,7 +16,8 @@ public sealed class AuditStreamHub : Hub
         }
         catch (ApiException ex)
         {
-            await Clients.Caller.SendAsync("message", Protocol.Error(ex.Error, ex.Message));
+            await Clients.Caller.SendAsync("message",
+                Protocol.Error(ex.Error, ex.Message, closeCode: Protocol.CloseCodeFor(ex.Status)));
             Context.Abort();
             return;
         }

@@ -168,6 +168,7 @@ app.UseCors(policy => policy
 app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseRateLimiter();
 app.UseMiddleware<ErrorHandlingMiddleware>();
+app.UseMiddleware<HubAuthMiddleware>();
 
 app.MapGet("/health", () => Results.Json(new { status = "ok" }, JsonApi.Options));
 

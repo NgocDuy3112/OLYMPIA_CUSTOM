@@ -46,6 +46,15 @@ public abstract class LiveHubBase(MatchHubRegistry registry) : Hub
 
     protected void HoldSubscription(Action unsubscribe) => stopSubscription = unsubscribe;
 
+    protected Task RefuseAsync(ApiException error)
+        => RefuseAsync(Protocol.CloseCodeFor(error.Status), error.Error, error.Message);
+
+    protected async Task RefuseAsync(int? closeCode, string error, string message)
+    {
+        await Clients.Caller.SendAsync("message", Protocol.Error(error, message, closeCode: closeCode));
+        Context.Abort();
+    }
+
     protected void ReleaseSubscription()
     {
         stopSubscription?.Invoke();
@@ -74,7 +83,8 @@ public abstract class LiveHubBase(MatchHubRegistry registry) : Hub
                     using var scope = scopes.CreateScope();
                     var reader = scope.ServiceProvider.GetRequiredService<LiveReader>();
                     if (await reader.IsSessionActiveAsync(userId, tokenVersion)) continue;
-                    await PushAsync(Protocol.Error("SESSION_ENDED", "session ended"));
+                    await PushAsync(Protocol.Error("SESSION_ENDED", "session ended",
+                        closeCode: Protocol.UnauthenticatedCloseCode));
                     stop();
                     connection.Abort();
                     break;
@@ -127,8 +137,7 @@ public sealed class PlayerLiveHub(
         }
         catch (ApiException ex)
         {
-            await Clients.Caller.SendAsync("message", Protocol.Error(ex.Error, ex.Message));
-            Context.Abort();
+            await RefuseAsync(ex);
             return;
         }
 
@@ -139,8 +148,7 @@ public sealed class PlayerLiveHub(
         }
         catch (ApiException ex)
         {
-            await Clients.Caller.SendAsync("message", Protocol.Error(ex.Error, ex.Message));
-            Context.Abort();
+            await RefuseAsync(ex);
             return;
         }
 
@@ -148,9 +156,7 @@ public sealed class PlayerLiveHub(
         var match = await matches.GetMatchByIdAsync(MatchId);
         if (!MatchSeats.IsSeatedInMatch(match.PlayersList, user.Id))
         {
-            await Clients.Caller.SendAsync("message",
-                Protocol.Error("NOT_SEATED", "not a player in this match"));
-            Context.Abort();
+            await RefuseAsync(Protocol.ForbiddenCloseCode, "NOT_SEATED", "not a player in this match");
             return;
         }
 
@@ -301,8 +307,7 @@ public sealed class ConsoleLiveHub(
         }
         catch (ApiException ex)
         {
-            await Clients.Caller.SendAsync("message", Protocol.Error(ex.Error, ex.Message));
-            Context.Abort();
+            await RefuseAsync(ex);
             return;
         }
 
@@ -313,8 +318,7 @@ public sealed class ConsoleLiveHub(
         }
         catch (ApiException ex)
         {
-            await Clients.Caller.SendAsync("message", Protocol.Error(ex.Error, ex.Message));
-            Context.Abort();
+            await RefuseAsync(ex);
             return;
         }
 
@@ -325,8 +329,7 @@ public sealed class ConsoleLiveHub(
         }
         catch (ApiException ex)
         {
-            await Clients.Caller.SendAsync("message", Protocol.Error(ex.Error, ex.Message));
-            Context.Abort();
+            await RefuseAsync(ex);
             return;
         }
 
@@ -386,8 +389,7 @@ public sealed class SpectateLiveHub(
         }
         catch (ApiException ex)
         {
-            await Clients.Caller.SendAsync("message", Protocol.Error(ex.Error, ex.Message));
-            Context.Abort();
+            await RefuseAsync(ex);
             return;
         }
 
@@ -398,8 +400,7 @@ public sealed class SpectateLiveHub(
         }
         catch (ApiException ex)
         {
-            await Clients.Caller.SendAsync("message", Protocol.Error(ex.Error, ex.Message));
-            Context.Abort();
+            await RefuseAsync(ex);
             return;
         }
 
