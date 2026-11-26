@@ -93,9 +93,14 @@ function useMatchHub(): HubInvoker {
     return hub
 }
 
+export function liveRefetchInterval(streamStatus: StreamStatus): 3_000 | false {
+    return streamStatus === "live" ? false : 3_000
+}
+
 export function useLiveMatch(matchId: string, enabled: boolean): UseLiveMatch {
     const queryClient = useQueryClient()
     const clock = useServerClock()
+    const hub = useMatchHub()
 
     const query = useQuery({
         queryKey: liveKey(matchId),
@@ -108,16 +113,8 @@ export function useLiveMatch(matchId: string, enabled: boolean): UseLiveMatch {
         // the room on: the cache keeps whichever version is newer.
         structuralSharing: (old, next) =>
             keepNewestRead(old as LiveView | undefined, next as LiveView),
-        // The stream is the primary source. While it is down the view is stale
-        // by definition, so fall back to polling instead of freezing the deck.
-        refetchInterval: (state) => {
-            if (state.state.data === undefined) return false
-            if (state.state.error) return 3_000
-            return false
-        },
+        refetchInterval: liveRefetchInterval(hub.status),
     })
-
-    const hub = useMatchHub()
 
     // Missed frames are never replayed: after every (re)connect pull the
     // authoritative view once, so a drop heals instead of leaving a dead screen.
@@ -149,7 +146,7 @@ export function useLiveLobby(matchId: string, enabled: boolean, streamStatus: St
         queryKey: lobbyKey(matchId),
         queryFn: () => api<LobbyData>(`/api/matches/${matchId}/lobby`),
         enabled: enabled && Boolean(matchId),
-        refetchInterval: streamStatus === "live" ? false : 3_000,
+        refetchInterval: liveRefetchInterval(streamStatus),
         retry: false,
         staleTime: 0,
     })

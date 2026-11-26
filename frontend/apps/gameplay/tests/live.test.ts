@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { playerScreenOf, type LiveView } from "@/lib/live"
+import { liveRefetchInterval, playerScreenOf, type LiveView } from "@/lib/live"
 
 const view = (over: Partial<LiveView>): LiveView => ({
     matchId: "m1",
@@ -85,5 +85,18 @@ describe("playerScreenOf — degrading kindly", () => {
         )).toBe("lobby")
         expect(playerScreenOf(view({ roundId: "mystery-round", stage: "pending" }))).toBe("lobby")
         expect(playerScreenOf(view({ roundId: "mystery-round", stage: "phase2" }))).toBe("lobby")
+    })
+})
+
+describe("liveRefetchInterval — the stream owns the view while it is up", () => {
+    it("polls the REST view whenever the hub stream is not live", () => {
+        expect(liveRefetchInterval("idle")).toBe(3_000)
+        expect(liveRefetchInterval("connecting")).toBe(3_000)
+        expect(liveRefetchInterval("reconnecting")).toBe(3_000)
+        expect(liveRefetchInterval("stopped")).toBe(3_000)
+    })
+
+    it("stops polling once the stream is live — frames keep the view current", () => {
+        expect(liveRefetchInterval("live")).toBe(false)
     })
 })
