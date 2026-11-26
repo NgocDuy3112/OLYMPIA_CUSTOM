@@ -15,6 +15,8 @@ public sealed record AuditEventRow(
     string? UserAgent,
     DateTime CreatedAt);
 
+public sealed record AuditActionsResponse(string[] Actions);
+
 public sealed class AuditFilter
 {
     public IReadOnlyList<string> Actions { get; init; } = [];

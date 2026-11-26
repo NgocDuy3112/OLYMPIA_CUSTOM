@@ -16,6 +16,13 @@ public static class AuditRoutes
             return Results.Json(page, JsonApi.Options);
         });
 
+        app.MapGet("/portal/audit-events/actions", async (HttpContext http) =>
+        {
+            await http.RequireRoleAsync(Surface.PORTAL, "ADMIN");
+            var service = http.RequestServices.GetRequiredService<AuditEventsService>();
+            return Results.Json(await service.ActionsAsync(), JsonApi.Options);
+        });
+
         return app;
     }
 }

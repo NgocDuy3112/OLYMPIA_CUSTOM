@@ -21,6 +21,13 @@ public sealed class AuditEventStore(AOCDbContext db)
         return Pagination.Result(items, total, page);
     }
 
+    public async Task<IReadOnlyList<string>> ActionsAsync()
+        => await db.AuditEvents.AsNoTracking()
+            .Select(e => e.Action)
+            .Distinct()
+            .OrderBy(action => action)
+            .ToListAsync();
+
     private async Task<IQueryable<AuditEventEntity>> FilteredAsync(AuditFilter filter)
     {
         var query = db.AuditEvents.AsNoTracking();
