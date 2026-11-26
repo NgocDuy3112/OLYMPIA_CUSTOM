@@ -32,19 +32,30 @@ public class McpToolScopeTests
     }
 
     [Fact]
-    public void The_catalogue_lists_every_tool_of_a_scope()
+    public void The_catalogue_lists_every_tool_of_a_grantable_scope_and_hides_the_reserved_one()
     {
         var scopes = McpToolCatalog.Scopes();
+        var registered = McpToolCatalog.Tools.Select(tool => tool.Name).ToHashSet();
 
-        Assert.Equal(["READ", "WRITE", "ANNOUNCE"], scopes.Select(scope => scope.Id));
+        Assert.Equal(["READ", "WRITE"], scopes.Select(scope => scope.Id));
+        Assert.All(scopes, scope => Assert.All(scope.Tools, tool => Assert.Contains(tool, registered)));
         Assert.Equal(
             McpToolScope.All.Where(entry => entry.Value == McpScope.WRITE)
                 .Select(entry => entry.Key).Order(StringComparer.Ordinal),
             scopes.Single(scope => scope.Id == "WRITE").Tools);
         Assert.True(scopes.Single(scope => scope.Id == "READ").Default);
         Assert.False(scopes.Single(scope => scope.Id == "WRITE").Default);
-        Assert.False(scopes.Single(scope => scope.Id == "ANNOUNCE").Default);
         Assert.All(scopes, scope => Assert.False(string.IsNullOrWhiteSpace(scope.Title)));
+
+        Assert.DoesNotContain(scopes, scope => scope.Id == McpScope.ANNOUNCE.ToString());
+    }
+
+    [Fact]
+    public void The_announce_scope_stays_reserved_until_a_tool_enforces_it()
+    {
+        Assert.Contains(McpScope.ANNOUNCE, McpToolScope.ReservedScopes);
+        Assert.Equal(McpScope.ANNOUNCE, McpToolScope.ScopeOf(McpToolNames.Announce));
+        Assert.DoesNotContain(McpToolCatalog.Tools, tool => tool.Name == McpToolNames.Announce);
     }
 
     [DbFact]

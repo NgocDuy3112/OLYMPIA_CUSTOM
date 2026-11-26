@@ -48,7 +48,8 @@ public class McpCatalogueTests
         var snapshot = McpCatalogue.Snapshot();
 
         Assert.Equal(McpToolCatalog.Tools.Count, snapshot.GetProperty("tools").GetArrayLength());
-        Assert.Equal(Enum.GetValues<McpScope>().Length, snapshot.GetProperty("scopes").GetArrayLength());
+        Assert.Equal(Enum.GetValues<McpScope>().Length - McpToolScope.ReservedScopes.Count,
+            snapshot.GetProperty("scopes").GetArrayLength());
         Assert.Contains("CONFLICT", snapshot.GetProperty("conventions").GetProperty("conflict").GetString());
     }
 

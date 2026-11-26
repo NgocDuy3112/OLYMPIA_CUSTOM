@@ -61,6 +61,7 @@ public static class McpToolCatalog
 
     public static IReadOnlyList<McpScopeInfo> Scopes()
         => Enum.GetValues<McpScope>()
+            .Where(scope => !McpToolScope.ReservedScopes.Contains(scope))
             .Select(scope => new McpScopeInfo(
                 scope.ToString(),
                 TitleOf(scope),
