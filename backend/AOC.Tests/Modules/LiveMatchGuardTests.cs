@@ -84,8 +84,7 @@ public class LiveMatchGuardTests
     private static HttpContext ContextFor(AOCDbContext db)
     {
         var hub = new MatchHubRegistry(NullLogger<MatchHubRegistry>.Instance);
-        var matches = new MatchesService(
-            db, new StandingsService(db), NullLogger<MatchesService>.Instance);
+        var matches = new MatchesService(db, new MatchAssemblyService(db));
         var reader = new LiveReader(db);
         var tieBreak = new TieBreakService(
             db, new QuestionReadStore(db), reader, hub);

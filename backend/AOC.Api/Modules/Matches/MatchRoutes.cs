@@ -49,11 +49,11 @@ public static class MatchRoutes
             await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
             var matchId = Validate.RouteUuid(http, "matchId");
-            var service = http.RequestServices.GetRequiredService<MatchesService>();
+            var assembly = http.RequestServices.GetRequiredService<MatchAssemblyService>();
 
             var scope = await TournamentAccess.RequireMatchAsync(http, tournamentId, matchId, write: false);
 
-            var assemblyEvents = await service.GetMatchAssemblyEventsAsync(matchId);
+            var assemblyEvents = await assembly.EventsAsync(matchId);
             return Results.Json(MatchDetail.Of(scope.Match, assemblyEvents), JsonApi.Options);
         });
 
@@ -63,12 +63,12 @@ public static class MatchRoutes
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
             var matchId = Validate.RouteUuid(http, "matchId");
             var body = await Validate.ReadJsonBodyAsync(http);
-            var service = http.RequestServices.GetRequiredService<MatchesService>();
+            var scoring = http.RequestServices.GetRequiredService<MatchScoringService>();
 
             await TournamentAccess.RequireWriteAsync(http, tournamentId);
 
             var input = MatchSchemas.ParseSetResults(body);
-            var match = await service.SetMatchResultsAsync(tournamentId, matchId, input.Totals);
+            var match = await scoring.SetMatchResultsAsync(tournamentId, matchId, input.Totals);
 
             await AuditAsync(http, "match_results_saved", matchId, new Dictionary<string, object?>
             {
@@ -117,13 +117,13 @@ public static class MatchRoutes
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
             var matchId = Validate.RouteUuid(http, "matchId");
             var body = await Validate.ReadJsonBodyAsync(http);
-            var service = http.RequestServices.GetRequiredService<MatchesService>();
+            var transitions = http.RequestServices.GetRequiredService<MatchTransitionService>();
 
             var scope = await TournamentAccess.RequireMatchAsync(http, tournamentId, matchId, write: true);
 
             var status = MatchSchemas.ParseTransition(body);
             var previous = scope.Match;
-            var match = await service.TransitionMatchAsync(tournamentId, matchId, status);
+            var match = await transitions.TransitionMatchAsync(tournamentId, matchId, status);
 
             if (match.Status != previous.Status)
             {

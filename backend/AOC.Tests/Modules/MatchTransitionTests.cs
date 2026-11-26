@@ -120,8 +120,9 @@ public class MatchTransitionTests
         return new Seeded(tournamentId, matchId, firstPlayerId, secondPlayerId);
     }
 
-    private static MatchesService Service(AOCDbContext db) =>
-        new(db, new StandingsService(db), NullLogger<MatchesService>.Instance);
+    private static MatchTransitionService Service(AOCDbContext db) =>
+        new(db, new MatchesService(db, new MatchAssemblyService(db)), new MatchScoringService(db),
+            new StandingsService(db));
 
     [DbFact]
     public async Task Finishing_writes_results_and_standings_in_the_same_transaction()

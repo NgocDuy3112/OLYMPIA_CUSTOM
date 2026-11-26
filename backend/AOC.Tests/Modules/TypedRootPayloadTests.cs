@@ -153,9 +153,7 @@ public class TypedRootPayloadTests
         });
         await db.SaveChangesAsync();
 
-        var service = new MatchesService(
-            db, new AOC.Api.Modules.Standings.StandingsService(db),
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<MatchesService>.Instance);
+        var service = new MatchesService(db, new MatchAssemblyService(db));
         var page = await service.ListMatchesAsync(tournamentId.ToString(), null, new Page(50, 0));
 
         var row = Assert.Single(page.Items);

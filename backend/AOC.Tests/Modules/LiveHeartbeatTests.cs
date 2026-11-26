@@ -25,8 +25,7 @@ public class LiveHeartbeatTests
     private static LiveService Service(AOCDbContext db)
     {
         var hub = new MatchHubRegistry(NullLogger<MatchHubRegistry>.Instance);
-        var matches = new MatchesService(
-            db, new StandingsService(db), NullLogger<MatchesService>.Instance);
+        var matches = new MatchesService(db, new MatchAssemblyService(db));
         var reader = new LiveReader(db);
         var tieBreak = new TieBreakService(db, new QuestionReadStore(db), reader, hub);
         return new LiveService(db, reader, hub, matches, tieBreak, NullLogger<LiveService>.Instance);

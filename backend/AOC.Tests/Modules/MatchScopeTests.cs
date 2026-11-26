@@ -83,8 +83,7 @@ public class MatchScopeTests
 
         try
         {
-            var service = new MatchesService(
-                db, new StandingsService(db), NullLogger<MatchesService>.Instance);
+            var service = new MatchesService(db, new MatchAssemblyService(db));
 
             await Assert.ThrowsAsync<MatchError>(() => service.RequireMatchScopeAsync(
                 otherTournamentId.ToString(), seeded.MatchId.ToString()));
@@ -104,8 +103,7 @@ public class MatchScopeTests
 
         try
         {
-            var service = new MatchesService(
-                db, new StandingsService(db), NullLogger<MatchesService>.Instance);
+            var service = new MatchesService(db, new MatchAssemblyService(db));
             var scope = await service.RequireMatchScopeAsync(
                 seeded.TournamentId.ToString(), seeded.MatchId.ToString());
 

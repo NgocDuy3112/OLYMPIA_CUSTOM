@@ -1,8 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using AOC.Api.Http;
-using AOC.Api.Modules.Questions;
-using AOC.Api.Modules.Standings;
 using AOC.Domain.Contracts;
 using AOC.Domain.Gameplay;
 using AOC.Infrastructure.Data;
@@ -10,18 +8,8 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.Matches;
 
-public sealed class MatchesService(
-    AOCDbContext db,
-    StandingsService standings,
-    ILogger<MatchesService> logger)
+public sealed class MatchesService(AOCDbContext db, MatchAssemblyService assembly)
 {
-    private static readonly Dictionary<MatchStatus, MatchStatus[]> Edges = new()
-    {
-        [MatchStatus.UPCOMING] = [MatchStatus.LIVE],
-        [MatchStatus.LIVE] = [MatchStatus.FINISHED],
-        [MatchStatus.FINISHED] = []
-    };
-
     public sealed record MatchScope(TournamentEntity Tournament, MatchEntity Match);
 
 
@@ -50,18 +38,6 @@ public sealed class MatchesService(
         => db.Matches.AsNoTracking().FirstOrDefaultAsync(m =>
             m.Id == matchId && m.TournamentId == tournamentId && m.DeletedAt == null);
 
-    public async Task<List<MatchAssemblyEvent>> GetMatchAssemblyEventsAsync(string matchId)
-    {
-        var mid = Guid.Parse(matchId);
-        var rows = await db.MatchAssemblyEvents.AsNoTracking()
-            .Where(e => e.MatchId == mid)
-            .OrderByDescending(e => e.Revision)
-            .ThenByDescending(e => e.At)
-            .Take(20)
-            .ToListAsync();
-        return rows.Select(MatchAssemblyEvent.Of).ToList();
-    }
-
 
     private static void AssertRoundConfigKeys(TournamentEntity tournament, Dictionary<string, RoundConfig> roundConfigs)
     {
@@ -85,104 +61,6 @@ public sealed class MatchesService(
             throw new MatchError(MatchErrorCode.VALIDATION, "seat seeds must be unique");
     }
 
-
-    private async Task ScoreMatchAsync(Guid matchId, MatchEntity match)
-    {
-        var already = await db.MatchResults.AnyAsync(m => m.MatchId == matchId);
-
-        var rows = await db.Answers.AsNoTracking().Where(a => a.MatchId == matchId).ToListAsync();
-
-        if (!already)
-        {
-            var unjudged = rows.Where(r => r.Verdict is null).ToList();
-            if (unjudged.Count > 0)
-                throw new MatchError(MatchErrorCode.NOT_READY,
-                    $"match {matchId} has {unjudged.Count} answer(s) without a final verdict");
-        }
-
-        var questionById = match.QuestionsList.ToDictionary(q => q.Id);
-        var competitors = match.PlayersList
-            .Where(s => s.Kind == "user")
-            .Select(s => s.UserId)
-            .ToList();
-
-        var adjustmentRows = await db.ScoreAdjustments.AsNoTracking()
-            .Where(a => a.MatchId == matchId)
-            .Select(a => new { a.UserId, a.Delta })
-            .ToListAsync();
-        var adjustments = adjustmentRows
-            .GroupBy(a => a.UserId)
-            .ToDictionary(g => g.Key, g => g.Sum(a => a.Delta));
-
-        var tieBreakRow = await db.MatchLive.AsNoTracking()
-            .Where(l => l.MatchId == matchId)
-            .Select(l => l.Tiebreak)
-            .FirstOrDefaultAsync();
-        var tieBreak = tieBreakRow is { } raw
-            ? JsonDefaults.Deserialize<AOC.Domain.Gameplay.Turns.TieBreakState>(raw)
-            : null;
-
-        var results = MatchScoring.BuildMatchResults(new MatchScoring.MatchResultInput(
-            competitors,
-            rows.Select(r => new MatchScoring.AnswerForScoring(
-                r.UserId.ToString(),
-                questionById.TryGetValue(r.QuestionId.ToString(), out var q) ? q.RoundId : "unknown",
-                r.PointsAwarded ?? 0)).ToList(),
-            adjustments.ToDictionary(kv => kv.Key.ToString(), kv => kv.Value),
-            tieBreak?.Correct,
-            tieBreak?.BuzzMs));
-
-        if (!already)
-        {
-            db.MatchResults.Add(new MatchResultEntity
-            {
-                MatchId = matchId,
-                TournamentId = match.TournamentId,
-                Results = JsonDefaults.Serialize(results),
-                ComputedAt = DateTime.UtcNow
-            });
-        }
-
-        if (rows.Count > 0)
-        {
-            var existingStats = await db.MatchStats
-                .Where(s => s.MatchId == matchId)
-                .Select(s => new { s.RoundId, s.QuestionId, s.UserId })
-                .ToListAsync();
-            var existingKeys = existingStats
-                .Select(s => (s.RoundId, QuestionId: s.QuestionId, s.UserId))
-                .ToHashSet();
-
-            foreach (var r in rows)
-            {
-                questionById.TryGetValue(r.QuestionId.ToString(), out var question);
-                var key = (question?.RoundId ?? "unknown", r.QuestionId, r.UserId);
-                if (existingKeys.Contains(key)) continue;
-                db.MatchStats.Add(new MatchStatEntity
-                {
-                    MatchId = matchId,
-                    TournamentId = match.TournamentId,
-                    RoundId = question?.RoundId ?? "unknown",
-                    QuestionId = r.QuestionId,
-                    UserId = r.UserId,
-                    BasePoints = question?.Points,
-                    Answered = true,
-                    Correct = r.Verdict == Verdict.CORRECT,
-                    Verdict = r.Verdict,
-                    PointsAwarded = r.PointsAwarded
-                });
-                existingKeys.Add(key);
-            }
-        }
-
-        await db.SaveChangesAsync();
-    }
-
-
-    private sealed class MatchAssemblyAccessor
-    {
-        public required MatchAssembly Assembly { get; init; }
-    }
 
     public async Task<MatchEntity> CreateMatchAsync(string tournamentId, MatchSchemas.CreateMatchInput input)
     {
@@ -218,8 +96,7 @@ public sealed class MatchesService(
         if (roundConfigs.Count > 0) AssertRoundConfigKeys(tournament, roundConfigs);
         if (input.Players is not null) AssertSeats(input.Players, tournament.FormatValue);
 
-        var assembly = new MatchAssembly(db);
-        var questions = await assembly.BuildQuestionCopiesAsync(
+        var questions = await assembly.BuildQuestionsAsync(
             tournament, roundConfigs, input.Questions ?? []);
 
         var row = new MatchEntity
@@ -316,166 +193,6 @@ public sealed class MatchesService(
         match.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
         return match;
-    }
-
-    public async Task<MatchEntity> SetMatchResultsAsync(string tournamentId, string matchId,
-        List<(string UserId, int Score)> totals)
-    {
-        var mid = Guid.Parse(matchId);
-        var match = await GetMatchAsync(tournamentId, matchId);
-
-        if (match.Status == MatchStatus.FINISHED)
-            throw new MatchError(MatchErrorCode.VALIDATION,
-                "match is already finished; results are frozen");
-
-        var seated = match.PlayersList
-            .Where(s => s.Kind == "user")
-            .Select(s => s.UserId)
-            .ToList();
-
-        var given = totals.Select(t => t.UserId).ToHashSet();
-        if (given.Count != totals.Count)
-            throw new MatchError(MatchErrorCode.VALIDATION, "totals list the same player twice");
-        if (seated.Count != totals.Count || seated.Any(userId => !given.Contains(userId)))
-            throw new MatchError(MatchErrorCode.VALIDATION,
-                "totals must cover exactly the players seated in this match",
-                [$"seated: {seated.Count}, given: {totals.Count}"]);
-
-        var results = totals
-            .OrderByDescending(t => t.Score)
-            .Select((row, index) => new ResultEntry
-            {
-                Kind = "user",
-                UserId = row.UserId,
-                TotalScore = row.Score,
-                Rank = index + 1,
-                RoundScores = new Dictionary<string, int>()
-            })
-            .ToList();
-
-        var existingResult = await db.MatchResults.FirstOrDefaultAsync(r => r.MatchId == mid);
-        if (existingResult is null)
-        {
-            db.MatchResults.Add(new MatchResultEntity
-            {
-                MatchId = mid,
-                TournamentId = match.TournamentId,
-                Results = JsonDefaults.Serialize(results),
-                ComputedAt = DateTime.UtcNow
-            });
-        }
-        else
-        {
-            existingResult.Results = JsonDefaults.Serialize(results);
-            existingResult.ComputedAt = DateTime.UtcNow;
-        }
-
-        await db.SaveChangesAsync();
-
-        return match;
-    }
-
-    public async Task<MatchEntity> TransitionMatchAsync(string tournamentId, string matchId, string nextRaw)
-    {
-        var next = Enum.Parse<MatchStatus>(nextRaw);
-        var mid = Guid.Parse(matchId);
-        var tid = Guid.Parse(tournamentId);
-
-        await using var transaction = await db.Database.BeginTransactionAsync();
-
-        var existing = await db.Matches
-            .FromSqlInterpolated($"SELECT * FROM matches WHERE id = {mid} FOR UPDATE")
-            .FirstOrDefaultAsync();
-        if (existing is null || existing.TournamentId != tid || existing.DeletedAt is not null)
-            throw new MatchError(MatchErrorCode.NOT_FOUND, $"match {matchId} not found");
-        if (existing.Status == next)
-        {
-            await transaction.CommitAsync();
-            return existing;
-        }
-
-        if (!Edges[existing.Status].Contains(next))
-            throw new MatchError(MatchErrorCode.INVALID_TRANSITION,
-                $"cannot move a match from {existing.Status} to {next}",
-                [$"allowed from {existing.Status}: {(Edges[existing.Status].Length > 0 ? string.Join(", ", Edges[existing.Status]) : "none")}"]);
-
-        if (next == MatchStatus.LIVE)
-        {
-            var tournament = await RequireTournamentAsync(tid);
-            var shortfalls = new List<string>();
-
-            var allowed = tournament.FormatValue.AllowedSeatCounts();
-            if (!allowed.Contains(existing.PlayersList.Count))
-                shortfalls.Add($"seats: {existing.PlayersList.Count} (allowed: {string.Join("/", allowed)})");
-            if (existing.QuestionsList.Count == 0)
-                shortfalls.Add("no questions assembled");
-
-            if (tournament.RoundsList.Any(r => r.Id == "khoi-dong"))
-            {
-                var riengTurnId = Buckets.SlotForBucket("khoi-dong:rieng").TurnId;
-                var perPlayer = existing.RoundConfigsMap.GetValueOrDefault("khoi-dong") is { } cfg
-                    ? cfg.Turns.FirstOrDefault(t => t.Id == riengTurnId)?.QuestionCount ?? 6
-                    : 6;
-                var seats = existing.PlayersList.Count;
-                var assembled = existing.QuestionsList
-                    .Count(q => q.RoundId == "khoi-dong" && q.TurnId == riengTurnId);
-                var needed = perPlayer * seats;
-                if (assembled != needed)
-                    shortfalls.Add(
-                        $"khoi-dong Riêng: {assembled} assembled, needs {needed} ({perPlayer} × {seats} seat{(seats == 1 ? "" : "s")})");
-            }
-
-            if (tournament.RoundsList.Any(r => r.Id == "but-pha"))
-            {
-                var butPhaTurnId = Buckets.SlotForBucket("but-pha").TurnId;
-                var butPhaCount = existing.RoundConfigsMap.GetValueOrDefault("but-pha") is { } bpCfg
-                    ? bpCfg.Turns.FirstOrDefault(t => t.Id == butPhaTurnId)?.QuestionCount ?? 4
-                    : 4;
-                var butPhaAssembled = existing.QuestionsList
-                    .Count(q => q.RoundId == "but-pha");
-                if (butPhaAssembled != butPhaCount)
-                    shortfalls.Add(
-                        $"but-pha: {butPhaAssembled} assembled, needs exactly {butPhaCount}");
-            }
-
-            if (shortfalls.Count > 0)
-                throw new MatchError(MatchErrorCode.NOT_READY,
-                    $"match {matchId} is not ready to go live", shortfalls);
-        }
-
-        existing.Status = next;
-        existing.UpdatedAt = DateTime.UtcNow;
-
-        if (next == MatchStatus.LIVE)
-        {
-            var tournament = await RequireTournamentAsync(tid);
-            var ordered = MatchRounds.OrderedMatchRounds(tournament.RoundsList, existing.RoundConfigsMap);
-            var first = MatchRounds.NextRoundId(ordered, null);
-            if (first is not null && !await db.MatchLive.AnyAsync(l => l.MatchId == mid))
-            {
-                db.MatchLive.Add(new MatchLiveEntity
-                {
-                    MatchId = mid,
-                    Version = 0,
-                    RoundId = first,
-                    State = JsonDefaults.EmptyObject,
-                    Archive = JsonDefaults.EmptyObject,
-                    UpdatedAt = DateTime.UtcNow
-                });
-            }
-        }
-
-        if (next == MatchStatus.FINISHED)
-        {
-            await ScoreMatchAsync(mid, existing);
-            await db.SaveChangesAsync();
-            await standings.RecomputeStandingsAsync(tournamentId);
-        }
-
-        await db.SaveChangesAsync();
-        await transaction.CommitAsync();
-
-        return existing;
     }
 
     public async Task<MatchEntity> DeleteMatchAsync(string tournamentId, string matchId)

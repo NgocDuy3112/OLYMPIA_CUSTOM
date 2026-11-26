@@ -163,8 +163,7 @@ public class ConsoleSanitizationTests
     private static LiveService ServiceFor(AOCDbContext db)
     {
         var hub = new MatchHubRegistry(NullLogger<MatchHubRegistry>.Instance);
-        var matches = new MatchesService(
-            db, new StandingsService(db), NullLogger<MatchesService>.Instance);
+        var matches = new MatchesService(db, new MatchAssemblyService(db));
         var reader = new LiveReader(db);
         var tieBreak = new TieBreakService(db, new QuestionReadStore(db), reader, hub);
         return new LiveService(db, reader, hub, matches, tieBreak, NullLogger<LiveService>.Instance);
@@ -274,8 +273,7 @@ public class ConsoleSanitizationTests
     {
         var services = new ServiceCollection();
         services.AddSingleton(db);
-        services.AddSingleton(new MatchesService(
-            db, new StandingsService(db), NullLogger<MatchesService>.Instance));
+        services.AddSingleton(new MatchesService(db, new MatchAssemblyService(db)));
         return new DefaultHttpContext { RequestServices = services.BuildServiceProvider() };
     }
 
