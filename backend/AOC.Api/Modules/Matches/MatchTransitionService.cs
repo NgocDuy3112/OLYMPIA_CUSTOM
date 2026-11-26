@@ -32,6 +32,12 @@ public sealed class MatchTransitionService(
 
         await using var transaction = await db.Database.BeginTransactionAsync();
 
+        var tournamentRow = await db.Tournaments
+            .FromSqlInterpolated($"SELECT * FROM tournaments WHERE id = {tid} FOR UPDATE")
+            .FirstOrDefaultAsync();
+        if (tournamentRow is null)
+            throw new MatchError(MatchErrorCode.NOT_FOUND, $"tournament {tournamentId} not found");
+
         var existing = await db.Matches
             .FromSqlInterpolated($"SELECT * FROM matches WHERE id = {mid} FOR UPDATE")
             .FirstOrDefaultAsync();
