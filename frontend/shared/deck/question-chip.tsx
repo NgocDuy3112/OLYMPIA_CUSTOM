@@ -35,7 +35,7 @@ export function QuestionChip({ value, tone = "gray", clickable, onClick, title, 
 }
 
 export function QuestionChips({ chips, onSelect }: {
-    chips: Array<{ id: string; label: string; active: boolean; clickable?: boolean; title?: string }>
+    chips: Array<{ id: string; label: string; active: boolean; live?: boolean; clickable?: boolean; title?: string }>
     onSelect?: (id: string) => void
 }) {
     return (
@@ -53,7 +53,7 @@ export function QuestionChips({ chips, onSelect }: {
                         onClick={click}
                         title={chip.title}
                         fixedWidth
-                        live={chip.active}
+                        live={chip.live ?? chip.active}
                     />
                 )
             })}

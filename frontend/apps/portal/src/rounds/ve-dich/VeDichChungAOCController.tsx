@@ -3,6 +3,7 @@ import { backToLobbyAction } from "@/components/stage/actions"
 import type { LiveAction } from "@/lib/live-actions"
 import type { QuestionAnswerRow, VeDichConsole } from "@/lib/live"
 import type { ScreenCore } from "@/rounds/types"
+import { COPY } from "@shared/deck/copy"
 import { turnChipHint, turnChipsOf } from "@shared/deck/ve-dich-board"
 
 export type VeDichChungCtx = ScreenCore & {
@@ -83,9 +84,20 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
     const untouched = !submitted && !counting && !consoleVeDich?.clockStarted
     const canSwitch = !openNow || settled || untouched
 
-    // The console only lights a "selected" card while a question is being
-    // judged, and the chung screen never is — so stamp the ticked card's ring
-    // here, otherwise clicking a card would never show.
+    // "Hết lượt" closes the question currently on stage (hetLuotAction: phase 1 →
+    // ve-dich.closeQuestion) and the turn moves on to the next staged pick. The
+    // engine closes any open phase-1 question, but grading only exists while the
+    // question is open (VeDichJudge needs it) and answers keep arriving until the
+    // clock runs out, so the button waits for both — closing first would bury
+    // those points. It matches the strip's own switch rule (canSwitch).
+    // With nothing open the batch is done (the last close, or a strip nobody
+    // opened) and there is nothing left to close.
+    let endTurn: (() => void) | undefined = () => ctx.hetLuot()
+    if (openNow === null || unjudged || counting) endTurn = undefined
+
+    // The rail arrives as plain cards: stamp the ticked card's ring here so a
+    // click on a card always shows which player it marked (the rieng screen does
+    // the same).
     const ticked = markedIds()
     let cards = baseCards
     if (ticked.length > 0) {
@@ -112,6 +124,7 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
                     label: "Chấm điểm",
                     onClick: gradeClick,
                 },
+                { label: COPY.endTurn, onClick: endTurn },
                 backToLobbyAction(ctx.backToLobby),
             ]}
             flash={flash}
@@ -124,12 +137,17 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
                         <QuestionChips
                             chips={turnChips.map((chip) => {
                                 const isOpen = chip.where === "open"
+                                // Only a question still waiting can be opened: a played
+                                // one left PendingPicks for good (OpenPending:
+                                // INVALID_QUESTION), so its chip is a record, not a button.
+                                let clickable = false
+                                if (isOpen) clickable = !revealed
+                                else if (chip.where === "waiting") clickable = canSwitch
                                 return {
                                     id: chip.questionId,
                                     label: String(chip.value),
                                     active: isOpen,
-                                    // The open chip re-reveals; the others switch (guarded).
-                                    clickable: isOpen ? !revealed : canSwitch,
+                                    clickable,
                                     title: turnChipHint(chip.where, chip.value),
                                 }
                             })}

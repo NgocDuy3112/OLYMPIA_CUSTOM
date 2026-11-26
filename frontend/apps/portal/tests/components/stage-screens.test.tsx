@@ -1036,6 +1036,43 @@ it("phase 1: with nothing picked, there is no confirm — Chọn lại clears", 
         expect(f.send).not.toHaveBeenCalled()
     })
 
+    it("phase 2: the ceiling is the rule's pickCount, not a hard-coded three", async () => {
+        const user = userEvent.setup()
+        const f = renderRound("ve-dich", {}, {
+            open: [],
+            board: [
+                { questionId: "q9", value: 20, where: "pending" as const },
+                { questionId: "q10", value: 30, where: "pending" as const },
+                { questionId: "q11", value: 40, where: "free" as const },
+            ],
+            selectedPlayerId: "u1",
+        }, veDichMc({ phase: 2, pendingQuestionId: "q9", turnPicked: 2, pickCount: 2 }))
+
+        await user.click(screen.getByTitle("Chọn câu 40 điểm"))
+        expect(f.send).not.toHaveBeenCalled()
+    })
+
+    it("phase 2: a rule that allows four takes a fourth pick", async () => {
+        const user = userEvent.setup()
+        const f = renderRound("ve-dich", {}, {
+            open: [],
+            board: [
+                { questionId: "q9", value: 20, where: "pending" as const },
+                { questionId: "q10", value: 30, where: "pending" as const },
+                { questionId: "q11", value: 40, where: "pending" as const },
+                { questionId: "q12", value: 50, where: "free" as const },
+            ],
+            selectedPlayerId: "u1",
+        }, veDichMc({ phase: 2, pendingQuestionId: "q9", turnPicked: 3, pickCount: 4 }))
+
+        await user.click(screen.getByTitle("Chọn câu 50 điểm"))
+        expect(f.send).toHaveBeenCalledWith({
+            kind: "ve-dich.pickBatch",
+            playerId: "u1",
+            questionIds: ["q9", "q10", "q11", "q12"],
+        })
+    })
+
     it("phase 2: two picks already confirm the batch", async () => {
         const user = userEvent.setup()
         const f = renderRound("ve-dich", { send: vi.fn() }, {
@@ -1148,6 +1185,19 @@ describe("VeDichChung — S7, phase 1 question", () => {
         expect(screen.queryByRole("button", { name: "Đếm giờ" })).toBeNull()
     })
 
+    it("keeps Hết lượt locked while the clock is still running", () => {
+        // Closing now would close the window the contestants are answering into:
+        // their points could no longer be graded (VeDichJudge needs an open one).
+        renderRound(
+            "ve-dich",
+            { remaining: 12, rows: [] },
+            { open: [{ questionId: "q1", deadlineAt: "2026-01-01T00:00:12.000Z", question: null }] },
+            veDichMc({ phase: 1, revealed: true, clockStarted: true }),
+        )
+
+        expect(screen.queryByRole("button", { name: "Hết lượt" })).toBeNull()
+    })
+
 it("keeps Hết lượt locked while an answer is still unjudged", () => {
         renderRound(
             "ve-dich",
@@ -1158,16 +1208,53 @@ it("keeps Hết lượt locked while an answer is still unjudged", () => {
         expect(screen.queryByRole("button", { name: "Hết lượt" })).toBeNull()
     })
 
-it("offers no Hết lượt in the chung phase — and strip buttons carry no tooltips", async () => {
-        renderRound(
+it("Hết lượt closes the question on stage once everyone submitted was graded", async () => {
+        const user = userEvent.setup()
+        const f = renderRound(
             "ve-dich",
             { hetLuot: vi.fn(), rows: [answerRow("u1", "CORRECT")], target: "u1" },
             { open: [openQ] },
             veDichMc({ phase: 1 }),
         )
 
-        expectButtonsInOrder(["Chấm điểm", "Về sảnh"])
+        expectButtonsInOrder(["Chấm điểm", "Hết lượt", "Về sảnh"])
+        await user.click(screen.getByRole("button", { name: "Hết lượt" }))
+        expect(f.hetLuot).toHaveBeenCalledOnce()
+    })
+
+    it("Hết lượt is offered even when nobody submitted — the turn can move on", async () => {
+        const user = userEvent.setup()
+        const f = renderRound(
+            "ve-dich",
+            { hetLuot: vi.fn(), rows: [] },
+            { open: [openQ] },
+            veDichMc({ phase: 1, clockStarted: false }),
+        )
+
+        await user.click(screen.getByRole("button", { name: "Hết lượt" }))
+        expect(f.hetLuot).toHaveBeenCalledOnce()
+    })
+
+    it("with no question open the batch is done — no Hết lượt left to press", () => {
+        renderRound(
+            "ve-dich",
+            { hetLuot: vi.fn(), rows: [] },
+            { open: [] },
+            veDichMc({ phase: 1, picksConfirmed: true, pendingQuestionId: null }),
+        )
+
         expect(screen.queryByRole("button", { name: "Hết lượt" })).toBeNull()
+        expect(screen.getByRole("button", { name: "Chấm điểm" })).toBeInTheDocument()
+    })
+
+    it("the strip buttons carry no tooltips", () => {
+        renderRound(
+            "ve-dich",
+            { rows: [answerRow("u1", "CORRECT")], target: "u1" },
+            { open: [openQ] },
+            veDichMc({ phase: 1 }),
+        )
+
         expect(screen.getByRole("button", { name: "Về sảnh" })).not.toHaveAttribute("title")
     })
 
@@ -1482,6 +1569,41 @@ it("offers no Hết lượt in the chung phase — and strip buttons carry no to
         expect(f.sendChain).toHaveBeenCalledWith([
             { kind: "ve-dich.closeQuestion" },
             { kind: "ve-dich.openPending", questionId: "q2" },
+        ])
+    })
+
+    it("a played question stays on the strip but is no longer clickable", async () => {
+        const user = userEvent.setup()
+        // Engine: OpenPending only takes a question still in PendingPicks — a closed
+        // one left the turn for good, so clicking it would close the open question
+        // and then fail on a question the engine no longer has.
+        const f = renderRound(
+            "ve-dich",
+            { sendChain: vi.fn(), rows: [] },
+            {
+                open: [openQ],
+                board: [
+                    { questionId: "q1", value: 20, where: "open" },
+                    { questionId: "q2", value: 30, where: "taken" },
+                    { questionId: "q3", value: 40, where: "pending" },
+                ],
+            },
+            veDichMc({
+                phase: 1, picksConfirmed: true, revealed: false, clockStarted: false,
+                turnQuestions: ["q1", "q2", "q3"], turnValues: [20, 30, 40],
+            }),
+        )
+
+        const played = screen.getByTitle("Câu 30 điểm đã chơi")
+        expect(played).toHaveAttribute("aria-disabled", "true")
+        await user.click(played)
+        expect(f.sendChain).not.toHaveBeenCalled()
+
+        await user.click(screen.getByTitle("Mở câu 40 điểm"))
+        expect(f.sendChain).toHaveBeenCalledWith([
+            { kind: "ve-dich.closeQuestion" },
+            { kind: "ve-dich.openPending", questionId: "q3" },
+            { kind: "ve-dich.reveal" },
         ])
     })
 })

@@ -67,14 +67,16 @@ describe("judgingIdsOf — giải mã reads the window, then the keyword drafts"
 })
 
 describe("judgingIdsOf — về đích reads the open TURN", () => {
-    it("resolves the open turn's question", () => {
+    it("names the open turn's question so the rail's ticks are keyed on it", () => {
         const ids = judgingIdsOf(input({ roundId: "ve-dich", openIds: ["v1"] }))
         expect(ids.resolvingId).toBe("v1")
-        expect(ids.judgingId).toBeNull()
+        expect(ids.judgingId).toBe("v1")
     })
 
     it("resolves nothing between turns", () => {
-        expect(judgingIdsOf(input({ roundId: "ve-dich", openIds: [] })).resolvingId).toBeNull()
+        const ids = judgingIdsOf(input({ roundId: "ve-dich", openIds: [] }))
+        expect(ids.resolvingId).toBeNull()
+        expect(ids.judgingId).toBeNull()
     })
 })
 

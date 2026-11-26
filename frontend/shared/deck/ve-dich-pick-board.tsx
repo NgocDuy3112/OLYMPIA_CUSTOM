@@ -14,6 +14,9 @@ const cellTone = (where: string, picked: boolean, onPick?: (questionId: string) 
     if (picked) return `${CELL_BASE} bg-primary text-primary-foreground ring-2 ring-primary`
     if (where === "free" && onPick) return `${CELL_BASE} cursor-pointer bg-card ring-border hover:bg-accent`
     if (where === "free") return `${CELL_BASE} bg-card ring-border`
+    // rules.md §7.4: a staged pick is chosen but not yet confirmed — the dashed edge keeps it
+    // apart from a free cell and from one already played.
+    if (where === "pending") return `${CELL_BASE} border border-dashed border-primary bg-primary/10 text-foreground ring-primary/30`
     return `${CELL_BASE} bg-muted text-muted-foreground/40 ring-border opacity-50`
 }
 

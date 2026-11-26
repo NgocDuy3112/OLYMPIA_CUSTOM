@@ -97,6 +97,7 @@ export interface VeDichConsole {
     turnValues?: number[]
     turnPicked?: number
     picksConfirmed?: boolean
+    pickCount?: number
     powersLeft?: Array<"STAR" | "ASSIGN">
     stagedPower: { power: "STAR" | "ASSIGN"; targetId?: string } | null
     turnPowerUsed: boolean

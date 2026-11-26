@@ -37,8 +37,13 @@ export function judgingIdsOf(input: JudgingInput): JudgingIds {
             return { judgingId: clicked ?? firstOrNull(input.openIds), resolvingId: null, keywordQuestionId }
         case "giai-ma":
             return { judgingId: firstOrNull(input.openIds) ?? keywordQuestionId, resolvingId: null, keywordQuestionId }
-        case "ve-dich":
-            return { judgingId: null, resolvingId: firstOrNull(input.openIds), keywordQuestionId }
+        case "ve-dich": {
+            // The open turn's question is the one being graded, and the rail's tick
+            // set is keyed on it — naming it here is what makes the next question
+            // start unticked (a null id would match the empty pick set forever).
+            const openId = firstOrNull(input.openIds)
+            return { judgingId: openId, resolvingId: openId, keywordQuestionId }
+        }
         default:
             return { judgingId: null, resolvingId: null, keywordQuestionId }
     }

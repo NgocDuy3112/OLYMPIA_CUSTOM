@@ -129,3 +129,54 @@ describe("the LED clock counts down", () => {
         expect(screen.getByText("00")).toBeInTheDocument()
     })
 })
+
+describe("the LED tells the three pick-board states apart", () => {
+    const pickView = (board: NonNullable<PlayerView["board"]>) =>
+        view({ roundId: "ve-dich", stage: "phase1", open: [], board })
+
+    it("paints a staged cell with its own dashed tone, apart from free and used cells", () => {
+        render(
+            <AudienceScreen
+                view={pickView([
+                    { questionId: "q20a", value: 20, where: "pending" },
+                    { questionId: "q20b", value: 20, where: "free" },
+                    { questionId: "q20c", value: 20, where: "taken" },
+                    { questionId: "q30a", value: 30, where: "free" },
+                    { questionId: "q30b", value: 30, where: "free" },
+                    { questionId: "q30c", value: 30, where: "free" },
+                ])}
+            />
+        )
+
+        const staged = screen.getByTitle("Câu 20 điểm đã chọn — chờ xác nhận")
+        expect(staged.className).toContain("border-dashed")
+        expect(staged.className).toContain("border-primary")
+
+        const free = screen.getAllByTitle("Câu 20 điểm còn trống")[0]
+        expect(free.className).not.toContain("border-dashed")
+
+        const used = screen.getByTitle("Câu 20 điểm đã dùng")
+        expect(used.className).not.toContain("border-dashed")
+        expect(used.className).toContain("opacity-50")
+    })
+
+    it("chips name the staged question even though the LED has no me.pendingPicks", () => {
+        render(
+            <AudienceScreen
+                view={pickView([
+                    { questionId: "q20a", value: 20, where: "pending" },
+                    { questionId: "q30a", value: 30, where: "free" },
+                    { questionId: "q30b", value: 30, where: "free" },
+                    { questionId: "q30c", value: 30, where: "free" },
+                    { questionId: "q30d", value: 30, where: "free" },
+                    { questionId: "q30e", value: 30, where: "free" },
+                ])}
+            />
+        )
+
+        const chips = screen.getAllByTitle("Đã chọn câu 20 điểm")
+        expect(chips).toHaveLength(1)
+        // A staged pick is not on stage yet — only the open question breathes.
+        expect(chips[0].className).not.toContain("stage-pulse")
+    })
+})
