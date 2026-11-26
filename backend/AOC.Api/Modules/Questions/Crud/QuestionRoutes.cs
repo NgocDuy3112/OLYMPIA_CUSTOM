@@ -31,23 +31,6 @@ public static partial class QuestionRoutes
             return Results.Json(row, JsonApi.Options);
         });
 
-        app.MapPost("/portal/questions/batch", async (HttpContext http) =>
-        {
-            var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
-            var body = Validate.Object(await Validate.ReadJsonBodyAsync(http));
-            var dryRun = Validate.OptionalBool(body, "dryRun") ?? false;
-            var questions = Validate.RequiredArray(body, "questions", minItems: 1, maxItems: QuestionsService.MaxBatchSize);
-
-            var service = http.RequestServices.GetRequiredService<QuestionsService>();
-            var report = await service.ImportQuestionsAsync(
-                new QuestionsService.WriteContext(user.Id),
-                questions.Select(q => q.Clone()).ToList(),
-                dryRun);
-
-            if (!dryRun && report.Errors.Count > 0) http.Response.StatusCode = 400;
-            return Results.Json(report, JsonApi.Options);
-        });
-
         app.MapPost("/portal/questions/bulk", async (HttpContext http) =>
         {
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
