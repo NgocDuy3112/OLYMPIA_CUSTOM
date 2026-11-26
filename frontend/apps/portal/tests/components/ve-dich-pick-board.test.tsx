@@ -42,6 +42,14 @@ describe("VeDichPickBoard", () => {
         expect(screen.getAllByTitle("Chọn câu 30 điểm")).toHaveLength(6)
     })
 
+    it("says a staged pick apart from a used question", () => {
+        render(<VeDichPickBoard cells={cells} pickedIds={[]} />)
+
+        // rules.md §7.4: `pending` = chosen but not confirmed — it can still be dropped.
+        expect(screen.getAllByTitle("Câu 20 điểm đã chọn — chờ xác nhận")).toHaveLength(1)
+        expect(screen.getAllByTitle("Câu 20 điểm đã dùng")).toHaveLength(1)
+    })
+
     it("a read-only board offers nothing and claims nothing", () => {
         render(<VeDichPickBoard cells={cells} pickedIds={["a"]} />)
 

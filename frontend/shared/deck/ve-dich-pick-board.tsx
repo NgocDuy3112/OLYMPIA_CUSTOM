@@ -21,6 +21,8 @@ const cellTitle = (value: number, where: string, picked: boolean): string => {
     if (picked) return `Ô câu ${value} điểm — đã chọn`
     if (where === "free") return `Câu ${value} điểm còn trống`
     if (where === "locked") return `Chọn thí sinh trước`
+    // rules.md §7.4: a staged pick is only chosen — it can still be dropped until Xác nhận.
+    if (where === "pending") return `Câu ${value} điểm đã chọn — chờ xác nhận`
     return `Câu ${value} điểm đã dùng`
 }
 

@@ -24,7 +24,13 @@ export function playerScreenOf(view: Pick<PlayerView, "roundId" | "stage" | "ope
                 if (stage === "phase2") return "ve-dich-rieng"
                 return "ve-dich-chung"
             }
-            if (view.console?.picksConfirmed === true) return "ve-dich-chung"
+            // Once the console confirms the picks the board is closed for good
+            // (rules.md §7.4) — the player waits on the screen of the phase the
+            // room is playing, even before the next question opens.
+            if (view.console?.picksConfirmed === true) {
+                if (stage === "phase2") return "ve-dich-rieng"
+                return "ve-dich-chung"
+            }
             return "ve-dich-pick"
     }
 }

@@ -106,7 +106,7 @@ describe("ve-dich dispatch follows picksConfirmed, not just open[]", () => {
         })
         render(<>{veDichAOC.render(confirmed)}</>)
         // The pick board is gone — its grid is what the pick screen paints.
-        expect(screen.queryByTitle("Câu 20 điểm đã dùng")).toBeNull()
+        expect(screen.queryByTitle("Câu 20 điểm đã chọn — chờ xác nhận")).toBeNull()
         expect(document.querySelector('[style*="grid-template-columns"]')).toBeNull()
         expect(screen.getByText("Lượt chung")).toBeInTheDocument()
     })
@@ -136,7 +136,55 @@ describe("ve-dich dispatch follows picksConfirmed, not just open[]", () => {
         // be dropped — only console `Xác nhận` moves the room to the play screen.
         // A frame without a console block therefore reads as "not confirmed".
         expect(document.querySelector('[style*="grid-template-columns"]')).not.toBeNull()
-        expect(screen.getByTitle("Câu 20 điểm đã dùng")).toBeInTheDocument()
+        // Staged, not played: the board must not claim the question is used.
+        expect(screen.getByTitle("Câu 20 điểm đã chọn — chờ xác nhận")).toBeInTheDocument()
+        expect(screen.queryByTitle("Câu 20 điểm đã dùng")).toBeNull()
         expect(screen.getByText("Lượt chung")).toBeInTheDocument()
+    })
+})
+
+/**
+ * Regression: phase 2 read `picksConfirmed` as "back to the shared board".
+ * Once the rieng board is confirmed the console moves to the rieng play screen
+ * (portal/src/rounds/ve-dich/logic.tsx:55-58) and never returns to the picker
+ * (rules.md §7.4) — the player waited on the chung screen instead.
+ */
+describe("ve-dich phase 2 waits on the rieng screen once the picks are confirmed", () => {
+    const confirmedPhase2 = { picksConfirmed: true, turnQuestions: ["q1", "q2", "q3"], turnValues: [40, 50, 20] }
+
+    it("leaves the pick board for the rieng screen before the first question opens", () => {
+        const waiting = ctx({
+            v: view({
+                stage: "phase2",
+                open: [],
+                board: [
+                    { questionId: "q1", value: 40, where: "pending" },
+                    { questionId: "q2", value: 50, where: "pending" },
+                    { questionId: "q3", value: 20, where: "pending" },
+                ],
+                console: confirmedPhase2,
+            }),
+        })
+        render(<>{veDichAOC.render(waiting)}</>)
+
+        expect(screen.queryByTitle("Câu 40 điểm đã chọn — chờ xác nhận")).toBeNull()
+        expect(document.querySelector('[style*="grid-template-columns"]')).toBeNull()
+        expect(screen.getByText("Lượt cá nhân")).toBeInTheDocument()
+        // The turn's questions are still on screen while the room waits.
+        expect(screen.getByTitle("Mở câu 40 điểm")).toBeInTheDocument()
+        expect(screen.getByTitle("Mở câu 50 điểm")).toBeInTheDocument()
+    })
+
+    it("phase 2 without the confirmation is still the pick board", () => {
+        const picking = ctx({
+            v: view({
+                stage: "phase2",
+                open: [],
+                board: [{ questionId: "q1", value: 40, where: "free" }],
+                console: { picksConfirmed: false },
+            }),
+        })
+        render(<>{veDichAOC.render(picking)}</>)
+        expect(screen.getByTitle("Câu 40 điểm còn trống")).toBeInTheDocument()
     })
 })

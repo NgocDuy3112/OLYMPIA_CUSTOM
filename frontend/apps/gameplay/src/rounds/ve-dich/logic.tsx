@@ -13,10 +13,9 @@ export const veDichAOC: RoundModule = {
             if (ctx.stage === "phase2") return <VeDichRiengPickAOCPlayer ctx={ctx} />
             return <VeDichChungPickAOCPlayer ctx={ctx} />
         }
-        // An open question can vanish between frames (resolve / switch). Both
-        // answer screens tolerate that, the buzz screen does not — fall back to
-        // the chung screen instead of dereferencing open[0].
-        if (which === "ve-dich-rieng" && ctx.open.length > 0) {
+        // Both answer screens tolerate an open question vanishing between frames
+        // (resolve / switch) — they read `open[0] ?? null`.
+        if (which === "ve-dich-rieng") {
             return <VeDichRiengAOCPlayer ctx={ctx as VeDichRiengPlayerCtx} />
         }
         return <VeDichChungAOCPlayer ctx={ctx} />
