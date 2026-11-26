@@ -144,12 +144,12 @@ export { playerScreenOf, type PlayerScreen } from "@shared/deck/dispatch"
 
 const lobbyKey = (matchId: string) => ["lobby", matchId] as const
 
-export function useLiveLobby(matchId: string, enabled: boolean) {
+export function useLiveLobby(matchId: string, enabled: boolean, streamStatus: StreamStatus) {
     return useQuery({
         queryKey: lobbyKey(matchId),
         queryFn: () => api<LobbyData>(`/api/matches/${matchId}/lobby`),
         enabled: enabled && Boolean(matchId),
-        refetchInterval: 3_000,
+        refetchInterval: streamStatus === "live" ? false : 3_000,
         retry: false,
         staleTime: 0,
     })

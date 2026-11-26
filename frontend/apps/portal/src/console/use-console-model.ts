@@ -118,7 +118,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         viewPainted: projection !== undefined,
         transportRefused: live.isError && !v,
     })
-    const lobby = useLobby(tournamentId, matchId, readiness.waiting)
+    const lobby = useLobby(tournamentId, matchId, readiness.waiting, live.streamStatus)
 
     let stagePhase: 1 | 2 | null = null
     if (stage === "phase1") stagePhase = 1

@@ -3,7 +3,7 @@ import { api } from "@shared/lib/api"
 import { logError } from "@shared/lib/log"
 import { playSfx, stopSfx } from "@shared/lib/sfx"
 import { isOlderView, keepNewestRead } from "@shared/lib/view-version"
-import { useSocketStream } from "@shared/lib/ws"
+import { useSocketStream, type StreamStatus } from "@shared/lib/ws"
 import type { LiveAction, Verdict } from "./live-actions"
 import type {
     ButPhaConsole,
@@ -56,13 +56,18 @@ export type { LobbyData }
 const lobbyKey = (tournamentId: string, matchId: string) =>
     ["lobby", tournamentId, matchId] as const
 
-export function useLobby(tournamentId: string, matchId: string, enabled: boolean) {
+export function useLobby(
+    tournamentId: string,
+    matchId: string,
+    enabled: boolean,
+    streamStatus: StreamStatus
+) {
     return useQuery({
         queryKey: lobbyKey(tournamentId, matchId),
         queryFn: () =>
             api<LobbyData>(`/portal/tournaments/${tournamentId}/matches/${matchId}/lobby`),
         enabled: enabled && Boolean(tournamentId && matchId),
-        refetchInterval: 3_000,
+        refetchInterval: streamStatus === "live" ? false : 3_000,
         retry: false,
         staleTime: 0,
     })
@@ -110,7 +115,7 @@ export function useLive(tournamentId: string, matchId: string, onFrame?: (at: st
         }
     )
 
-    return useQuery({
+    const query = useQuery({
         queryKey: liveKey(tournamentId, matchId),
         queryFn: () =>
             api<LiveResponse>(
@@ -130,6 +135,8 @@ export function useLive(tournamentId: string, matchId: string, onFrame?: (at: st
         staleTime: 0,
         retry: false,
     })
+
+    return { ...query, streamStatus: stream.status }
 }
 
 export function useLiveAction(tournamentId: string, matchId: string) {
