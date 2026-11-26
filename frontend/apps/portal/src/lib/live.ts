@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api } from "@shared/lib/api"
 import { logError } from "@shared/lib/log"
 import { playSfx, stopSfx } from "@shared/lib/sfx"
+import { isOlderView, keepNewestRead } from "@shared/lib/view-version"
 import { useSocketStream } from "@shared/lib/ws"
 import type { LiveAction, Verdict } from "./live-actions"
 import type {
@@ -79,25 +80,8 @@ interface ConsoleStreamFrame {
 
 export function useLive(tournamentId: string, matchId: string, onFrame?: (at: string) => void) {
     const queryClient = useQueryClient()
-    const query = useQuery({
-        queryKey: liveKey(tournamentId, matchId),
-        queryFn: () =>
-            api<LiveResponse>(
-                `/portal/tournaments/${tournamentId}/matches/${matchId}/live`
-            ),
-        enabled: Boolean(tournamentId && matchId),
-        refetchInterval: (query) => {
-            if (query.state.status === "error") {
-                if (query.state.data) return 3_000
-                return 15_000
-            }
-            return 3_000
-        },
-        staleTime: 0,
-        retry: false,
-    })
 
-    useSocketStream(
+    const stream = useSocketStream(
         `/portal/tournaments/${tournamentId}/matches/${matchId}/live/stream`,
         Boolean(tournamentId && matchId),
         (message) => {
@@ -112,7 +96,10 @@ export function useLive(tournamentId: string, matchId: string, onFrame?: (at: st
 
             if (frame.type === "console" && frame.data?.view) {
                 if (frame.at) onFrame?.(frame.at)
-                queryClient.setQueryData<LiveResponse>(liveKey(tournamentId, matchId), frame.data.view)
+                const next = frame.data.view
+                if (!isOlderView(next, queryClient.getQueryData<LiveResponse>(liveKey(tournamentId, matchId)))) {
+                    queryClient.setQueryData<LiveResponse>(liveKey(tournamentId, matchId), next)
+                }
                 return
             }
 
@@ -123,7 +110,26 @@ export function useLive(tournamentId: string, matchId: string, onFrame?: (at: st
         }
     )
 
-    return query
+    return useQuery({
+        queryKey: liveKey(tournamentId, matchId),
+        queryFn: () =>
+            api<LiveResponse>(
+                `/portal/tournaments/${tournamentId}/matches/${matchId}/live`
+            ),
+        enabled: Boolean(tournamentId && matchId),
+        structuralSharing: (old, next) =>
+            keepNewestRead(old as LiveResponse | undefined, next as LiveResponse),
+        refetchInterval: (query) => {
+            if (stream.status === "live") return false
+            if (query.state.status === "error") {
+                if (query.state.data) return 3_000
+                return 15_000
+            }
+            return 3_000
+        },
+        staleTime: 0,
+        retry: false,
+    })
 }
 
 export function useLiveAction(tournamentId: string, matchId: string) {
@@ -137,9 +143,6 @@ export function useLiveAction(tournamentId: string, matchId: string) {
 
     return useMutation({
         mutationFn: post,
-        onSuccess: () => {
-            void queryClient.invalidateQueries({ queryKey: ["live"] })
-        },
         onError: () => {
             void queryClient.invalidateQueries({ queryKey: ["live"] })
         },
