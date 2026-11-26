@@ -10,7 +10,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@shared/ui/dialog"
-import { useMatches } from "@/lib/tournament"
+import { useMatches, type MatchDetail } from "@/lib/tournament"
 import { useTournaments } from "@/lib/tournaments"
 import {
     ALL_GROUPS,
@@ -54,6 +54,13 @@ export function AddToMatchDialog({ rows, onClose }: { rows: BankQuestion[] | nul
     const queryClient = useQueryClient()
     const upcoming = (matches.data?.items ?? []).filter((match) => match.status === "UPCOMING")
     const match = (matches.data?.items ?? []).find((candidate) => candidate.id === matchId) ?? null
+    const detail = useQuery({
+        queryKey: ["match-detail", tournamentId, matchId],
+        queryFn: () =>
+            api<MatchDetail>(`/portal/tournaments/${tournamentId}/matches/${matchId}`),
+        enabled: Boolean(tournamentId && matchId),
+        staleTime: 15_000,
+    })
     const unmapped = (rows ?? []).filter((row) => {
         const bucket = bucketOf(row)
         if (!bucket) return true
@@ -62,6 +69,9 @@ export function AddToMatchDialog({ rows, onClose }: { rows: BankQuestion[] | nul
 
     const save = useMutation({
         mutationFn: () => {
+            if (detail.data === undefined) {
+                throw new Error("Đang tải revision hiện tại của trận.")
+            }
             const kept = (match?.questions ?? []).map((question) => entryFromFrozen(question)).map((entry) => {
                 const item: { roundId: string; turnId: string; sourceId: string; points?: number } = {
                     roundId: entry.roundId,
@@ -90,7 +100,7 @@ export function AddToMatchDialog({ rows, onClose }: { rows: BankQuestion[] | nul
                     method: "PATCH",
                     body: JSON.stringify({
                         questions: [...kept, ...added],
-                        baseRevision: match?.assemblyRevision ?? 0,
+                        baseRevision: detail.data.assemblyRevision,
                     }),
                 }
             )
@@ -99,6 +109,9 @@ export function AddToMatchDialog({ rows, onClose }: { rows: BankQuestion[] | nul
         onSuccess: () => {
             setSubmitError(null)
             void queryClient.invalidateQueries({ queryKey: ["matches", tournamentId] })
+            void queryClient.invalidateQueries({
+                queryKey: ["match-detail", tournamentId, matchId],
+            })
             onClose()
         },
         onError: (error) => {
@@ -112,7 +125,7 @@ export function AddToMatchDialog({ rows, onClose }: { rows: BankQuestion[] | nul
 
     if (!rows || rows.length === 0) return null
 
-    const ready = Boolean(tournamentId && matchId && rows.some((row) => bucketOf(row)))
+    const ready = Boolean(tournamentId && matchId && detail.data && rows.some((row) => bucketOf(row)))
     let matchPlaceholder = "— chọn trận —"
     if (matches.isPending) matchPlaceholder = "Đang tải…"
     const submit = () => {
