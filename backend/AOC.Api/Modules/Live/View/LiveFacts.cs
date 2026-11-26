@@ -11,15 +11,7 @@ public static class LiveFacts
     public static JsonElement WaitingMarker() =>
         JsonSerializer.SerializeToElement(new { waiting = true }, JsonApiOptions.Options);
 
-    public static bool IsWaitingState(JsonElement raw)
-    {
-        if (raw.ValueKind != JsonValueKind.Object) return false;
-        foreach (var prop in raw.EnumerateObject())
-        {
-            if (prop.Name == "waiting") return prop.Value.ValueKind == JsonValueKind.True;
-        }
-        return false;
-    }
+    public static bool IsWaitingState(JsonElement raw) => LiveState.IsWaitingMarker(raw);
 
     public static bool IsRoundEnded(string roundId, JsonElement raw)
     {

@@ -9,12 +9,19 @@ namespace AOC.Api.Modules.Live;
 
 public static partial class LiveState
 {
-    private static bool IsWaitingMarker(JsonElement raw)
+    public static bool IsWaitingMarker(JsonElement raw)
     {
         if (raw.ValueKind != JsonValueKind.Object) return false;
         foreach (var prop in raw.EnumerateObject())
         {
-            if (prop.Name == "waiting") return prop.Value.ValueKind == JsonValueKind.True;
+            if (prop.Name != "waiting") continue;
+            return prop.Value.ValueKind switch
+            {
+                JsonValueKind.True => true,
+                JsonValueKind.False => false,
+                _ => throw new LiveStateError("stored live state failed validation",
+                    ["waiting: expected boolean"])
+            };
         }
         return false;
     }
