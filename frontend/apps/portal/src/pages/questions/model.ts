@@ -1,5 +1,4 @@
 import { Archive, EyeOff, Globe, Pencil } from "lucide-react"
-import { ApiError } from "@shared/lib/api"
 
 export type Kind = "CHOICE" | "TEXT" | "KEYWORD"
 export type Status = "DRAFT" | "PUBLISHED" | "ARCHIVED"
@@ -177,10 +176,6 @@ export function listParams(state: UrlState): URLSearchParams {
     return params
 }
 
-export function messageOf(error: unknown): string {
-    if (error instanceof ApiError) return error.message
-    return "Something went wrong. Please try again."
-}
 
 export function answerSummary(row: BankQuestion): string | null {
     const payload = row.payload as {

@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "@shared/lib/api"
 import { QuestionAuthorDialog } from "@/components/question-author-dialog"
 import type { AuthorSave } from "@/components/question-author-dialog"
-import { messageOf } from "./model"
+import { errorMessage } from "@shared/lib/error-text"
 import type { BankQuestion, Kind } from "./model"
 
 export function QuestionDialog({
@@ -50,7 +50,7 @@ export function QuestionDialog({
             void queryClient.invalidateQueries({ queryKey: ["keyword-list"] })
             onClose()
         },
-        onError: (cause) => setError(messageOf(cause)),
+        onError: (cause) => setError(errorMessage(cause)),
     })
 
     return (

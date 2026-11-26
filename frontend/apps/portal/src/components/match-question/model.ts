@@ -1,4 +1,3 @@
-import { ApiError } from "@shared/lib/api"
 import type { RoundConfig } from "@/lib/tournament"
 import type { ComposeRow } from "@/components/compose-group"
 
@@ -222,7 +221,3 @@ export function diffCount(current: Entry[], original: Entry[]): number {
     return delta
 }
 
-export function messageOf(error: unknown): string {
-    if (error instanceof ApiError) return error.message
-    return "Có gì đó không ổn — thử lại."
-}

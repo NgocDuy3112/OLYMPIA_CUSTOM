@@ -8,6 +8,7 @@ import {
     type RemoteVideoTrack,
 } from "livekit-client";
 import { api, ApiError } from "./api";
+import { errorMessage } from "./error-text";
 
 
 interface RtcToken {
@@ -125,7 +126,7 @@ export function useRtcRoom(opts: {
                 if (cancelled) return;
                 write({
                     error: {
-                        message: messageOf(e),
+                        message: errorMessage(e),
                         status: apiStatusOf(e),
                     },
                 });
@@ -248,11 +249,6 @@ export function useRtcPeerTracks(room: Room | null): RtcPeerTracksMap {
 }
 
 
-function messageOf(e: unknown): string {
-    if (e instanceof Error) return e.message;
-    return String(e);
-}
-
 function apiStatusOf(e: unknown): number | undefined {
     if (e instanceof ApiError) return e.status;
     return undefined;
@@ -279,7 +275,7 @@ function mediaErrorOf(e: unknown): string {
         if (e.name === "NotReadableError") return "Camera đang được ứng dụng khác sử dụng.";
         return e.message;
     }
-    return messageOf(e);
+    return errorMessage(e);
 }
 
 interface SelfBroadcast {

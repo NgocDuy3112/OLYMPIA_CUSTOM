@@ -17,7 +17,8 @@ import {
     entryFromFrozen,
     type FrozenQuestion,
 } from "@/components/match-question/model"
-import { bucketOf, messageOf } from "./model"
+import { bucketOf } from "./model"
+import { errorMessage } from "@shared/lib/error-text"
 import type { BankQuestion } from "./model"
 
 interface UsageItem {
@@ -35,7 +36,7 @@ function RowUsage({ id }: { id: string }) {
         staleTime: 15_000,
     })
     if (usage.isPending) return <p className="text-xs text-muted-foreground">Đang tải…</p>
-    if (usage.isError) return <p className="text-xs text-destructive">{messageOf(usage.error)}</p>
+    if (usage.isError) return <p className="text-xs text-destructive">{errorMessage(usage.error)}</p>
     const items = usage.data?.items ?? []
     if (items.length === 0) return <p className="text-xs text-muted-foreground">Chưa gán trận nào</p>
     return (
@@ -107,7 +108,7 @@ export function AddToMatchDialog({ rows, onClose }: { rows: BankQuestion[] | nul
                 setSubmitError("Trận đã đổi revision mới — tải lại danh sách trận rồi thử lại.")
                 return
             }
-            setSubmitError(messageOf(error))
+            setSubmitError(errorMessage(error))
         },
     })
 

@@ -1,6 +1,7 @@
 import { Input } from "@shared/ui/input"
 import { BankPickerItem } from "@/components/compose-group"
-import { badgeOfRow, bucketOfRow, messageOf, type BankRow, type Entry, type TabDef } from "./model"
+import { badgeOfRow, bucketOfRow, type BankRow, type Entry, type TabDef } from "./model"
+import { errorMessage } from "@shared/lib/error-text"
 
 export function BankPickerPane({
     tab,
@@ -71,7 +72,7 @@ export function BankPickerPane({
                     )
                 })}
                 {isError && (
-                    <li className="text-xs text-destructive">{messageOf(error)}</li>
+                    <li className="text-xs text-destructive">{errorMessage(error)}</li>
                 )}
                 {pickerRows.length === 0 && !isPending && !isError && (
                     <li className="rounded-md border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">

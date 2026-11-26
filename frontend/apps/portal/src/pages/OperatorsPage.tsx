@@ -1,7 +1,8 @@
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Copy, UserPlus } from "lucide-react"
-import { ApiError, api } from "@shared/lib/api"
+import { api } from "@shared/lib/api"
+import { errorMessage } from "@shared/lib/error-text"
 import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
 import {
@@ -28,12 +29,6 @@ interface Operator {
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9._-]{3,50}$/
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" })
-
-function messageOf(error: unknown): string {
-    if (error instanceof ApiError) return error.message
-    return "Something went wrong. Please try again."
-}
-
 
 function InviteOperatorDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
     const queryClient = useQueryClient()
@@ -73,7 +68,7 @@ function InviteOperatorDialog({ open, onClose }: { open: boolean; onClose: () =>
             setInviteToken(result.inviteToken)
             void queryClient.invalidateQueries({ queryKey: ["operators"] })
         },
-        onError: (cause) => setError(messageOf(cause)),
+        onError: (cause) => setError(errorMessage(cause)),
     })
 
     const accept = useMutation({
@@ -162,7 +157,7 @@ function InviteOperatorDialog({ open, onClose }: { open: boolean; onClose: () =>
                                     {acceptReason !== null && (
                                         <p className="text-xs text-muted-foreground">{acceptReason}</p>
                                     )}
-                                    {accept.isError && <ErrorPanel message={messageOf(accept.error)} />}
+                                    {accept.isError && <ErrorPanel message={errorMessage(accept.error)} />}
                                     <Button
                                         type="submit"
                                         disabled={acceptReason !== null || accept.isPending}
@@ -261,7 +256,7 @@ export function OperatorsPage() {
             />
 
             {list.isPending && <ListSkeleton />}
-            {list.isError && <ErrorPanel message={messageOf(list.error)} />}
+            {list.isError && <ErrorPanel message={errorMessage(list.error)} />}
 
             {list.data && list.data.items.length === 0 && (
                 <EmptyState

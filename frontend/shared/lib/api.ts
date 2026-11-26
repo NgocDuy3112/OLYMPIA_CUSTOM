@@ -1,3 +1,4 @@
+import { errorMessage } from "./error-text"
 import { logError } from "./log"
 
 export interface PageResult<T> {
@@ -27,15 +28,10 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     try {
         return await apiInner<T>(path, init)
     } catch (error) {
-        const detail = messageOf(error)
+        const detail = errorMessage(error)
         logError("api", `${method} ${path} → ${detail}`)
         throw error
     }
-}
-
-function messageOf(error: unknown): string {
-    if (error instanceof Error) return error.message
-    return String(error)
 }
 
 async function apiInner<T>(path: string, init: RequestInit): Promise<T> {

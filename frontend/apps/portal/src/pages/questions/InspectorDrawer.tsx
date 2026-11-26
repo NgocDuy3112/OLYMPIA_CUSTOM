@@ -4,7 +4,8 @@ import { cn } from "cn"
 import { api } from "@shared/lib/api"
 import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
-import { bucketLabel, bucketOf, dateFormat, messageOf, shapeOf } from "./model"
+import { bucketLabel, bucketOf, dateFormat, shapeOf } from "./model"
+import { errorMessage } from "@shared/lib/error-text"
 import type { BankQuestion } from "./model"
 import { StatusBadge } from "./StatusBadge"
 
@@ -123,7 +124,7 @@ export function InspectorDrawer({ row, onClose }: { row: BankQuestion | null; on
                             Đang dùng trong {usageText}
                         </span>
                         {usage.isError && (
-                            <p className="text-xs text-destructive">{messageOf(usage.error)}</p>
+                            <p className="text-xs text-destructive">{errorMessage(usage.error)}</p>
                         )}
                         {!usage.isPending && !usage.isError && items.length === 0 && (
                             <p className="text-xs text-muted-foreground">Chưa vào trận nào.</p>

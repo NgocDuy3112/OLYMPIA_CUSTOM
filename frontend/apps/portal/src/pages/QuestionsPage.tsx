@@ -3,6 +3,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { Copy, FileText, Globe, ListPlus, Plus, Search, X } from "lucide-react"
 import { cn } from "cn"
 import { ApiError, api } from "@shared/lib/api"
+import { errorMessage } from "@shared/lib/error-text"
 import { Button } from "@shared/ui/button"
 import { Input } from "@shared/ui/input"
 import { EmptyState, ErrorPanel, ListSkeleton, Page, PageHeader } from "@/components/page"
@@ -20,7 +21,6 @@ import {
     bucketOf,
     groupLabelOf,
     listParams,
-    messageOf,
     readUrlState,
 } from "./questions/model"
 import type { BankQuestion, Paged, Status, UrlState } from "./questions/model"
@@ -135,7 +135,7 @@ export function QuestionsPage() {
             void queryClient.invalidateQueries({ queryKey: ["bucket-counts"] })
             void queryClient.invalidateQueries({ queryKey: ["keyword-hints"] })
         },
-        onError: (cause, input) => setFlash({ id: input.id, message: messageOf(cause) }),
+        onError: (cause, input) => setFlash({ id: input.id, message: errorMessage(cause) }),
     })
 
     const archive = useMutation({
@@ -148,7 +148,7 @@ export function QuestionsPage() {
             void queryClient.invalidateQueries({ queryKey: ["bucket-counts"] })
             void queryClient.invalidateQueries({ queryKey: ["keyword-hints"] })
         },
-        onError: (cause, id) => setFlash({ id, message: messageOf(cause) }),
+        onError: (cause, id) => setFlash({ id, message: errorMessage(cause) }),
     })
 
     const [editing, setEditing] = useState<{
@@ -204,7 +204,7 @@ export function QuestionsPage() {
                 setBulkFlash(bulkFlashOf(input, cause.body))
                 return
             }
-            setBulkFlash(messageOf(cause))
+            setBulkFlash(errorMessage(cause))
         },
         onSettled: () => {
             void queryClient.invalidateQueries({ queryKey: ["questions"] })
@@ -237,7 +237,7 @@ export function QuestionsPage() {
     }
 
     let confirmError: string | null = null
-    if (confirming && archive.isError) confirmError = messageOf(archive.error)
+    if (confirming && archive.isError) confirmError = errorMessage(archive.error)
 
     return (
         <Page>
@@ -406,7 +406,7 @@ export function QuestionsPage() {
             </div>
 
             {list.isPending && <ListSkeleton />}
-            {list.isError && <ErrorPanel message={messageOf(list.error)} />}
+            {list.isError && <ErrorPanel message={errorMessage(list.error)} />}
 
             {list.data && rows.length === 0 && (
                 <EmptyState

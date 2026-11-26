@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { Link2, Plus, Save, Upload, X } from "lucide-react"
-import { api, ApiError } from "@shared/lib/api"
+import { api } from "@shared/lib/api"
+import { errorMessage } from "@shared/lib/error-text"
 import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
 import {
@@ -240,11 +241,6 @@ function AudiencePreview({ shape, draft }: { shape: PayloadShape; draft: AuthorD
 }
 
 
-function messageOf(error: unknown): string {
-    if (error instanceof ApiError) return error.message
-    return "Không tải lên được tệp — thử lại."
-}
-
 export function QuestionAuthorDialog({
     open,
     row = null,
@@ -274,7 +270,7 @@ export function QuestionAuthorDialog({
             setUploadError(null)
             patch({ media })
         },
-        onError: (cause) => setUploadError(messageOf(cause)),
+        onError: (cause) => setUploadError(errorMessage(cause)),
     })
 
     const shape = payloadShapeOf(draft.bucket, linking)

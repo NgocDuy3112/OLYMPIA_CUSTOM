@@ -3,7 +3,8 @@ import { Lightbulb } from "lucide-react"
 import { cn } from "cn"
 import { api } from "@shared/lib/api"
 import { Button } from "@shared/ui/button"
-import { HINT_MAX, answerSummary, dateFormat, messageOf } from "./model"
+import { HINT_MAX, answerSummary, dateFormat } from "./model"
+import { errorMessage } from "@shared/lib/error-text"
 import type { BankQuestion, Paged, Status } from "./model"
 import { PreviewText } from "./PreviewText"
 import { SelectBox } from "./SelectBox"
@@ -101,7 +102,7 @@ export function KeywordSetCard({
                     <p className="text-sm text-muted-foreground">Loading hints…</p>
                 )}
                 {hints.isError && (
-                    <p role="alert" className="text-sm text-destructive">{messageOf(hints.error)}</p>
+                    <p role="alert" className="text-sm text-destructive">{errorMessage(hints.error)}</p>
                 )}
 
 

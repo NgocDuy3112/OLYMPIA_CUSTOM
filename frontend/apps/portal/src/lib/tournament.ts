@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@shared/http/keys"
 import { api } from "@shared/lib/api"
 import type { Tournament, TournamentRound } from "@/lib/tournaments"
 import type {
@@ -10,6 +11,8 @@ import type {
     RoomCode,
     StandingRow,
 } from "@shared/wire/tournament"
+
+export { useEnrolled } from "@shared/http/tournament"
 
 export type {
     ContestantRow,
@@ -89,15 +92,6 @@ export function useUpdateTournament(tournamentId: string) {
             queryClient.setQueryData(["tournament", tournamentId], tournament)
             void queryClient.invalidateQueries({ queryKey: ["tournaments"] })
         },
-    })
-}
-
-
-export function useEnrolled(tournamentId: string) {
-    return useQuery({
-        queryKey: ["enrolled", tournamentId],
-        queryFn: () => api<{ items: ContestantRow[] }>(`/portal/tournaments/${tournamentId}/players`),
-        enabled: Boolean(tournamentId),
     })
 }
 
@@ -244,7 +238,7 @@ export function useAssignGroup(tournamentId: string) {
             ),
         onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: ["groups", tournamentId] })
-            void queryClient.invalidateQueries({ queryKey: ["enrolled", tournamentId] })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.enrolled(tournamentId) })
         },
     })
 }

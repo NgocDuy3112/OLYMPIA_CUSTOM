@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { arrayMove } from "@dnd-kit/sortable"
 import { ApiError, api, type PageResult } from "@shared/lib/api"
+import { errorMessage } from "@shared/lib/error-text"
 import { Badge } from "@shared/ui/badge"
 import { ComposeDndProvider } from "@/components/compose-group"
 import { MatchDirectImportDialog } from "@/components/match-direct-import-dialog"
@@ -20,7 +21,6 @@ import {
     bucketize,
     diffCount,
     flatten,
-    messageOf,
     spliceInto,
     type BankRow,
     type Entry,
@@ -165,7 +165,7 @@ export function MatchQuestionSurface({
             return
         }
 
-        void insertRow(row, bucket, index).catch((error) => setSaveError(messageOf(error)))
+        void insertRow(row, bucket, index).catch((error) => setSaveError(errorMessage(error)))
     }
 
     useEffect(() => {
@@ -229,7 +229,7 @@ export function MatchQuestionSurface({
                     setFlash(`${skipped.length} câu bỏ qua vì chưa gán nhóm.`)
                 }
             } catch (error) {
-                setFlash(messageOf(error))
+                setFlash(errorMessage(error))
             } finally {
                 clearParam()
             }
@@ -337,7 +337,7 @@ export function MatchQuestionSurface({
                     void queryClient.invalidateQueries({ queryKey: ["matches", tournamentId] })
                     return
                 }
-                setSaveError(messageOf(error))
+                setSaveError(errorMessage(error))
             },
         })
 

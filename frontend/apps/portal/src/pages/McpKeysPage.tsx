@@ -1,7 +1,8 @@
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Copy, Plus, Trash2 } from "lucide-react"
-import { ApiError, api } from "@shared/lib/api"
+import { api } from "@shared/lib/api"
+import { errorMessage } from "@shared/lib/error-text"
 import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
 import {
@@ -46,12 +47,6 @@ function statusOf(key: McpKey): { label: string; className: string } {
     return { label: "Active", className: "text-emerald-600" }
 }
 
-function messageOf(error: unknown): string {
-    if (error instanceof ApiError) return error.message
-    return "Something went wrong. Please try again."
-}
-
-
 function IssueKeyDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
     const queryClient = useQueryClient()
     const [label, setLabel] = useState("")
@@ -80,7 +75,7 @@ function IssueKeyDialog({ open, onClose }: { open: boolean; onClose: () => void 
             setIssued(result.token)
             void queryClient.invalidateQueries({ queryKey: ["mcp-keys"] })
         },
-        onError: (cause) => setError(messageOf(cause)),
+        onError: (cause) => setError(errorMessage(cause)),
     })
 
     const toggleScope = (scope: Scope) =>
@@ -227,7 +222,7 @@ function RevokeDialog({ keyRow, onClose }: { keyRow: McpKey | null; onClose: () 
             void queryClient.invalidateQueries({ queryKey: ["mcp-keys"] })
             onClose()
         },
-        onError: (cause) => setError(messageOf(cause)),
+        onError: (cause) => setError(errorMessage(cause)),
     })
 
     let revokeLabel = "Revoke key"
@@ -284,7 +279,7 @@ export function McpKeysPage() {
             />
 
             {list.isPending && <ListSkeleton />}
-            {list.isError && <ErrorPanel message={messageOf(list.error)} />}
+            {list.isError && <ErrorPanel message={errorMessage(list.error)} />}
 
             {list.data && list.data.items.length === 0 && (
                 <EmptyState
