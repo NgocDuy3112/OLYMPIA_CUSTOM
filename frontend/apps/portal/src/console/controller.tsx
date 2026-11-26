@@ -37,7 +37,7 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
     if (model.phase === "loading") {
         return (
             <StageShell fullHeight>
-                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Đang tải vòng thi…</div>
+                <div role="status" className="flex h-full items-center justify-center text-sm text-muted-foreground">Đang tải vòng thi…</div>
             </StageShell>
         )
     }

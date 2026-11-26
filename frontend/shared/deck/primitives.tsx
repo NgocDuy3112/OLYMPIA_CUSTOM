@@ -58,13 +58,17 @@ export function Timer({ remaining, size = 40 }: {
     // which would read as "time is up". A real countdown at zero still formats to "00".
     let text = "--:--"
     let tone = "text-muted-foreground"
+    let announcement = ""
     if (remaining !== null) {
         text = toClock(formatRemaining(remaining))
         tone = "text-foreground"
+        if (remaining <= 0) announcement = "Hết giờ"
+        else if (remaining <= 10_000) announcement = "Còn 10 giây"
     }
     return (
         <span className={`shrink-0 text-right font-display font-bold leading-none tabular-nums ${tone}`} style={{ fontSize: pt(size) }}>
-            {text}
+            <span aria-hidden="true">{text}</span>
+            <span role="status" className="sr-only">{announcement}</span>
         </span>
     )
 }
