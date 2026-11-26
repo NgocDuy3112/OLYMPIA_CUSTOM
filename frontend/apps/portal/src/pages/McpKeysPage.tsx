@@ -17,15 +17,22 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { EmptyState, ErrorPanel, ListSkeleton, Page, PageHeader } from "@/components/page"
 
 
-type Scope = "READ" | "WRITE" | "ANNOUNCE"
-const ALL_SCOPES: Scope[] = ["READ", "WRITE", "ANNOUNCE"]
-const DEFAULT_SCOPES: Scope[] = ["READ"]
+interface ScopeInfo {
+    id: string
+    title: string
+    tools: string[]
+    default: boolean
+}
+
+interface ScopesResponse {
+    scopes: ScopeInfo[]
+}
 
 interface McpKey {
     id: string
     label: string
     prefix: string
-    scopes: Scope[]
+    scopes: string[]
     expiresAt: string | null
     revokedAt: string | null
     lastUsedAt: string | null
@@ -39,6 +46,16 @@ interface Page {
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" })
 
+function toolsOfScopeIds(catalogue: ScopeInfo[], scopeIds: string[]): string[] {
+    const granted = new Set(scopeIds)
+    const tools = new Set<string>()
+    for (const scope of catalogue) {
+        if (!granted.has(scope.id)) continue
+        for (const tool of scope.tools) tools.add(tool)
+    }
+    return [...tools]
+}
+
 function statusOf(key: McpKey): { label: string; className: string } {
     if (key.revokedAt) return { label: "Revoked", className: "line-through opacity-60" }
     if (key.expiresAt && new Date(key.expiresAt).getTime() < Date.now()) {
@@ -47,10 +64,19 @@ function statusOf(key: McpKey): { label: string; className: string } {
     return { label: "Active", className: "text-emerald-600" }
 }
 
-function IssueKeyDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+function IssueKeyDialog({
+    open,
+    onClose,
+    catalogue,
+}: {
+    open: boolean
+    onClose: () => void
+    catalogue: ScopeInfo[]
+}) {
     const queryClient = useQueryClient()
+    const defaults = catalogue.filter((scope) => scope.default).map((scope) => scope.id)
     const [label, setLabel] = useState("")
-    const [scopes, setScopes] = useState<Scope[]>(DEFAULT_SCOPES)
+    const [selected, setSelected] = useState<string[]>(defaults)
     const [expiresOn, setExpiresOn] = useState("")
     const [issued, setIssued] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
@@ -58,7 +84,7 @@ function IssueKeyDialog({ open, onClose }: { open: boolean; onClose: () => void 
 
     const reset = () => {
         setLabel("")
-        setScopes(DEFAULT_SCOPES)
+        setSelected(defaults)
         setExpiresOn("")
         setIssued(null)
         setCopied(false)
@@ -67,7 +93,7 @@ function IssueKeyDialog({ open, onClose }: { open: boolean; onClose: () => void 
 
     const issue = useMutation({
         mutationFn: () => {
-            const body: Record<string, unknown> = { label: label.trim(), scopes }
+            const body: Record<string, unknown> = { label: label.trim(), scopes: selected }
             if (expiresOn) body.expiresAt = new Date(`${expiresOn}T00:00:00Z`).toISOString()
             return api<{ token: string }>("/portal/mcp-keys", { method: "POST", body: JSON.stringify(body) })
         },
@@ -78,14 +104,14 @@ function IssueKeyDialog({ open, onClose }: { open: boolean; onClose: () => void 
         onError: (cause) => setError(errorMessage(cause)),
     })
 
-    const toggleScope = (scope: Scope) =>
-        setScopes((current) => {
-            if (current.includes(scope)) return current.filter((s) => s !== scope)
-            return [...current, scope]
+    const toggleScope = (scopeId: string) =>
+        setSelected((current) => {
+            if (current.includes(scopeId)) return current.filter((id) => id !== scopeId)
+            return [...current, scopeId]
         })
 
     let reason: string | null = null
-    if (scopes.length === 0) reason = "Pick at least one scope"
+    if (selected.length === 0) reason = "Pick at least one scope"
     if (!label.trim()) reason = "A label says what this key is for"
     let copyLabel = "Copy"
     if (copied) copyLabel = "Copied"
@@ -166,16 +192,17 @@ function IssueKeyDialog({ open, onClose }: { open: boolean; onClose: () => void 
 
                             <div className="grid gap-2">
                                 <span className="text-sm font-medium">Scopes</span>
-                                <div className="flex flex-wrap gap-4">
-                                    {ALL_SCOPES.map((scope) => (
-                                        <label key={scope} className="flex items-center gap-2 text-sm">
+                                <div className="grid gap-2">
+                                    {catalogue.map((scope) => (
+                                        <label key={scope.id} className="flex items-center gap-2 text-sm">
                                             <input
                                                 type="checkbox"
-                                                checked={scopes.includes(scope)}
-                                                onChange={() => toggleScope(scope)}
+                                                checked={selected.includes(scope.id)}
+                                                onChange={() => toggleScope(scope.id)}
                                                 className="size-4"
                                             />
-                                            {scope}
+                                            <span>{scope.title}</span>
+                                            <span className="font-mono text-xs text-muted-foreground">{scope.id}</span>
                                         </label>
                                     ))}
                                 </div>
@@ -264,6 +291,11 @@ export function McpKeysPage() {
         queryFn: () => api<Page>("/portal/mcp-keys?limit=50&offset=0"),
     })
 
+    const scopes = useQuery({
+        queryKey: ["mcp-keys", "scopes"],
+        queryFn: () => api<ScopesResponse>("/portal/mcp-keys/scopes"),
+    })
+
     const [issuing, setIssuing] = useState(false)
     const [revoking, setRevoking] = useState<McpKey | null>(null)
 
@@ -272,14 +304,15 @@ export function McpKeysPage() {
             <PageHeader
                 title="MCP keys"
                 actions={
-                    <Button onClick={() => setIssuing(true)}>
+                    <Button disabled={!scopes.data} onClick={() => setIssuing(true)}>
                         <Plus className="size-4" aria-hidden /> New key
                     </Button>
                 }
             />
 
-            {list.isPending && <ListSkeleton />}
+            {(list.isPending || scopes.isPending) && <ListSkeleton />}
             {list.isError && <ErrorPanel message={errorMessage(list.error)} />}
+            {scopes.isError && <ErrorPanel message={errorMessage(scopes.error)} />}
 
             {list.data && list.data.items.length === 0 && (
                 <EmptyState
@@ -289,7 +322,7 @@ export function McpKeysPage() {
                 />
             )}
 
-            {list.data && list.data.items.length > 0 && (
+            {list.data && scopes.data && list.data.items.length > 0 && (
                 <div className="rounded-xl border bg-card">
                     <Table>
                         <TableHeader>
@@ -297,6 +330,7 @@ export function McpKeysPage() {
                                 <TableHead className="w-40">Prefix</TableHead>
                                 <TableHead>Label</TableHead>
                                 <TableHead className="w-44">Scopes</TableHead>
+                                <TableHead>Tools</TableHead>
                                 <TableHead className="w-28">Status</TableHead>
                                 <TableHead className="w-32">Last used</TableHead>
                                 <TableHead className="w-32">Expires</TableHead>
@@ -320,6 +354,15 @@ export function McpKeysPage() {
                                             <span className="flex flex-wrap gap-1">
                                                 {key.scopes.map((scope) => (
                                                     <Badge key={scope} variant="outline">{scope}</Badge>
+                                                ))}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className="flex flex-wrap gap-1">
+                                                {toolsOfScopeIds(scopes.data.scopes, key.scopes).map((tool) => (
+                                                    <Badge key={tool} variant="secondary" className="font-mono">
+                                                        {tool}
+                                                    </Badge>
                                                 ))}
                                             </span>
                                         </TableCell>
@@ -351,7 +394,13 @@ export function McpKeysPage() {
                 </div>
             )}
 
-            {issuing && <IssueKeyDialog open={issuing} onClose={() => setIssuing(false)} />}
+            {issuing && scopes.data && (
+                <IssueKeyDialog
+                    open={issuing}
+                    onClose={() => setIssuing(false)}
+                    catalogue={scopes.data.scopes}
+                />
+            )}
             <RevokeDialog keyRow={revoking} onClose={() => setRevoking(null)} />
         </Page>
     )
