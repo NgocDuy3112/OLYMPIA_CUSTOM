@@ -195,7 +195,7 @@ public static class MatchCodeRoutes
         {
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
             await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
-            await TournamentGuards.AssertWriteAsync(http, tournamentId);
+            await TournamentAccess.RequireWriteAsync(http, tournamentId);
 
             var service = http.RequestServices.GetRequiredService<MatchCodesService>();
             var items = await service.ActiveRoomCodesAsync(tournamentId);
@@ -207,7 +207,7 @@ public static class MatchCodeRoutes
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
             var matchId = Validate.RouteUuid(http, "matchId");
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
-            await TournamentGuards.AssertWriteAsync(http, tournamentId);
+            await TournamentAccess.RequireWriteAsync(http, tournamentId);
 
             var service = http.RequestServices.GetRequiredService<MatchCodesService>();
             var room = await service.RotateRoomCodeAsync(tournamentId, matchId, user.Id);

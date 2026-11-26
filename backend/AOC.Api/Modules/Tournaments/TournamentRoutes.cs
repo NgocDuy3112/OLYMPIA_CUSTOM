@@ -52,15 +52,11 @@ public static class TournamentRoutes
 
         app.MapGet("/portal/tournaments/{tournamentId}", async (HttpContext http) =>
         {
-            var user = await Staff(http);
+            await Staff(http);
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
-            var service = http.RequestServices.GetRequiredService<TournamentsService>();
             var db = http.RequestServices.GetRequiredService<AOCDbContext>();
 
-            var tournament = await service.RequireTournamentAsync(tournamentId);
-            if (!TournamentAccess.CanView(tournament, user))
-                throw new TournamentError(TournamentErrorCode.NOT_FOUND,
-                    $"tournament {tournamentId} not found");
+            var tournament = await TournamentAccess.RequireViewAsync(http, tournamentId);
 
             var places = await db.TournamentPlayers.CountAsync(p => p.TournamentId == tournament.Id);
             return Results.Json(TournamentDetail.Of(tournament, places), JsonApi.Options);
@@ -68,17 +64,12 @@ public static class TournamentRoutes
 
         app.MapPatch("/portal/tournaments/{tournamentId}", async (HttpContext http) =>
         {
-            var user = await Staff(http);
+            await Staff(http);
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
             var body = await Validate.ReadJsonBodyAsync(http);
             var service = http.RequestServices.GetRequiredService<TournamentsService>();
 
-            var tournament = await service.RequireTournamentAsync(tournamentId);
-            if (!TournamentAccess.CanView(tournament, user))
-                throw new TournamentError(TournamentErrorCode.NOT_FOUND,
-                    $"tournament {tournamentId} not found");
-            if (!TournamentAccess.CanWrite(tournament, user))
-                throw ApiException.Forbidden("Only the owner or an admin may manage this tournament");
+            await TournamentAccess.RequireWriteAsync(http, tournamentId);
 
             var row = await service.UpdateTournamentAsync(tournamentId, body);
             return Results.Json(row, JsonApi.Options);
@@ -86,16 +77,11 @@ public static class TournamentRoutes
 
         app.MapPost("/portal/tournaments/{tournamentId}/close", async (HttpContext http) =>
         {
-            var user = await Staff(http);
+            await Staff(http);
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
             var service = http.RequestServices.GetRequiredService<TournamentsService>();
 
-            var tournament = await service.RequireTournamentAsync(tournamentId);
-            if (!TournamentAccess.CanView(tournament, user))
-                throw new TournamentError(TournamentErrorCode.NOT_FOUND,
-                    $"tournament {tournamentId} not found");
-            if (!TournamentAccess.CanWrite(tournament, user))
-                throw ApiException.Forbidden("Only the owner or an admin may close this tournament");
+            await TournamentAccess.RequireWriteAsync(http, tournamentId);
 
             var row = await service.CloseTournamentAsync(tournamentId);
             return Results.Json(row, JsonApi.Options);

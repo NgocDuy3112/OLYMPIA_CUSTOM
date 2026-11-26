@@ -14,14 +14,12 @@ public static class MatchRoutes
     {
         app.MapPost("/portal/tournaments/{tournamentId}/matches", async (HttpContext http) =>
         {
-            var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
+            await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
             var body = await Validate.ReadJsonBodyAsync(http);
             var service = http.RequestServices.GetRequiredService<MatchesService>();
 
-            var tournament = await service.RequireTournamentAsync(Guid.Parse(tournamentId));
-            AssertView(tournament, user, tournamentId);
-            AssertWrite(tournament, user);
+            await TournamentAccess.RequireWriteAsync(http, tournamentId);
 
             var input = MatchSchemas.ParseCreate(body);
             var row = await service.CreateMatchAsync(tournamentId, input);
@@ -31,13 +29,12 @@ public static class MatchRoutes
 
         app.MapGet("/portal/tournaments/{tournamentId}/matches", async (HttpContext http) =>
         {
-            var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
+            await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
             var query = Validate.Query(http);
             var service = http.RequestServices.GetRequiredService<MatchesService>();
 
-            var tournament = await service.RequireTournamentAsync(Guid.Parse(tournamentId));
-            AssertView(tournament, user, tournamentId);
+            await TournamentAccess.RequireViewAsync(http, tournamentId);
 
             var status = query.GetValueOrDefault("status");
             if (status is not null && status is not ("UPCOMING" or "LIVE" or "FINISHED"))
@@ -49,13 +46,12 @@ public static class MatchRoutes
 
         app.MapGet("/portal/tournaments/{tournamentId}/matches/{matchId}", async (HttpContext http) =>
         {
-            var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
+            await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
             var matchId = Validate.RouteUuid(http, "matchId");
             var service = http.RequestServices.GetRequiredService<MatchesService>();
 
-            var scope = await service.RequireMatchScopeAsync(tournamentId, matchId);
-            AssertView(scope.Tournament, user, tournamentId);
+            var scope = await TournamentAccess.RequireMatchAsync(http, tournamentId, matchId, write: false);
 
             var assemblyEvents = await service.GetMatchAssemblyEventsAsync(matchId);
             return Results.Json(MatchDetail.Of(scope.Match, assemblyEvents), JsonApi.Options);
@@ -63,15 +59,13 @@ public static class MatchRoutes
 
         app.MapPost("/portal/tournaments/{tournamentId}/matches/{matchId}/results", async (HttpContext http) =>
         {
-            var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
+            await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
             var matchId = Validate.RouteUuid(http, "matchId");
             var body = await Validate.ReadJsonBodyAsync(http);
             var service = http.RequestServices.GetRequiredService<MatchesService>();
 
-            var scope = await service.RequireMatchScopeAsync(tournamentId, matchId);
-            AssertView(scope.Tournament, user, tournamentId);
-            AssertWrite(scope.Tournament, user);
+            await TournamentAccess.RequireWriteAsync(http, tournamentId);
 
             var input = MatchSchemas.ParseSetResults(body);
             var match = await service.SetMatchResultsAsync(tournamentId, matchId, input.Totals);
@@ -88,15 +82,13 @@ public static class MatchRoutes
 
         app.MapPatch("/portal/tournaments/{tournamentId}/matches/{matchId}", async (HttpContext http) =>
         {
-            var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
+            await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
             var matchId = Validate.RouteUuid(http, "matchId");
             var body = await Validate.ReadJsonBodyAsync(http);
             var service = http.RequestServices.GetRequiredService<MatchesService>();
 
-            var scope = await service.RequireMatchScopeAsync(tournamentId, matchId);
-            AssertView(scope.Tournament, user, tournamentId);
-            AssertWrite(scope.Tournament, user);
+            await TournamentAccess.RequireWriteAsync(http, tournamentId);
 
             var patch = MatchSchemas.ParseUpdate(body);
             var row = await service.UpdateMatchAsync(tournamentId, matchId, patch);
@@ -112,12 +104,7 @@ public static class MatchRoutes
             var service = http.RequestServices.GetRequiredService<MatchesService>();
             var assembly = http.RequestServices.GetRequiredService<AssemblePatchService>();
 
-            var scope = await service.RequireMatchScopeAsync(tournamentId, matchId);
-            if (!TournamentAccess.CanView(scope.Tournament, user))
-                throw new MatchError(MatchErrorCode.NOT_FOUND, $"tournament {tournamentId} not found");
-            if (!TournamentAccess.CanWrite(scope.Tournament, user))
-                throw new MatchError(MatchErrorCode.FORBIDDEN,
-                    "Only the owner or an admin may manage this tournament's matches");
+            await TournamentAccess.RequireWriteAsync(http, tournamentId);
 
             var input = MatchSchemas.ParsePatchAssemble(body);
             var result = await assembly.PatchAssembleAsync(tournamentId, matchId, input, user.Id);
@@ -126,15 +113,13 @@ public static class MatchRoutes
 
         app.MapPatch("/portal/tournaments/{tournamentId}/matches/{matchId}/status", async (HttpContext http) =>
         {
-            var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
+            await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
             var matchId = Validate.RouteUuid(http, "matchId");
             var body = await Validate.ReadJsonBodyAsync(http);
             var service = http.RequestServices.GetRequiredService<MatchesService>();
 
-            var scope = await service.RequireMatchScopeAsync(tournamentId, matchId);
-            AssertView(scope.Tournament, user, tournamentId);
-            AssertWrite(scope.Tournament, user);
+            var scope = await TournamentAccess.RequireMatchAsync(http, tournamentId, matchId, write: true);
 
             var status = MatchSchemas.ParseTransition(body);
             var previous = scope.Match;
@@ -163,15 +148,13 @@ public static class MatchRoutes
 
         app.MapDelete("/portal/tournaments/{tournamentId}/matches/{matchId}/players/{userId}", async (HttpContext http) =>
         {
-            var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
+            await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
             var matchId = Validate.RouteUuid(http, "matchId");
             var userId = Validate.RouteUuid(http, "userId");
             var service = http.RequestServices.GetRequiredService<MatchesService>();
 
-            var scope = await service.RequireMatchScopeAsync(tournamentId, matchId);
-            AssertView(scope.Tournament, user, tournamentId);
-            AssertWrite(scope.Tournament, user);
+            await TournamentAccess.RequireWriteAsync(http, tournamentId);
 
             await service.EjectSeatAsync(tournamentId, matchId, userId);
             await AuditAsync(http, "tournament_updated", matchId, new Dictionary<string, object?>
@@ -199,21 +182,6 @@ public static class MatchRoutes
 
 
         return app;
-    }
-
-    internal static void AssertView(Infrastructure.Data.Entities.TournamentEntity tournament,
-        Infrastructure.Data.Entities.UserEntity user, string tournamentId)
-    {
-        if (!TournamentAccess.CanView(tournament, user))
-            throw new MatchError(MatchErrorCode.NOT_FOUND, $"tournament {tournamentId} not found");
-    }
-
-    internal static void AssertWrite(Infrastructure.Data.Entities.TournamentEntity tournament,
-        Infrastructure.Data.Entities.UserEntity user)
-    {
-        if (!TournamentAccess.CanWrite(tournament, user))
-            throw new MatchError(MatchErrorCode.FORBIDDEN,
-                "Only the owner or an admin may manage this tournament's matches");
     }
 
     internal static Task AuditAsync(HttpContext http, string action, string? matchId,

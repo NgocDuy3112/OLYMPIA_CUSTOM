@@ -112,21 +112,10 @@ public static partial class QuestionRoutes
 
         app.MapGet("/portal/tournaments/{tournamentId}/eligible-questions", async (HttpContext http) =>
         {
-            var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
+            await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
 
-            var tournaments = http.RequestServices.GetRequiredService<TournamentsService>();
-            TournamentEntity tournament;
-            try
-            {
-                tournament = await tournaments.RequireTournamentAsync(tournamentId);
-            }
-            catch (TournamentError)
-            {
-                throw new QuestionError(QuestionErrorCode.NOT_FOUND, $"tournament {tournamentId} not found");
-            }
-            if (!TournamentAccess.CanView(tournament, user))
-                throw new QuestionError(QuestionErrorCode.NOT_FOUND, $"tournament {tournamentId} not found");
+            await TournamentAccess.RequireViewAsync(http, tournamentId);
 
             var query = Validate.Query(http);
             var kindsRaw = query.GetValueOrDefault("kinds");

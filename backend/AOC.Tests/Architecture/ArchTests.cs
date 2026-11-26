@@ -62,6 +62,23 @@ public class ArchTests
     }
 
     [Fact]
+    public void Routes_must_use_the_shared_tournament_access_seam()
+    {
+        var modules = Path.Combine(ApiRoot(), "Modules");
+        var offenders = Directory.EnumerateFiles(modules, "*Routes.cs", SearchOption.AllDirectories)
+            .Where(path =>
+            {
+                var text = File.ReadAllText(path);
+                return text.Contains("TournamentAccess.CanView")
+                    || text.Contains("TournamentAccess.CanWrite");
+            })
+            .Select(path => Relative(modules, path))
+            .ToList();
+
+        Assert.Empty(offenders);
+    }
+
+    [Fact]
     public void No_new_raw_connection_outside_the_known_four()
     {
         var root = ApiRoot();

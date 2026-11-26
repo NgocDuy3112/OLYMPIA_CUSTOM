@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using AOC.Api.Http;
 using AOC.Api.Modules.Matches;
 using AOC.Api.Realtime;
+using AOC.Api.Shared;
 using AOC.Domain.Contracts;
 using AOC.Domain.Gameplay;
 using AOC.Infrastructure.Configuration;
@@ -39,10 +40,7 @@ public static class LiveRoutes
                 throw ApiException.BadRequest("invalid live action");
             }
 
-            var scope = http.RequestServices.GetRequiredService<MatchesService>();
-            var matchScope = await scope.RequireMatchScopeAsync(tournamentId, matchId);
-            if (!Shared.TournamentAccess.CanWrite(matchScope.Tournament, user))
-                throw ApiException.Forbidden("Only the owner or an admin may drive a live match");
+            var matchScope = await TournamentAccess.RequireMatchAsync(http, tournamentId, matchId, write: true);
 
             var service = http.RequestServices.GetRequiredService<LiveService>();
             await service.RequireControllerAsync(matchScope.Match, user.Id);
@@ -174,10 +172,7 @@ public static class LiveRoutes
             var takeover = body.TryGetProperty("takeover", out var takeoverEl) &&
                 takeoverEl.ValueKind == JsonValueKind.True;
 
-            var scope = http.RequestServices.GetRequiredService<MatchesService>();
-            var matchScope = await scope.RequireMatchScopeAsync(tournamentId, matchId);
-            if (!Shared.TournamentAccess.CanWrite(matchScope.Tournament, user))
-                throw ApiException.Forbidden("Only the owner or an admin may drive a live match");
+            var matchScope = await TournamentAccess.RequireMatchAsync(http, tournamentId, matchId, write: true);
 
             var service = http.RequestServices.GetRequiredService<LiveService>();
             var before = await service.ControllerOfAsync(Guid.Parse(matchId));

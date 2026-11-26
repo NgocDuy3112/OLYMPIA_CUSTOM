@@ -12,7 +12,7 @@ public static class StandingsRoutes
         app.MapGet("/portal/tournaments/{tournamentId}/standings", async (HttpContext http) =>
         {
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
-            await TournamentGuards.AssertViewAsync(http, tournamentId);
+            await TournamentAccess.RequireViewAsync(http, tournamentId);
             var service = http.RequestServices.GetRequiredService<StandingsService>();
             var rows = await service.GetStandingsAsync(tournamentId);
             return Results.Json(new { rows }, JsonApi.Options);
@@ -21,7 +21,7 @@ public static class StandingsRoutes
         app.MapGet("/portal/tournaments/{tournamentId}/groups", async (HttpContext http) =>
         {
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
-            await TournamentGuards.AssertViewAsync(http, tournamentId);
+            await TournamentAccess.RequireViewAsync(http, tournamentId);
             var service = http.RequestServices.GetRequiredService<GroupTablesService>();
             return Results.Json(await service.GetGroupTablesAsync(tournamentId), JsonApi.Options);
         });
@@ -30,7 +30,7 @@ public static class StandingsRoutes
         {
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
-            await TournamentGuards.AssertWriteAsync(http, tournamentId);
+            await TournamentAccess.RequireWriteAsync(http, tournamentId);
 
             var service = http.RequestServices.GetRequiredService<StandingsService>();
             var rows = await service.RecomputeStandingsAsync(tournamentId);

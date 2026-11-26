@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using AOC.Api.Http;
 using AOC.Api.Modules.Tournaments;
+using AOC.Api.Shared;
 using AOC.Domain.Contracts;
 using AOC.Infrastructure.Configuration;
 
@@ -59,7 +60,7 @@ public static class RosterRoutes
         {
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
-            await TournamentGuards.AssertWriteAsync(http, tournamentId);
+            await TournamentAccess.RequireWriteAsync(http, tournamentId);
 
             var body = Validate.Object(await Validate.ReadJsonBodyAsync(http));
             var userIds = new List<Guid>();
@@ -90,7 +91,7 @@ public static class RosterRoutes
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
             var userId = Validate.RouteUuid(http, "userId");
             await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
-            await TournamentGuards.AssertWriteAsync(http, tournamentId);
+            await TournamentAccess.RequireWriteAsync(http, tournamentId);
 
             var service = http.RequestServices.GetRequiredService<RosterService>();
             await service.RemoveContestantAsync(tournamentId, userId);
@@ -109,7 +110,7 @@ public static class RosterRoutes
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
             var userId = Validate.RouteUuid(http, "userId");
             await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
-            await TournamentGuards.AssertWriteAsync(http, tournamentId);
+            await TournamentAccess.RequireWriteAsync(http, tournamentId);
 
             var body = Validate.Object(await Validate.ReadJsonBodyAsync(http));
             PlayerGroup? group;
@@ -148,7 +149,7 @@ public static class RosterRoutes
         app.MapGet("/portal/tournaments/{tournamentId}/players", async (HttpContext http) =>
         {
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
-            await TournamentGuards.AssertViewAsync(http, tournamentId);
+            await TournamentAccess.RequireViewAsync(http, tournamentId);
             var service = http.RequestServices.GetRequiredService<RosterService>();
             var items = await service.ListEnrolledAsync(tournamentId);
             return Results.Json(new { items }, JsonApi.Options);
