@@ -1,5 +1,7 @@
 using System.Text.Json;
 using AOC.Api.Http;
+using AOC.Api.Shared;
+using AOC.Infrastructure.Audit;
 using AOC.Infrastructure.Configuration;
 using AOC.Infrastructure.Data;
 
@@ -20,12 +22,10 @@ public static class MatchScoringRoutes
             var input = MatchSchemas.ParseSetResults(body);
             var match = await scoring.SetMatchResultsAsync(tournamentId, matchId, input.Totals);
 
-            await AuditAsync(http, "match_results_saved", matchId, new Dictionary<string, object?>
-            {
-                ["tournamentId"] = tournamentId,
-                ["manual"] = true,
-                ["totals"] = input.Totals.Select(t => new { userId = t.UserId, score = t.Score }).ToList()
-            });
+            var audit = http.RequestServices.GetRequiredService<AuditService>();
+            await audit.AuditAsync(http, AuditTarget.Match(matchId), "match_results_saved",
+                new MatchResultsSavedAudit(tournamentId, Manual: true,
+                    input.Totals.Select(t => new MatchTotalAudit(t.UserId, t.Score)).ToList()));
 
             return Results.Json(match, JsonApi.Options);
         });
@@ -51,13 +51,10 @@ public static class MatchScoringRoutes
             if (match.Status != previous.Status)
             {
                 var action = match.Status == MatchStatus.LIVE ? "match_started" : "match_ended";
-                await AuditAsync(http, action, matchId, new Dictionary<string, object?>
-                {
-                    ["tournamentId"] = tournamentId,
-                    ["from"] = previous.Status.ToString(),
-                    ["to"] = match.Status.ToString(),
-                    ["label"] = match.Label
-                });
+                var audit = http.RequestServices.GetRequiredService<AuditService>();
+                await audit.AuditAsync(http, AuditTarget.Match(matchId), action,
+                    new MatchStatusAudit(tournamentId, previous.Status.ToString(), match.Status.ToString(),
+                        match.Label));
             }
 
             return Results.Json(match, JsonApi.Options);
@@ -66,21 +63,10 @@ public static class MatchScoringRoutes
         return app;
     }
 
-    private static Task AuditAsync(HttpContext http, string action, string? matchId,
-        Dictionary<string, object?>? details)
-    {
-        var user = http.Items.TryGetValue(Guards.SessionUserKey, out var u)
-            ? u as Infrastructure.Data.Entities.UserEntity
-            : null;
-        var audit = http.RequestServices.GetRequiredService<AOC.Infrastructure.Audit.AuditService>();
-        return audit.AuditAsync(new AOC.Infrastructure.Audit.AuditEvent
-        {
-            Action = action,
-            ActorId = user?.Id,
-            MatchId = matchId is null ? null : Guid.Parse(matchId),
-            Details = details,
-            Ip = http.Connection.RemoteIpAddress?.ToString(),
-            UserAgent = http.Request.Headers.UserAgent.ToString()
-        });
-    }
+    private sealed record MatchResultsSavedAudit(
+        string TournamentId, bool Manual, List<MatchTotalAudit> Totals);
+
+    private sealed record MatchTotalAudit(string UserId, int Score);
+
+    private sealed record MatchStatusAudit(string TournamentId, string From, string To, string Label);
 }

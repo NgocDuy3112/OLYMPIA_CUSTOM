@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using AOC.Api.Http;
 using AOC.Api.Shared;
+using AOC.Infrastructure.Audit;
 using AOC.Infrastructure.Configuration;
 using AOC.Infrastructure.Data;
 
@@ -73,11 +74,9 @@ public static class MatchRoutes
             var service = http.RequestServices.GetRequiredService<MatchesService>();
 
             await service.EjectSeatAsync(tournamentId, matchId, userId);
-            await AuditAsync(http, "seat_ejected", matchId, new Dictionary<string, object?>
-            {
-                ["tournamentId"] = tournamentId,
-                ["seatEjected"] = userId
-            });
+            var audit = http.RequestServices.GetRequiredService<AuditService>();
+            await audit.AuditAsync(http, AuditTarget.Match(matchId), "seat_ejected",
+                new SeatEjectedAudit(tournamentId, userId));
 
             http.Response.StatusCode = 204;
             return Results.Empty;
@@ -99,21 +98,5 @@ public static class MatchRoutes
         return app;
     }
 
-    internal static Task AuditAsync(HttpContext http, string action, string? matchId,
-        Dictionary<string, object?>? details)
-    {
-        var user = http.Items.TryGetValue(Guards.SessionUserKey, out var u)
-            ? u as Infrastructure.Data.Entities.UserEntity
-            : null;
-        var audit = http.RequestServices.GetRequiredService<AOC.Infrastructure.Audit.AuditService>();
-        return audit.AuditAsync(new AOC.Infrastructure.Audit.AuditEvent
-        {
-            Action = action,
-            ActorId = user?.Id,
-            MatchId = matchId is null ? null : Guid.Parse(matchId),
-            Details = details,
-            Ip = http.Connection.RemoteIpAddress?.ToString(),
-            UserAgent = http.Request.Headers.UserAgent.ToString()
-        });
-    }
+    private sealed record SeatEjectedAudit(string TournamentId, string SeatEjected);
 }

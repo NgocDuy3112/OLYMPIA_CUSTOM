@@ -4,6 +4,7 @@ using AOC.Api.Http;
 using AOC.Api.Modules.Tournaments;
 using AOC.Api.Shared;
 using AOC.Domain.Contracts;
+using AOC.Infrastructure.Audit;
 using AOC.Infrastructure.Configuration;
 
 namespace AOC.Api.Modules.Roster;
@@ -47,11 +48,9 @@ public static class RosterRoutes
             var service = http.RequestServices.GetRequiredService<RosterService>();
             var (displayName, email) = await service.UpdatePlayerAsync(userId, edit);
 
-            await AuditAsync(http, "player_updated", new Dictionary<string, object?>
-            {
-                ["playerId"] = userId,
-                ["displayName"] = displayName
-            }, targetId: Guid.Parse(userId));
+            var audit = http.RequestServices.GetRequiredService<AuditService>();
+            await audit.AuditAsync(http, AuditTarget.User(Guid.Parse(userId)), "player_updated",
+                new PlayerUpdatedAudit(userId, displayName));
 
             return Results.Json(new { userId, displayName, email }, JsonApi.Options);
         });
@@ -77,11 +76,9 @@ public static class RosterRoutes
             var service = http.RequestServices.GetRequiredService<RosterService>();
             var enrolled = await service.EnrollPlayersAsync(Guid.Parse(tournamentId), userIds);
 
-            await AuditAsync(http, "player_enrolled", new Dictionary<string, object?>
-            {
-                ["tournamentId"] = tournamentId,
-                ["enrolled"] = enrolled
-            });
+            var audit = http.RequestServices.GetRequiredService<AuditService>();
+            await audit.AuditAsync(http, AuditTarget.None, "player_enrolled",
+                new PlayerEnrolledAudit(tournamentId, enrolled));
 
             return Results.Json(new { enrolled }, JsonApi.Options);
         });
@@ -96,11 +93,9 @@ public static class RosterRoutes
             var service = http.RequestServices.GetRequiredService<RosterService>();
             await service.RemoveContestantAsync(tournamentId, userId);
 
-            await AuditAsync(http, "player_removed", new Dictionary<string, object?>
-            {
-                ["tournamentId"] = tournamentId,
-                ["removedContestant"] = userId
-            });
+            var audit = http.RequestServices.GetRequiredService<AuditService>();
+            await audit.AuditAsync(http, AuditTarget.None, "player_removed",
+                new PlayerRemovedAudit(tournamentId, userId));
 
             return Results.Json(new { removed = userId }, JsonApi.Options);
         });
@@ -136,12 +131,9 @@ public static class RosterRoutes
                 }, JsonApi.Options);
             }
 
-            await AuditAsync(http, "group_assigned", new Dictionary<string, object?>
-            {
-                ["tournamentId"] = tournamentId,
-                ["userId"] = userId,
-                ["group"] = group?.ToString()
-            });
+            var audit = http.RequestServices.GetRequiredService<AuditService>();
+            await audit.AuditAsync(http, AuditTarget.None, "group_assigned",
+                new GroupAssignedAudit(tournamentId, userId, group?.ToString()));
 
             return Results.Json(new { userId, group }, JsonApi.Options);
         });
@@ -158,21 +150,11 @@ public static class RosterRoutes
         return app;
     }
 
-    private static Task AuditAsync(HttpContext http, string action,
-        Dictionary<string, object?> details, Guid? targetId = null)
-    {
-        var user = http.Items.TryGetValue(Guards.SessionUserKey, out var u)
-            ? u as Infrastructure.Data.Entities.UserEntity
-            : null;
-        var audit = http.RequestServices.GetRequiredService<AOC.Infrastructure.Audit.AuditService>();
-        return audit.AuditAsync(new AOC.Infrastructure.Audit.AuditEvent
-        {
-            Action = action,
-            ActorId = user?.Id,
-            TargetId = targetId,
-            Details = details,
-            Ip = http.Connection.RemoteIpAddress?.ToString(),
-            UserAgent = http.Request.Headers.UserAgent.ToString()
-        });
-    }
+    private sealed record PlayerUpdatedAudit(string PlayerId, string DisplayName);
+
+    private sealed record PlayerEnrolledAudit(string TournamentId, int Enrolled);
+
+    private sealed record PlayerRemovedAudit(string TournamentId, string RemovedContestant);
+
+    private sealed record GroupAssignedAudit(string TournamentId, string UserId, string? Group);
 }

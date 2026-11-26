@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.RateLimiting;
 using AOC.Api.Http;
 using AOC.Api.Shared;
+using AOC.Infrastructure.Audit;
 using AOC.Infrastructure.Configuration;
 
 namespace AOC.Api.Modules.Standings;
@@ -29,25 +30,20 @@ public static class StandingsRoutes
         app.MapPost("/portal/tournaments/{tournamentId}/standings/recompute", async (HttpContext http) =>
         {
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
-            var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
             await TournamentAccess.RequireWriteAsync(http, tournamentId);
 
             var service = http.RequestServices.GetRequiredService<StandingsService>();
             var rows = await service.RecomputeStandingsAsync(tournamentId);
 
-            var audit = http.RequestServices.GetRequiredService<AOC.Infrastructure.Audit.AuditService>();
-            await audit.AuditAsync(new AOC.Infrastructure.Audit.AuditEvent
-            {
-                Action = "standings_recomputed",
-                ActorId = user.Id,
-                Ip = http.Connection.RemoteIpAddress?.ToString(),
-                UserAgent = http.Request.Headers.UserAgent.ToString(),
-                Details = new Dictionary<string, object?> { ["tournamentId"] = tournamentId, ["standings"] = rows.Count }
-            });
+            var audit = http.RequestServices.GetRequiredService<AuditService>();
+            await audit.AuditAsync(http, AuditTarget.None, "standings_recomputed",
+                new StandingsRecomputedAudit(tournamentId, rows.Count));
 
             return Results.Json(new { rows }, JsonApi.Options);
         });
 
         return app;
     }
+
+    private sealed record StandingsRecomputedAudit(string TournamentId, int Standings);
 }

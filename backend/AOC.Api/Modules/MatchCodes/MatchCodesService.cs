@@ -8,6 +8,7 @@ using AOC.Api.Http;
 using AOC.Api.Modules.Tournaments;
 using AOC.Api.Shared;
 using AOC.Domain.Contracts;
+using AOC.Infrastructure.Audit;
 using AOC.Infrastructure.Configuration;
 using AOC.Infrastructure.Data;
 using AOC.Infrastructure.Data.Entities;
@@ -177,16 +178,9 @@ public static class MatchCodeRoutes
             var service = http.RequestServices.GetRequiredService<MatchCodesService>();
             var result = await service.ClaimSeatAsync(user.Id.ToString(), code);
 
-            var audit = http.RequestServices.GetRequiredService<AOC.Infrastructure.Audit.AuditService>();
-            await audit.AuditAsync(new AOC.Infrastructure.Audit.AuditEvent
-            {
-                Action = "seat_claimed",
-                ActorId = user.Id,
-                MatchId = result.MatchId,
-                Ip = http.Connection.RemoteIpAddress?.ToString(),
-                UserAgent = http.Request.Headers.UserAgent.ToString(),
-                Details = new Dictionary<string, object?> { ["seatClaimed"] = user.Id }
-            });
+            var audit = http.RequestServices.GetRequiredService<AuditService>();
+            await audit.AuditAsync(http, AuditTarget.Match(result.MatchId.ToString()), "seat_claimed",
+                new SeatClaimedAudit(user.Id));
 
             return Results.Json(result, JsonApi.Options);
         }).RequireRateLimiting("strict10").DisableAntiforgery();
@@ -212,25 +206,17 @@ public static class MatchCodeRoutes
             var service = http.RequestServices.GetRequiredService<MatchCodesService>();
             var room = await service.RotateRoomCodeAsync(tournamentId, matchId, user.Id);
 
-            var audit = http.RequestServices.GetRequiredService<AOC.Infrastructure.Audit.AuditService>();
-            await audit.AuditAsync(new AOC.Infrastructure.Audit.AuditEvent
-            {
-                Action = "code_rotated",
-                ActorId = user.Id,
-                MatchId = Guid.Parse(matchId),
-                Ip = http.Connection.RemoteIpAddress?.ToString(),
-                UserAgent = http.Request.Headers.UserAgent.ToString(),
-                Details = new Dictionary<string, object?>
-                {
-                    ["tournamentId"] = tournamentId,
-                    ["roomCodeRotated"] = matchId,
-                    ["expiresAt"] = room.ExpiresAt
-                }
-            });
+            var audit = http.RequestServices.GetRequiredService<AuditService>();
+            await audit.AuditAsync(http, AuditTarget.Match(matchId), "code_rotated",
+                new CodeRotatedAudit(tournamentId, matchId, room.ExpiresAt));
 
             return Results.Json(room, JsonApi.Options);
         });
 
         return app;
     }
+
+    private sealed record SeatClaimedAudit(Guid SeatClaimed);
+
+    private sealed record CodeRotatedAudit(string TournamentId, string RoomCodeRotated, DateTime ExpiresAt);
 }

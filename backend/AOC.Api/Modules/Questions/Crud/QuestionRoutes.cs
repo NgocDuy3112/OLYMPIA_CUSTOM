@@ -8,6 +8,7 @@ using AOC.Api.Modules.Questions.Reads;
 using AOC.Api.Modules.Tournaments;
 using AOC.Api.Shared;
 using AOC.Domain.Contracts;
+using AOC.Infrastructure.Audit;
 using AOC.Infrastructure.Media;
 using AOC.Infrastructure.Configuration;
 using AOC.Infrastructure.Data;
@@ -220,22 +221,14 @@ public static partial class QuestionRoutes
     private sealed record BulkQuestionsAudit(
         string Action, string? Status, string? Bucket, int Requested, int Affected);
 
+    private sealed record QuestionGateAudit(Guid QuestionId, string Kind);
+
     private static Task AuditBulkAsync(HttpContext http, QuestionsService.BulkQuestionsReport report,
         QuestionStatus? status, string? bucket)
     {
-        var user = http.Items.TryGetValue(Guards.SessionUserKey, out var u)
-            ? u as Infrastructure.Data.Entities.UserEntity
-            : null;
-        var audit = http.RequestServices.GetRequiredService<AOC.Infrastructure.Audit.AuditService>();
-        return audit.AuditAsync(new AOC.Infrastructure.Audit.AuditEvent
-        {
-            Action = "questions_bulk",
-            ActorId = user?.Id,
-            Ip = http.Connection.RemoteIpAddress?.ToString(),
-            UserAgent = http.Request.Headers.UserAgent.ToString(),
-            Details = new BulkQuestionsAudit(
-                report.Action, status?.ToString(), bucket, report.Total, report.Affected)
-        });
+        var audit = http.RequestServices.GetRequiredService<AuditService>();
+        return audit.AuditAsync(http, AuditTarget.None, "questions_bulk",
+            new BulkQuestionsAudit(report.Action, status?.ToString(), bucket, report.Total, report.Affected));
     }
 
     private static readonly Dictionary<string, string> GateActions = new()
@@ -249,21 +242,8 @@ public static partial class QuestionRoutes
         if (!GateActions.TryGetValue(question.Status.ToString(), out var action))
             return Task.CompletedTask;
 
-        var user = http.Items.TryGetValue(Guards.SessionUserKey, out var u)
-            ? u as Infrastructure.Data.Entities.UserEntity
-            : null;
-        var audit = http.RequestServices.GetRequiredService<AOC.Infrastructure.Audit.AuditService>();
-        return audit.AuditAsync(new AOC.Infrastructure.Audit.AuditEvent
-        {
-            Action = action,
-            ActorId = user?.Id,
-            Ip = http.Connection.RemoteIpAddress?.ToString(),
-            UserAgent = http.Request.Headers.UserAgent.ToString(),
-            Details = new Dictionary<string, object?>
-            {
-                ["questionId"] = question.Id,
-                ["kind"] = question.Kind.ToString()
-            }
-        });
+        var audit = http.RequestServices.GetRequiredService<AuditService>();
+        return audit.AuditAsync(http, AuditTarget.None, action,
+            new QuestionGateAudit(question.Id, question.Kind.ToString()));
     }
 }

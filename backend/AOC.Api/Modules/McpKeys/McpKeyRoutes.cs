@@ -2,6 +2,8 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.RateLimiting;
 using AOC.Api.Http;
+using AOC.Api.Shared;
+using AOC.Infrastructure.Audit;
 using AOC.Infrastructure.Configuration;
 using AOC.Infrastructure.Data;
 using AOC.Infrastructure.Data.Entities;
@@ -46,23 +48,10 @@ public static class McpKeyRoutes
             var service = http.RequestServices.GetRequiredService<McpKeysService>();
             var issued = await service.CreateMcpKeyAsync(user.Id, label, scopes, expiresAt);
 
-            var audit = http.RequestServices.GetRequiredService<AOC.Infrastructure.Audit.AuditService>();
-            await audit.AuditAsync(new AOC.Infrastructure.Audit.AuditEvent
-            {
-                Action = "mcp_key_issued",
-                ActorId = user.Id,
-                TargetId = user.Id,
-                Ip = http.Connection.RemoteIpAddress?.ToString(),
-                UserAgent = http.Request.Headers.UserAgent.ToString(),
-                Details = new Dictionary<string, object?>
-                {
-                    ["mcpKeyId"] = issued.Key.Id,
-                    ["prefix"] = issued.Key.Prefix,
-                    ["label"] = issued.Key.Label,
-                    ["scopes"] = issued.Key.Scopes,
-                    ["expiresAt"] = issued.Key.ExpiresAt
-                }
-            });
+            var audit = http.RequestServices.GetRequiredService<AuditService>();
+            await audit.AuditAsync(http, AuditTarget.User(user.Id), "mcp_key_issued",
+                new McpKeyIssuedAudit(issued.Key.Id, issued.Key.Prefix, issued.Key.Label,
+                    issued.Key.Scopes, issued.Key.ExpiresAt));
 
             http.Response.StatusCode = 201;
             return Results.Json(issued, JsonApi.Options);
@@ -108,15 +97,9 @@ public static class McpKeyRoutes
             var report = await service.RevokeMcpKeysAsync(ids,
                 user.Role == UserRole.ADMIN ? null : user.Id);
 
-            var audit = http.RequestServices.GetRequiredService<AOC.Infrastructure.Audit.AuditService>();
-            await audit.AuditAsync(new AOC.Infrastructure.Audit.AuditEvent
-            {
-                Action = "mcp_key_revoked",
-                ActorId = user.Id,
-                Ip = http.Connection.RemoteIpAddress?.ToString(),
-                UserAgent = http.Request.Headers.UserAgent.ToString(),
-                Details = new RevokedKeysAudit(report.Ids, report.Revoked)
-            });
+            var audit = http.RequestServices.GetRequiredService<AuditService>();
+            await audit.AuditAsync(http, AuditTarget.None, "mcp_key_revoked",
+                new RevokedKeysAudit(report.Ids, report.Revoked));
 
             return Results.Json(report, JsonApi.Options);
         });
@@ -130,21 +113,9 @@ public static class McpKeyRoutes
             var revoked = await service.RevokeMcpKeyAsync(Guid.Parse(id),
                 user.Role == UserRole.ADMIN ? null : user.Id);
 
-            var audit = http.RequestServices.GetRequiredService<AOC.Infrastructure.Audit.AuditService>();
-            await audit.AuditAsync(new AOC.Infrastructure.Audit.AuditEvent
-            {
-                Action = "mcp_key_revoked",
-                ActorId = user.Id,
-                TargetId = revoked.UserId,
-                Ip = http.Connection.RemoteIpAddress?.ToString(),
-                UserAgent = http.Request.Headers.UserAgent.ToString(),
-                Details = new Dictionary<string, object?>
-                {
-                    ["mcpKeyId"] = revoked.Id,
-                    ["prefix"] = revoked.Prefix,
-                    ["label"] = revoked.Label
-                }
-            });
+            var audit = http.RequestServices.GetRequiredService<AuditService>();
+            await audit.AuditAsync(http, AuditTarget.User(revoked.UserId), "mcp_key_revoked",
+                new RevokedKeyAudit(revoked.Id, revoked.Prefix, revoked.Label));
 
             http.Response.StatusCode = 204;
             return Results.Empty;
@@ -153,5 +124,10 @@ public static class McpKeyRoutes
         return app;
     }
 
+    private sealed record McpKeyIssuedAudit(
+        Guid McpKeyId, string Prefix, string Label, string[] Scopes, DateTime? ExpiresAt);
+
     private sealed record RevokedKeysAudit(List<Guid> McpKeyIds, int Revoked);
+
+    private sealed record RevokedKeyAudit(Guid McpKeyId, string Prefix, string Label);
 }

@@ -8,6 +8,30 @@ public abstract record LiveAction
 {
     public abstract string Kind { get; }
 
+    public (string Action, object Details)? Describe(string roundId) => this switch
+    {
+        KhoiDongJudge judge => ("answer_judged", new JudgeDetails(roundId, judge.PlayerId, judge.Correct)),
+        VeDichJudge judge => ("answer_judged", new JudgeDetails(roundId, judge.PlayerId, judge.Correct)),
+        VeDichResolve resolve => ("ve_dich_resolved",
+            new ResolveDetails(roundId, resolve.Answerer, resolve.Buzzer)),
+        RevealAnswer reveal => ("answer_revealed", new RevealDetails(roundId, reveal.QuestionId)),
+        ScoreAdjust adjust => ("score_adjusted",
+            new ScoreAdjustDetails(adjust.UserId, adjust.Delta, adjust.Reason)),
+        Regrade regrade => ("answer_regraded",
+            new RegradeDetails(roundId, regrade.QuestionId, regrade.PlayerId, regrade.Delta)),
+        _ => null
+    };
+
+    public sealed record JudgeDetails(string RoundId, string PlayerId, bool Correct);
+
+    public sealed record ResolveDetails(string RoundId, bool Answerer, bool? Buzzer);
+
+    public sealed record RevealDetails(string RoundId, string QuestionId);
+
+    public sealed record ScoreAdjustDetails(string UserId, int Delta, string Reason);
+
+    public sealed record RegradeDetails(string RoundId, string QuestionId, string PlayerId, int Delta);
+
     public sealed record GiaiMaStart(List<string> PlayerIds, List<string> HintIds) : LiveAction
     {
         public override string Kind => "giai-ma.start";
