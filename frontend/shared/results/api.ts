@@ -1,5 +1,8 @@
 import { useQuery } from "@tanstack/react-query"
 import { api } from "@shared/lib/api"
+import type { StandingRow } from "@shared/wire/tournament"
+
+export type { StandingRow }
 
 
 export interface TournamentRound {
@@ -62,16 +65,6 @@ export interface Match {
     round: string
     players: MatchPlayer[]
     results?: MatchResult[]
-}
-
-export interface StandingRow {
-    userId: string
-    displayName: string
-    place: number | null
-    matchesPlayed: number
-    stageId: string | null
-    stageTitle: string | null
-    slot: number | null
 }
 
 interface Page<T> {

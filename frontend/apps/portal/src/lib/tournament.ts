@@ -1,6 +1,25 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api } from "@shared/lib/api"
 import type { Tournament, TournamentRound } from "@/lib/tournaments"
+import type {
+    ContestantRow,
+    MatchAssemblyEvent,
+    MatchDetail,
+    MatchSeat,
+    MatchSummary,
+    RoomCode,
+    StandingRow,
+} from "@shared/wire/tournament"
+
+export type {
+    ContestantRow,
+    MatchAssemblyEvent,
+    MatchDetail,
+    MatchSeat,
+    MatchSummary,
+    RoomCode,
+    StandingRow,
+}
 
 interface TurnConfig {
     id: string
@@ -48,49 +67,6 @@ export interface TournamentDetail extends Tournament {
     roundRules: Record<string, RoundConfig> | null
     places: number
 }
-
-export interface MatchSeat {
-    kind: "user"
-    userId: string
-    seed: number
-}
-
-export interface MatchSummary {
-    id: string
-    stageId: string
-    slot: number | null
-    label: string
-    status: "UPCOMING" | "LIVE" | "FINISHED"
-    scheduledAt: string
-    players: MatchSeat[]
-    questions: unknown[]
-    assemblyRevision: number
-    assembledAt: string | null
-}
-
-export interface MatchAssemblyEvent {
-    id: string
-    revision: number
-    mode: string
-    addedCount: number
-    removedCount: number
-    at: string
-}
-
-export interface MatchDetail extends MatchSummary {
-    assemblyEvents: MatchAssemblyEvent[]
-}
-
-interface StandingRow {
-    userId: string
-    displayName: string
-    place: number | null
-    matchesPlayed: number
-    stageId: string | null
-    stageTitle: string | null
-    slot: number | null
-}
-
 
 export function useTournament(tournamentId: string) {
     return useQuery({
@@ -257,24 +233,6 @@ export function useGroups(tournamentId: string) {
     })
 }
 
-export interface ContestantRow {
-    userId: string
-    displayName: string
-    username: string
-    email: string | null
-    discordId: string | null
-    group: "A" | "B" | null
-    enrolledAt: string
-}
-
-export function useContestants(tournamentId: string) {
-    return useQuery({
-        queryKey: ["enrolled", tournamentId],
-        queryFn: () => api<{ items: ContestantRow[] }>(`/portal/tournaments/${tournamentId}/players`),
-        enabled: Boolean(tournamentId),
-    })
-}
-
 export function useAssignGroup(tournamentId: string) {
     const queryClient = useQueryClient()
 
@@ -291,12 +249,6 @@ export function useAssignGroup(tournamentId: string) {
     })
 }
 
-
-export interface RoomCode {
-    matchId: string
-    code: string
-    expiresAt: string
-}
 
 export function useMatchCodes(tournamentId: string) {
     return useQuery({

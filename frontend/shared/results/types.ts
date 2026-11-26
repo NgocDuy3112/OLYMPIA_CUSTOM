@@ -1,4 +1,6 @@
-export type MatchStatus = "UPCOMING" | "LIVE" | "FINISHED"
+import type { MatchStatus } from "@shared/wire/tournament"
+
+export type { MatchStatus }
 
 export interface PlayerResult {
     id: string

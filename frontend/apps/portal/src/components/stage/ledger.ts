@@ -6,10 +6,12 @@ export function valueText(row: QuestionAnswerRow, question?: ConsoleQuestion | n
     if (!value) return "—"
     if (value.text !== undefined) return value.text
     if (value.picked) {
-        if (!question?.payload.options) return value.picked.join(", ")
+        const payload = question?.payload
+        if (!payload || !("options" in payload)) return value.picked.join(", ")
+        const options = payload.options
         return value.picked
             .map((id) => {
-                const index = question.payload.options!.findIndex((o) => o.id === id)
+                const index = options.findIndex((option) => option.id === id)
                 if (index >= 0) return String.fromCharCode(65 + index)
                 return id
             })

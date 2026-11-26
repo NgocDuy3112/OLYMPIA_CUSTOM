@@ -45,6 +45,7 @@ function liveView(over: Partial<LiveResponse> = {}): LiveResponse {
         } as LiveResponse["projection"],
         roundEnded: false,
         connected: [],
+        controller: null,
         console: {
             stage: "phase2",
             ended: false,

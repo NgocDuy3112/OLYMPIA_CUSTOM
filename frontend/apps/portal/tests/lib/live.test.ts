@@ -10,7 +10,7 @@ const question = (over: Partial<ConsoleQuestion>): ConsoleQuestion => ({
     position: 0,
     questionText: "text",
     points: 10,
-    payload: {},
+    payload: { acceptedAnswers: [] },
     ...over,
 })
 

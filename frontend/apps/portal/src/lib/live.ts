@@ -4,135 +4,29 @@ import { logError } from "@shared/lib/log"
 import { playSfx, stopSfx } from "@shared/lib/sfx"
 import { useSocketStream } from "@shared/lib/ws"
 import type { LiveAction, Verdict } from "./live-actions"
-import type { TieBreakView } from "@/rounds/tiebreak/types"
+import type {
+    ButPhaConsole,
+    GiaiMaConsole,
+    KhoiDongConsole,
+    LiveResponse,
+    MatchController,
+    Projection,
+    QuestionAnswerRow,
+    VeDichConsole,
+} from "@shared/wire/live"
+import type { ConsoleQuestion, SanitizedQuestion } from "@shared/wire/questions"
 
-
-
-export interface ConsoleQuestion {
-    _id: string
-    kind: "CHOICE" | "TEXT" | "KEYWORD"
-    roundId: string
-    turnId: string
-    position: number
-    questionText: string
-    points: number
-    payload: { options?: Array<{ id: string; text: string }>; [key: string]: unknown }
-}
-
-export interface SanitizedQuestion {
-    questionId: string
-    kind: string
-    position: number
-    questionText: string
-    media: { url: string; type: string } | null
-    payload: { options?: Array<{ id: string; text: string }> }
-}
-
-export interface Projection {
-    matchId: string
-    roundId: string
-    version: number
-    stage: string
-    open: Array<{
-        questionId: string
-        deadlineAt: string | null
-        frozenRemainingMs?: number | null
-        question: SanitizedQuestion | null
-    }>
-    table: Array<{ id: string; displayName: string; points: number; rank: number }>
-    oral?: {
-        questionId: string
-        question: SanitizedQuestion | null
-        playerId: string | null
-        index: number
-        total: number
-        elapsedS: number
-        budgetS: number
-        deadlineAt: string | null
-    } | null
-    board?: Array<{ questionId: string; value: number; where: "free" | "pending" | "open" | "taken" | "deferred" }>
-    answers?: QuestionAnswerRow[]
-    selectedPlayerId?: string | null
-    keywordDeadlineAt?: string | null
-    keywordLength?: number
-    keywordKind?: string
-    keywordCode?: string | null
-    hintAnswers: Record<string, string>
-    tiebreak?: TieBreakView | null
-    revealed?: {
-        contestants: Array<{
-            userId: string
-            name: string
-            answer: string | null
-            verdict: "CORRECT" | "INCORRECT" | null
-        }>
-    }
-    audioGate?: { allowed: string[] }
-    mediaPolicy?: { mode: "all" | "countdown" | "assign"; turnPlayerId: string | null; answererId: string | null; assignedToId: string | null; buzzerId: string | null; allowed: string[] }
-}
-
-export interface GiaiMaConsole {
-    hintsRemaining: string[]
-    hintsPicked: string[]
-    openHintId: string | null
-    windowOpen: boolean
-    keywordWindowOpen?: boolean
-    hintsLocked?: boolean
-    players: Array<{ id: string; keywordLocked: boolean; eliminated: boolean }>
-}
-export interface VeDichConsole {
-    phase: 1 | 2
-    turnPlayerId: string | null
-    openStage: "current" | "buzz" | null
-    revealed?: boolean
-    clockStarted?: boolean
-    answererId: string | null
-    buzzerId: string | null
-    buzzerMs: number | null
-    power: "STAR" | "ASSIGN" | null
-    assignedToId: string | null
-    pendingQuestionId: string | null
-    pendingValues?: number[]
-    turnQuestions?: string[]
-    turnValues?: number[]
-    turnPicked?: number
-    picksConfirmed?: boolean
-    pickCount?: number
-    powersLeft?: Array<"STAR" | "ASSIGN">
-    stagedPower: { power: "STAR" | "ASSIGN"; targetId?: string } | null
-    turnPowerUsed: boolean
-}
-export interface KhoiDongConsole {
-    stage: "phase1" | "phase2"
-    ended: boolean
-    phase2Begun: boolean
-    phase2Closed: boolean
-    questionIndex: number
-    questionCount: number
-    windowOpen: boolean
-}
-export interface ButPhaConsole {
-    questionId: string | null
-    opened: boolean
-    clockStarted?: boolean
-}
-
-export interface MatchController {
-    id: string
-    name: string
-    active: boolean
-}
-
-export interface LiveResponse {
-    version: number
-    roundId: string
-    state: Record<string, unknown>
-    questions: ConsoleQuestion[]
-    projection: Projection
-    roundEnded: boolean
-    connected?: string[]
-    console: Record<string, unknown> | null
-    controller?: MatchController | null
+export type {
+    ButPhaConsole,
+    ConsoleQuestion,
+    GiaiMaConsole,
+    KhoiDongConsole,
+    LiveResponse,
+    MatchController,
+    Projection,
+    QuestionAnswerRow,
+    SanitizedQuestion,
+    VeDichConsole,
 }
 
 export function postControl(
@@ -154,28 +48,9 @@ export function postHeartbeat(tournamentId: string, matchId: string): Promise<Ma
 }
 
 
-export interface LobbyData {
-    title: string
-    label: string
-    status: "UPCOMING" | "LIVE" | "FINISHED"
-    roundId: string | null
-    rounds: Array<{ id: string; name: string; status: "new" | "playing" | "ended"; phase?: 1 | 2 }>
-    currentPhase?: 1 | 2 | null
-    table: Array<{
-        id: string
-        displayName: string
-        points: number
-        rank: number
-        video?: import("livekit-client").RemoteVideoTrack | null
-        micOn?: boolean
-        audioMuted?: boolean
-        videoHidden?: boolean
-        onToggleAudio?: () => void
-        onToggleVideo?: () => void
-        onToggleMic?: () => void
-    }>
-    connected: string[]
-}
+import type { LobbyData } from "@shared/deck/types"
+
+export type { LobbyData }
 
 const lobbyKey = (tournamentId: string, matchId: string) =>
     ["lobby", tournamentId, matchId] as const
@@ -191,16 +66,6 @@ export function useLobby(tournamentId: string, matchId: string, enabled: boolean
         staleTime: 0,
     })
 }
-
-export interface QuestionAnswerRow {
-    questionId: string
-    userId: string
-    value: { picked?: string[]; text?: string; oral?: true } | null
-    verdict: "CORRECT" | "INCORRECT" | null
-    pointsAwarded: number | null
-    answeredMs?: number | null
-}
-
 
 const liveKey = (tournamentId: string, matchId: string) =>
     ["live", tournamentId, matchId] as const

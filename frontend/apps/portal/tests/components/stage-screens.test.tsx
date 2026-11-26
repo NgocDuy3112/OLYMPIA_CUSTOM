@@ -28,7 +28,9 @@ function facts(
             ...projection,
         },
         roundEnded: false,
+        connected: [],
         console: mc as LiveResponse["console"],
+        controller: null,
     }
     return {
         v,
@@ -154,7 +156,7 @@ describe("KhoiDongRieng — S1, the oral run", () => {
             questionId: "q1",
             question: {
                 questionId: "q1",
-                kind: "TEXT",
+                kind: "TEXT" as const,
                 position: 1,
                 questionText: "Câu hỏi miệng",
                 media: null,
@@ -191,7 +193,7 @@ describe("KhoiDongRieng — S1, the oral run", () => {
                 position: 1,
                 questionText: "Câu hỏi từ danh sách",
                 points: 10,
-                payload: {},
+                payload: { acceptedAnswers: [] },
             }]
         )
 
@@ -374,7 +376,7 @@ describe("GiaiMa — S3", () => {
         const keyword = {
             _id: "kw", roundId: "giai-ma", turnId: "keyword", position: 0,
             kind: "KEYWORD" as const, questionText: "Từ khoá", timeLimit: null, points: 100,
-            payload: {},
+            payload: { acceptedAnswers: [] },
         }
         const f = renderRound(
             "giai-ma", {}, {},
@@ -421,7 +423,7 @@ describe("GiaiMa — S3", () => {
             hintsRemaining: ["h2"], hintsPicked: ["h1"], openHintId: "h1",
             windowOpen: false, keywordWindowOpen: false, players: [],
         }, [{ _id: "kw", roundId: "giai-ma", kind: "KEYWORD" as const,
-            turnId: "t1", position: 9, questionText: "Từ khoá", points: 0, payload: {} }])
+            turnId: "t1", position: 9, questionText: "Từ khoá", points: 0, payload: { acceptedAnswers: [] } }])
 
         await user.click(screen.getByRole("button", { name: "Đếm giờ từ khoá" }))
         expect(stale.send).toHaveBeenCalledWith({ kind: "giai-ma.startKeywordWindow" })
@@ -435,7 +437,7 @@ describe("GiaiMa — S3", () => {
             position: i + 1,
             questionText: `gợi ý ${i + 1}`,
             points: 0,
-            payload: {},
+            payload: { acceptedAnswers: [] },
         }))
         const keyword = {
             _id: "k1",
@@ -486,7 +488,7 @@ describe("VeDichRieng — the powers and the duel", () => {
     }
     const stagedQuestion = {
         _id: "a", roundId: "ve-dich", turnId: "phase-2", position: 1,
-        kind: "TEXT" as const, questionText: "câu a", timeLimit: 30, points: 40, payload: {},
+        kind: "TEXT" as const, questionText: "câu a", timeLimit: 30, points: 40, payload: { acceptedAnswers: [] },
     }
 
     it("the power buttons live on the rieng page — before the clock or reveal", async () => {
@@ -689,7 +691,7 @@ const butPhaQuestions: LiveResponse["questions"] = [0, 1, 2, 3].map((i) => ({
     position: i,
     questionText: `Câu hỏi BP ${i + 1}`,
     points: 10,
-    payload: {},
+    payload: { acceptedAnswers: [] },
 }))
 
 const byButPhaId = (id: string) => butPhaQuestions.find((q) => q._id === id) ?? null
@@ -810,7 +812,7 @@ describe("VeDichPick — S5/S6, the board", () => {
         kind: "TEXT" as const,
         questionText: `Câu ${id}`,
         points,
-        payload: {},
+        payload: { acceptedAnswers: [] },
     })
     const freeCell = (id: string, value: number) => ({ questionId: id, value, where: "free" as const })
 

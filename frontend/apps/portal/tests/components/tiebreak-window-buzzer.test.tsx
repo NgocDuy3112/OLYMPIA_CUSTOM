@@ -26,7 +26,7 @@ function view(buzzer?: string | null): TieBreakView {
             { id: "u2", displayName: "Bình", points: 0, rank: 2, eliminated: false },
         ],
         window: {
-            mode: "BUZZ",
+            mode: "Buzz",
             eligibility: "Pair",
             pairA: "u1",
             pairB: "u2",
@@ -58,7 +58,9 @@ function core(): ScreenCore {
                 hintAnswers: {},
             },
             roundEnded: false,
+            connected: [],
             console: null,
+            controller: null,
         },
         flash: null,
         baseCards: [],

@@ -25,85 +25,13 @@ function failureOf(error: unknown): ViewFailure | null {
 
 
 
-export interface LiveQuestion {
-    questionId: string
-    kind: "CHOICE" | "TEXT" | "KEYWORD"
-    position: number
-    questionText: string
-    media: { url: string; type: "image" | "audio" | "video" } | null
-    payload: { options?: Array<{ id: string; text: string }> }
-}
+import type { AnswerValue, PlayerMe, PlayerQuestion, PlayerScoreRow, PlayerView as LiveView } from "@shared/wire/live"
 
-export interface LiveScoreRow {
-    id: string
-    displayName: string
-    points: number
-    rank: number
-}
-
-export interface LiveMe {
-    verdicts?: Record<string, "CORRECT" | "INCORRECT">
-    answerState?: "none" | "answered"
-    isMyRun?: boolean
-    points?: number
-    answered?: string[]
-    finalized?: string[]
-    keywordLocked?: boolean
-    eliminated?: boolean
-    keywordValue?: number | null
-    revealedHints?: Array<{ questionId: string; question: LiveQuestion | null }>
-    hintsRevealed?: number
-    score?: number
-    powersLeft?: Array<"STAR" | "ASSIGN">
-    isMyTurn?: boolean
-    pendingPicks?: string[]
-    isAnswerer?: boolean
-    canAnswer?: boolean
-    canBuzz?: boolean
-    openTile?: number | null
-    pickedTiles: number[]
-    hintVerdicts: Record<string, string>
-    power?: "STAR" | "ASSIGN" | null
-    buzzer?: string | null
-}
-
-export interface LiveView {
-    matchId: string
-    roundId: string
-    version: number
-    stage: string
-    open: Array<{
-        questionId: string
-        deadlineAt: string | null
-        frozenRemainingMs?: number | null
-        question: LiveQuestion | null
-    }>
-    table: LiveScoreRow[]
-    oral?: {
-        questionId: string
-        question: LiveQuestion | null
-        playerId: string
-        index: number
-        total: number
-        elapsedS: number
-        budgetS: number
-        deadlineAt: string | null
-    } | null
-    board?: Array<{
-        questionId: string
-        value: number
-        where: "free" | "pending" | "open" | "taken" | "deferred"
-    }>
-    console?: { picksConfirmed?: boolean; turnQuestions?: string[]; turnValues?: number[] } | null
-    keyword?: { questionId: string; question: LiveQuestion | null } | null
-    hintAnswers: Record<string, string>
-    tiebreak?: TieBreakView | null
-    keywordDeadlineAt: string | null
-    keywordCountdownClosed?: boolean
-    keywordLength: number
-    keywordKind: string
-    me: LiveMe
-    audioGate?: { allowed: string[] }
+export type {
+    LiveView,
+    PlayerMe as LiveMe,
+    PlayerQuestion as LiveQuestion,
+    PlayerScoreRow as LiveScoreRow,
 }
 
 interface StreamFrame {
@@ -235,7 +163,7 @@ export type LivePlayerCommand =
 type LivePlayerCommandPost =
     | { type: "buzz"; questionId: string; pressedAt: string }
 
-export type AnswerValue = { picked?: string[]; text?: string }
+export type { AnswerValue }
 
 function useLiveCommandPost<TInput>(matchId: string, suffix: string) {
     const queryClient = useQueryClient()
@@ -270,42 +198,9 @@ export function useLivePlayerCommand(matchId: string) {
     return useLiveCommandPost<LivePlayerCommandPost>(matchId, "commands")
 }
 
-export interface TieBreakMedia {
-    url: string
-    type: string
-}
+import type { TieBreakPlayer, TieBreakView } from "@shared/wire/tiebreak"
 
-export interface TieBreakQuestion {
-    questionId: string
-    kind: "CHOICE" | "TEXT" | "KEYWORD"
-    position: number
-    questionText: string
-    media: { url: string; type: "image" | "audio" | "video" } | null
-    payload: { options?: Array<{ id: string; text: string }> }
-}
-
-export interface TieBreakPlayer {
-    id: string
-    displayName: string
-    points: number
-    rank: number
-    eliminated: boolean
-}
-
-export interface TieBreakView {
-    matchId: string
-    version: number
-    stage: string
-    questionId: string | null
-    cursor: number
-    ended: boolean
-    window: { buzzer: string | null; buzzerMs: number | null; locked: boolean }
-    windowOpen: boolean
-    deadlineAt: string | null
-    players: TieBreakPlayer[]
-    me: TieBreakPlayer | null
-    question: TieBreakQuestion | null
-}
+export type { TieBreakPlayer, TieBreakView }
 
 const tieBreakKey = (matchId: string) => ["tiebreak", matchId] as const
 
