@@ -209,6 +209,8 @@ app.MapTournamentRoutes();
 app.MapQuestionRoutes();
 app.MapQuestionStagingRoutes();
 app.MapMatchRoutes();
+app.MapMatchAssemblyRoutes();
+app.MapMatchScoringRoutes();
 app.MapAssemblePatchRoutes();
 app.MapLiveRoutes();
 app.MapTieBreakRoutes();
