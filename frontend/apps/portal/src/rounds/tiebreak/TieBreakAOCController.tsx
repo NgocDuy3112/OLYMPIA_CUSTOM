@@ -115,7 +115,7 @@ export function TieBreakAOCController({ ctx }: { ctx: TieBreakCtx }) {
     let judgeWrong: (() => void) | undefined = undefined
     if (view !== null) {
         if (!view.ended) {
-            if (view.window.buzzer !== null) {
+            if (view.window.buzzer != null) {
                 const expectedVersion = view.version
                 judgeRight = () => send({ action: "judge", correct: true, expectedVersion })
                 judgeWrong = () => send({ action: "judge", correct: false, expectedVersion })

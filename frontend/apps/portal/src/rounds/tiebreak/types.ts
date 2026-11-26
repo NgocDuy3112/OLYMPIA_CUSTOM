@@ -33,7 +33,7 @@ export interface TieBreakWindow {
     seconds: number | null
     closesAt: string | null
     turnPlayerId: string | null
-    buzzer: string | null
+    buzzer?: string | null
     buzzerMs: number | null
     locked: boolean
 }
