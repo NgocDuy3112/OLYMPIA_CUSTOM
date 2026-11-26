@@ -41,6 +41,9 @@ function InviteOperatorDialog({ open, onClose }: { open: boolean; onClose: () =>
     const [displayName, setDisplayName] = useState("")
     const [inviteToken, setInviteToken] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
+    const [password, setPassword] = useState("")
+    const [confirmPassword, setConfirmPassword] = useState("")
+    const [accepted, setAccepted] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
     const reset = () => {
@@ -48,6 +51,9 @@ function InviteOperatorDialog({ open, onClose }: { open: boolean; onClose: () =>
         setDisplayName("")
         setInviteToken(null)
         setCopied(false)
+        setPassword("")
+        setConfirmPassword("")
+        setAccepted(false)
         setError(null)
     }
 
@@ -70,19 +76,30 @@ function InviteOperatorDialog({ open, onClose }: { open: boolean; onClose: () =>
         onError: (cause) => setError(messageOf(cause)),
     })
 
+    const accept = useMutation({
+        mutationFn: (input: { token: string; password: string }) =>
+            api<{ ok: true }>("/portal/invites/accept", {
+                method: "POST",
+                body: JSON.stringify(input),
+            }),
+        onSuccess: () => {
+            setAccepted(true)
+            void queryClient.invalidateQueries({ queryKey: ["operators"] })
+        },
+    })
+
     const usernameOk = USERNAME_PATTERN.test(username.trim())
     let reason: string | null = null
     if (!usernameOk) reason = "3–50 chars: letters, digits, dot, dash, underscore"
     if (!username.trim()) reason = "A username is required"
 
-    let request: string | null = null
-    if (inviteToken) {
-        request = `POST /portal/invites/accept\n{"token": "${inviteToken}", "password": "<their chosen password>"}`
-    }
     let copyLabel = "Copy"
     if (copied) copyLabel = "Copied"
     let createLabel = "Create operator"
     if (create.isPending) createLabel = "Creating…"
+    let acceptReason: string | null = null
+    if (password.length < 12) acceptReason = "At least 12 characters"
+    else if (confirmPassword !== password) acceptReason = "Passwords do not match"
 
     if (inviteToken) {
         return (
@@ -114,12 +131,46 @@ function InviteOperatorDialog({ open, onClose }: { open: boolean; onClose: () =>
                                     {copyLabel}
                                 </Button>
                             </div>
-                            <p className="text-xs text-muted-foreground">
-                                Accepting the invite has no page yet — they (or you, on their behalf) send:
-                            </p>
-                            <pre className="overflow-x-auto rounded-lg border bg-muted/50 p-3 font-mono text-xs leading-relaxed">
-                                {request}
-                            </pre>
+                            {accepted ? (
+                                <p role="status" className="text-sm text-muted-foreground">
+                                    Invite accepted — {username} can now sign in with this password.
+                                </p>
+                            ) : (
+                                <form
+                                    className="grid gap-2"
+                                    onSubmit={(event) => {
+                                        event.preventDefault()
+                                        accept.mutate({ token: inviteToken, password })
+                                    }}
+                                >
+                                    <label className="text-sm font-medium" htmlFor="invite-password">Password</label>
+                                    <Input
+                                        id="invite-password"
+                                        type="password"
+                                        autoComplete="new-password"
+                                        value={password}
+                                        onChange={(event) => setPassword(event.target.value)}
+                                    />
+                                    <label className="text-sm font-medium" htmlFor="invite-confirm">Confirm password</label>
+                                    <Input
+                                        id="invite-confirm"
+                                        type="password"
+                                        autoComplete="new-password"
+                                        value={confirmPassword}
+                                        onChange={(event) => setConfirmPassword(event.target.value)}
+                                    />
+                                    {acceptReason !== null && (
+                                        <p className="text-xs text-muted-foreground">{acceptReason}</p>
+                                    )}
+                                    {accept.isError && <ErrorPanel message={messageOf(accept.error)} />}
+                                    <Button
+                                        type="submit"
+                                        disabled={acceptReason !== null || accept.isPending}
+                                    >
+                                        Accept invite
+                                    </Button>
+                                </form>
+                            )}
                         </div>
                         <DialogFooter>
                             <Button
