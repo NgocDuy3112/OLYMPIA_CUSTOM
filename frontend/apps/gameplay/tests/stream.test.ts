@@ -140,6 +140,66 @@ describe("useSocketStream — connection state and resync signal", () => {
         expect(FakeSocket.all).toHaveLength(1)
     })
 
+    it("stops for good on a 4401/4403 error frame before the abort", () => {
+        for (const code of [4401, 4403]) {
+            FakeSocket.all = []
+            const frames: unknown[] = []
+            const { result, unmount } = renderHook(() =>
+                useSocketStream("/live/stream", true, (message) => frames.push(message))
+            )
+            act(() => {
+                last().open()
+                last().push(HANDSHAKE_ACK)
+            })
+            act(() => {
+                last().push({
+                    target: "message",
+                    arguments: [{
+                        type: "error",
+                        code,
+                        data: { code: "SESSION_ENDED", message: "session refused" },
+                    }],
+                })
+            })
+            expect(result.current.status).toBe("stopped")
+            expect(frames).toHaveLength(0)
+
+            act(() => {
+                vi.advanceTimersByTime(120_000)
+            })
+            expect(result.current.status).toBe("stopped")
+            expect(FakeSocket.all).toHaveLength(1)
+            unmount()
+        }
+    })
+
+    it("keeps retrying after a transient error frame or an abnormal close", () => {
+        const frames: unknown[] = []
+        const { result } = renderHook(() =>
+            useSocketStream("/live/stream", true, (message) => frames.push(message))
+        )
+        act(() => {
+            last().open()
+            last().push(HANDSHAKE_ACK)
+        })
+        const transient = { type: "error", code: 4000, data: { code: "BAD_MESSAGE", message: "temporary" } }
+        act(() => {
+            last().push({ target: "message", arguments: [transient] })
+        })
+        expect(result.current.status).toBe("live")
+        expect(frames).toEqual([transient])
+
+        act(() => {
+            last().readyState = 3
+            last().onclose?.({ code: 1006 } as CloseEvent)
+        })
+        expect(result.current.status).toBe("reconnecting")
+        act(() => {
+            vi.advanceTimersByTime(2_000)
+        })
+        expect(FakeSocket.all).toHaveLength(2)
+    })
+
     it("exposes a manual reconnect that skips the backoff", () => {
         const { result } = renderHook(() => useSocketStream("/live/stream", true, () => {}))
         act(() => {

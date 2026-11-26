@@ -217,6 +217,18 @@ export function useHubInvoker(
                 settle(id, (pending) => pending.reject(new Error(reason)))
         }
 
+        const stop = (ws: WebSocket, code: number) => {
+            if (stopped) return
+            stopped = true
+            readyRef.current = false
+            failPending("lost connection")
+            if (timer !== undefined) clearTimeout(timer)
+            if (watchdog !== undefined) clearTimeout(watchdog)
+            report("stopped")
+            logError("ws", `live stream stopped ${code} · ${path}`)
+            if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) ws.close()
+        }
+
         const armWatchdog = (ws: WebSocket) => {
             if (watchdog !== undefined) clearTimeout(watchdog)
             watchdog = setTimeout(() => {
@@ -273,6 +285,7 @@ export function useHubInvoker(
                     if (envelope === undefined) continue
                     const message = envelope as {
                         type?: string
+                        code?: number
                         requestId?: string
                         data?: { code?: string; message?: string }
                     }
@@ -285,6 +298,14 @@ export function useHubInvoker(
                                 pending.reject(new Error(message.data?.message ?? "yêu cầu thất bại"))
                             )
                         }
+                        continue
+                    }
+                    if (
+                        message.type === "error" &&
+                        typeof message.code === "number" &&
+                        STOP_CODES.has(message.code)
+                    ) {
+                        stop(ws, message.code)
                         continue
                     }
                     // Not one of ours: a stream frame for the caller.
