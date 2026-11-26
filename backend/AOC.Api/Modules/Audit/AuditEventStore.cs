@@ -21,6 +21,18 @@ public sealed class AuditEventStore(AOCDbContext db)
         return Pagination.Result(items, total, page);
     }
 
+    public const int ExportCap = 10_000;
+
+    public async Task<List<AuditEventRow>> ExportAsync(AuditFilter filter)
+    {
+        var query = await FilteredAsync(filter);
+        return await Project(query
+                .OrderByDescending(e => e.CreatedAt)
+                .ThenByDescending(e => e.Id)
+                .Take(ExportCap))
+            .ToListAsync();
+    }
+
     public async Task<IReadOnlyList<string>> ActionsAsync()
         => await db.AuditEvents.AsNoTracking()
             .Select(e => e.Action)

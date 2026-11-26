@@ -17,6 +17,8 @@ public sealed record AuditEventRow(
 
 public sealed record AuditActionsResponse(string[] Actions);
 
+public sealed record AuditCsvExport(string FileName, string Content);
+
 public sealed class AuditFilter
 {
     public IReadOnlyList<string> Actions { get; init; } = [];

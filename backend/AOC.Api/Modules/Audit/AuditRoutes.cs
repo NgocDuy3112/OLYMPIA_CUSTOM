@@ -1,3 +1,4 @@
+using System.Text;
 using AOC.Api.Http;
 using AOC.Infrastructure.Configuration;
 
@@ -21,6 +22,16 @@ public static class AuditRoutes
             await http.RequireRoleAsync(Surface.PORTAL, "ADMIN");
             var service = http.RequestServices.GetRequiredService<AuditEventsService>();
             return Results.Json(await service.ActionsAsync(), JsonApi.Options);
+        });
+
+        app.MapGet("/portal/audit-events/export", async (HttpContext http) =>
+        {
+            await http.RequireRoleAsync(Surface.PORTAL, "ADMIN");
+            var service = http.RequestServices.GetRequiredService<AuditEventsService>();
+            var export = await service.ExportAsync(AuditQuery.From(Validate.Query(http)));
+            http.Response.Headers.ContentDisposition = $"attachment; filename=\"{export.FileName}\"";
+            http.Response.Headers.XContentTypeOptions = "nosniff";
+            return Results.Text(export.Content, "text/csv; charset=utf-8", Encoding.UTF8);
         });
 
         return app;
