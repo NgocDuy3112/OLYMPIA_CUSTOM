@@ -1,5 +1,4 @@
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using AOC.Api.Http;
@@ -24,34 +23,34 @@ public sealed class PasswordResetService(AOCDbContext db, IEmailService emailSen
     public async Task RequestResetAsync(string email, CancellationToken cancellationToken = default)
     {
         var normalized = NormalizeEmail(email);
-        var user = await db.Users.FirstOrDefaultAsync(
+        var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(
             u => u.Email != null && u.Email.ToLower() == normalized, cancellationToken);
         if (user is null) return;
         if (user.PasswordHash is null) return;
 
         var now = DateTime.UtcNow;
-        var rows = await db.PasswordResetCodes
-            .Where(r => r.UserId == user.Id)
-            .ToListAsync(cancellationToken);
-
-        if (rows.Sum(r => r.Attempts) >= MaxAttempts) return;
-
-        if (rows.Any(r => r.UsedAt == null && r.ExpiresAt > now)) return;
-
         var code = RandomNumberGenerator.GetInt32(0, 100000000).ToString("D8");
-        var salt = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+        var codeHash = await PasswordHasher.HashAsync(code);
 
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await db.PasswordResetCodes
+            .Where(r => r.UserId == user.Id && r.UsedAt == null)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(r => r.UsedAt, now), cancellationToken);
+        await db.PasswordResetCodes
+            .Where(r => r.UserId == user.Id && (r.UsedAt != null || r.ExpiresAt <= now))
+            .ExecuteDeleteAsync(cancellationToken);
         db.PasswordResetCodes.Add(new PasswordResetCodeEntity
         {
             UserId = user.Id,
-            CodeHash = ComputeHash(salt, code),
-            Salt = salt,
+            CodeHash = codeHash,
+            Salt = "",
             ExpiresAt = now.AddMinutes(CodeMinutes),
             UsedAt = null,
             Attempts = 0,
             CreatedAt = now
         });
         await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         var subject = "Mã đặt lại mật khẩu AOC " + code;
         var htmlBody = "<p>Mã đặt lại mật khẩu của bạn là: <b>" + code + "</b></p>"
@@ -68,44 +67,50 @@ public sealed class PasswordResetService(AOCDbContext db, IEmailService emailSen
             throw ApiException.BadRequest($"Mật khẩu cần ít nhất {PasswordMin} ký tự.");
 
         var now = DateTime.UtcNow;
-        var user = await db.Users.FirstOrDefaultAsync(
+        var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(
             u => u.Email != null && u.Email.ToLower() == normalized, cancellationToken);
         if (user is null) throw InvalidCode();
 
-        var rows = await db.PasswordResetCodes
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+
+        var rowId = await db.Database
+            .SqlQueryRaw<Guid>(
+                "SELECT id AS \"Value\" FROM password_reset_codes " +
+                "WHERE user_id = {0} AND used_at IS NULL AND expires_at > {1} FOR UPDATE",
+                user.Id, now)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (rowId == Guid.Empty) throw InvalidCode();
+
+        var row = await db.PasswordResetCodes.AsNoTracking()
+            .FirstAsync(r => r.Id == rowId, cancellationToken);
+        var verified = await PasswordHasher.VerifyAsync(row.CodeHash, code);
+        var attempts = row.Attempts + 1;
+
+        if (!verified)
+        {
+            var exhausted = attempts > MaxAttempts;
+            DateTime? usedAt = exhausted ? now : row.UsedAt;
+            await db.PasswordResetCodes
+                .Where(r => r.Id == rowId)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(r => r.Attempts, attempts)
+                    .SetProperty(r => r.UsedAt, usedAt), cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            throw InvalidCode();
+        }
+
+        var passwordHash = await PasswordHasher.HashAsync(newPassword);
+        await db.Users
+            .Where(u => u.Id == user.Id)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(u => u.TokenVersion, u => u.TokenVersion + 1)
+                .SetProperty(u => u.PasswordHash, passwordHash)
+                .SetProperty(u => u.MustChangePassword, false)
+                .SetProperty(u => u.UpdatedAt, now), cancellationToken);
+        await db.PasswordResetCodes
             .Where(r => r.UserId == user.Id)
-            .ToListAsync(cancellationToken);
-        var row = rows
-            .Where(r => r.UsedAt == null && r.ExpiresAt > now)
-            .OrderByDescending(r => r.CreatedAt)
-            .FirstOrDefault();
-        if (row is null) throw InvalidCode();
-
-        row.Attempts = row.Attempts + 1;
-        if (rows.Sum(r => r.Attempts) > MaxAttempts)
-        {
-            row.UsedAt = now;
-            await db.SaveChangesAsync(cancellationToken);
-            throw InvalidCode();
-        }
-
-        var candidate = ComputeHash(row.Salt, code);
-        var candidateBytes = Encoding.UTF8.GetBytes(candidate);
-        var expectedBytes = Encoding.UTF8.GetBytes(row.CodeHash);
-        var match = CryptographicOperations.FixedTimeEquals(candidateBytes, expectedBytes);
-        if (!match)
-        {
-            await db.SaveChangesAsync(cancellationToken);
-            throw InvalidCode();
-        }
-
-        row.UsedAt = now;
-        user.PasswordHash = await PasswordHasher.HashAsync(newPassword);
-        user.TokenVersion = user.TokenVersion + 1;
-        user.MustChangePassword = false;
-        user.UpdatedAt = now;
-        db.PasswordResetCodes.RemoveRange(rows);
-        await db.SaveChangesAsync(cancellationToken);
+            .ExecuteDeleteAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     private static string NormalizeEmail(string email)
@@ -118,10 +123,4 @@ public sealed class PasswordResetService(AOCDbContext db, IEmailService emailSen
 
     private static ApiException InvalidCode()
         => ApiException.BadRequest("Mã không hợp lệ hoặc đã hết hạn.");
-
-    private static string ComputeHash(string salt, string code)
-    {
-        var bytes = Encoding.UTF8.GetBytes(salt + ":" + code);
-        return Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
-    }
 }

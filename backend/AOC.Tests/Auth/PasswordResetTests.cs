@@ -268,7 +268,7 @@ public class PasswordResetTests
             Assert.Equal(400, sixth.Status);
             Assert.Equal("Mã không hợp lệ hoặc đã hết hạn.", sixth.Message);
 
-            var row = await db.PasswordResetCodes
+            var row = await db.PasswordResetCodes.AsNoTracking()
                 .Where(r => r.UserId == user.Id)
                 .OrderByDescending(r => r.CreatedAt)
                 .FirstOrDefaultAsync();
@@ -286,7 +286,7 @@ public class PasswordResetTests
     }
 
     [DbFact]
-    public async Task ForgotPassword_Twice_ReusesExistingCodeAndStillWorks()
+    public async Task ForgotPassword_Twice_InvalidatesThePriorCodeAndIssuesANewOne()
     {
         await AuthTestDb.EnsureSchemaAsync();
         using var db = AuthTestDb.OpenDb();
@@ -298,18 +298,24 @@ public class PasswordResetTests
             var service = new PasswordResetService(db, mail);
 
             await service.RequestResetAsync(email);
-            var code = ParseCode(mail.Sent[0].Subject + "\n" + mail.Sent[0].HtmlBody);
+            var firstCode = ParseCode(mail.Sent[0].Subject + "\n" + mail.Sent[0].HtmlBody);
 
             await service.RequestResetAsync(email);
 
-            Assert.Single(mail.Sent);
-            var rows = await db.PasswordResetCodes
+            Assert.Equal(2, mail.Sent.Count);
+            var secondCode = ParseCode(mail.Sent[1].Subject + "\n" + mail.Sent[1].HtmlBody);
+            var rows = await db.PasswordResetCodes.AsNoTracking()
                 .Where(r => r.UserId == user.Id)
                 .ToListAsync();
             Assert.Single(rows);
+            Assert.Null(rows[0].UsedAt);
+
+            var stale = await CaptureAsync(() => service.ResetPasswordAsync(
+                email, firstCode, $"stale-new-{Guid.NewGuid():N}-long"));
+            Assert.Equal(400, stale.Status);
 
             var freshPassword = $"fresh-new-{Guid.NewGuid():N}-long";
-            await service.ResetPasswordAsync(email, code, freshPassword);
+            await service.ResetPasswordAsync(email, secondCode, freshPassword);
             var reloaded = await db.Users.AsNoTracking().FirstAsync(u => u.Id == user.Id);
             Assert.True(await PasswordHasher.VerifyAsync(reloaded.PasswordHash!, freshPassword));
         }
@@ -320,7 +326,7 @@ public class PasswordResetTests
     }
 
     [DbFact]
-    public async Task RequestReset_AfterMaxTotalFailures_StopsIssuingCodes()
+    public async Task RequestReset_AfterMaxFailures_IssuesAFreshCode()
     {
         await AuthTestDb.EnsureSchemaAsync();
         using var db = AuthTestDb.OpenDb();
@@ -344,11 +350,56 @@ public class PasswordResetTests
 
             await service.RequestResetAsync(email);
 
-            Assert.Single(mail.Sent);
-            var rows = await db.PasswordResetCodes
+            Assert.Equal(2, mail.Sent.Count);
+            var freshCode = ParseCode(mail.Sent[1].Subject + "\n" + mail.Sent[1].HtmlBody);
+            var rows = await db.PasswordResetCodes.AsNoTracking()
                 .Where(r => r.UserId == user.Id)
                 .ToListAsync();
             Assert.Single(rows);
+
+            var stale = await CaptureAsync(() => service.ResetPasswordAsync(email, code, newPassword));
+            Assert.Equal(400, stale.Status);
+
+            await service.ResetPasswordAsync(email, freshCode, newPassword);
+            var reloaded = await db.Users.AsNoTracking().FirstAsync(u => u.Id == user.Id);
+            Assert.True(await PasswordHasher.VerifyAsync(reloaded.PasswordHash!, newPassword));
+        }
+        finally
+        {
+            await RemoveAsync(db, user);
+        }
+    }
+
+    [DbFact]
+    public async Task RequestReset_AfterAnInvalidatedCode_StillRecovers()
+    {
+        await AuthTestDb.EnsureSchemaAsync();
+        using var db = AuthTestDb.OpenDb();
+        var email = $"reset-{Guid.NewGuid():N}@example.com";
+        var (user, _) = await CreateUserAsync(db, email);
+        try
+        {
+            var mail = new RecordingEmail();
+            var service = new PasswordResetService(db, mail);
+
+            await service.RequestResetAsync(email);
+            var code = ParseCode(mail.Sent[0].Subject + "\n" + mail.Sent[0].HtmlBody);
+            var wrong = WrongCode(code);
+            var newPassword = $"new-password-{Guid.NewGuid():N}-long";
+
+            for (var i = 0; i < 6; i++)
+            {
+                var attempt = await CaptureAsync(() => service.ResetPasswordAsync(email, wrong, newPassword));
+                Assert.Equal(400, attempt.Status);
+            }
+
+            await service.RequestResetAsync(email);
+
+            Assert.Equal(2, mail.Sent.Count);
+            var freshCode = ParseCode(mail.Sent[1].Subject + "\n" + mail.Sent[1].HtmlBody);
+            await service.ResetPasswordAsync(email, freshCode, newPassword);
+            var reloaded = await db.Users.AsNoTracking().FirstAsync(u => u.Id == user.Id);
+            Assert.True(await PasswordHasher.VerifyAsync(reloaded.PasswordHash!, newPassword));
         }
         finally
         {
