@@ -26,8 +26,14 @@ public static partial class LiveView
         List<RevealedAnswerRow>? RevealedAnswers = null,
         IReadOnlyDictionary<string, int>? TieBreak = null);
 
-    private static string PlusSeconds(string iso, double seconds)
+    private const int MaxDeadlineOffsetSeconds = 24 * 60 * 60;
+
+    public static string PlusSeconds(string iso, double seconds)
     {
+        if (!double.IsFinite(seconds) || seconds < 0 || seconds > MaxDeadlineOffsetSeconds)
+            throw new LiveStateError("stored live state failed validation",
+                new[] { $"deadline offset {seconds} is not a finite value within 0..{MaxDeadlineOffsetSeconds} seconds" });
+
         var ms = DateTimeOffset.Parse(iso).ToUnixTimeMilliseconds() + (long)(seconds * 1000);
         return DateTimeOffset.FromUnixTimeMilliseconds(ms)
             .UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
