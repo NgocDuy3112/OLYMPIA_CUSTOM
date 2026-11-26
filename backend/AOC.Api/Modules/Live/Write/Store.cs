@@ -371,7 +371,7 @@ public sealed class DraftWriter(AOCDbContext db)
 {
     public const string AutoDrafter = "auto";
 
-    public async Task WriteDraftAsync(
+    public async Task<bool> WriteDraftAsync(
         Guid matchId, Guid questionId, Guid userId,
         JsonElement value, Verdict suggestion,
         string? draftedBy = null, int? answeredMs = null, bool revise = true)
@@ -390,10 +390,12 @@ public sealed class DraftWriter(AOCDbContext db)
                        drafts = coalesce(answers.drafts, jsonb_build_object()) || EXCLUDED.drafts,
                        answered_ms = coalesce(EXCLUDED.answered_ms, answers.answered_ms)
                  WHERE answers.verdict IS NULL
+                   AND (answers.value IS DISTINCT FROM EXCLUDED.value
+                        OR answers.drafts -> {7}::text IS DISTINCT FROM EXCLUDED.drafts -> {7}::text)
                 RETURNING 1 AS "Value"
                 """,
                 matchId, questionId, userId, JsonSerializer.Serialize(value, JsonApi.Options), drafts,
-                answeredMs!, answeredMs!).ToListAsync()
+                answeredMs!, answeredMs!, draftedBy).ToListAsync()
             : await db.Database.SqlQueryRaw<int>(
                 """
                 INSERT INTO answers (match_id, question_id, user_id, value, drafts, first_answered_ms, answered_ms)
@@ -404,7 +406,7 @@ public sealed class DraftWriter(AOCDbContext db)
                 matchId, questionId, userId, JsonSerializer.Serialize(value, JsonApi.Options), drafts,
                 answeredMs!, answeredMs!).ToListAsync();
 
-        if (written.Count > 0) return;
+        if (written.Count > 0) return true;
 
         var verdict = await db.Answers.AsNoTracking()
             .Where(a => a.MatchId == matchId && a.QuestionId == questionId && a.UserId == userId)
@@ -412,6 +414,8 @@ public sealed class DraftWriter(AOCDbContext db)
             .FirstOrDefaultAsync();
         if (verdict is not null)
             throw new RuleError("ALREADY_JUDGED", "this answer already has a final verdict");
-        throw new RuleError("ALREADY_ANSWERED", "this question already has an answer");
+        if (!revise)
+            throw new RuleError("ALREADY_ANSWERED", "this question already has an answer");
+        return false;
     }
 }

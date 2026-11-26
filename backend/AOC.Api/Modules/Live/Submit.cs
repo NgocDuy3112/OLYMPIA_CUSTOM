@@ -17,7 +17,7 @@ public sealed class SubmitService(
     LiveReader reader,
     DraftWriter drafts,
     MatchHubRegistry hub,
-    AOC.Infrastructure.Audit.AuditService audit)
+    DraftAuditStore audit)
 {
     public sealed record SubmitContext(
         Guid MatchId,
@@ -118,8 +118,10 @@ public sealed class SubmitService(
         var question = loaded.Match.QuestionsList.FirstOrDefault(q => q.Id == ctx.QuestionId.ToString())
             ?? throw new SubmitError(400, "NOT_IN_MATCH", "question is not part of this match");
         var suggestion = Suggestion(question, value);
-        await drafts.WriteDraftAsync(ctx.MatchId, ctx.QuestionId, ctx.UserId,
+        var changed = await drafts.WriteDraftAsync(ctx.MatchId, ctx.QuestionId, ctx.UserId,
             ctx.Value, suggestion, answeredMs: answeredMs);
+        if (!changed) return new AnswerResult();
+
         await DraftAuditAsync(ctx, loaded.Live.RoundId, suggestion);
 
         await hub.PublishAsync(ctx.MatchId.ToString());
@@ -128,21 +130,8 @@ public sealed class SubmitService(
 
     private async Task DraftAuditAsync(SubmitContext ctx, string roundId, Verdict suggestion)
     {
-        await audit.AuditAsync(new AOC.Infrastructure.Audit.AuditEvent
-        {
-            Action = "answer_drafted",
-            ActorId = null,
-            MatchId = ctx.MatchId,
-            Ip = ctx.Ip,
-            UserAgent = ctx.UserAgent,
-            Details = new Dictionary<string, object?>
-            {
-                ["roundId"] = roundId,
-                ["questionId"] = ctx.QuestionId,
-                ["userId"] = ctx.UserId,
-                ["suggestion"] = suggestion.ToString()
-            }
-        });
+        await audit.RecordReviseAsync(ctx.MatchId, roundId, ctx.QuestionId, ctx.UserId, suggestion,
+            ctx.Ip, ctx.UserAgent);
     }
 
     private static Transition<JsonElement> ToTransition<TState>(TState nextState, List<LiveFact> facts)

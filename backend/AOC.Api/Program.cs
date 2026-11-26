@@ -83,6 +83,7 @@ builder.Services.AddScoped<LiveService>();
 builder.Services.AddScoped<LiveReader>();
 builder.Services.AddScoped<TieBreakService>();
 builder.Services.AddScoped<DraftWriter>();
+builder.Services.AddScoped<DraftAuditStore>();
 builder.Services.AddScoped<QuestionsService>();
 builder.Services.AddScoped<AOC.Api.Modules.Questions.Reads.QuestionReadStore>();
 builder.Services.AddScoped<AOC.Api.Modules.Questions.Reads.QuestionUsageStore>();
@@ -160,6 +161,9 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("public120", http => RateLimitPartition.GetFixedWindowLimiter(
         http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 120, Window = TimeSpan.FromMinutes(1) }));
+    options.AddPolicy("live30", http => RateLimitPartition.GetFixedWindowLimiter(
+        http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(1) }));
 });
 
 builder.Services.AddCors();

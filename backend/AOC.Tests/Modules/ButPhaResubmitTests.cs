@@ -7,7 +7,6 @@ using AOC.Api.Realtime;
 using AOC.Domain.Contracts;
 using AOC.Domain.Gameplay;
 using AOC.Domain.Gameplay.Turns;
-using AOC.Infrastructure.Audit;
 using AOC.Infrastructure.Data;
 using AOC.Infrastructure.Data.Entities;
 using AOC.Tests.Auth;
@@ -136,7 +135,7 @@ public class ButPhaResubmitTests
         await db.SaveChangesAsync();
 
         var hub = new MatchHubRegistry(NullLogger<MatchHubRegistry>.Instance);
-        var audit = new AuditService(db, NullLogger<AuditService>.Instance);
+        var audit = new DraftAuditStore(db, NullLogger<DraftAuditStore>.Instance);
         var submit = new SubmitService(db, new LiveReader(db), new DraftWriter(db), hub, audit);
         return new Fixture(matchId, userId, questionId, db, submit);
     }

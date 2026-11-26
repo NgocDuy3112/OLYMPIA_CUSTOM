@@ -283,7 +283,7 @@ public static class LiveRoutes
                 http.Request.Headers.UserAgent.ToString(),
                 pressedAt));
             return Results.Json(result, JsonApi.Options);
-        });
+        }).RequireRateLimiting("live30");
 
         app.MapPost("/api/matches/{matchId}/live/commands", async (HttpContext http) =>
         {
@@ -302,7 +302,7 @@ public static class LiveRoutes
             }
 
             throw ApiException.BadRequest("unknown command");
-        });
+        }).RequireRateLimiting("live30");
 
         app.MapPost("/api/matches/{matchId}/live/keyword", async (HttpContext http) =>
         {
@@ -320,7 +320,7 @@ public static class LiveRoutes
                 http.Request.Headers.UserAgent.ToString(),
                 SubmitService.ReadPressedAt(body)));
             return Results.Json(result, JsonApi.Options);
-        });
+        }).RequireRateLimiting("live30");
 
         return app;
     }

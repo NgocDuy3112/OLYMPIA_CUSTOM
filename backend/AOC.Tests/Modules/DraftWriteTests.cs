@@ -99,6 +99,26 @@ public class DraftWriteTests
     }
 
     [DbFact]
+    public async Task An_identical_revise_reports_no_change_and_keeps_the_stored_draft()
+    {
+        var seeded = await SeedAsync();
+
+        using var db = AuthTestDb.OpenDb();
+        var writer = new DraftWriter(db);
+        var first = await writer.WriteDraftAsync(seeded.MatchId, seeded.QuestionId, seeded.UserId,
+            Answer("Hà Nội"), Verdict.CORRECT, answeredMs: 900);
+        var second = await writer.WriteDraftAsync(seeded.MatchId, seeded.QuestionId, seeded.UserId,
+            Answer("Hà Nội"), Verdict.CORRECT, answeredMs: 1500);
+
+        Assert.True(first);
+        Assert.False(second);
+
+        db.ChangeTracker.Clear();
+        var row = await db.Answers.AsNoTracking().FirstAsync(a => a.MatchId == seeded.MatchId);
+        Assert.Equal(900, row.AnsweredMs);
+    }
+
+    [DbFact]
     public async Task A_draft_never_overwrites_a_judged_answer()
     {
         var seeded = await SeedAsync();
