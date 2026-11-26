@@ -144,12 +144,12 @@ public sealed class McpTools(
         var parsedKind = ParseKind(kind);
         return await Run(async () =>
         {
-            McpActorAccessor.RequireScope(actor, "READ");
+            McpToolScope.RequireTool(actor, McpToolNames.ListQuestions);
             await RequireVisibleTournamentAsync(tid, actor);
 
             var page = await questions.ListForAgentAsync(parsedKind, search, new Page(limit, offset));
 
-            await AuditAsync(actor, "list_questions", tid,
+            await AuditAsync(actor, McpToolNames.ListQuestions, tid,
                 new Dictionary<string, object?> { ["kind"] = kind, ["search"] = search },
                 page.Total);
 
@@ -170,12 +170,12 @@ public sealed class McpTools(
         var tid = ParseTournamentId(tournamentId);
         return await Run(async () =>
         {
-            McpActorAccessor.RequireScope(actor, "READ");
+            McpToolScope.RequireTool(actor, McpToolNames.GetQuestion);
             await RequireVisibleTournamentAsync(tid, actor);
 
             var row = await questions.GetForAgentAsync(questionId);
 
-            await AuditAsync(actor, "get_question", tid,
+            await AuditAsync(actor, McpToolNames.GetQuestion, tid,
                 new Dictionary<string, object?> { ["questionId"] = questionId, ["status"] = row.Status.ToString() },
                 null);
 
@@ -192,14 +192,14 @@ public sealed class McpTools(
         var parsedKind = ParseKind(kind);
         return await Run(async () =>
         {
-            McpActorAccessor.RequireScope(actor, "READ");
+            McpToolScope.RequireTool(actor, McpToolNames.EligibleQuestions);
             await RequireVisibleTournamentAsync(tid, actor);
 
             List<QuestionKind>? kinds = parsedKind is { } pk ? [pk] : null;
 
             var page = await questions.ListForAssemblyAsync(kinds, null, search, new Page(limit, offset));
 
-            await AuditAsync(actor, "eligible_questions", tid,
+            await AuditAsync(actor, McpToolNames.EligibleQuestions, tid,
                 new Dictionary<string, object?> { ["kind"] = kind, ["search"] = search },
                 page.Total);
 

@@ -102,48 +102,7 @@ builder.Services.AddSignalR(options =>
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddMcpServer()
     .WithHttpTransport()
-    .WithTools(new[]
-    {
-        ModelContextProtocol.Server.McpServerTool.Create(
-            typeof(AOC.Api.Modules.Mcp.McpTools)
-                .GetMethod(nameof(AOC.Api.Modules.Mcp.McpTools.ListQuestions))!,
-            BuildMcpTools,
-            new ModelContextProtocol.Server.McpServerToolCreateOptions
-            {
-                Name = "list_questions",
-                Title = "List questions",
-                Description = "List questions visible to operators: PUBLISHED and ARCHIVED. Answers are included. `usable` is true only for PUBLISHED questions.",
-                ReadOnly = true,
-                Idempotent = true,
-                OpenWorld = false
-            }),
-        ModelContextProtocol.Server.McpServerTool.Create(
-            typeof(AOC.Api.Modules.Mcp.McpTools)
-                .GetMethod(nameof(AOC.Api.Modules.Mcp.McpTools.GetQuestion))!,
-            BuildMcpTools,
-            new ModelContextProtocol.Server.McpServerToolCreateOptions
-            {
-                Name = "get_question",
-                Title = "Get question",
-                Description = "Fetch one question visible to operators (PUBLISHED or ARCHIVED). Answers are included.",
-                ReadOnly = true,
-                Idempotent = true,
-                OpenWorld = false
-            }),
-        ModelContextProtocol.Server.McpServerTool.Create(
-            typeof(AOC.Api.Modules.Mcp.McpTools)
-                .GetMethod(nameof(AOC.Api.Modules.Mcp.McpTools.EligibleQuestions))!,
-            BuildMcpTools,
-            new ModelContextProtocol.Server.McpServerToolCreateOptions
-            {
-                Name = "eligible_questions",
-                Title = "Eligible questions",
-                Description = "Browse the pool a match may draw from: the PUBLISHED questions (narrow with `kind`). Use this for assembly. Unlike list_questions, ARCHIVED is excluded.",
-                ReadOnly = true,
-                Idempotent = true,
-                OpenWorld = false
-            })
-    });
+    .WithTools(AOC.Api.Modules.Mcp.McpToolCatalog.BuildTools(BuildMcpTools));
 
 builder.Services.AddRateLimiter(options =>
 {

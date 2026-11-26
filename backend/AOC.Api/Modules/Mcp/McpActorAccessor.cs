@@ -8,10 +8,4 @@ public static class McpActorAccessor
         => http.Items.TryGetValue(ItemKey, out var value) && value is McpActor actor
             ? actor
             : throw new ToolError("UNAUTHORIZED", "Missing MCP authentication context");
-
-    public static void RequireScope(McpActor actor, string scope)
-    {
-        if (!actor.Scopes.Contains(scope))
-            throw new ToolError("FORBIDDEN", $"Missing scope: {scope}");
-    }
 }
