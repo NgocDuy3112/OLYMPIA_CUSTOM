@@ -1,9 +1,37 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { PlayerShell } from "@/components/player-shell"
 
+
+/**
+ * jsdom has no hub behind the stream path, so a real WebSocket refuses the
+ * connection within a few milliseconds and the shell swaps the whole screen for
+ * the "Đang kết nối lại" banner. That drop races the REST paint these tests
+ * assert on, which is the flake. This socket neither opens nor closes: the hub
+ * sits in its first connection attempt, exactly as on a slow link, so the deck
+ * is painted from REST — the phase machine, not the link state, is under test.
+ */
+class SilentSocket {
+    static CONNECTING = 0
+    static OPEN = 1
+    readyState = SilentSocket.CONNECTING
+
+    constructor(public url: string) {}
+
+    send() {}
+
+    close() {}
+}
+
+beforeEach(() => {
+    vi.stubGlobal("WebSocket", SilentSocket)
+})
+
+afterEach(() => {
+    vi.unstubAllGlobals()
+})
 
 const M = "m1"
 const ME = "GET /api/auth/me"

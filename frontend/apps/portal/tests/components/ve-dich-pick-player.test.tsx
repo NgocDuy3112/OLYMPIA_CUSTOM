@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 import { VeDichChungPickAOCPlayer } from "@shared/deck/screens/VeDichChungPickAOCPlayer"
+import { VeDichRiengPickAOCPlayer } from "@shared/deck/screens/VeDichRiengPickAOCPlayer"
 import type { PlayerView } from "@shared/deck/types"
 
 function view(over: Partial<PlayerView> = {}): PlayerView {
@@ -66,5 +67,26 @@ describe("VeDichChungPickAOCPlayer — staged picks", () => {
             (el) => el.getAttribute("aria-disabled") === "true"
         )
         expect(disabled).toHaveLength(0)
+    })
+
+    it("shows a neutral clock placeholder, not a misleading 00, while no deadline runs", () => {
+        render(<VeDichChungPickAOCPlayer ctx={ctx(view())} />)
+
+        expect(screen.getByText("--:--")).toBeInTheDocument()
+        expect(screen.queryByText("00")).toBeNull()
+    })
+})
+
+describe("VeDichRiengPickAOCPlayer — whose turn it is", () => {
+    it("names the player picking this turn", () => {
+        render(<VeDichRiengPickAOCPlayer ctx={ctx(view({ turnPlayerId: "u2" }))} />)
+
+        expect(screen.getByText("Lượt: u2")).toBeInTheDocument()
+    })
+
+    it("keeps the turn cue off the screen when no turn player is known", () => {
+        render(<VeDichRiengPickAOCPlayer ctx={ctx(view())} />)
+
+        expect(screen.queryByText(/^Lượt:/)).toBeNull()
     })
 })

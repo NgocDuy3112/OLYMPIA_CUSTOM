@@ -57,4 +57,26 @@ describe("VeDichPickBoard", () => {
         expect(screen.queryAllByTitle(/^Bỏ câu/)).toHaveLength(0)
         for (const button of screen.getAllByRole("button")) expect(button).toBeDisabled()
     })
+
+    it("names each cell by its state and says which pick is pressed", () => {
+        render(<VeDichPickBoard cells={cells} pickedIds={["a"]} onPick={() => {}} />)
+
+        const picked = screen.getByRole("button", { name: "Bỏ câu 20 điểm" })
+        expect(picked).toHaveAttribute("aria-pressed", "true")
+
+        const free = screen.getAllByRole("button", { name: "Chọn câu 30 điểm" })[0]
+        expect(free).toHaveAttribute("aria-pressed", "false")
+
+        const used = screen.getByRole("button", { name: "Câu 20 điểm đã dùng" })
+        expect(used).toHaveAttribute("aria-label", "Câu 20 điểm đã dùng")
+    })
+
+    it("a read-only board is not a toggle — no aria-pressed", () => {
+        render(<VeDichPickBoard cells={cells} pickedIds={["a"]} />)
+
+        for (const button of screen.getAllByRole("button")) {
+            expect(button).not.toHaveAttribute("aria-pressed")
+            expect(button.getAttribute("aria-label")).toBeTruthy()
+        }
+    })
 })

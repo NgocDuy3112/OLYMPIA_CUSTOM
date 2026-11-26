@@ -54,7 +54,9 @@ export function Timer({ remaining, size = 40 }: {
     remaining: number | null
     size?: number
 }) {
-    let text = "00"
+    // No deadline yet (the pick screen has no clock): a neutral placeholder, not "00",
+    // which would read as "time is up". A real countdown at zero still formats to "00".
+    let text = "--:--"
     let tone = "text-muted-foreground"
     if (remaining !== null) {
         text = toClock(formatRemaining(remaining))

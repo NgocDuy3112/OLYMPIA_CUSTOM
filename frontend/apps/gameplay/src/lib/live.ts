@@ -5,6 +5,7 @@ import { useServerClock, type ServerClock } from "@shared/lib/clock"
 import type { LobbyData } from "@shared/deck/types"
 import { useHubInvoker, type HubInvoker, type StreamStatus } from "@shared/lib/ws"
 import { logError } from "@shared/lib/log"
+import { isOlderView } from "@shared/lib/view-version"
 
 interface ViewFailure {
     status: number
@@ -115,19 +116,7 @@ interface StreamFrame {
 
 const liveKey = (matchId: string) => ["live", matchId] as const
 
-/**
- * A view frame may race a slower REST refetch: never paint a frame older than the
- * cached view, or the deck jumps back a stage and drops a buzz window. The version
- * is optional on both sides, so only two comparable versions can prove staleness.
- */
-export function isOlderView(
-    frame: { version?: number } | null | undefined,
-    cached: { version?: number } | null | undefined
-): boolean {
-    if (!frame || !cached) return false
-    if (typeof frame.version !== "number" || typeof cached.version !== "number") return false
-    return frame.version < cached.version
-}
+export { isOlderView } from "@shared/lib/view-version"
 
 const streamPathOf = (matchId: string) => `/api/matches/${matchId}/live/stream`
 

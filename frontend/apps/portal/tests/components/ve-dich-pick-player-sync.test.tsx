@@ -64,7 +64,7 @@ describe("VeDich pick players — staged picks from the server", () => {
 
     it("rieng: shows a chip for every staged pick", () => {
         render(<VeDichRiengPickAOCPlayer ctx={ctx(view())} />)
-        expect(screen.getAllByTitle(/Câu 40 điểm đã được chọn/)).toHaveLength(2)
+        expect(screen.getAllByTitle(/Đã chọn câu 40 điểm/)).toHaveLength(2)
         expect(screen.getAllByTitle("Ô câu 40 điểm — đã chọn")).toHaveLength(2)
     })
 

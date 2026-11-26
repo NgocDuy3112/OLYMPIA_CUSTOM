@@ -107,6 +107,16 @@ describe("VeDichRiengPick — chips sync with the server state", () => {
         expect(screen.getAllByTitle("Bỏ câu 40 điểm")).toHaveLength(4)
     })
 
+    it("staged chips do not pulse — the question is not on stage yet", () => {
+        render(<VeDichRiengPickAOCController ctx={facts(["a", "b"]) as never} />)
+
+        const chips = screen
+            .getAllByTitle("Bỏ câu 40 điểm")
+            .filter((el) => el.className.includes("w-[7cqw]"))
+        expect(chips).toHaveLength(2)
+        for (const chip of chips) expect(chip.className).not.toContain("stage-pulse")
+    })
+
     it("re-sends the full batch when a pick is removed", async () => {
         const user = userEvent.setup()
         const send = vi.fn()

@@ -107,6 +107,8 @@ export function VeDichRiengPickAOCController({ ctx }: { ctx: VeDichRiengPickCtx 
                                 id: cell.questionId,
                                 label: String(cell.value),
                                 active: true,
+                                // A staged pick is not on stage yet — only the open question breathes.
+                                live: false,
                                 clickable: picking,
                                 title: `Bỏ câu ${cell.value} điểm`,
                             }))}

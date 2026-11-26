@@ -1,4 +1,5 @@
 import { PlayerStage, QuestionCard, QuestionChips, Rail, Timer, type PlayerCore } from "../player-deck"
+import { pt } from "../geometry"
 import { RIENG_PICK_VALUES } from "../ve-dich-board"
 import { VeDichPickBoard } from "../ve-dich-pick-board"
 
@@ -20,6 +21,8 @@ export function VeDichRiengPickAOCPlayer({ ctx }: { ctx: VeDichRiengPickAOCPlaye
         if (!cell) return []
         return [{ id: cell.questionId, value: cell.value }]
     })
+    // The turn is individual, so name the picker: the deck never shows whose turn it is.
+    const turnName = v.turnPlayerId ? ctx.nameOf(v.turnPlayerId) : null
 
     return (
         <PlayerStage
@@ -30,6 +33,11 @@ export function VeDichRiengPickAOCPlayer({ ctx }: { ctx: VeDichRiengPickAOCPlaye
                 mode="Lượt cá nhân"
                 right={
                     <span className="flex items-center gap-[1.2cqw]">
+                        {turnName && (
+                            <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>
+                                Lượt: {turnName}
+                            </span>
+                        )}
                         <QuestionChips
                             chips={pickedCells.map((cell) => ({
                                 id: cell.id,
@@ -37,7 +45,7 @@ export function VeDichRiengPickAOCPlayer({ ctx }: { ctx: VeDichRiengPickAOCPlaye
                                 active: true,
                                 // A staged pick is not on stage yet — only the open question breathes.
                                 live: false,
-                                title: `Câu ${cell.value} điểm đã được chọn`,
+                                title: `Đã chọn câu ${cell.value} điểm`,
                             }))}
                         />
                         <Timer remaining={null} />

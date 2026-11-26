@@ -69,6 +69,10 @@ export function VeDichPickBoard({ cells, pickedIds, values, locked, onPick }: {
                                 disabled={disabled}
                                 onClick={onPick ? () => onPick(cell.questionId) : undefined}
                                 title={title}
+                                // The cell only shows its value; the title carries the state.
+                                aria-label={title}
+                                // A picked cell on a live board is a toggle that can be dropped.
+                                aria-pressed={onPick ? picked : undefined}
                                 className={cellTone(where, picked, onPick)}
                                 style={{ ...DECK_PAD, gridColumn: `span ${row.span}` }}
                             >
