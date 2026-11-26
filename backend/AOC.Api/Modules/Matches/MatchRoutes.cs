@@ -57,13 +57,8 @@ public static class MatchRoutes
             var scope = await service.RequireMatchScopeAsync(tournamentId, matchId);
             AssertView(scope.Tournament, user, tournamentId);
 
-            var match = scope.Match;
-            var payload = JsonSerializer
-                .SerializeToElement(match, JsonDefaults.Options)
-                .Deserialize<Dictionary<string, JsonElement>>()!;
-            payload["assemblyEvents"] = JsonSerializer.SerializeToElement(
-                await service.GetMatchAssemblyEventsAsync(matchId), JsonDefaults.Options);
-            return Results.Json(payload, JsonApi.Options);
+            var assemblyEvents = await service.GetMatchAssemblyEventsAsync(matchId);
+            return Results.Json(MatchDetail.Of(scope.Match, assemblyEvents), JsonApi.Options);
         });
 
         app.MapPost("/portal/tournaments/{tournamentId}/matches/{matchId}/results", async (HttpContext http) =>

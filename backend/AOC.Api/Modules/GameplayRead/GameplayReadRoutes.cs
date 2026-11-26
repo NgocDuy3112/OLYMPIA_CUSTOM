@@ -63,14 +63,14 @@ public static class Present
         };
     }
 
-    public static string MatchRound(MatchEntity row, IReadOnlyDictionary<string, string> stageTitles)
+    public static string MatchRound(MatchSummary row, IReadOnlyDictionary<string, string> stageTitles)
     {
         var title = stageTitles.GetValueOrDefault(row.StageId, row.StageId);
         return $"{title} · {row.Label}";
     }
 
     public static object Match(
-        MatchEntity row,
+        MatchSummary row,
         IReadOnlyDictionary<string, string> stageTitles,
         IReadOnlyDictionary<string, string> names,
         List<ResultEntry>? results)

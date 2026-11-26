@@ -63,16 +63,7 @@ public static class TournamentRoutes
                     $"tournament {tournamentId} not found");
 
             var places = await db.TournamentPlayers.CountAsync(p => p.TournamentId == tournament.Id);
-
-            var resolved = AocRulebook.ResolveRoundRules(
-                tournament.RoundsList, tournament.RoundRulesMap);
-
-            var payload = JsonSerializer
-                .SerializeToElement(tournament, JsonDefaults.Options)
-                .Deserialize<Dictionary<string, JsonElement>>()!;
-            payload["roundRules"] = JsonDefaults.Serialize(resolved);
-            payload["places"] = JsonSerializer.SerializeToElement(places);
-            return Results.Json(payload, JsonApi.Options);
+            return Results.Json(TournamentDetail.Of(tournament, places), JsonApi.Options);
         });
 
         app.MapPatch("/portal/tournaments/{tournamentId}", async (HttpContext http) =>

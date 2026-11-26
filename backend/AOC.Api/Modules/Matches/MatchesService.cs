@@ -50,7 +50,7 @@ public sealed class MatchesService(
         => db.Matches.AsNoTracking().FirstOrDefaultAsync(m =>
             m.Id == matchId && m.TournamentId == tournamentId && m.DeletedAt == null);
 
-    public async Task<List<object>> GetMatchAssemblyEventsAsync(string matchId)
+    public async Task<List<MatchAssemblyEvent>> GetMatchAssemblyEventsAsync(string matchId)
     {
         var mid = Guid.Parse(matchId);
         var rows = await db.MatchAssemblyEvents.AsNoTracking()
@@ -59,18 +59,7 @@ public sealed class MatchesService(
             .ThenByDescending(e => e.At)
             .Take(20)
             .ToListAsync();
-        return rows.Select(e => (object)new
-        {
-            e.Id,
-            e.MatchId,
-            e.Revision,
-            e.ActorId,
-            e.Mode,
-            e.AddedCount,
-            e.RemovedCount,
-            e.SourceIds,
-            e.At
-        }).ToList();
+        return rows.Select(MatchAssemblyEvent.Of).ToList();
     }
 
 
@@ -252,7 +241,7 @@ public sealed class MatchesService(
         return row;
     }
 
-    public async Task<PageResult<MatchEntity>> ListMatchesAsync(
+    public async Task<PageResult<MatchSummary>> ListMatchesAsync(
         string tournamentId, string? statusFilter, Page page)
     {
         var tid = Guid.Parse(tournamentId);
@@ -272,7 +261,7 @@ public sealed class MatchesService(
             .Take(page.Limit)
             .ToListAsync();
 
-        return Pagination.Result(items, total, page);
+        return Pagination.Result(items.Select(MatchSummary.Of).ToList(), total, page);
     }
 
 
