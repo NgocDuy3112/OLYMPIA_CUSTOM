@@ -29,6 +29,8 @@ internal sealed class McpToolHarness : IDisposable
 
     public MatchHubRegistry Hub { get; }
 
+    public LiveService Live => services.GetRequiredService<LiveService>();
+
     private McpToolHarness(AOCDbContext db)
     {
         Db = db;
@@ -182,13 +184,14 @@ internal sealed class McpToolHarness : IDisposable
             .Select(m => m.ControllerId).First();
     }
 
-    public async Task SeedLiveAsync(Guid matchId, int version = 3)    {
+    public async Task SeedLiveAsync(Guid matchId, int version = 3, string roundId = "but-pha")
+    {
         Db.MatchLive.Add(new MatchLiveEntity
         {
             MatchId = matchId,
             Version = version,
-            RoundId = "but-pha",
-            State = JsonDefaults.Serialize(new { type = "BUT_PHA" }),
+            RoundId = roundId,
+            State = JsonDefaults.Serialize(new { type = roundId }),
             Archive = JsonDefaults.EmptyObject,
             UpdatedAt = DateTime.UtcNow
         });

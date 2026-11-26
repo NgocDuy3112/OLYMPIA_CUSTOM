@@ -158,7 +158,8 @@ public sealed partial class LiveService
                     JsonSerializer.SerializeToElement(dict, JsonApi.Options), []);
             }
 
-            if (!action.Kind.StartsWith($"{current.RoundId}."))
+            var kindParts = action.Kind.Split('.', 2);
+            if (kindParts.Length != 2 || !string.Equals(kindParts[0], current.RoundId, StringComparison.Ordinal))
                 throw new RuleError("WRONG_ROUND",
                     $"action {action.Kind} does not belong to round {current.RoundId}");
 
