@@ -4,6 +4,7 @@ import { cn } from "cn"
 import { api } from "@shared/lib/api"
 import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
+import { Dialog, DialogContent, DialogTitle } from "@shared/ui/dialog"
 import { bucketLabel, bucketOf, dateFormat, shapeOf } from "./model"
 import { errorMessage } from "@shared/lib/error-text"
 import type { BankQuestion } from "./model"
@@ -43,12 +44,10 @@ export function InspectorDrawer({ row, onClose }: { row: BankQuestion | null; on
     if (usage.isPending) usageText = "…"
 
     return (
-        <>
-            <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} aria-hidden />
-            <aside
-                role="dialog"
-                aria-label={`Chi tiết: ${row.questionText}`}
-                className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col overflow-y-auto border-l bg-card p-5 shadow-xl"
+        <Dialog open onOpenChange={(next) => { if (!next) onClose() }}>
+            <DialogContent
+                showCloseButton={false}
+                className="inset-y-0 right-0 left-auto top-0 flex h-full w-full max-w-md translate-x-0 translate-y-0 flex-col gap-0 overflow-y-auto rounded-none border-l bg-card p-5 sm:max-w-md"
             >
                 <div className="flex items-start justify-between gap-3">
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -61,7 +60,7 @@ export function InspectorDrawer({ row, onClose }: { row: BankQuestion | null; on
                     </Button>
                 </div>
 
-                <h3 className="mt-3 text-base font-semibold">{row.questionText}</h3>
+                <DialogTitle className="mt-3 text-base font-semibold">{row.questionText}</DialogTitle>
                 <p className="mt-1 text-xs text-muted-foreground">
                     Cập nhật {dateFormat.format(new Date(row.updatedAt))}
                 </p>
@@ -158,7 +157,7 @@ export function InspectorDrawer({ row, onClose }: { row: BankQuestion | null; on
                         <X className="size-4" aria-hidden />
                     </Button>
                 </div>
-            </aside>
-        </>
+            </DialogContent>
+        </Dialog>
     )
 }
