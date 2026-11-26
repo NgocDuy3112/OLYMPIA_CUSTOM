@@ -1,7 +1,9 @@
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { api } from "@shared/lib/api"
 import { useCountdown, type ServerClock } from "@shared/lib/clock"
+import { playSfx, stopSfx } from "@shared/lib/sfx"
 import { keepNewestRead } from "@shared/lib/view-version"
+import { useSocketStream } from "@shared/lib/ws"
 import type { PlayerCtx, PlayerView } from "@shared/deck/types"
 
 
@@ -22,14 +24,42 @@ const audienceKey = (tournamentId: string, matchId: string) =>
  */
 export { keepNewestRead }
 
+interface AudienceFrame {
+    type?: string
+    data?: { view?: AudienceRead; name?: string; url?: string; stop?: boolean }
+}
+
 export function useAudienceLive(tournamentId: string, matchId: string) {
+    const queryClient = useQueryClient()
+    const key = audienceKey(tournamentId, matchId)
+
+    const stream = useSocketStream(
+        `/spectate/tournaments/${tournamentId}/matches/${matchId}/live/stream`,
+        Boolean(tournamentId && matchId),
+        (message) => {
+            const frame = message as AudienceFrame | null
+            if (!frame || typeof frame !== "object") return
+
+            if (frame.type === "sfx") {
+                if (frame.data?.stop === true) stopSfx()
+                else if (frame.data?.url) playSfx(frame.data.url)
+                return
+            }
+
+            if (frame.type === "console" && frame.data?.view) {
+                const next = frame.data.view
+                queryClient.setQueryData<AudienceRead>(key, (old) => keepNewestRead(old, next))
+            }
+        }
+    )
+
     return useQuery({
-        queryKey: audienceKey(tournamentId, matchId),
+        queryKey: key,
         queryFn: () =>
             api<AudienceRead>(`/spectate/tournaments/${tournamentId}/matches/${matchId}/live`),
         structuralSharing: (old, next) =>
             keepNewestRead(old as AudienceRead | undefined, next as AudienceRead),
-        refetchInterval: 2_000,
+        refetchInterval: () => (stream.status === "live" ? false : 2_000),
         placeholderData: (previous) => previous,
         retry: false,
         staleTime: 0,

@@ -1,12 +1,51 @@
 import type { ReactNode } from "react"
 import { act, renderHook, waitFor } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { keepNewestRead, useAudienceLive } from "@/lib/audience"
 
 const state = vi.hoisted(() => ({
     queue: [] as Array<{ version?: number; stage: string }>,
 }))
+
+class FakeSocket {
+    static all: FakeSocket[] = []
+    static OPEN = 1
+    readyState = 0
+    sent: string[] = []
+    onopen: ((event: Event) => void) | null = null
+    onmessage: ((event: MessageEvent) => void) | null = null
+    onclose: ((event: CloseEvent) => void) | null = null
+
+    constructor(public url: string) {
+        FakeSocket.all.push(this)
+    }
+
+    send(data: string) {
+        this.sent.push(data)
+    }
+
+    close() {
+        if (this.readyState === 3) return
+        this.readyState = 3
+        this.onclose?.({ code: 1000 } as CloseEvent)
+    }
+
+    open() {
+        this.readyState = FakeSocket.OPEN
+        this.onopen?.(new Event("open"))
+    }
+
+    push(payload: unknown) {
+        this.onmessage?.({ data: `${JSON.stringify(payload)}\u001e` } as MessageEvent)
+    }
+
+    pushConsole(view: unknown) {
+        this.push({ target: "message", arguments: [{ type: "console", at: "2026-01-01T00:00:00.000Z", data: { view } }] })
+    }
+}
+
+const last = () => FakeSocket.all[FakeSocket.all.length - 1]
 
 vi.mock("@shared/lib/api", () => ({
     api: vi.fn(async () => state.queue.shift()),
@@ -29,9 +68,15 @@ function read(version: number | undefined, stage: string) {
     }
 }
 
+beforeEach(() => {
+    FakeSocket.all = []
+    vi.stubGlobal("WebSocket", FakeSocket)
+})
+
 afterEach(() => {
     state.queue = []
     vi.clearAllMocks()
+    vi.unstubAllGlobals()
 })
 
 describe("keepNewestRead — the poll never paints over a newer read", () => {
@@ -61,6 +106,34 @@ function setup() {
     const hook = renderHook(() => useAudienceLive("t1", "m1"), { wrapper })
     return { ...hook, client }
 }
+
+describe("useAudienceLive — the socket frame is the LED source", () => {
+    it("paints a console frame into the audience cache", async () => {
+        state.queue.push(read(5, "question"))
+        const { client, unmount } = setup()
+        await waitFor(() => expect(client.getQueryData(audienceKey)).toMatchObject({ version: 5 }))
+
+        last().open()
+        last().push({})
+        act(() => last().pushConsole(read(6, "phase1")))
+
+        expect(client.getQueryData(audienceKey)).toMatchObject({ version: 6, stage: "phase1" })
+        unmount()
+    })
+
+    it("drops a console frame older than the cache", async () => {
+        state.queue.push(read(5, "question"))
+        const { client, unmount } = setup()
+        await waitFor(() => expect(client.getQueryData(audienceKey)).toMatchObject({ version: 5 }))
+
+        last().open()
+        last().push({})
+        act(() => last().pushConsole(read(4, "phase1")))
+
+        expect(client.getQueryData(audienceKey)).toMatchObject({ version: 5, stage: "question" })
+        unmount()
+    })
+})
 
 describe("useAudienceLive — a late poll does not rewind the LED", () => {
     it("ignores a refetch whose version is behind the cache", async () => {

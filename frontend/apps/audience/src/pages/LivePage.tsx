@@ -1,14 +1,12 @@
 import { useParams, useSearchParams } from "react-router-dom"
 import { AudienceScreen } from "@/components/AudienceScreen"
 import { audienceView, useAudienceLive } from "@/lib/audience"
-import { useAudienceSfx } from "@/lib/sfx"
 
 
 export function LivePage() {
     const { tournamentId = "", matchId = "" } = useParams()
     const [search] = useSearchParams()
     const live = useAudienceLive(tournamentId, matchId)
-    useAudienceSfx(tournamentId, matchId)
     const led = search.get("mode") === "led"
 
     if (!tournamentId || !matchId) {
