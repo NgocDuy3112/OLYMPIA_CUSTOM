@@ -287,7 +287,7 @@ public class McpToolWriteTests
         Assert.Equal(1, pushes);
 
         var audit = await harness.Db.AuditEvents.AsNoTracking()
-            .Where(e => e.Action == "score_adjusted")
+            .Where(e => e.Action == "score_adjusted" && e.MatchId == matchId)
             .ToListAsync();
         var row = Assert.Single(audit);
         Assert.Equal(ownerId, row.ActorId);

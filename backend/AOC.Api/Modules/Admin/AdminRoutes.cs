@@ -15,13 +15,9 @@ public static class AdminRoutes
             return Results.Json(new { items }, JsonApi.Options);
         });
 
-        app.MapPatch("/portal/operators/{userId}/status", (HttpContext http) =>
-            SetAccountStatusAsync(http, (service, userId, disabled) =>
-                service.SetOperatorStatusAsync(userId, disabled)));
+        app.MapPatch("/portal/operators/{userId}/status", (Delegate)SetOperatorStatusAsync);
 
-        app.MapPatch("/portal/players/{userId}/status", (HttpContext http) =>
-            SetAccountStatusAsync(http, (service, userId, disabled) =>
-                service.SetPlayerStatusAsync(userId, disabled)));
+        app.MapPatch("/portal/players/{userId}/status", (Delegate)SetPlayerStatusAsync);
 
         app.MapPost("/portal/operators", async (HttpContext http) =>
         {
@@ -43,6 +39,14 @@ public static class AdminRoutes
 
         return app;
     }
+
+    private static Task<IResult> SetOperatorStatusAsync(HttpContext http)
+        => SetAccountStatusAsync(http, (service, userId, disabled) =>
+            service.SetOperatorStatusAsync(userId, disabled));
+
+    private static Task<IResult> SetPlayerStatusAsync(HttpContext http)
+        => SetAccountStatusAsync(http, (service, userId, disabled) =>
+            service.SetPlayerStatusAsync(userId, disabled));
 
     private static async Task<IResult> SetAccountStatusAsync(HttpContext http,
         Func<AccountStatusService, Guid, bool, Task<AccountStatusService.PublicAccountStatus>> setStatus)
