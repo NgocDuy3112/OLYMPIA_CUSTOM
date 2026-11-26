@@ -123,6 +123,25 @@ public sealed class McpKeysService(AOCDbContext db)
         return PublicOf(tracked);
     }
 
+    public sealed record RevokedMcpKeys(int Revoked, List<Guid> Ids);
+
+    public async Task<RevokedMcpKeys> RevokeMcpKeysAsync(List<Guid> ids, Guid? onlyOwnedBy)
+    {
+        var query = db.McpKeys.AsQueryable();
+        if (onlyOwnedBy is not null) query = query.Where(k => k.UserId == onlyOwnedBy);
+
+        var found = await query.AsNoTracking()
+            .Where(k => ids.Contains(k.Id))
+            .Select(k => k.Id)
+            .ToListAsync();
+
+        var revoked = await query
+            .Where(k => ids.Contains(k.Id) && k.RevokedAt == null)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(k => k.RevokedAt, DateTime.UtcNow));
+
+        return new RevokedMcpKeys(revoked, found);
+    }
+
     public sealed record VerifiedMcpKey(PublicMcpKey Key, UserEntity User);
 
     public async Task<VerifiedMcpKey> VerifyMcpTokenAsync(string token, string? ip = null, string? userAgent = null)
@@ -241,6 +260,33 @@ public static class McpKeyRoutes
                 JsonApi.Options);
         });
 
+        app.MapPost("/portal/mcp-keys/revoke", async (HttpContext http) =>
+        {
+            var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
+            var body = Validate.Object(await Validate.ReadJsonBodyAsync(http));
+            var ids = Validate.RequiredArray(body, "ids", minItems: 1)
+                .Select(element => Guid.TryParse(element.GetString(), out var parsed)
+                    ? parsed
+                    : throw ApiException.BadRequest("ids: Expected string with format 'uuid'"))
+                .ToList();
+
+            var service = http.RequestServices.GetRequiredService<McpKeysService>();
+            var report = await service.RevokeMcpKeysAsync(ids,
+                user.Role == UserRole.ADMIN ? null : user.Id);
+
+            var audit = http.RequestServices.GetRequiredService<AOC.Infrastructure.Audit.AuditService>();
+            await audit.AuditAsync(new AOC.Infrastructure.Audit.AuditEvent
+            {
+                Action = "mcp_key_revoked",
+                ActorId = user.Id,
+                Ip = http.Connection.RemoteIpAddress?.ToString(),
+                UserAgent = http.Request.Headers.UserAgent.ToString(),
+                Details = new RevokedKeysAudit(report.Ids, report.Revoked)
+            });
+
+            return Results.Json(report, JsonApi.Options);
+        });
+
         app.MapDelete("/portal/mcp-keys/{id}", async (HttpContext http) =>
         {
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -272,4 +318,6 @@ public static class McpKeyRoutes
 
         return app;
     }
+
+    private sealed record RevokedKeysAudit(List<Guid> McpKeyIds, int Revoked);
 }

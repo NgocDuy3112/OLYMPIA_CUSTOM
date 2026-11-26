@@ -607,6 +607,62 @@ public sealed class QuestionsService(AOCDbContext db) : IQuestionReads
         }
     }
 
+    public sealed record BulkQuestionFailure(Guid Id, string Code, string Message);
+
+    public sealed record BulkQuestionsReport(
+        string Action, int Total, int Affected, List<Guid> Ids, List<BulkQuestionFailure> Errors);
+
+    public async Task<BulkQuestionsReport> BulkQuestionsAsync(
+        WriteContext ctx, string action, List<Guid> ids, QuestionStatus? status, string? bucket, UserRole role)
+    {
+        if (ids.Count == 0)
+            throw new QuestionError(QuestionErrorCode.VALIDATION, "no questions selected");
+        if (ids.Count > MaxBatchSize)
+            throw new QuestionError(QuestionErrorCode.VALIDATION,
+                $"a bulk action may target at most {MaxBatchSize} questions");
+        if (ids.Distinct().Count() != ids.Count)
+            throw new QuestionError(QuestionErrorCode.VALIDATION, "ids must be unique");
+
+        if (action == "status" && status is null)
+            throw new QuestionError(QuestionErrorCode.VALIDATION, "action status needs a status");
+        if (action == "group" && (bucket is null || !Buckets.IsBucketTag(bucket)))
+            throw new QuestionError(QuestionErrorCode.VALIDATION,
+                $"action group needs a bucket — expected one of: {string.Join(", ", Buckets.AllBuckets)}");
+        if (action is not ("status" or "duplicate" or "group"))
+            throw new QuestionError(QuestionErrorCode.VALIDATION,
+                $"unknown bulk action \"{action}\" — expected status, duplicate or group");
+
+        var affected = new List<Guid>();
+        var errors = new List<BulkQuestionFailure>();
+        foreach (var id in ids)
+        {
+            try
+            {
+                if (action == "status")
+                    await TransitionQuestionAsync(id.ToString(), status!.Value, role);
+                else if (action == "duplicate")
+                    await DuplicateQuestionAsync(ctx, id.ToString());
+                else
+                    await SetBucketAsync(id, bucket!);
+                affected.Add(id);
+            }
+            catch (QuestionError error)
+            {
+                errors.Add(new BulkQuestionFailure(id, error.Code.ToString(), error.Message));
+            }
+        }
+
+        return new BulkQuestionsReport(action, ids.Count, affected.Count, affected, errors);
+    }
+
+    private async Task SetBucketAsync(Guid id, string bucket)
+    {
+        var source = await RequireQuestionAsync(id.ToString());
+        var tags = source.Tags.Where(tag => !Buckets.IsBucketTag(tag)).Append(bucket).ToList();
+        var patch = JsonSerializer.SerializeToElement(new { tags }, JsonApi.Options);
+        await UpdateQuestionAsync(id.ToString(), patch);
+    }
+
     public async Task<BatchReport> ImportQuestionsAsync(
         WriteContext ctx, List<JsonElement> items, bool dryRun)
     {

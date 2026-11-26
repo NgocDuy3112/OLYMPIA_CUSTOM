@@ -47,6 +47,36 @@ public static partial class QuestionRoutes
             return Results.Json(report, JsonApi.Options);
         });
 
+        app.MapPost("/portal/questions/bulk", async (HttpContext http) =>
+        {
+            var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
+            var body = Validate.Object(await Validate.ReadJsonBodyAsync(http));
+            var action = Validate.RequiredString(body, "action");
+            var ids = Validate.RequiredArray(body, "ids", minItems: 1, maxItems: QuestionsService.MaxBatchSize)
+                .Select(element => ParseUuid(element.GetString() ?? "", "ids"))
+                .ToList();
+
+            QuestionStatus? status = null;
+            if (body.TryGetProperty("status", out var statusEl) && statusEl.ValueKind != JsonValueKind.Null)
+            {
+                if (statusEl.ValueKind != JsonValueKind.String)
+                    throw ApiException.BadRequest("/status: Expected union value");
+                status = ParseStatus(statusEl.GetString())
+                    ?? throw ApiException.BadRequest("/status: Expected union value");
+            }
+
+            var bucket = Validate.OptionalString(body, "bucket");
+
+            var service = http.RequestServices.GetRequiredService<QuestionsService>();
+            var report = await service.BulkQuestionsAsync(
+                new QuestionsService.WriteContext(user.Id), action, ids, status, bucket, user.Role);
+
+            await AuditBulkAsync(http, report, status, bucket);
+
+            if (report.Errors.Count > 0) http.Response.StatusCode = 400;
+            return Results.Json(report, JsonApi.Options);
+        });
+
         app.MapGet("/portal/questions", async (HttpContext http) =>
         {
             await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
@@ -195,6 +225,27 @@ public static partial class QuestionRoutes
         if (!Guid.TryParse(raw, out var parsed))
             throw ApiException.BadRequest($"{name}: Expected string with format 'uuid'");
         return parsed;
+    }
+
+    private sealed record BulkQuestionsAudit(
+        string Action, string? Status, string? Bucket, int Requested, int Affected);
+
+    private static Task AuditBulkAsync(HttpContext http, QuestionsService.BulkQuestionsReport report,
+        QuestionStatus? status, string? bucket)
+    {
+        var user = http.Items.TryGetValue(Guards.SessionUserKey, out var u)
+            ? u as Infrastructure.Data.Entities.UserEntity
+            : null;
+        var audit = http.RequestServices.GetRequiredService<AOC.Infrastructure.Audit.AuditService>();
+        return audit.AuditAsync(new AOC.Infrastructure.Audit.AuditEvent
+        {
+            Action = "questions_bulk",
+            ActorId = user?.Id,
+            Ip = http.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = http.Request.Headers.UserAgent.ToString(),
+            Details = new BulkQuestionsAudit(
+                report.Action, status?.ToString(), bucket, report.Total, report.Affected)
+        });
     }
 
     private static readonly Dictionary<string, string> GateActions = new()

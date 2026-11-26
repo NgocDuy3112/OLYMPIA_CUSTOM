@@ -46,6 +46,8 @@ public static class Sfx
                 return resolve.Verdicts.Any(v => v.Correct) ? "gm_dung_goi_y.mp3" : null;
             case LiveAction.GiaiMaJudgeKeyword keyword:
                 return keyword.Correct ? "gm_dung_tu_khoa.mp3" : null;
+            case LiveAction.GiaiMaJudgeKeywords keywords:
+                return keywords.Verdicts.Any(v => v.Correct) ? "gm_dung_tu_khoa.mp3" : null;
 
             case LiveAction.ButPhaStart:
                 return "bp_bat_dau.mp3";

@@ -53,6 +53,12 @@ public abstract record LiveAction
         public override string Kind => "giai-ma.judgeKeyword";
     }
 
+    public sealed record GiaiMaJudgeKeywords(List<(string PlayerId, string QuestionId, bool Correct)> Verdicts)
+        : LiveAction
+    {
+        public override string Kind => "giai-ma.judgeKeywords";
+    }
+
     public sealed record GiaiMaEndRound : LiveAction
     {
         public override string Kind => "giai-ma.endRound";

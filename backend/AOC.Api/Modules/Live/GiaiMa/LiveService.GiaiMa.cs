@@ -38,20 +38,26 @@ public sealed partial class LiveService
                 throw ApiException.BadRequest("hint is not part of the current round");
             hintTurnId = hint.TurnId;
         }
-        if (action is LiveAction.GiaiMaSubmitKeyword || action is LiveAction.GiaiMaJudgeKeyword)
+        var keywordQuestionIds = new List<string>();
+        if (action is LiveAction.GiaiMaSubmitKeyword submitKeyword)
         {
-            string qid;
-            if (action is LiveAction.GiaiMaSubmitKeyword submitKeyword)
-            {
-                qid = submitKeyword.QuestionId;
-            }
-            else
-            {
-                qid = ((LiveAction.GiaiMaJudgeKeyword)action).QuestionId;
-            }
-            var q = match.QuestionsList.FirstOrDefault(c => c.Id == qid);
-            if (q is null) throw ApiException.BadRequest("question is not part of this match");
-            if (q.Kind != QuestionKind.KEYWORD)
+            keywordQuestionIds.Add(submitKeyword.QuestionId);
+        }
+        else if (action is LiveAction.GiaiMaJudgeKeyword judgeKeyword)
+        {
+            keywordQuestionIds.Add(judgeKeyword.QuestionId);
+        }
+        else if (action is LiveAction.GiaiMaJudgeKeywords judgeKeywords)
+        {
+            if (judgeKeywords.Verdicts.Count == 0)
+                throw ApiException.BadRequest("verdicts must contain at least 1 item");
+            keywordQuestionIds.AddRange(judgeKeywords.Verdicts.Select(v => v.QuestionId));
+        }
+        foreach (var questionId in keywordQuestionIds.Distinct())
+        {
+            var question = match.QuestionsList.FirstOrDefault(c => c.Id == questionId);
+            if (question is null) throw ApiException.BadRequest("question is not part of this match");
+            if (question.Kind != QuestionKind.KEYWORD)
                 throw ApiException.BadRequest("the keyword question must be of kind KEYWORD");
         }
 

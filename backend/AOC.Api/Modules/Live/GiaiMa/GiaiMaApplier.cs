@@ -82,6 +82,20 @@ public static class GiaiMaApplier
                 return (next, facts);
             }
 
+            case LiveAction.GiaiMaJudgeKeywords batch:
+            {
+                var next = state;
+                var facts = new List<LiveFact>();
+                foreach (var verdict in batch.Verdicts)
+                {
+                    next = GiaiMaTurn.JudgeKeyword(next, verdict.PlayerId, verdict.Correct);
+                    facts.Add(new JudgeFact(verdict.QuestionId, verdict.PlayerId,
+                        verdict.Correct ? Verdict.CORRECT : Verdict.INCORRECT,
+                        GiaiMaTurn.GiaiMaPoints(next, verdict.PlayerId)));
+                }
+                return (next, facts);
+            }
+
             case LiveAction.GiaiMaEndRound:
                 return (GiaiMaTurn.EndGiaiMa(state), []);
 

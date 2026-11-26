@@ -81,6 +81,17 @@ public sealed class LiveActionConverter : JsonConverter<LiveAction>
             )).ToList();
         }
 
+        List<(string PlayerId, string QuestionId, bool Correct)> KeywordVerdictList(string name)
+        {
+            if (!root.TryGetProperty(name, out var v) || v.ValueKind != JsonValueKind.Array)
+                throw new JsonException($"missing array '{name}'");
+            return v.EnumerateArray().Select(e => (
+                e.TryGetProperty("playerId", out var p) ? p.GetString() ?? "" : "",
+                e.TryGetProperty("questionId", out var q) ? q.GetString() ?? "" : "",
+                e.TryGetProperty("correct", out var c) && c.ValueKind == JsonValueKind.True
+            )).ToList();
+        }
+
         T EnumOf<T>(string name) where T : struct, Enum =>
             Enum.TryParse<T>(Str(name), out var parsed)
                 ? parsed
@@ -109,6 +120,7 @@ public sealed class LiveActionConverter : JsonConverter<LiveAction>
                 EnumOf<VerdictSuggestion>("suggestion")),
             "giai-ma.judgeKeyword" => new LiveAction.GiaiMaJudgeKeyword(
                 Str("playerId"), Str("questionId"), Bool("correct")),
+            "giai-ma.judgeKeywords" => new LiveAction.GiaiMaJudgeKeywords(KeywordVerdictList("verdicts")),
             "giai-ma.endRound" => new LiveAction.GiaiMaEndRound(),
 
             "but-pha.start" => new LiveAction.ButPhaStart(),
