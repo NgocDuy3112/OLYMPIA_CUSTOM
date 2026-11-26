@@ -101,11 +101,11 @@ public partial class VeDichTurnTests
     {
         var state = VeDichTurn.CreateVeDich(Pool, [Player("a", 0)]);
         var opened = VeDichTurn.PickPhase1(state, "a", "30-1");
-        var after = VeDichTurn.ResolveQuestion(opened, new Verdicts(true, null));
+        var after = VeDichTurn.ResolveQuestion(opened, new Verdicts(true, null), Now);
         Assert.Equal(30, after.Players[0].Score);
 
         var opened2 = VeDichTurn.PickPhase1(state, "a", "30-1");
-        var after2 = VeDichTurn.ResolveQuestion(opened2, new Verdicts(false, null));
+        var after2 = VeDichTurn.ResolveQuestion(opened2, new Verdicts(false, null), Now);
         Assert.Equal(-15, after2.Players[0].Score);
     }
 
@@ -131,7 +131,7 @@ public partial class VeDichTurnTests
     {
         var state = VeDichTurn.CreateVeDich(Pool, [Player("a", 0), Player("b", 0)]);
         var played = VeDichTurn.PickPhase1(state, "a", "20-1");
-        var resolved = VeDichTurn.ResolveQuestion(played, new Verdicts(true, null));
+        var resolved = VeDichTurn.ResolveQuestion(played, new Verdicts(true, null), Now);
         var ended = VeDichTurn.BeginPhase2(
             VeDichTurn.AdvanceTurn(VeDichTurn.AdvanceTurn(resolved)));
 
@@ -210,7 +210,7 @@ public partial class VeDichTurnTests
     {
         var state = Picked3();
         state = VeDichTurn.OpenPhase2Question(state, "50-1");
-        state = VeDichTurn.CloseCurrentAnswer(state, Now);
+        state = ClockRanOut(state);
         Assert.Equal(AnswerMode.Buzz, state.Open!.Window.Mode);
     }
 
@@ -218,7 +218,7 @@ public partial class VeDichTurnTests
     public void Phase2_FastestBuzzerAnswers()
     {
         var state = Picked3();
-        state = VeDichTurn.CloseCurrentAnswer(VeDichTurn.OpenPhase2Question(state, "50-1"), Now);
+        state = ClockRanOut(VeDichTurn.OpenPhase2Question(state, "50-1"));
         state = VeDichTurn.Buzz(state, "a", Now);
         Assert.Equal("a", state.Open!.Window.Buzzer);
         Assert.Equal("ALREADY_OPEN", CodeOf(() => VeDichTurn.Buzz(state, "b", Now)));
@@ -228,7 +228,7 @@ public partial class VeDichTurnTests
     public void Phase2_CurrentPlayerCannotBuzzOwnQuestion()
     {
         var state = Picked3();
-        state = VeDichTurn.CloseCurrentAnswer(VeDichTurn.OpenPhase2Question(state, "50-1"), Now);
+        state = ClockRanOut(VeDichTurn.OpenPhase2Question(state, "50-1"));
         Assert.Equal("NOT_YOUR_TURN", CodeOf(() => VeDichTurn.Buzz(state, "c", Now)));
     }
 
@@ -238,7 +238,7 @@ public partial class VeDichTurnTests
         var state = Picked3();
         state = VeDichTurn.OpenPhase2Question(state, "50-1");
         Assert.Equal("ALREADY_OPEN", CodeOf(() =>
-            VeDichTurn.ResolveQuestion(state, new Verdicts(true, null))));
+            VeDichTurn.ResolveQuestion(state, new Verdicts(true, null), Now)));
     }
 
     [Fact]
@@ -246,8 +246,8 @@ public partial class VeDichTurnTests
     {
         var state = Picked3();
         state = VeDichTurn.Buzz(
-            VeDichTurn.CloseCurrentAnswer(VeDichTurn.OpenPhase2Question(state, "50-1"), Now), "a", Now);
-        state = VeDichTurn.ResolveQuestion(state, new Verdicts(true, true));
+            ClockRanOut(VeDichTurn.OpenPhase2Question(state, "50-1")), "a", Now);
+        state = VeDichTurn.ResolveQuestion(state, new Verdicts(true, true), Now);
         Assert.Equal(60, state.Players.First(p => p.Id == "c").Score);
         Assert.Equal(90, state.Players.First(p => p.Id == "a").Score);
     }
@@ -257,8 +257,8 @@ public partial class VeDichTurnTests
     {
         var state = Picked3();
         state = VeDichTurn.Buzz(
-            VeDichTurn.CloseCurrentAnswer(VeDichTurn.OpenPhase2Question(state, "50-1"), Now), "a", Now);
-        state = VeDichTurn.ResolveQuestion(state, new Verdicts(false, true));
+            ClockRanOut(VeDichTurn.OpenPhase2Question(state, "50-1")), "a", Now);
+        state = VeDichTurn.ResolveQuestion(state, new Verdicts(false, true), Now);
         Assert.Equal(-15, state.Players.First(p => p.Id == "c").Score);
         Assert.Equal(90, state.Players.First(p => p.Id == "a").Score);
     }
@@ -268,14 +268,14 @@ public partial class VeDichTurnTests
     {
         var withBuzz = Picked3();
         var buzzing = VeDichTurn.Buzz(
-            VeDichTurn.CloseCurrentAnswer(VeDichTurn.OpenPhase2Question(withBuzz, "50-1"), Now), "a", Now);
+            ClockRanOut(VeDichTurn.OpenPhase2Question(withBuzz, "50-1")), "a", Now);
         Assert.Equal("NOT_YOUR_TURN", CodeOf(() =>
-            VeDichTurn.ResolveQuestion(buzzing, new Verdicts(true, null))));
+            VeDichTurn.ResolveQuestion(buzzing, new Verdicts(true, null), Now)));
 
         var noBuzz = Picked3();
-        noBuzz = VeDichTurn.CloseCurrentAnswer(VeDichTurn.OpenPhase2Question(noBuzz, "50-1"), Now);
+        noBuzz = ClockRanOut(VeDichTurn.OpenPhase2Question(noBuzz, "50-1"));
         Assert.Equal("NOT_YOUR_TURN", CodeOf(() =>
-            VeDichTurn.ResolveQuestion(noBuzz, new Verdicts(true, true))));
+            VeDichTurn.ResolveQuestion(noBuzz, new Verdicts(true, true), Now)));
     }
 
     [Fact]
@@ -283,7 +283,7 @@ public partial class VeDichTurnTests
     {
         var state = Picked3();
         state = VeDichTurn.OpenPhase2Question(state, "50-1");
-        state = VeDichTurn.CloseCurrentAnswer(state, Now);
+        state = ClockRanOut(state);
         state = VeDichTurn.Buzz(state, "a", Now);
         Assert.Equal("ALREADY_OPEN", CodeOf(() => VeDichTurn.DeclarePower(state, "a", PowerKind.STAR)));
         Assert.Equal("ALREADY_OPEN", CodeOf(() => VeDichTurn.DeclarePower(state, "c", PowerKind.STAR)));
@@ -294,8 +294,7 @@ public partial class VeDichTurnTests
     {
         var state = Picked3();
         state = VeDichTurn.ResolveQuestion(
-            VeDichTurn.CloseCurrentAnswer(VeDichTurn.OpenPhase2Question(state, "50-1"), Now),
-            new Verdicts(true, null));
+            ClockRanOut(VeDichTurn.OpenPhase2Question(state, "50-1")), new Verdicts(true, null), Now);
         var next = VeDichTurn.AdvanceTurn(state);
         Assert.Equal(1, next.TurnIndex);
         Assert.Empty(next.PendingPicks);
@@ -352,7 +351,7 @@ public partial class VeDichTurnTests
 
         Assert.Equal(0, VeDichTurn.SetTurn(s, "a").TurnPicked);
         var settled = VeDichTurn.ResolveQuestion(
-            VeDichTurn.CloseCurrentAnswer(opened, Now), new Verdicts(true, null));
+            ClockRanOut(opened), new Verdicts(true, null), Now);
         Assert.Equal(0, VeDichTurn.AdvanceTurn(settled).TurnPicked);
     }
 
@@ -457,8 +456,7 @@ public partial class VeDichTurnTests
     {
         var picked = Picked3();
         picked = VeDichTurn.ResolveQuestion(
-            VeDichTurn.CloseCurrentAnswer(VeDichTurn.OpenPhase2Question(picked, "50-1"), Now),
-            new Verdicts(true, null));
+            ClockRanOut(VeDichTurn.OpenPhase2Question(picked, "50-1")), new Verdicts(true, null), Now);
 
         var next = VeDichTurn.AdvanceTurn(picked);
 

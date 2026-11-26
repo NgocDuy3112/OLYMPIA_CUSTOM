@@ -88,12 +88,33 @@ public class VeDichApplierTests
     }
 
     [Fact]
+    public void ResolveActionRefusesWhileAnAssignRaceIsStillRunning()
+    {
+        var state = VeDichTurn.CreateVeDich(
+            Board(),
+            [
+                new VeDichPlayerState { Id = "a", Score = 0, Powers = PowerSet.Fresh() },
+                new VeDichPlayerState { Id = "b", Score = 0, Powers = PowerSet.Fresh() }
+            ]);
+        state = VeDichTurn.BeginPhase2(state);
+        var a = state.Players[0].Id;
+        var b = state.Players[1].Id;
+        state = VeDichTurn.PickPhase2(state, a, ["40-1"]);
+        state = VeDichTurn.OpenPhase2Question(
+            VeDichTurn.DeclarePower(state, a, PowerKind.ASSIGN, b), "40-1", Now);
+
+        var error = Assert.Throws<VeDichRuleError>(() =>
+            VeDichApplier.Apply(state, new LiveAction.VeDichResolve(false, null), Ctx([])));
+        Assert.Equal("RACE_IN_PROGRESS", error.Code);
+    }
+
+    [Fact]
     public void StartPhase2_KeepsAPlayedPhase1QuestionOffTheBoard()
     {
         var state = VeDichTurn.CreateVeDich(
             Board(), [new VeDichPlayerState { Id = "a", Score = 0, Powers = PowerSet.Fresh() }]);
         var ended = VeDichTurn.AdvanceTurn(VeDichTurn.ResolveQuestion(
-            VeDichTurn.PickPhase1(state, "a", "20-1"), new Verdicts(true, null)));
+            VeDichTurn.PickPhase1(state, "a", "20-1"), new Verdicts(true, null), Now));
 
         var (phase2, _) = VeDichApplier.Apply(
             ended, new LiveAction.VeDichStart(2), CtxWithScores([("a", 20)]));

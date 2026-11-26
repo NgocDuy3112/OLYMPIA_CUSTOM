@@ -133,7 +133,7 @@ public static class VeDichApplier
                     ? open.Window.PairB
                     : null;
                 var verdicts = new Verdicts(resolve.Answerer, resolve.Buzzer);
-                var next = VeDichTurn.ResolveQuestion(state, verdicts);
+                var next = VeDichTurn.ResolveQuestion(state, verdicts, ctx.Now);
                 var facts = new List<LiveFact>();
 
                 if (assignedTo is not null)

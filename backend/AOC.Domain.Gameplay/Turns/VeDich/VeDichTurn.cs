@@ -423,6 +423,10 @@ public static class VeDichTurn
 
         if (state.Open.Window.Locked)
             throw Err("ALREADY_OPEN", "the answer window is locked");
+        // The clock is a budget, not a stopwatch: starting it again would hand the
+        // answerer a fresh countdown.
+        if (state.Open.Window.HasStarted)
+            throw Err("ALREADY_OPEN", "the question's clock already started");
 
         var clock = RoundRules.VeDichClockSeconds(state.Rules, state.Open.Question.Value);
         AnswerWindow window;
@@ -444,19 +448,25 @@ public static class VeDichTurn
         return state with { Open = state.Open with { Window = window } };
     }
 
-    public static VeDichState CloseCurrentAnswer(VeDichState state, string openedAt)
+    public static VeDichState CloseCurrentAnswer(VeDichState state, string nowIso)
     {
         if (state.Open is null) throw Err("NOTHING_OPEN", "no question is open");
         if (state.Phase != 2) return state;
         if (state.Open.Window.Mode != AnswerMode.Oral)
             throw Err("ALREADY_OPEN", "the buzz window already happened");
+        // L5: the buzz window may only open once the question's clock has run out —
+        // no early buzz and no buzz before the clock was ever started.
+        if (!state.Open.Window.HasStarted)
+            throw Err("CLOCK_NOT_STARTED", "the question's clock has not started yet");
+        if (state.Open.Window.IsOpen(nowIso))
+            throw Err("CLOCK_STILL_RUNNING", "the question's clock is still running");
 
         return state with
         {
             Open = state.Open with
             {
                 Window = state.Open.Window.ReopenAsBuzz(
-                    state.Open.Answerer, state.Rules.BuzzWindowS, openedAt)
+                    state.Open.Answerer, state.Rules.BuzzWindowS, nowIso)
             }
         };
     }
@@ -510,7 +520,7 @@ public static class VeDichTurn
         };
     }
 
-    public static VeDichState ResolveQuestion(VeDichState state, Verdicts verdicts)
+    public static VeDichState ResolveQuestion(VeDichState state, Verdicts verdicts, string nowIso)
     {
         if (state.Open is null) throw Err("NOTHING_OPEN", "no question is open");
         var open = state.Open;
@@ -518,6 +528,13 @@ public static class VeDichTurn
 
         if (open.Window.Mode == AnswerMode.Oral && state.Phase == 2)
             throw Err("ALREADY_OPEN", "the question is still open");
+        // An ASSIGN duel in flight is settled by locking the buzz window alone —
+        // "hết lượt" must not hand out the nobody-buzzed −50/−50 before the race has
+        // opened or while the two players are still racing.
+        var pairRaceSettled = open.Window.HasStarted && !open.Window.IsOpen(nowIso);
+        if (partner is not null && open.Window.Buzzer is null && !pairRaceSettled)
+            throw Err("RACE_IN_PROGRESS",
+                "the assigned duel is not settled — wait for the race or lock the buzz window");
 
         if (partner is not null)
         {

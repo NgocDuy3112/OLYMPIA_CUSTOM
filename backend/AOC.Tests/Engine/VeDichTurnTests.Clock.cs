@@ -22,6 +22,51 @@ public partial class VeDichTurnTests
     }
 
     [Fact]
+    public void Clock_StartClockRefusedWhileTheQuestionClockRuns()
+    {
+        var opened = VeDichTurn.OpenPhase2Question(Picked3(), "50-1");
+        var running = VeDichTurn.StartClock(VeDichTurn.RevealQuestion(opened, Now), Now);
+
+        Assert.Equal("ALREADY_OPEN", CodeOf(() => VeDichTurn.StartClock(running, At(1))));
+        Assert.Equal(Now, running.Open!.Window.OpenedAt);
+        Assert.Equal(45, running.Open!.Window.Seconds);
+    }
+
+    [Fact]
+    public void Clock_StartClockRefusedOnASettledRaceWindow()
+    {
+        var s = TwoUp();
+        var racing = StageOpen(s, s.Players[0].Id, PowerKind.ASSIGN, s.Players[1].Id);
+
+        Assert.Equal("ALREADY_OPEN", CodeOf(() => VeDichTurn.StartClock(racing, At(1))));
+        Assert.Equal(Now, racing.Open!.Window.OpenedAt);
+    }
+
+    [Fact]
+    public void CloseAnswer_RefusedBeforeTheClockStarts()
+    {
+        var opened = VeDichTurn.OpenPhase2Question(Picked3(), "50-1");
+
+        Assert.Equal("CLOCK_NOT_STARTED", CodeOf(() => VeDichTurn.CloseCurrentAnswer(opened, Now)));
+        Assert.Equal(AnswerMode.Oral, opened.Open!.Window.Mode);
+    }
+
+    [Fact]
+    public void CloseAnswer_RefusedWhileTheClockIsStillRunning()
+    {
+        var opened = VeDichTurn.OpenPhase2Question(Picked3(), "50-1");
+        var running = VeDichTurn.StartClock(VeDichTurn.RevealQuestion(opened, Now), Now);
+
+        Assert.Equal("CLOCK_STILL_RUNNING", CodeOf(() => VeDichTurn.CloseCurrentAnswer(running, At(1))));
+        Assert.Equal(AnswerMode.Oral, running.Open!.Window.Mode);
+
+        var spent = VeDichTurn.CloseCurrentAnswer(running, At(46));
+        Assert.Equal(AnswerMode.Buzz, spent.Open!.Window.Mode);
+        Assert.Equal(At(46), spent.Open!.Window.OpenedAt);
+        Assert.Equal(running.Rules.BuzzWindowS, spent.Open!.Window.Seconds);
+    }
+
+    [Fact]
     public void BuzzWindowWithoutAssignStaysAtTheBaseWindow()
     {
         var s = TwoUp();
@@ -43,8 +88,7 @@ public partial class VeDichTurnTests
     {
         var state = Picked3();
         state = VeDichTurn.ResolveQuestion(
-            VeDichTurn.CloseCurrentAnswer(VeDichTurn.OpenPhase2Question(state, "50-1"), Now),
-            new Verdicts(true, null));
+            ClockRanOut(VeDichTurn.OpenPhase2Question(state, "50-1")), new Verdicts(true, null), Now);
         Assert.Equal(60, state.Players.First(p => p.Id == "c").Score);
     }
 
@@ -77,7 +121,7 @@ public partial class VeDichTurnTests
     [Fact]
     public void Window5s_ResolvingClosesIt()
     {
-        var s = VeDichTurn.ResolveQuestion(Buzzing(), new Verdicts(true, null));
+        var s = VeDichTurn.ResolveQuestion(Buzzing(), new Verdicts(true, null), Now);
         Assert.False(VeDichTurn.IsBuzzOpen(s, Now));
     }
 }

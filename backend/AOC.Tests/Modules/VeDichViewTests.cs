@@ -72,7 +72,7 @@ public class VeDichViewTests
     {
         var state = VeDichTurn.CreateVeDich(Board(), [Player("a"), Player("b")]);
         var played = VeDichTurn.PickPhase1(state, "a", "20-1");
-        var resolved = VeDichTurn.ResolveQuestion(played, new Verdicts(true, null));
+        var resolved = VeDichTurn.ResolveQuestion(played, new Verdicts(true, null), Now);
         var ended = VeDichTurn.BeginPhase2(
             VeDichTurn.AdvanceTurn(VeDichTurn.AdvanceTurn(resolved)));
 

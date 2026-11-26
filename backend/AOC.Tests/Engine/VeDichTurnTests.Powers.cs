@@ -40,8 +40,8 @@ public partial class VeDichTurnTests
     {
         var (state, a) = RiengOpen();
         var s = StageOpen(state, a, PowerKind.STAR);
-        s = VeDichTurn.CloseCurrentAnswer(s, Now);
-        var after = VeDichTurn.ResolveQuestion(s, new Verdicts(true, null));
+        s = ClockRanOut(s);
+        var after = VeDichTurn.ResolveQuestion(s, new Verdicts(true, null), Now);
         Assert.Equal(60, after.Players.First(p => p.Id == a).Score);
     }
 
@@ -51,7 +51,7 @@ public partial class VeDichTurnTests
         var (state, a) = RiengOpen();
         var staged = StageOpen(state, a, PowerKind.STAR);
         var after = VeDichTurn.ResolveQuestion(
-            VeDichTurn.CloseCurrentAnswer(staged, Now), new Verdicts(false, null));
+            ClockRanOut(staged), new Verdicts(false, null), Now);
         Assert.Equal(-40, after.Players.First(p => p.Id == a).Score);
         Assert.Empty(after.Players.First(p => p.Id == a).Powers.Available);
     }
@@ -180,7 +180,7 @@ public partial class VeDichTurnTests
         var b = s.Players[1].Id;
         var after = StageOpen(s, a, PowerKind.ASSIGN, b);
         after = VeDichTurn.Buzz(after, a, At(2));
-        after = VeDichTurn.ResolveQuestion(after, new Verdicts(true, true));
+        after = VeDichTurn.ResolveQuestion(after, new Verdicts(true, true), Now);
 
         Assert.Equal(40, after.Players.First(p => p.Id == a).Score);
         Assert.Equal(-20, after.Players.First(p => p.Id == b).Score);
@@ -195,7 +195,7 @@ public partial class VeDichTurnTests
         var b = s.Players[1].Id;
         var after = StageOpen(s, a, PowerKind.ASSIGN, b);
         after = VeDichTurn.Buzz(after, a, At(2));
-        after = VeDichTurn.ResolveQuestion(after, new Verdicts(false, false));
+        after = VeDichTurn.ResolveQuestion(after, new Verdicts(false, false), Now);
 
         Assert.Equal(-20, after.Players.First(p => p.Id == a).Score);
         Assert.Equal(0, after.Players.First(p => p.Id == b).Score);
@@ -209,7 +209,7 @@ public partial class VeDichTurnTests
         var b = s.Players[1].Id;
         var after = StageOpen(s, a, PowerKind.ASSIGN, b);
         after = VeDichTurn.Buzz(after, b, At(2));
-        after = VeDichTurn.ResolveQuestion(after, new Verdicts(false, true));
+        after = VeDichTurn.ResolveQuestion(after, new Verdicts(false, true), Now);
 
         Assert.Equal(-20, after.Players.First(p => p.Id == a).Score);
         Assert.Equal(40, after.Players.First(p => p.Id == b).Score);
@@ -222,10 +222,40 @@ public partial class VeDichTurnTests
         var a = s.Players[0].Id;
         var b = s.Players[1].Id;
         var after = StageOpen(s, a, PowerKind.ASSIGN, b);
-        after = VeDichTurn.ResolveQuestion(after, new Verdicts(false, null));
+        // 40-1 races on a 30 s window: it has run out by 31 s with no buzz.
+        after = VeDichTurn.ResolveQuestion(after, new Verdicts(false, null), At(31));
 
         Assert.Equal(-20, after.Players.First(p => p.Id == a).Score);
         Assert.Equal(-20, after.Players.First(p => p.Id == b).Score);
+    }
+
+    [Fact]
+    public void Assign_ResolveIsRefusedWhileTheRaceIsStillRunning()
+    {
+        var s = TwoUp();
+        var a = s.Players[0].Id;
+        var b = s.Players[1].Id;
+        var racing = StageOpen(s, a, PowerKind.ASSIGN, b);
+
+        Assert.True(VeDichTurn.IsBuzzOpen(racing, At(1)));
+        Assert.Equal("RACE_IN_PROGRESS", CodeOf(() =>
+            VeDichTurn.ResolveQuestion(racing, new Verdicts(true, null), At(1))));
+        Assert.Equal("RACE_IN_PROGRESS", CodeOf(() =>
+            VeDichTurn.ResolveQuestion(racing, new Verdicts(false, null), At(1))));
+    }
+
+    [Fact]
+    public void Assign_ResolveBeforeTheRaceOpensIsRefused()
+    {
+        var s = TwoUp();
+        var a = s.Players[0].Id;
+        var b = s.Players[1].Id;
+        var unrevealed = VeDichTurn.OpenPhase2Question(
+            VeDichTurn.DeclarePower(s, a, PowerKind.ASSIGN, b), "40-1", Now);
+
+        Assert.False(unrevealed.Open!.Window.HasStarted);
+        Assert.Equal("RACE_IN_PROGRESS", CodeOf(() =>
+            VeDichTurn.ResolveQuestion(unrevealed, new Verdicts(false, null), Now)));
     }
 
     [Fact]
@@ -251,7 +281,7 @@ public partial class VeDichTurnTests
         var a = s.Players[0].Id;
         var b = s.Players[1].Id;
         var locked = VeDichTurn.LockBuzzWindow(StageOpen(s, a, PowerKind.ASSIGN, b));
-        var after = VeDichTurn.ResolveQuestion(locked, new Verdicts(false, null));
+        var after = VeDichTurn.ResolveQuestion(locked, new Verdicts(false, null), Now);
 
         Assert.Equal(-20, after.Players.First(p => p.Id == a).Score);
         Assert.Equal(-20, after.Players.First(p => p.Id == b).Score);
@@ -278,8 +308,8 @@ public partial class VeDichTurnTests
         var s = TwoUp();
         var a = s.Players[0].Id;
         var locked = VeDichTurn.LockBuzzWindow(
-            VeDichTurn.CloseCurrentAnswer(VeDichTurn.OpenPhase2Question(s, "40-1"), Now));
-        var nextTurn = VeDichTurn.ResolveQuestion(locked, new Verdicts(true, null));
+            ClockRanOut(VeDichTurn.OpenPhase2Question(s, "40-1")));
+        var nextTurn = VeDichTurn.ResolveQuestion(locked, new Verdicts(true, null), Now);
         var fresh = VeDichTurn.OpenPhase2Question(nextTurn, "50-1");
         Assert.False(fresh.Open!.Window.Locked);
     }
@@ -393,7 +423,7 @@ public partial class VeDichTurnTests
         // Câu 1: không chọn — câu sau vẫn còn quyền.
         var opened1 = VeDichTurn.OpenPhase2Question(state, "40-1", Now);
         var after1 = VeDichTurn.ResolveQuestion(
-            VeDichTurn.CloseCurrentAnswer(opened1, Now), new Verdicts(true, null));
+            ClockRanOut(opened1), new Verdicts(true, null), Now);
         Assert.Equal([PowerKind.STAR, PowerKind.ASSIGN], after1.Players.First(p => p.Id == a).Powers.Available);
 
         // Câu 2: chọn nhầm ASSIGN rồi huỷ — quyền được trả lại, chọn được STAR.
@@ -405,7 +435,7 @@ public partial class VeDichTurnTests
         // Câu 2 dùng STAR: hết quyền cho cả lượt, ASSIGN không dùng được nữa.
         var opened2 = VeDichTurn.OpenPhase2Question(star, "50-1", Now);
         var after2 = VeDichTurn.ResolveQuestion(
-            VeDichTurn.CloseCurrentAnswer(opened2, Now), new Verdicts(true, null));
+            ClockRanOut(opened2), new Verdicts(true, null), Now);
         Assert.Empty(after2.Players.First(p => p.Id == a).Powers.Available);
         Assert.Equal("POWER_UNAVAILABLE", CodeOf(() =>
             VeDichTurn.DeclarePower(after2, a, PowerKind.ASSIGN, b)));
@@ -435,7 +465,7 @@ public partial class VeDichTurnTests
         var s = VeDichTurn.OpenPhase2Question(
             VeDichTurn.DeclarePower(state, a, PowerKind.STAR), "40-1", Now);
         s = VeDichTurn.ResolveQuestion(
-            VeDichTurn.CloseCurrentAnswer(s, Now), new Verdicts(true, null));
+            ClockRanOut(s), new Verdicts(true, null), Now);
 
         // Câu còn lại trong lượt: một power/lượt đã dùng nên không chọn thêm được
         // (không phải vì "đã chọn ở câu này" — quyền lượt đã hết).
@@ -452,7 +482,7 @@ public partial class VeDichTurnTests
         var s = VeDichTurn.OpenPhase2Question(
             VeDichTurn.DeclarePower(state, a, PowerKind.STAR), "40-1", Now);
         s = VeDichTurn.ResolveQuestion(
-            VeDichTurn.CloseCurrentAnswer(s, Now), new Verdicts(true, null));
+            ClockRanOut(s), new Verdicts(true, null), Now);
         s = VeDichTurn.AdvanceTurn(s);
         Assert.Equal(false, s.Players[s.TurnIndex].Powers.UsedThisTurn);
         Assert.Null(s.Players[s.TurnIndex].Powers.Staged);

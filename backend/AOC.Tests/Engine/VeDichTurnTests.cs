@@ -180,8 +180,18 @@ public partial class VeDichTurnTests
         var s = VeDichTurn.BeginPhase2(VeDichTurn.CreateVeDich(Pool, OrderedPlayers));
         s = VeDichTurn.PickPhase2(s, "c", ["50-1", "40-1", "30-1"]);
         s = VeDichTurn.OpenPhase2Question(s, "50-1");
-        return VeDichTurn.CloseCurrentAnswer(s, Now);
+        return ClockRanOut(s);
     }
+
+    /// <summary>
+    /// The console's flow for a phase-2 oral question: reveal it, run the clock out,
+    /// then close the answer window so the buzz window opens at <see cref="Now"/>.
+    /// The clock starts far enough back that it is already spent at Now (ve-dich
+    /// question clocks top out at 45 s).
+    /// </summary>
+    private static VeDichState ClockRanOut(VeDichState opened)
+        => VeDichTurn.CloseCurrentAnswer(
+            VeDichTurn.StartClock(VeDichTurn.RevealQuestion(opened, At(-60)), At(-60)), Now);
 
     private static (VeDichState State, string A) RiengOpen()
     {
