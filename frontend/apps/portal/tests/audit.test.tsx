@@ -104,7 +104,9 @@ describe("AuditPage", () => {
         })
 
         await screen.findByRole("table")
-        await user.type(screen.getByLabelText("Search audit events"), "key")
+        const search = screen.getByLabelText("Search audit events")
+        expect(search).toHaveAttribute("maxLength", "200")
+        await user.type(search, "key")
 
         if (!fetchMock) throw new Error("fetch was not stubbed")
         await waitFor(() =>

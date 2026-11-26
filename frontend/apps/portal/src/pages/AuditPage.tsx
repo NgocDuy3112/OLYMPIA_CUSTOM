@@ -230,6 +230,7 @@ export function AuditPage() {
                     className="w-full sm:w-64"
                     placeholder="Search…"
                     aria-label="Search audit events"
+                    maxLength={200}
                     value={searchInput}
                     onChange={(event) => {
                         setSearchInput(event.target.value)
