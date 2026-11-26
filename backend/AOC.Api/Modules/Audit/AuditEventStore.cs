@@ -5,7 +5,7 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.Audit;
 
-public sealed class AuditEventStore(AOCDbContext db)
+public sealed class AuditEventStore(AOCDbContext db, AuditExportOptions export)
 {
     public async Task<PageResult<AuditEventRow>> ListAsync(AuditFilter filter, Page page)
     {
@@ -21,15 +21,13 @@ public sealed class AuditEventStore(AOCDbContext db)
         return Pagination.Result(items, total, page);
     }
 
-    public const int ExportCap = 10_000;
-
     public async Task<List<AuditEventRow>> ExportAsync(AuditFilter filter)
     {
         var query = await FilteredAsync(filter);
         return await Project(query
                 .OrderByDescending(e => e.CreatedAt)
                 .ThenByDescending(e => e.Id)
-                .Take(ExportCap))
+                .Take(export.Cap))
             .ToListAsync();
     }
 
@@ -112,4 +110,9 @@ public sealed class AuditEventStore(AOCDbContext db)
             .Replace("\\", "\\\\")
             .Replace("%", "\\%")
             .Replace("_", "\\_") + "%";
+}
+
+public sealed record AuditExportOptions(int Cap)
+{
+    public static AuditExportOptions Default { get; } = new(10_000);
 }

@@ -100,6 +100,7 @@ builder.Services.AddScoped<MatchDirectImportService>();
 builder.Services.AddScoped<GameplayReadService>();
 builder.Services.AddScoped<McpKeysService>();
 builder.Services.AddScoped<AOC.Api.Modules.Audit.AuditEventStore>();
+builder.Services.AddSingleton(AOC.Api.Modules.Audit.AuditExportOptions.Default);
 builder.Services.AddScoped<AOC.Api.Modules.Audit.AuditEventsService>();
 
 builder.Services.AddSignalR(options =>

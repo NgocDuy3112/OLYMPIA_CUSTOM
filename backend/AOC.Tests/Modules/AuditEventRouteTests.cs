@@ -28,7 +28,7 @@ public class AuditEventRouteTests : IDisposable
 
     private readonly AOCDbContext db = AuthTestDb.OpenDb();
 
-    private async Task<Seeded> SeedAppAsync()
+    private async Task<Seeded> SeedAppAsync(int exportCap = 10_000)
     {
         await AuthTestDb.EnsureSchemaAsync();
         var now = DateTime.UtcNow;
@@ -59,6 +59,7 @@ public class AuditEventRouteTests : IDisposable
         var builder = WebApplication.CreateBuilder();
         builder.Services.AddSingleton(db);
         builder.Services.AddSingleton(new SessionTokens());
+        builder.Services.AddSingleton(new AuditExportOptions(exportCap));
         builder.Services.AddScoped<AuditEventStore>();
         builder.Services.AddScoped<AuditEventsService>();
 
@@ -420,6 +421,33 @@ public class AuditEventRouteTests : IDisposable
             Assert.Contains("\"'=cmd,evil\"", body, StringComparison.Ordinal);
             Assert.Contains("\"Mozilla/5.0 (\"\"quoted\"\")\"", body, StringComparison.Ordinal);
             Assert.Equal("account_disabled", lines[1].Split(',')[2]);
+        }
+        finally
+        {
+            await seeded.App.DisposeAsync();
+        }
+    }
+
+    [DbFact]
+    public async Task Export_stops_at_the_configured_cap_and_writes_one_header()
+    {
+        var seeded = await SeedAppAsync(exportCap: 3);
+        try
+        {
+            var baseTime = new DateTime(2026, 11, 26, 12, 0, 0, DateTimeKind.Utc);
+            var marker = "zz_cap_" + Guid.NewGuid().ToString("N");
+            for (var i = 0; i < 5; i++)
+                AddAudit(marker, baseTime.AddMinutes(i));
+            await db.SaveChangesAsync();
+
+            var http = await SendAsync(seeded, AllEndpoints[2], "ADMIN", "action=" + marker);
+            var body = await new StreamReader(http.Response.Body).ReadToEndAsync();
+            var lines = body.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+
+            Assert.Equal(
+                "id,createdAt,action,actorId,actorName,targetId,targetName,matchId,ip,userAgent,details",
+                Assert.Single(lines.Where(line => line.StartsWith("id,createdAt", StringComparison.Ordinal))));
+            Assert.Equal(3, lines.Count(line => line.Split(',')[2] == marker));
         }
         finally
         {

@@ -84,6 +84,7 @@ public class AuditObserverTests : IDisposable
         var client = new CapturingClient();
         var services = new ServiceCollection();
         services.AddSingleton(db);
+        services.AddSingleton(AuditExportOptions.Default);
         services.AddScoped<AuditEventStore>();
         using var provider = services.BuildServiceProvider();
 
