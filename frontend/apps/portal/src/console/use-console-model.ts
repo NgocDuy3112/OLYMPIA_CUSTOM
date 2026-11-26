@@ -195,7 +195,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
                     if (fresh.data === undefined) throw new Error("Trận chưa sẵn sàng — thử lại.")
 
                     const plan = navigatorStartPlan(
-                        lobby.data!,
+                        lobby.data,
                         roundId,
                         startAction(roundId, { phase, playerIds: lobby.data.table.map((row) => row.id), questions })
                     )
