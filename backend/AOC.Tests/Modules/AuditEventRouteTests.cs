@@ -299,6 +299,25 @@ public class AuditEventRouteTests : IDisposable
     }
 
     [DbFact]
+    public async Task Admin_search_rejects_terms_longer_than_200_characters()
+    {
+        var seeded = await SeedAppAsync();
+        try
+        {
+            var rejected = await Assert.ThrowsAsync<ApiException>(() => SendAsync(
+                seeded, AllEndpoints[0], "ADMIN", "q=" + new string('a', 201)));
+            Assert.Equal(400, rejected.Status);
+
+            var accepted = await SendAsync(seeded, AllEndpoints[0], "ADMIN", "q=" + new string('a', 200));
+            Assert.Equal(200, accepted.Response.StatusCode);
+        }
+        finally
+        {
+            await seeded.App.DisposeAsync();
+        }
+    }
+
+    [DbFact]
     public async Task Admin_rows_join_actor_and_target_display_names()
     {
         var seeded = await SeedAppAsync();
