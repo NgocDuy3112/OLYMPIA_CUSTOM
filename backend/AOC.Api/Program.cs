@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using AOC.Api.Http;
 using AOC.Api.Modules.Admin;
+using AOC.Api.Modules.Audit;
 using AOC.Api.Modules.Auth;
 using AOC.Api.Modules.GameplayRead;
 using AOC.Api.Modules.Live;
@@ -95,6 +96,8 @@ builder.Services.AddScoped<AOC.Api.Modules.Questions.Reads.IQuestionReads>(
 builder.Services.AddScoped<MatchDirectImportService>();
 builder.Services.AddScoped<GameplayReadService>();
 builder.Services.AddScoped<McpKeysService>();
+builder.Services.AddScoped<AOC.Api.Modules.Audit.AuditEventStore>();
+builder.Services.AddScoped<AOC.Api.Modules.Audit.AuditEventsService>();
 
 builder.Services.AddSignalR(options =>
     options.MaximumReceiveMessageSize = AOC.Api.Modules.Live.Protocol.MaxClientMessageBytes);
@@ -168,6 +171,7 @@ app.MapAuthRoutes();
 app.MapPlayerAccountRoutes();
 app.MapGoogleAuthRoutes();
 app.MapAdminRoutes();
+app.MapAuditRoutes();
 app.MapTournamentRoutes();
 app.MapQuestionRoutes();
 app.MapQuestionStagingRoutes();
