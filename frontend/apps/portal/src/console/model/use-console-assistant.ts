@@ -1,6 +1,6 @@
 import { useState } from "react"
 import type { AssistantFrameRead } from "@shared/lib/ws"
-import type { LiveAction } from "@/lib/live-actions"
+import { isLiveActionKind, type LiveAction } from "@/lib/live-actions"
 
 export interface AssistantProposal {
     proposalId: string
@@ -58,6 +58,11 @@ export function useConsoleAssistant(send: (action: LiveAction) => void): Assista
             )
         }
         if (toolCall !== undefined) {
+            const kind = (toolCall.action as { kind: string }).kind
+            if (!isLiveActionKind(kind)) {
+                setError(`Đề xuất assistant có hành động không hợp lệ: ${kind}`)
+                return
+            }
             setProposals((current) => {
                 if (current.some((proposal) => proposal.proposalId === toolCall.proposalId)) return current
                 const proposal: AssistantProposal = {

@@ -53,6 +53,22 @@ describe("useConsoleAssistant — only what the assistant frames carry", () => {
         ])
         expect(send).not.toHaveBeenCalled()
     })
+
+    it("reports an unknown action kind into the surface error instead of proposing it", () => {
+        const send = vi.fn()
+        const { result } = renderHook(() => useConsoleAssistant(send))
+
+        act(() =>
+            result.current.ingest({
+                ok: true,
+                frame: { turnId: "t1", toolCall: { proposalId: "p1", action: { kind: "khong-co.kind" } } },
+            })
+        )
+
+        expect(result.current.error).toMatch(/không hợp lệ/)
+        expect(result.current.proposals).toEqual([])
+        expect(send).not.toHaveBeenCalled()
+    })
 })
 
 describe("useConsoleAssistant — a proposal only reaches the game through the existing send", () => {

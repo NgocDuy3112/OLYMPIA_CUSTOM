@@ -65,6 +65,65 @@ export type LiveAction =
     | { kind: "answer.regrade"; questionId: string; playerId: string; delta: number }
     | { kind: "reveal.answer"; questionId: string }
 
+const LIVE_ACTION_KINDS: Record<LiveAction["kind"], true> = {
+    "giai-ma.start": true,
+    "giai-ma.openHint": true,
+    "giai-ma.startWindow": true,
+    "giai-ma.closeHintWindow": true,
+    "giai-ma.resolveHint": true,
+    "giai-ma.submitKeyword": true,
+    "giai-ma.judgeKeyword": true,
+    "giai-ma.judgeKeywords": true,
+    "giai-ma.endRound": true,
+    "giai-ma.lockHints": true,
+    "giai-ma.startKeywordWindow": true,
+    "but-pha.start": true,
+    "but-pha.openQuestion": true,
+    "but-pha.closeQuestion": true,
+    "but-pha.startClock": true,
+    "but-pha.endRound": true,
+    "but-pha.finalize": true,
+    "khoi-dong.start": true,
+    "khoi-dong.recordOral": true,
+    "khoi-dong.setTurn": true,
+    "khoi-dong.startClock": true,
+    "khoi-dong.timeOutRun": true,
+    "khoi-dong.startWindow": true,
+    "khoi-dong.judge": true,
+    "khoi-dong.nextQuestion": true,
+    "khoi-dong.endRound": true,
+    "ve-dich.start": true,
+    "ve-dich.openQuestion": true,
+    "ve-dich.reveal": true,
+    "ve-dich.startClock": true,
+    "ve-dich.closeCurrentAnswer": true,
+    "ve-dich.lockBuzz": true,
+    "ve-dich.resolve": true,
+    "ve-dich.advanceTurn": true,
+    "ve-dich.setTurn": true,
+    "ve-dich.endRound": true,
+    "ve-dich.declarePower": true,
+    "ve-dich.pick": true,
+    "ve-dich.pickBatch": true,
+    "ve-dich.pickRound": true,
+    "ve-dich.confirmPicks": true,
+    "ve-dich.openPending": true,
+    "ve-dich.switchQuestion": true,
+    "ve-dich.closeQuestion": true,
+    "ve-dich.nextQuestion": true,
+    "ve-dich.clearPicks": true,
+    "ve-dich.judge": true,
+    "round.goTo": true,
+    "round.waiting": true,
+    "score.adjust": true,
+    "answer.regrade": true,
+    "reveal.answer": true,
+}
+
+export function isLiveActionKind(kind: string): kind is LiveAction["kind"] {
+    return Object.hasOwn(LIVE_ACTION_KINDS, kind)
+}
+
 export function collapseKeywordVerdicts(actions: LiveAction[]): LiveAction[] {
     if (actions.length === 0) return actions
     const verdicts: KeywordVerdict[] = []
