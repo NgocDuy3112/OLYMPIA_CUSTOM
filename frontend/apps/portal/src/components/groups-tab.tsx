@@ -1,6 +1,8 @@
 import { Button } from "@shared/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
+import { errorMessage } from "@shared/lib/error-text"
+import { ErrorPanel, ListSkeleton } from "@/components/page"
 import { useAssignGroup, useGroups, type GroupRow } from "@/lib/tournament"
 
 
@@ -16,8 +18,8 @@ export function GroupsTab({ tournamentId }: { tournamentId: string }) {
     const assign = useAssignGroup(tournamentId)
 
 
-    if (groups.isPending) return <p className="text-sm text-muted-foreground">Loading the group stage…</p>
-    if (groups.isError) return <p role="alert" className="text-sm text-destructive">{groups.error.message}</p>
+    if (groups.isPending) return <ListSkeleton />
+    if (groups.isError) return <ErrorPanel message={errorMessage(groups.error)} />
 
     const { groups: blocks, unassigned } = groups.data
     const drawn = blocks.reduce((total, block) => total + block.rows.length, 0)

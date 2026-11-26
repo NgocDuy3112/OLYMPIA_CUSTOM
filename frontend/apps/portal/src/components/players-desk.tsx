@@ -1,5 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from "react"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
+import { errorMessage } from "@shared/lib/error-text"
+import { ErrorPanel, ListSkeleton } from "@/components/page"
 import {
     useEnrollIntoTournament,
     usePlayers,
@@ -115,8 +117,8 @@ export function PlayersDesk() {
         )
     }
 
-    if (players.isPending) return <p className="text-sm text-muted-foreground">Loading the players…</p>
-    if (players.isError) return <p role="alert" className="text-sm text-destructive">{players.error.message}</p>
+    if (players.isPending) return <ListSkeleton />
+    if (players.isError) return <ErrorPanel message={errorMessage(players.error)} />
 
     const rows = players.data.items
     const enrolledSomewhere = rows.filter((row) => row.enrollments.length > 0).length

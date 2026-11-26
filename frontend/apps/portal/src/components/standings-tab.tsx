@@ -2,6 +2,8 @@ import type { ReactNode } from "react"
 import { Button } from "@shared/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
+import { errorMessage } from "@shared/lib/error-text"
+import { ErrorPanel, ListSkeleton } from "@/components/page"
 import { useRecomputeStandings, useStandings } from "@/lib/tournament"
 
 
@@ -10,10 +12,10 @@ export function StandingsTab({ tournamentId }: { tournamentId: string }) {
     const recompute = useRecomputeStandings(tournamentId)
 
     if (standings.isPending) {
-        return <p className="text-sm text-muted-foreground">Loading standings…</p>
+        return <ListSkeleton />
     }
     if (standings.isError) {
-        return <p role="alert" className="text-sm text-destructive">{standings.error.message}</p>
+        return <ErrorPanel message={errorMessage(standings.error)} />
     }
 
     const rows = standings.data.rows

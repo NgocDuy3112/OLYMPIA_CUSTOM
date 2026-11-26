@@ -11,7 +11,7 @@ import {
 } from "@shared/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/ui/tabs"
 import { errorMessage } from "@shared/lib/error-text"
-import { Page, PageHeader } from "@/components/page"
+import { ErrorPanel, ListSkeleton, Page, PageHeader } from "@/components/page"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
 import { useCloseTournament, useDeleteTournament, useMatches, useTournament } from "@/lib/tournament"
 import { useMe } from "@/lib/session"
@@ -33,8 +33,8 @@ export function TournamentDetailPage() {
     const [confirming, setConfirming] = useState(false)
     const [closing, setClosing] = useState(false)
 
-    if (tournament.isPending) return <p className="p-6 text-sm text-muted-foreground">Loading tournament…</p>
-    if (tournament.isError) return <p role="alert" className="p-6 text-sm text-destructive">{tournament.error.message}</p>
+    if (tournament.isPending) return <ListSkeleton rows={3} />
+    if (tournament.isError) return <ErrorPanel message={errorMessage(tournament.error)} />
 
     const s = tournament.data
     const assembled = matches.isPending || (matches.data?.items ?? []).some((match) => match.questions.length > 0)

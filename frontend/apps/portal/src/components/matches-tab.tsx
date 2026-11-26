@@ -5,6 +5,8 @@ import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
+import { errorMessage } from "@shared/lib/error-text"
+import { ErrorPanel, ListSkeleton } from "@/components/page"
 import { allowedSeatsOf, seatsPhrase } from "@/lib/tournaments"
 import {
     useDeleteMatch,
@@ -54,8 +56,8 @@ export function MatchesTab({
         }
     }
 
-    if (matches.isPending) return <p className="text-sm text-muted-foreground">Loading matches…</p>
-    if (matches.isError) return <p role="alert" className="text-sm text-destructive">{matches.error.message}</p>
+    if (matches.isPending) return <ListSkeleton />
+    if (matches.isError) return <ErrorPanel message={errorMessage(matches.error)} />
 
     const data = matches.data
     const names = new Map((enrolled.data?.items ?? []).map((row) => [row.userId, row.displayName]))
