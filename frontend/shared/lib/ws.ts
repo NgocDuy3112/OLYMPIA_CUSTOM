@@ -73,10 +73,11 @@ export interface HubOptions {
 /**
  * The one SignalR-style connection for a stream path.
  *
- * A hub tickets one connection per identity, so opening a second socket to the
- * same path makes the server refuse one of them. Everything belonging to a hub
- * therefore shares this socket: pass `onMessage` to consume view frames and
- * `invoke` to talk back.
+ * The hub accepts several subscriptions for the same identity, so a second
+ * socket is not refused — it silently doubles every push and races the cache.
+ * One connection per client is the goal: everything belonging to a hub shares
+ * this socket, passing `onMessage` to consume view frames and `invoke` to talk
+ * back.
  *
  * Frames are only delivered while connected; after a drop the caller must
  * resync because the server does not replay missed frames. `generation`

@@ -10,6 +10,7 @@ import { Gate } from "@shared/deck/primitives"
 import { Badges, MainCard, Rail, StageLayout } from "@shared/deck/player-deck"
 import { ROUND_LABEL, isWaitingStage, pt } from "@shared/deck/geometry"
 import { PlayerGateScreen } from "./player-gates"
+import { LiveHubProvider } from "./live-hub-provider"
 
 const EXIT_WARNING = "Trận đang diễn ra — rời trang sẽ mất phần đang thi."
 
@@ -37,6 +38,14 @@ function LinkBanner({ status, onRetry }: { status: Extract<StreamStatus, "reconn
 }
 
 export function PlayerShell({ matchId }: { matchId: string }) {
+    return (
+        <LiveHubProvider matchId={matchId} enabled={Boolean(matchId)}>
+            <PlayerShellBody matchId={matchId} />
+        </LiveHubProvider>
+    )
+}
+
+function PlayerShellBody({ matchId }: { matchId: string }) {
     const model = usePlayerModel(matchId)
 
     const roundRunning = model.v !== undefined && !isWaitingStage(model.v.stage)

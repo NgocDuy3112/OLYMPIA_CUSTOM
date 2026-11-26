@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { useLiveMatch, type LiveView } from "@/lib/live"
+import { LiveHubProvider } from "@/components/live-hub-provider"
 
 /**
  * The stream moves the room on; the REST view is the fallback (connect/reconnect,
@@ -84,7 +85,9 @@ async function setup(initial: LiveView) {
     state.reads = [initial]
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const wrapper = ({ children }: { children: ReactNode }) => (
-        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+        <QueryClientProvider client={client}>
+            <LiveHubProvider matchId="m1" enabled>{children}</LiveHubProvider>
+        </QueryClientProvider>
     )
     const hook = renderHook(() => useLiveMatch("m1", true), { wrapper })
     await waitFor(() => expect(hook.result.current.view?.version).toBe(initial.version))

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react"
+import { useContext, useEffect, useMemo, useRef } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api, ApiError } from "@shared/lib/api"
 import { useServerClock, type ServerClock } from "@shared/lib/clock"
@@ -6,6 +6,7 @@ import type { LobbyData } from "@shared/deck/types"
 import { useHubInvoker, type HubInvoker, type StreamStatus } from "@shared/lib/ws"
 import { logError } from "@shared/lib/log"
 import { isOlderView, keepNewestRead } from "@shared/lib/view-version"
+import { LiveHubContext } from "@/lib/live-hub-context"
 
 interface ViewFailure {
     status: number
@@ -56,14 +57,6 @@ interface UseLiveMatch {
     refetch: () => void
 }
 
-/**
- * The single live connection for a match.
- *
- * View frames and hub invocations share one socket: the hub issues one ticket
- * per identity, so a second connection to the same path gets refused and
- * silently kills whichever side lost the race. Both the deck and the tiebreak
- * buzz go through here.
- */
 export function useLiveHub(matchId: string, enabled: boolean): HubInvoker {
     const queryClient = useQueryClient()
     const clock = useServerClock()
@@ -94,6 +87,12 @@ export function useLiveHub(matchId: string, enabled: boolean): HubInvoker {
     return useHubInvoker(path, enabled, { onMessage })
 }
 
+function useMatchHub(): HubInvoker {
+    const hub = useContext(LiveHubContext)
+    if (hub === null) throw new Error("PlayerShell must own the match hub")
+    return hub
+}
+
 export function useLiveMatch(matchId: string, enabled: boolean): UseLiveMatch {
     const queryClient = useQueryClient()
     const clock = useServerClock()
@@ -118,7 +117,7 @@ export function useLiveMatch(matchId: string, enabled: boolean): UseLiveMatch {
         },
     })
 
-    const hub = useLiveHub(matchId, enabled && Boolean(matchId))
+    const hub = useMatchHub()
 
     // Missed frames are never replayed: after every (re)connect pull the
     // authoritative view once, so a drop heals instead of leaving a dead screen.
@@ -206,8 +205,7 @@ const tieBreakKey = (matchId: string) => ["tiebreak", matchId] as const
 
 export function useTieBreakMatch(matchId: string, enabled: boolean) {
     const queryClient = useQueryClient()
-    // Same socket as the deck — see useLiveHub.
-    const { ready, invoke } = useLiveHub(matchId, enabled && Boolean(matchId))
+    const { ready, invoke } = useMatchHub()
 
     const query = useQuery({
         queryKey: tieBreakKey(matchId),
