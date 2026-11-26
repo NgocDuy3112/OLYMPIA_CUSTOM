@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Copy, FileText, Globe, ListPlus, Plus, Search, X } from "lucide-react"
 import { cn } from "cn"
-import { api } from "@shared/lib/api"
+import { ApiError, api } from "@shared/lib/api"
 import { Button } from "@shared/ui/button"
 import { Input } from "@shared/ui/input"
 import { EmptyState, ErrorPanel, ListSkeleton, Page, PageHeader } from "@/components/page"
@@ -14,10 +14,8 @@ import { InspectorDrawer } from "./questions/InspectorDrawer"
 import { Pagination } from "./questions/Pagination"
 import { QuestionDialog } from "./questions/QuestionDialog"
 import {
-    BUCKET_TAGS,
     STATUS_LABEL,
     TABS,
-    TRANSITIONS,
     activeTab,
     bucketOf,
     groupLabelOf,
@@ -26,6 +24,42 @@ import {
     readUrlState,
 } from "./questions/model"
 import type { BankQuestion, Paged, Status, UrlState } from "./questions/model"
+
+interface BulkReport {
+    action: string
+    total: number
+    affected: number
+    ids: string[]
+    errors: Array<{ id: string; code: string; message: string }>
+}
+
+type BulkInput =
+    | { action: "status"; ids: string[]; status: Status }
+    | { action: "duplicate"; ids: string[] }
+    | { action: "group"; ids: string[]; bucket: string }
+
+const bulkLabelOf = (input: BulkInput): string => {
+    if (input.action === "status") return `Đổi trạng thái → ${STATUS_LABEL[input.status]}`
+    if (input.action === "duplicate") return "Nhân bản"
+    return `Gắn nhóm ${input.bucket}`
+}
+
+const isBulkReport = (value: unknown): value is BulkReport =>
+    typeof value === "object" &&
+    value !== null &&
+    "total" in value &&
+    typeof value.total === "number" &&
+    "affected" in value &&
+    typeof value.affected === "number" &&
+    "errors" in value &&
+    Array.isArray(value.errors)
+
+const bulkFlashOf = (input: BulkInput, report: BulkReport): string => {
+    const label = bulkLabelOf(input)
+    const first = report.errors[0]
+    if (first) return `${label}: ${report.affected}/${report.total} thành công — lỗi đầu: ${first.message}`
+    return `${label}: ${report.affected}/${report.total} câu đã xử lý.`
+}
 
 export function QuestionsPage() {
     const queryClient = useQueryClient()
@@ -88,7 +122,6 @@ export function QuestionsPage() {
     const [flash, setFlash] = useState<{ id: string; message: string } | null>(null)
     const [confirming, setConfirming] = useState<BankQuestion | null>(null)
     const [selected, setSelected] = useState<Map<string, BankQuestion>>(new Map())
-    const [bulkBusy, setBulkBusy] = useState(false)
     const [bulkFlash, setBulkFlash] = useState<string | null>(null)
     const [addRows, setAddRows] = useState<BankQuestion[] | null>(null)
 
@@ -155,82 +188,45 @@ export function QuestionsPage() {
 
     const clearSelection = () => setSelected(new Map())
 
-    const runBulk = async (
-        what: string,
-        jobs: Array<() => Promise<unknown>>,
-        skipped: number
-    ) => {
-        if (jobs.length === 0) {
-            let emptyFlash = "Không có gì để làm."
-            if (skipped > 0) emptyFlash = `Không có câu nào đủ điều kiện (${skipped} bị bỏ qua).`
-            setBulkFlash(emptyFlash)
-            return
-        }
-        setBulkBusy(true)
-        setBulkFlash(null)
-        try {
-            const results = await Promise.allSettled(jobs.map((job) => job()))
-            const done = results.filter((result) => result.status === "fulfilled").length
-            const firstError = results.find(
-                (result): result is PromiseRejectedResult => result.status === "rejected"
-            )
+    const bulk = useMutation({
+        mutationFn: (input: BulkInput) =>
+            api<BulkReport>("/portal/questions/bulk", {
+                method: "POST",
+                body: JSON.stringify(input),
+            }),
+        onSuccess: (report, input) => {
+            clearSelection()
+            setBulkFlash(bulkFlashOf(input, report))
+        },
+        onError: (cause, input) => {
+            if (cause instanceof ApiError && isBulkReport(cause.body)) {
+                clearSelection()
+                setBulkFlash(bulkFlashOf(input, cause.body))
+                return
+            }
+            setBulkFlash(messageOf(cause))
+        },
+        onSettled: () => {
             void queryClient.invalidateQueries({ queryKey: ["questions"] })
             void queryClient.invalidateQueries({ queryKey: ["bucket-counts"] })
             void queryClient.invalidateQueries({ queryKey: ["keyword-hints"] })
-            clearSelection()
-            let bulkResult = `${what}: ${done} câu đã xử lý.`
-            if (firstError) bulkResult = `${what}: ${done}/${results.length} thành công — lỗi đầu: ${messageOf(firstError.reason)}`
-            setBulkFlash(bulkResult)
-        } finally {
-            setBulkBusy(false)
-        }
+        },
+    })
+    const bulkBusy = bulk.isPending
+
+    const runBulk = (input: BulkInput) => {
+        setBulkFlash(null)
+        bulk.mutate(input)
     }
 
-    const bulkStatus = (to: Status) => {
-        const eligible = [...selected.values()].filter((row) =>
-            TRANSITIONS[row.status].some(
-                (step) => step.to === to && !(step.adminOnly && !isAdmin)
-            )
-        )
-        runBulk(
-            `Chuyển ${STATUS_LABEL[to]}`,
-            eligible.map((row) => () =>
-                api(`/portal/questions/${row.id}/status`, {
-                    method: "PATCH",
-                    body: JSON.stringify({ status: to }),
-                })
-            ),
-            selected.size - eligible.length
-        )
-    }
+    const bulkStatus = (to: Status) =>
+        runBulk({ action: "status", ids: [...selected.keys()], status: to })
 
     const bulkDuplicate = () =>
-        runBulk(
-            "Nhân bản",
-            [...selected.values()].map((row) => () =>
-                api(`/portal/questions/${row.id}/duplicate`, { method: "POST" })
-            ),
-            0
-        )
+        runBulk({ action: "duplicate", ids: [...selected.keys()] })
 
-    const bulkBucket = (bucket: string) => {
-        const eligible = [...selected.values()].filter((row) => row.status !== "ARCHIVED")
-        runBulk(
-            `Gắn nhóm ${bucket}`,
-            eligible.map((row) => () =>
-                api(`/portal/questions/${row.id}`, {
-                    method: "PATCH",
-                    body: JSON.stringify({
-                        tags: [
-                            ...(row.tags ?? []).filter((tag) => !BUCKET_TAGS.has(tag)),
-                            bucket,
-                        ],
-                    }),
-                })
-            ),
-            selected.size - eligible.length
-        )
-    }
+    const bulkBucket = (bucket: string) =>
+        runBulk({ action: "group", ids: [...selected.keys()], bucket })
 
 
     const emptyDescription = () => {
@@ -337,12 +333,13 @@ export function QuestionsPage() {
                             <span className="text-xs text-muted-foreground">Đang xử lý…</span>
                         )}
                     </div>
-                    {bulkFlash && (
-                        <p className="mx-auto max-w-6xl pt-1 text-xs text-muted-foreground" role="status">
-                            {bulkFlash}
-                        </p>
-                    )}
                 </div>
+            )}
+
+            {bulkFlash && (
+                <p className="text-xs text-muted-foreground" role="status">
+                    {bulkFlash}
+                </p>
             )}
 
             <div className="flex flex-wrap items-end gap-3">

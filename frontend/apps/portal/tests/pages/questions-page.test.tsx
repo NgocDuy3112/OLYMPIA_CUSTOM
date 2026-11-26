@@ -167,6 +167,42 @@ describe("QuestionsPage", () => {
         ).toBe(false)
     })
 
+    it("sends selected questions to the bulk endpoint once and reports the server's rows", async () => {
+        const user = userEvent.setup()
+        const fetchMock = stubBank({
+            "POST /portal/questions/bulk": {
+                body: {
+                    action: "status",
+                    total: 1,
+                    affected: 0,
+                    ids: [],
+                    errors: [{ id: "q1", code: "VALIDATION", message: "cannot publish an archived question" }],
+                },
+                status: 400,
+            },
+        })
+        renderWithProviders(<QuestionsPage />)
+
+        await user.click(await screen.findByLabelText(`Chọn: ${draftRow.questionText}`))
+        await user.click(screen.getByRole("button", { name: "Đăng" }))
+
+        await waitFor(() =>
+            expect(
+                fetchMock.mock.calls.filter(([url]) => url === "/portal/questions/bulk")
+            ).toHaveLength(1)
+        )
+        const call = fetchMock.mock.calls.find(([url]) => url === "/portal/questions/bulk")!
+        expect(JSON.parse(call[1]?.body as string)).toEqual({
+            action: "status",
+            ids: ["q1"],
+            status: "PUBLISHED",
+        })
+        expect(
+            fetchMock.mock.calls.some(([url, init]) => url === "/portal/questions/q1/status" && init?.method === "PATCH")
+        ).toBe(false)
+        expect(await screen.findByText(/lỗi đầu: cannot publish an archived question/)).toBeInTheDocument()
+    })
+
     it("shows assigned matches in the table column", async () => {
         const assignedRow = {
             ...draftRow,

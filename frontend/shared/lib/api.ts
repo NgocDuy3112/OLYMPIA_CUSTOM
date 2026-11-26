@@ -13,7 +13,8 @@ export class ApiError extends Error {
         public status: number,
         message: string,
         public code?: string,
-        public details?: string[]
+        public details?: string[],
+        public body?: unknown
     ) {
         super(message)
         this.name = "ApiError"
@@ -77,7 +78,7 @@ async function apiInner<T>(path: string, init: RequestInit): Promise<T> {
             }
         }
 
-        throw new ApiError(res.status, message, code, details)
+        throw new ApiError(res.status, message, code, details, body)
     }
 
     return body as T
