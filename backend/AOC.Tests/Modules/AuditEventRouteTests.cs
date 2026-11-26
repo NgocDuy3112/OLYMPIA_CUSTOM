@@ -246,6 +246,30 @@ public class AuditEventRouteTests : IDisposable
     }
 
     [DbFact]
+    public async Task Audit_filters_reject_actions_that_are_not_snake_case_tokens()
+    {
+        var seeded = await SeedAppAsync();
+        try
+        {
+            var rejected = await Assert.ThrowsAsync<ApiException>(() => SendAsync(
+                seeded, AllEndpoints[0], "ADMIN", "action=account_enabled,Bad-Token"));
+            Assert.Equal(400, rejected.Status);
+
+            var rejectedExport = await Assert.ThrowsAsync<ApiException>(() => SendAsync(
+                seeded, AllEndpoints[2], "ADMIN", "action=account_enabled,account enabled"));
+            Assert.Equal(400, rejectedExport.Status);
+
+            var accepted = await SendAsync(seeded, AllEndpoints[0], "ADMIN",
+                "action=account_enabled,mcp_key_issued");
+            Assert.Equal(200, accepted.Response.StatusCode);
+        }
+        finally
+        {
+            await seeded.App.DisposeAsync();
+        }
+    }
+
+    [DbFact]
     public async Task Admin_search_matches_details_and_actor_names()
     {
         var seeded = await SeedAppAsync();

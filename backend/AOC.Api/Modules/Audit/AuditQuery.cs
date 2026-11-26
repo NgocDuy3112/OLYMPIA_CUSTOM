@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using AOC.Api.Http;
 
 namespace AOC.Api.Modules.Audit;
@@ -6,6 +7,8 @@ namespace AOC.Api.Modules.Audit;
 public static class AuditQuery
 {
     public const int MaxSearchLength = 200;
+
+    private static readonly Regex ActionToken = new("^[a-z0-9_]+$", RegexOptions.Compiled);
 
     public static AuditFilter From(IReadOnlyDictionary<string, string?> query) => new()
     {
@@ -21,9 +24,13 @@ public static class AuditQuery
     private static IReadOnlyList<string> SplitActions(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw)) return [];
-        return raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        var tokens = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Distinct(StringComparer.Ordinal)
             .ToList();
+        foreach (var token in tokens)
+            if (!ActionToken.IsMatch(token))
+                throw ApiException.BadRequest("action: Expected comma-separated snake_case names");
+        return tokens;
     }
 
     private static Guid? Uuid(string? raw, string field)
