@@ -101,6 +101,8 @@ builder.Services.AddScoped<GameplayReadService>();
 builder.Services.AddScoped<McpKeysService>();
 builder.Services.AddScoped<AOC.Api.Modules.Audit.AuditEventStore>();
 builder.Services.AddSingleton(AOC.Api.Modules.Audit.AuditExportOptions.Default);
+builder.Services.AddSingleton(AOC.Api.Modules.Audit.AuditRetentionOptions.Default);
+builder.Services.AddHostedService<AOC.Api.Modules.Audit.AuditRetentionService>();
 builder.Services.AddScoped<AOC.Api.Modules.Audit.AuditEventsService>();
 
 builder.Services.AddSignalR(options =>

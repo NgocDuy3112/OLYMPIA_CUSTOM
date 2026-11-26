@@ -41,6 +41,11 @@ public sealed class AuditEventStore(AOCDbContext db, AuditExportOptions export)
             .OrderBy(action => action)
             .ToListAsync();
 
+    public Task<int> DeleteOlderThanAsync(DateTime cutoff, int batch, CancellationToken token)
+        => db.Database.ExecuteSqlAsync(
+            $"DELETE FROM audit_events WHERE id IN (SELECT id FROM audit_events WHERE created_at < {cutoff} ORDER BY created_at LIMIT {batch})",
+            token);
+
     private async Task<IQueryable<AuditEventEntity>> FilteredAsync(AuditFilter filter)
     {
         var query = db.AuditEvents.AsNoTracking();
