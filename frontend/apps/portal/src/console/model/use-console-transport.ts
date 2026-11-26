@@ -3,6 +3,7 @@ import { fetchOperatorRtcToken, useAudioGate, useHostBroadcast, useMediaPolicy, 
 import { useLive, useLiveAction, type ConsoleQuestion, type LiveResponse, type Projection } from "@/lib/live"
 import type { LiveAction } from "@/lib/live-actions"
 import { collapseKeywordVerdicts } from "@/lib/live-actions"
+import { errorMessage } from "@shared/lib/error-text"
 import { useControllerHeartbeat } from "./use-controller-heartbeat"
 import { useConsoleAssistant, type AssistantSurface } from "./use-console-assistant"
 
@@ -82,11 +83,11 @@ export function useConsoleTransport(tournamentId: string, matchId: string): Cons
     let flash: string | null = null
     if (heartbeatError !== null) flash = heartbeatError
     else if (writer.isError) {
-        flash = (writer.error as { message?: string } | null)?.message ?? "Trạng thái đã đổi — đã tải lại"
+        flash = errorMessage(writer.error)
     } else if (chainWriter.isError) {
-        flash = (chainWriter.error as { message?: string } | null)?.message ?? "Trạng thái đã đổi — đã tải lại"
+        flash = errorMessage(chainWriter.error)
     } else if (scoreWriter.isError) {
-        flash = (scoreWriter.error as { message?: string } | null)?.message ?? "Trạng thái đã đổi — đã tải lại"
+        flash = errorMessage(scoreWriter.error)
     }
 
     return {
