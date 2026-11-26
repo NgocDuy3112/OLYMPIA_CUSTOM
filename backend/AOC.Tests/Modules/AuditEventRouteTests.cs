@@ -446,7 +446,7 @@ public class AuditEventRouteTests : IDisposable
 
             Assert.Equal(
                 "id,createdAt,action,actorId,actorName,targetId,targetName,matchId,ip,userAgent,details",
-                Assert.Single(lines.Where(line => line.StartsWith("id,createdAt", StringComparison.Ordinal))));
+                Assert.Single(lines, line => line.StartsWith("id,createdAt", StringComparison.Ordinal)));
             Assert.Equal(3, lines.Count(line => line.Split(',')[2] == marker));
         }
         finally
