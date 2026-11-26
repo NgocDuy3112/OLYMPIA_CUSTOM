@@ -26,7 +26,7 @@ export function ConfirmDeleteDialog({
     onConfirm: () => void
 }) {
     return (
-        <Dialog open onOpenChange={(next) => { if (!next) onCancel() }}>
+        <Dialog open onOpenChange={(next) => { if (!next && !pending) onCancel() }}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle>{title}</DialogTitle>
