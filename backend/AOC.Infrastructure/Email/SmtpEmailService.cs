@@ -8,6 +8,9 @@ public sealed class SmtpEmailService : IEmailService
 {
     private readonly AppConfig _config = AppConfig.Instance;
 
+    public bool IsConfigured =>
+        !string.IsNullOrEmpty(_config.Smtp.Host) && !string.IsNullOrEmpty(_config.Smtp.From);
+
     public async Task SendAsync(string to, string subject, string htmlBody, CancellationToken cancellationToken = default)
     {
         var smtp = _config.Smtp;

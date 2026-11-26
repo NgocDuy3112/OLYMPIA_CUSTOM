@@ -23,6 +23,8 @@ public sealed class PasswordResetService(AOCDbContext db, IEmailService emailSen
     public async Task RequestResetAsync(string email, CancellationToken cancellationToken = default)
     {
         var normalized = NormalizeEmail(email);
+        if (!emailSender.IsConfigured)
+            throw ApiException.Unavailable("email delivery is not configured");
         var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(
             u => u.Email != null && u.Email.ToLower() == normalized, cancellationToken);
         if (user is null) return;
@@ -52,7 +54,7 @@ public sealed class PasswordResetService(AOCDbContext db, IEmailService emailSen
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        var subject = "Mã đặt lại mật khẩu AOC " + code;
+        var subject = "Mã đặt lại mật khẩu AOC";
         var htmlBody = "<p>Mã đặt lại mật khẩu của bạn là: <b>" + code + "</b></p>"
             + "<p>Mã có hiệu lực trong 10 phút.</p>";
         await emailSender.SendAsync(user.Email!, subject, htmlBody, cancellationToken);

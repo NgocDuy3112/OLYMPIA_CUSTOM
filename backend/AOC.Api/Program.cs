@@ -58,7 +58,10 @@ builder.Services.AddDbContextPool<AOCDbContext>(options =>
     options.Configure(config.DatabaseUrl));
 
 builder.Services.AddSingleton<SessionTokens>();
-builder.Services.AddSingleton<IEmailService, SmtpEmailService>();
+builder.Services.AddSingleton<SmtpEmailService>();
+builder.Services.AddSingleton<EmailQueue>();
+builder.Services.AddSingleton<IEmailService, QueuedEmailService>();
+builder.Services.AddHostedService<AOC.Api.Email.EmailDispatchService>();
 builder.Services.AddSingleton<GoogleOidcService>();
 builder.Services.AddScoped<AOC.Infrastructure.Audit.AuditService>();
 builder.Services.AddSingleton<MatchHubRegistry>();
@@ -169,6 +172,9 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddCors();
 
 var app = builder.Build();
+
+app.Logger.LogInformation("smtp email delivery: {State}",
+    app.Services.GetRequiredService<SmtpEmailService>().IsConfigured ? "configured" : "not configured");
 
 var defaultAllowedOrigins = new[]
 {

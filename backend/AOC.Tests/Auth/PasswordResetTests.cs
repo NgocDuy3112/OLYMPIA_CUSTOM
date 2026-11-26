@@ -15,6 +15,8 @@ public class PasswordResetTests
     {
         public List<(string To, string Subject, string HtmlBody)> Sent { get; } = [];
 
+        public bool IsConfigured { get; set; } = true;
+
         public Task SendAsync(string to, string subject, string htmlBody, CancellationToken cancellationToken = default)
         {
             Sent.Add((to, subject, htmlBody));
@@ -90,6 +92,54 @@ public class PasswordResetTests
         await service.RequestResetAsync($"ghost-{Guid.NewGuid():N}@example.com");
 
         Assert.Empty(mail.Sent);
+    }
+
+    [DbFact]
+    public async Task ForgotPassword_WithoutSmtp_IsServiceUnavailable()
+    {
+        await AuthTestDb.EnsureSchemaAsync();
+        using var db = AuthTestDb.OpenDb();
+        var email = $"reset-{Guid.NewGuid():N}@example.com";
+        var (user, _) = await CreateUserAsync(db, email);
+        try
+        {
+            var mail = new RecordingEmail { IsConfigured = false };
+            var service = new PasswordResetService(db, mail);
+
+            var error = await CaptureAsync(() => service.RequestResetAsync(email));
+
+            Assert.Equal(503, error.Status);
+            Assert.Equal("Service Unavailable", error.Error);
+            Assert.Empty(mail.Sent);
+        }
+        finally
+        {
+            await RemoveAsync(db, user);
+        }
+    }
+
+    [DbFact]
+    public async Task ForgotPassword_KeepsTheCodeOutOfTheSubject()
+    {
+        await AuthTestDb.EnsureSchemaAsync();
+        using var db = AuthTestDb.OpenDb();
+        var email = $"reset-{Guid.NewGuid():N}@example.com";
+        var (user, _) = await CreateUserAsync(db, email);
+        try
+        {
+            var mail = new RecordingEmail();
+            var service = new PasswordResetService(db, mail);
+
+            await service.RequestResetAsync(email);
+
+            var sent = Assert.Single(mail.Sent);
+            Assert.DoesNotMatch("[0-9]{8}", sent.Subject);
+            Assert.Matches("[0-9]{8}", sent.HtmlBody);
+        }
+        finally
+        {
+            await RemoveAsync(db, user);
+        }
     }
 
     [DbFact]
