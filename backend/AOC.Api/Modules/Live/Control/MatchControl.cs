@@ -2,7 +2,7 @@ namespace AOC.Api.Modules.Live;
 
 public static class MatchControl
 {
-    public static readonly TimeSpan StaleAfter = TimeSpan.FromSeconds(30);
+    public static readonly TimeSpan StaleAfter = TimeSpan.FromSeconds(90);
 
     public static bool IsFresh(DateTime? heartbeatAt, DateTime now) =>
         heartbeatAt is { } at && now - at < StaleAfter;

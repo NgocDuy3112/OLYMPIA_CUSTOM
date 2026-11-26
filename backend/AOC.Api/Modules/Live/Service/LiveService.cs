@@ -251,6 +251,21 @@ public sealed partial class LiveService
         return (await ControllerOfAsync(match.Id))!;
     }
 
+    public async Task<MatchController> HeartbeatAsync(Guid matchId, Guid actorId)
+    {
+        var now = DateTime.UtcNow;
+        var beat = await db.Matches
+            .Where(m => m.Id == matchId && m.ControllerId == actorId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(m => m.ControllerHeartbeatAt, now));
+        if (beat == 0)
+        {
+            var holder = await ControllerOfAsync(matchId);
+            throw ApiException.Conflict(
+                $"match is controlled by {holder?.Name ?? "another operator"}");
+        }
+        return (await ControllerOfAsync(matchId))!;
+    }
+
     public async Task RequireControllerAsync(MatchEntity match, Guid actorId)
     {
         await ClaimControlAsync(match, actorId, takeover: false);

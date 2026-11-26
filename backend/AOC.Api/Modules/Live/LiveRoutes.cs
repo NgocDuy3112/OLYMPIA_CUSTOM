@@ -191,6 +191,17 @@ public static class LiveRoutes
             return Results.Json(controller, JsonApi.Options);
         });
 
+        app.MapPost("/portal/tournaments/{tournamentId}/matches/{matchId}/live/heartbeat", async (HttpContext http) =>
+        {
+            var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
+            var tournamentId = Validate.RouteUuid(http, "tournamentId");
+            var matchId = Validate.RouteUuid(http, "matchId");
+            await LiveMatchGuard.RequirePortalWriteAsync(http, tournamentId, matchId, user);
+            var service = http.RequestServices.GetRequiredService<LiveService>();
+            return Results.Json(await service.HeartbeatAsync(Guid.Parse(matchId), user.Id),
+                JsonApi.Options);
+        });
+
         app.MapGet("/portal/tournaments/{tournamentId}/matches/{matchId}/live", async (HttpContext http) =>
         {
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
