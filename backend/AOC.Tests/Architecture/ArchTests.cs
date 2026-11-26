@@ -1,13 +1,15 @@
+using System.Text.RegularExpressions;
 using Xunit;
 
 namespace AOC.Tests.Architecture;
 
 public class ArchTests
 {
+    private const int RouteFileLineBudget = 200;
+
     private static readonly string[] GrandfatheredRouteFiles_WhoseServiceClassSharesTheFile =
     [
-        "Auth/PlayerAccountRoutes.cs",
-        "Questions/Import/QuestionStagingRoutes.cs"
+        "Auth/PlayerAccountRoutes.cs"
     ];
 
     private static readonly string[] GrandfatheredRawConnectionFiles =
@@ -52,6 +54,45 @@ public class ArchTests
             .ToList();
 
         Assert.Empty(offenders.Except(GrandfatheredRouteFiles_WhoseServiceClassSharesTheFile));
+    }
+
+    [Fact]
+    public void Routes_files_stay_within_the_line_budget()
+    {
+        var modules = Path.Combine(ApiRoot(), "Modules");
+        var offenders = Directory.EnumerateFiles(modules, "*Routes.cs", SearchOption.AllDirectories)
+            .Select(path => new { Path = Relative(modules, path), Lines = File.ReadAllLines(path).Length })
+            .Where(row => row.Lines > RouteFileLineBudget)
+            .Select(row => $"{row.Path}: {row.Lines} lines")
+            .ToList();
+
+        Assert.Empty(offenders);
+    }
+
+    [Fact]
+    public void Routes_files_declare_no_class_but_the_route_class()
+    {
+        var modules = Path.Combine(ApiRoot(), "Modules");
+        var offenders = Directory.EnumerateFiles(modules, "*Routes.cs", SearchOption.AllDirectories)
+            .Where(path => File.ReadAllLines(path)
+                .Any(line => Regex.IsMatch(line, @"\bclass\s+\w+")
+                    && !Regex.IsMatch(line, @"public static (partial )?class")))
+            .Select(path => Relative(modules, path))
+            .ToList();
+
+        Assert.Empty(offenders);
+    }
+
+    [Fact]
+    public void Routes_files_do_not_construct_an_audit_event()
+    {
+        var modules = Path.Combine(ApiRoot(), "Modules");
+        var offenders = Directory.EnumerateFiles(modules, "*Routes.cs", SearchOption.AllDirectories)
+            .Where(path => File.ReadAllText(path).Contains("new AuditEvent"))
+            .Select(path => Relative(modules, path))
+            .ToList();
+
+        Assert.Empty(offenders);
     }
 
     [Fact]
