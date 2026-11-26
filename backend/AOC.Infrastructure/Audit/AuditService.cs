@@ -40,13 +40,4 @@ public sealed class AuditService(AOCDbContext db, ILogger<AuditService> logger)
             logger.LogError(ex, "audit write failed for \"{Action}\"", e.Action);
         }
     }
-
-    public static Dictionary<string, object?> McpAuditDetails(Guid mcpKeyId, Dictionary<string, object?>? extra = null)
-    {
-        var details = new Dictionary<string, object?> { ["mcpKeyId"] = mcpKeyId };
-        if (extra is not null)
-            foreach (var (k, v) in extra)
-                details[k] = v;
-        return details;
-    }
 }

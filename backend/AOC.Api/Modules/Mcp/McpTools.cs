@@ -22,6 +22,11 @@ public sealed class McpTools(
 {
     private static readonly JsonSerializerOptions Options = JsonApi.Options;
 
+    private sealed record McpCall(
+        string Tool, Guid? TournamentId, Guid? MatchId, JsonElement? Filters);
+
+    private sealed record McpToolPayload(object Data, int? Total = null);
+
     private McpActor Actor()
     {
         var http = httpContextAccessor.HttpContext
@@ -67,6 +72,8 @@ public sealed class McpTools(
         return parsed;
     }
 
+    private static JsonElement Filters<T>(T values) => JsonDefaults.Serialize(values);
+
     private static object AgentQuestion(QuestionBankEntity row) => new
     {
         id = row.Id,
@@ -91,125 +98,122 @@ public sealed class McpTools(
         Content = [new TextContentBlock { Text = JsonSerializer.Serialize(new { error = code, message }, Options) }]
     };
 
-    private static async Task<CallToolResult> Run(Func<Task<object>> fn)
+    private static string ErrorCodeOf(Exception error) => error switch
     {
+        ToolError tool => tool.Code,
+        QuestionError question => question.Code.ToString(),
+        McpKeyError key => key.Code.ToString(),
+        _ => "INTERNAL"
+    };
+
+    private static string ErrorMessageOf(Exception error)
+        => error is ToolError or QuestionError or McpKeyError ? error.Message : "Tool execution failed";
+
+    private async Task<CallToolResult> RunAsync(McpCall call, Func<McpActor, Task<McpToolPayload>> body)
+    {
+        McpActor actor;
         try
         {
-            return Text(await fn());
+            actor = Actor();
         }
-        catch (Exception error) when (error is ToolError or QuestionError or McpKeyError)
+        catch (ToolError error)
         {
-            var code = error switch
-            {
-                ToolError t => t.Code,
-                QuestionError q => q.Code.ToString(),
-                McpKeyError m => m.Code.ToString(),
-                _ => "INTERNAL"
-            };
-            return TextError(code, error.Message);
+            return TextError(error.Code, error.Message);
+        }
+
+        McpToolPayload? payload = null;
+        McpToolOutcome outcome = McpToolOutcome.allowed;
+        string? errorCode = null;
+        string? errorMessage = null;
+
+        try
+        {
+            McpToolScope.RequireTool(actor, call.Tool);
+            payload = await body(actor);
+        }
+        catch (ToolError error)
+        {
+            outcome = error.Code == "FORBIDDEN" ? McpToolOutcome.denied : McpToolOutcome.failed;
+            errorCode = error.Code;
+            errorMessage = error.Message;
+        }
+        catch (Exception error) when (error is QuestionError or McpKeyError)
+        {
+            outcome = McpToolOutcome.failed;
+            errorCode = ErrorCodeOf(error);
+            errorMessage = ErrorMessageOf(error);
         }
         catch (Exception)
         {
-            return TextError("INTERNAL", "Tool execution failed");
+            outcome = McpToolOutcome.failed;
+            errorCode = "INTERNAL";
+            errorMessage = ErrorMessageOf(new ToolError("INTERNAL", "Tool execution failed"));
         }
+
+        await McpToolAudit.RecordAsync(audit, httpContextAccessor.HttpContext, actor.UserId,
+            new McpToolCallAudit(actor.KeyId, call.Tool, outcome, call.TournamentId, call.MatchId,
+                call.Filters, payload?.Total, errorCode));
+
+        return payload is not null ? Text(payload.Data) : TextError(errorCode!, errorMessage!);
     }
 
-    private Task AuditAsync(McpActor actor, string tool, Guid? tournamentId,
-        Dictionary<string, object?>? filters, int? total)
-    {
-        var http = httpContextAccessor.HttpContext;
-        var details = AuditService.McpAuditDetails(actor.KeyId, new Dictionary<string, object?>
-        {
-            ["tool"] = tool,
-            ["tournamentId"] = tournamentId,
-            ["filters"] = filters,
-            ["total"] = total
-        });
-        return audit.AuditAsync(new AuditEvent
-        {
-            Action = "mcp_tool_call",
-            ActorId = actor.UserId,
-            Ip = http?.Connection.RemoteIpAddress?.ToString(),
-            UserAgent = http?.Request.Headers.UserAgent.ToString(),
-            Details = details
-        });
-    }
-
-
-    public async Task<CallToolResult> ListQuestions(string tournamentId, string? kind = null,
+    public Task<CallToolResult> ListQuestions(string tournamentId, string? kind = null,
         string? search = null, int limit = 20, int offset = 0)
-    {
-        var actor = Actor();
-        var tid = ParseTournamentId(tournamentId);
-        var parsedKind = ParseKind(kind);
-        return await Run(async () =>
-        {
-            McpToolScope.RequireTool(actor, McpToolNames.ListQuestions);
-            await RequireVisibleTournamentAsync(tid, actor);
-
-            var page = await questions.ListForAgentAsync(parsedKind, search, new Page(limit, offset));
-
-            await AuditAsync(actor, McpToolNames.ListQuestions, tid,
-                new Dictionary<string, object?> { ["kind"] = kind, ["search"] = search },
-                page.Total);
-
-            return new
+        => RunAsync(
+            new McpCall(McpToolNames.ListQuestions,
+                Guid.TryParse(tournamentId, out var tid) ? tid : null, null,
+                Filters(new { kind, search })),
+            async actor =>
             {
-                items = page.Items.Select(AgentQuestion).ToList(),
-                total = page.Total,
-                limit = page.Limit,
-                offset = page.Offset
-            };
-        });
-    }
+                var parsedKind = ParseKind(kind);
+                await RequireVisibleTournamentAsync(ParseTournamentId(tournamentId), actor);
 
+                var page = await questions.ListForAgentAsync(parsedKind, search, new Page(limit, offset));
 
-    public async Task<CallToolResult> GetQuestion(string questionId, string tournamentId)
-    {
-        var actor = Actor();
-        var tid = ParseTournamentId(tournamentId);
-        return await Run(async () =>
-        {
-            McpToolScope.RequireTool(actor, McpToolNames.GetQuestion);
-            await RequireVisibleTournamentAsync(tid, actor);
+                return new McpToolPayload(new
+                {
+                    items = page.Items.Select(AgentQuestion).ToList(),
+                    total = page.Total,
+                    limit = page.Limit,
+                    offset = page.Offset
+                }, page.Total);
+            });
 
-            var row = await questions.GetForAgentAsync(questionId);
+    public Task<CallToolResult> GetQuestion(string questionId, string tournamentId)
+        => RunAsync(
+            new McpCall(McpToolNames.GetQuestion,
+                Guid.TryParse(tournamentId, out var tid) ? tid : null, null,
+                Filters(new { questionId })),
+            async actor =>
+            {
+                await RequireVisibleTournamentAsync(ParseTournamentId(tournamentId), actor);
 
-            await AuditAsync(actor, McpToolNames.GetQuestion, tid,
-                new Dictionary<string, object?> { ["questionId"] = questionId, ["status"] = row.Status.ToString() },
-                null);
+                var row = await questions.GetForAgentAsync(questionId);
 
-            return AgentQuestion(row);
-        });
-    }
+                return new McpToolPayload(AgentQuestion(row));
+            });
 
-
-    public async Task<CallToolResult> EligibleQuestions(string tournamentId, string? kind = null,
+    public Task<CallToolResult> EligibleQuestions(string tournamentId, string? kind = null,
         string? search = null, int limit = 20, int offset = 0)
-    {
-        var actor = Actor();
-        var tid = ParseTournamentId(tournamentId);
-        var parsedKind = ParseKind(kind);
-        return await Run(async () =>
-        {
-            McpToolScope.RequireTool(actor, McpToolNames.EligibleQuestions);
-            await RequireVisibleTournamentAsync(tid, actor);
-
-            List<QuestionKind>? kinds = parsedKind is { } pk ? [pk] : null;
-
-            var page = await questions.ListForAssemblyAsync(kinds, null, search, new Page(limit, offset));
-
-            await AuditAsync(actor, McpToolNames.EligibleQuestions, tid,
-                new Dictionary<string, object?> { ["kind"] = kind, ["search"] = search },
-                page.Total);
-
-            return new
+        => RunAsync(
+            new McpCall(McpToolNames.EligibleQuestions,
+                Guid.TryParse(tournamentId, out var tid) ? tid : null, null,
+                Filters(new { kind, search })),
+            async actor =>
             {
-                items = page.Items.Select(AgentQuestion).ToList(),
-                total = page.Total,
-                limit = page.Limit,
-                offset = page.Offset
-            };
-        });
-    }
+                var parsedKind = ParseKind(kind);
+                await RequireVisibleTournamentAsync(ParseTournamentId(tournamentId), actor);
+
+                List<QuestionKind>? kinds = parsedKind is { } pk ? [pk] : null;
+
+                var page = await questions.ListForAssemblyAsync(kinds, null, search, new Page(limit, offset));
+
+                return new McpToolPayload(new
+                {
+                    items = page.Items.Select(AgentQuestion).ToList(),
+                    total = page.Total,
+                    limit = page.Limit,
+                    offset = page.Offset
+                }, page.Total);
+            });
 }

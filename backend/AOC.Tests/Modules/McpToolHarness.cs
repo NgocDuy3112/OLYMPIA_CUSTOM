@@ -52,9 +52,12 @@ internal sealed class McpToolHarness : IDisposable
     public static McpToolHarness Open() => new(AuthTestDb.OpenDb());
 
     public McpTools As(Guid actorId, params string[] scopes)
+        => As(actorId, Guid.NewGuid(), scopes);
+
+    public McpTools As(Guid actorId, Guid keyId, params string[] scopes)
     {
         var http = new DefaultHttpContext { RequestServices = services };
-        http.Items[McpActorAccessor.ItemKey] = new McpActor(Guid.NewGuid(), [.. scopes], actorId, null);
+        http.Items[McpActorAccessor.ItemKey] = new McpActor(keyId, [.. scopes], actorId, null);
         return new McpTools(
             services.GetRequiredService<QuestionReadStore>(),
             Db,
