@@ -23,6 +23,8 @@ public static class Buckets
 
     public static readonly List<string> AllBuckets = BucketKind.Keys.ToList();
 
+    public const string TieBreakBucket = "cau-hoi-phu";
+
     private static readonly HashSet<string> BucketKeys = AllBuckets.ToHashSet();
 
     public static bool IsBucketTag(string tag) => BucketKeys.Contains(tag);
@@ -80,7 +82,7 @@ public static class Buckets
 
     public static Slot SlotForBucket(string bucket)
     {
-        if (bucket == QuestionsService.TieBreakBucket)
+        if (bucket == TieBreakBucket)
             throw new QuestionError(QuestionErrorCode.VALIDATION,
                 "tiebreak questions are not assembled into rounds");
 
@@ -106,13 +108,13 @@ public static class Buckets
                     $"turn \"{turn.Id}\" of round \"{slot.RoundId}\" declares no buckets");
 
             foreach (var bucket in turn.Buckets)
-                if (PointsOf(bucket) == slot.Points && bucket != QuestionsService.TieBreakBucket)
+                if (PointsOf(bucket) == slot.Points && bucket != TieBreakBucket)
                     return bucket;
 
             if (slot.Points is not null
                 && turn.Buckets.Count == 1
                 && PointsOf(turn.Buckets[0]) is null
-                && turn.Buckets[0] != QuestionsService.TieBreakBucket)
+                && turn.Buckets[0] != TieBreakBucket)
                 return turn.Buckets[0];
 
             throw new QuestionError(QuestionErrorCode.VALIDATION,

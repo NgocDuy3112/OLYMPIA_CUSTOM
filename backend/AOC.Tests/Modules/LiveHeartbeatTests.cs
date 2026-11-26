@@ -6,6 +6,7 @@ using AOC.Api.Modules.Live;
 using AOC.Api.Modules.Live.TieBreak;
 using AOC.Api.Modules.Matches;
 using AOC.Api.Modules.Questions;
+using AOC.Api.Modules.Questions.Reads;
 using AOC.Api.Modules.Standings;
 using AOC.Api.Realtime;
 using AOC.Domain.Contracts;
@@ -27,7 +28,7 @@ public class LiveHeartbeatTests
         var matches = new MatchesService(
             db, new StandingsService(db), NullLogger<MatchesService>.Instance);
         var reader = new LiveReader(db);
-        var tieBreak = new TieBreakService(db, new QuestionsService(db), reader, hub);
+        var tieBreak = new TieBreakService(db, new QuestionReadStore(db), reader, hub);
         return new LiveService(db, reader, hub, matches, tieBreak, NullLogger<LiveService>.Instance);
     }
 

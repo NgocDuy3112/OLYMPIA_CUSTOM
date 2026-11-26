@@ -107,7 +107,7 @@ public class RawSqlRegressionTests
         var fixture = await SeedAsync(db);
         try
         {
-            var service = new QuestionsService(db);
+            var service = new QuestionReadStore(db);
             var page = await service.ListAsync(
                 new QuestionFilter(Ids: [fixture.Question.Id]), new Page(20, 0));
 
@@ -138,7 +138,7 @@ public class RawSqlRegressionTests
         var fixture = await SeedAsync(db);
         try
         {
-            var service = new QuestionsService(db);
+            var service = new QuestionReadStore(db);
             var page = await service.ListAsync(
                 new QuestionFilter(Ids: [fixture.Question.Id]), new Page(20, 0));
 
@@ -165,7 +165,7 @@ public class RawSqlRegressionTests
         var fixture = await SeedAsync(db);
         try
         {
-            var service = new QuestionsService(db);
+            var service = new QuestionReadStore(db);
             var orphan = new QuestionBankEntity
             {
                 Id = Guid.NewGuid(),
@@ -203,7 +203,7 @@ public class RawSqlRegressionTests
         var fixture = await SeedAsync(db);
         try
         {
-            var service = new QuestionsService(db);
+            var service = new QuestionReadStore(db);
             var row = await service.RequireAsync(fixture.Question.Id.ToString());
 
             var usage = Assert.Single(row.AssignedMatches!);
@@ -224,7 +224,7 @@ public class RawSqlRegressionTests
         var fixture = await SeedAsync(db);
         try
         {
-            var service = new QuestionsService(db);
+            var service = new QuestionReadStore(db);
             var filter = new QuestionFilter(Ids: [fixture.Question.Id]);
 
             var first = await service.ListAsync(filter, new Page(1, 0));
@@ -250,7 +250,7 @@ public class RawSqlRegressionTests
         var fixture = await SeedAsync(db);
         try
         {
-            var service = new QuestionsService(db);
+            var service = new QuestionReadStore(db);
             var counts = await service.BucketCountsAsync(QuestionStatus.PUBLISHED, null);
 
             Assert.True(counts.ContainsKey("giai-ma"));
@@ -271,17 +271,18 @@ public class RawSqlRegressionTests
         var fixture = await SeedAsync(db);
         try
         {
-            var service = new QuestionsService(db);
+            var crud = new QuestionsService(db);
             var patch = JsonSerializer.SerializeToElement(new
             {
                 questionText = "updated fixture question"
             });
 
-            var updated = await service.UpdateQuestionAsync(fixture.Question.Id.ToString(), patch);
+            var updated = await crud.UpdateQuestionAsync(fixture.Question.Id.ToString(), patch);
 
             Assert.Equal("updated fixture question", updated.QuestionText);
             Assert.Equal(fixture.Question.Id, updated.Id);
-            var usage = await service.QuestionUsageAsync(fixture.Question.Id.ToString());
+            var usageStore = new QuestionUsageStore(db);
+            var usage = await usageStore.QuestionUsageAsync(fixture.Question.Id.ToString());
             Assert.Contains(usage, u => u.Id == fixture.Match.Id);
         }
         finally

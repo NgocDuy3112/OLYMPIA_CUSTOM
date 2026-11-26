@@ -8,6 +8,7 @@ using AOC.Api.Modules.Live;
 using AOC.Api.Modules.Live.TieBreak;
 using AOC.Api.Modules.Matches;
 using AOC.Api.Modules.Questions;
+using AOC.Api.Modules.Questions.Reads;
 using AOC.Api.Modules.Standings;
 using AOC.Api.Realtime;
 using AOC.Domain.Contracts;
@@ -87,7 +88,7 @@ public class LiveMatchGuardTests
             db, new StandingsService(db), NullLogger<MatchesService>.Instance);
         var reader = new LiveReader(db);
         var tieBreak = new TieBreakService(
-            db, new QuestionsService(db), reader, hub);
+            db, new QuestionReadStore(db), reader, hub);
 
         var services = new ServiceCollection();
         services.AddSingleton(db);

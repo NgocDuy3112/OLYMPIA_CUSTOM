@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using AOC.Api.Http;
 using AOC.Api.Modules.Matches;
-using AOC.Api.Modules.Questions;
+using AOC.Api.Modules.Questions.Reads;
 using AOC.Api.Realtime;
 using AOC.Domain.Contracts;
 using AOC.Domain.Gameplay.Turns;
@@ -12,7 +12,7 @@ namespace AOC.Api.Modules.Live.TieBreak;
 
 public sealed class TieBreakService(
     AOCDbContext db,
-    QuestionsService questions,
+    QuestionReadStore questions,
     LiveReader reader,
     MatchHubRegistry hubs)
 {

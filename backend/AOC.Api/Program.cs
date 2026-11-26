@@ -81,8 +81,10 @@ builder.Services.AddScoped<LiveReader>();
 builder.Services.AddScoped<TieBreakService>();
 builder.Services.AddScoped<DraftWriter>();
 builder.Services.AddScoped<QuestionsService>();
+builder.Services.AddScoped<AOC.Api.Modules.Questions.Reads.QuestionReadStore>();
+builder.Services.AddScoped<AOC.Api.Modules.Questions.Reads.QuestionUsageStore>();
 builder.Services.AddScoped<AOC.Api.Modules.Questions.Reads.IQuestionReads>(
-    sp => sp.GetRequiredService<QuestionsService>());
+    sp => sp.GetRequiredService<AOC.Api.Modules.Questions.Reads.QuestionReadStore>());
 builder.Services.AddScoped<MatchDirectImportService>();
 builder.Services.AddScoped<GameplayReadService>();
 builder.Services.AddScoped<McpKeysService>();
@@ -219,7 +221,7 @@ static object BuildMcpTools(ModelContextProtocol.Server.RequestContext<ModelCont
 {
     var services = context.Services;
     return new AOC.Api.Modules.Mcp.McpTools(
-        services.GetRequiredService<AOC.Api.Modules.Questions.QuestionsService>(),
+        services.GetRequiredService<AOC.Api.Modules.Questions.Reads.QuestionReadStore>(),
         services.GetRequiredService<AOC.Api.Modules.Tournaments.TournamentsService>(),
         services.GetRequiredService<AOC.Infrastructure.Data.AOCDbContext>(),
         services.GetRequiredService<AOC.Infrastructure.Audit.AuditService>(),

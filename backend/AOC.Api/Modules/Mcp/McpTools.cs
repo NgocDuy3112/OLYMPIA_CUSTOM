@@ -5,6 +5,7 @@ using ModelContextProtocol.Server;
 using AOC.Api.Http;
 using AOC.Domain.Contracts;
 using AOC.Api.Modules.Questions;
+using AOC.Api.Modules.Questions.Reads;
 using AOC.Api.Modules.McpKeys;
 using AOC.Api.Modules.Tournaments;
 using AOC.Api.Shared;
@@ -15,7 +16,7 @@ using AOC.Infrastructure.Data.Entities;
 namespace AOC.Api.Modules.Mcp;
 
 public sealed class McpTools(
-    QuestionsService questions,
+    QuestionReadStore questions,
     TournamentsService tournaments,
     AOCDbContext db,
     AuditService audit,

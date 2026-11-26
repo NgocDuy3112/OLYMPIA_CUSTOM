@@ -122,7 +122,7 @@ public static partial class QuestionRoutes
             var kinds = kindsRaw?.Split(',').Select(k => ParseKind(k)).Where(k => k is not null)
                 .Select(k => k!.Value).ToList();
 
-            var service = http.RequestServices.GetRequiredService<QuestionsService>();
+            var service = http.RequestServices.GetRequiredService<QuestionReadStore>();
             var page = Pagination.ParsePage(query, 500);
             var items = await service.ListForAssemblyAsync(
                 kinds, query.GetValueOrDefault("bucket"), query.GetValueOrDefault("search"), page);
@@ -171,7 +171,8 @@ public static partial class QuestionRoutes
             var questionId = Validate.RouteUuid(http, "questionId");
             var service = http.RequestServices.GetRequiredService<QuestionsService>();
             await service.RequireQuestionAsync(questionId);
-            var items = await service.QuestionUsageAsync(questionId);
+            var usage = http.RequestServices.GetRequiredService<QuestionUsageStore>();
+            var items = await usage.QuestionUsageAsync(questionId);
             return Results.Json(new { items }, JsonApi.Options);
         });
 
