@@ -150,6 +150,11 @@ export interface HubOptions {
  * Frames are only delivered while connected; after a drop the caller must
  * resync because the server does not replay missed frames. `generation`
  * changes on every successful (re)connect so a consumer can refetch exactly once.
+ *
+ * `invoke` is for fast acknowledgements only — every call is bounded by
+ * `INVOKE_TIMEOUT_MS` (8 s). Never route a long turn (assistant reply, export,
+ * anything the server streams over seconds) through it: it would time out
+ * mid-flight and leave the caller with a phantom failure.
  */
 export function useHubInvoker(
     path: string | null,
