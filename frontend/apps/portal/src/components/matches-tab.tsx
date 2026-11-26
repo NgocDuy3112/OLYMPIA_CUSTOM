@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { errorMessage } from "@shared/lib/error-text"
 import { ErrorPanel, ListSkeleton } from "@/components/page"
 import { allowedSeatsOf, seatsPhrase } from "@/lib/tournaments"
+import { useMe } from "@/lib/session"
 import {
     useDeleteMatch,
     useEjectSeat,
@@ -41,6 +42,8 @@ export function MatchesTab({
     const rotate = useRotateMatchCode(tournamentId)
     const eject = useEjectSeat(tournamentId)
     const remove = useDeleteMatch(tournamentId)
+    const me = useMe()
+    const isAdmin = me.data?.role === "ADMIN"
     const allowedSeats = allowedSeatsOf(tournament.format)
 
     const [creating, setCreating] = useState(false)
@@ -191,16 +194,18 @@ export function MatchesTab({
                             <TableCell className="pr-6 text-right">
                                 <div className="flex items-center justify-end gap-1">
                                     {statusSlot}
-                                    <Button
-                                        size="icon-sm"
-                                        variant="ghost"
-                                        aria-label={`Delete match ${match.label}`}
-                                        title={deleteTitle}
-                                        disabled={match.status !== "UPCOMING" || remove.isPending}
-                                        onClick={() => setDeleting(match)}
-                                    >
-                                        <Trash2 className="size-3.5" aria-hidden />
-                                    </Button>
+                                    {isAdmin && (
+                                        <Button
+                                            size="icon-sm"
+                                            variant="ghost"
+                                            aria-label={`Delete match ${match.label}`}
+                                            title={deleteTitle}
+                                            disabled={match.status !== "UPCOMING" || remove.isPending}
+                                            onClick={() => setDeleting(match)}
+                                        >
+                                            <Trash2 className="size-3.5" aria-hidden />
+                                        </Button>
+                                    )}
                                 </div>
                             </TableCell>
                         </TableRow>

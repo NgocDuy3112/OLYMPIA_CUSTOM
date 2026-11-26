@@ -8,6 +8,7 @@ import type { TournamentDetail } from "@/lib/tournament"
 
 
 const TOURNAMENT = "t1"
+const ME_URL = "GET /portal/auth/me"
 const MATCHES_URL = `GET /portal/tournaments/${TOURNAMENT}/matches?limit=100`
 const ENROLLED_URL = `GET /portal/tournaments/${TOURNAMENT}/players`
 const CODES_URL = `GET /portal/tournaments/${TOURNAMENT}/match-codes`
@@ -36,13 +37,21 @@ const match = (over: Partial<Record<string, unknown>> = {}) => ({
 
 const roster = { items: [{ userId: "u1", displayName: "An", email: "an@example.test", emailVerified: true, group: null, enrolledAt: "" }] }
 
-const draw = (routes: Record<string, { body: unknown; status?: number }>) =>
+const me = (role: "ADMIN" | "OPERATOR") => ({
+    body: { id: "u0", username: "root", displayName: "Root", role, emailVerified: true, totpEnabled: false, avatarUrl: null },
+})
+
+const draw = (
+    routes: Record<string, { body: unknown; status?: number }>,
+    role: "ADMIN" | "OPERATOR" = "ADMIN"
+) =>
     renderWithProviders(
         <MemoryRouter>
             <MatchesTab tournamentId={TOURNAMENT} tournament={tournament} seats={4} />
         </MemoryRouter>,
         {
             routes: {
+                [ME_URL]: me(role),
                 [MATCHES_URL]: { body: { items: [match()], total: 1, limit: 100, offset: 0 } },
                 [ENROLLED_URL]: { body: roster },
                 ...routes,
@@ -171,6 +180,14 @@ describe("deleting a match", () => {
 
         await waitFor(() => expect(callOf(fetchMock!, DELETE_URL("m1"))).toBeTruthy())
         await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+    })
+
+    it("offers no delete to an operator — the endpoint is admin-only", async () => {
+        const { fetchMock } = draw({ [CODES_URL]: { body: { items: [] } } }, "OPERATOR")
+
+        expect(await screen.findByText("Bảng 1")).toBeInTheDocument()
+        await waitFor(() => expect(callOf(fetchMock!, ME_URL)).toBeTruthy())
+        expect(screen.queryByRole("button", { name: "Delete match Bảng 1" })).toBeNull()
     })
 
     it("offers no delete once the match is under way", async () => {
