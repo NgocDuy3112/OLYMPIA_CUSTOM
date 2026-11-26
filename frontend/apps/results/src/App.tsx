@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { BrowserRouter, NavLink, Navigate, Outlet, Route, Routes, useNavigate, useParams } from "react-router-dom"
+import { BrowserRouter, NavLink, Navigate, Outlet, Route, Routes, useNavigate, useOutletContext, useParams } from "react-router-dom"
 import { Link } from "react-router-dom"
 import { ChevronDown, LogOut } from "lucide-react"
 import { cn } from "cn"
@@ -7,7 +7,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { buttonVariants } from "@shared/ui/button"
 import { Button } from "@shared/ui/button"
 import { isUnauthorized, useLogout, useMe } from "@shared/session"
-import { useTournament, useTournamentList } from "@shared/results/api"
+import { useTournament, useTournamentList, type TournamentDetail } from "@shared/results/api"
 import { toMatch, toStandings } from "@shared/results/adapters"
 import { useSchedule, useStandings } from "@shared/results/api"
 import { SchedulePage } from "@shared/results/SchedulePage"
@@ -139,6 +139,10 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
     )
 }
 
+interface TournamentContext {
+    tournament: TournamentDetail
+}
+
 function TournamentLayout() {
     const { tournamentId } = useParams()
     const query = useTournament(tournamentId ?? "")
@@ -149,14 +153,13 @@ function TournamentLayout() {
     return (
         <>
             <ResultsNav tournamentId={tournamentId} />
-            <Outlet />
+            <Outlet context={{ tournament: query.data }} />
         </>
     )
 }
 
 function ScheduleRoute() {
-    const { tournamentId } = useParams()
-    const tournament = useTournament(tournamentId ?? "").data!
+    const { tournament } = useOutletContext<TournamentContext>()
     const schedule = useSchedule(tournament.id)
 
     const matches = useMemo(
@@ -167,8 +170,7 @@ function ScheduleRoute() {
 }
 
 function StandingsRoute() {
-    const { tournamentId } = useParams()
-    const tournament = useTournament(tournamentId ?? "").data!
+    const { tournament } = useOutletContext<TournamentContext>()
     const standings = useStandings(tournament.id)
     const schedule = useSchedule(tournament.id)
 
