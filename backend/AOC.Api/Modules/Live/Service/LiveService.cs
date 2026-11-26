@@ -64,15 +64,57 @@ public sealed partial class LiveService
         return new ScoreBoard(rows, tieBreak?.Correct);
     }
 
-    private async Task<List<object>> AnswerRowsOfAsync(MatchEntity match, string roundId, Dictionary<string, object?> view)
+    private async Task<List<object>> AnswerRowsOfAsync(MatchEntity match, string roundId, HashSet<string> activeIds)
     {
         var rows = new List<object>();
         foreach (var question in match.QuestionsList.Where(q => q.RoundId == roundId).OrderBy(q => q.Position))
         {
+            if (!activeIds.Contains(question.Id)) continue;
             if (!Guid.TryParse(question.Id, out var parsed)) continue;
             rows.AddRange(await reader.ReadQuestionAnswersAsync(match.Id, parsed));
         }
         return rows;
+    }
+
+    private static HashSet<string> ActiveQuestionIds(Dictionary<string, object?> projection, object? roundState)
+    {
+        var ids = new HashSet<string>();
+        if (projection.TryGetValue("open", out var openValue) && openValue is List<object?> open)
+        {
+            foreach (var entry in open)
+            {
+                if (entry is Dictionary<string, object?> fields
+                    && fields.TryGetValue("questionId", out var questionId)
+                    && questionId is string id)
+                    ids.Add(id);
+            }
+        }
+        if (projection.TryGetValue("oral", out var oralValue) && oralValue is Dictionary<string, object?> oral
+            && oral.TryGetValue("questionId", out var oralId) && oralId is string oralQuestionId)
+            ids.Add(oralQuestionId);
+        if (roundState is not null && LiveView.RevealedIdOf(roundState) is { } revealed)
+            ids.Add(revealed);
+        return ids;
+    }
+
+    private static HashSet<string> AnswerQuestionIds(HashSet<string> activeIds, string roundId, List<MatchQuestion> questions)
+    {
+        var ids = new HashSet<string>(activeIds);
+        if (roundId == "giai-ma")
+        {
+            var keyword = questions.FirstOrDefault(q => q.Kind == QuestionKind.KEYWORD);
+            if (keyword is not null) ids.Add(keyword.Id);
+        }
+        return ids;
+    }
+
+    private static List<MatchQuestion> ConsoleQuestions(List<MatchQuestion> questions, HashSet<string> activeIds)
+    {
+        if (activeIds.Count == 0) return LiveFacts.PublicQuestions(questions);
+        var byId = questions.ToDictionary(q => q.Id);
+        return LiveFacts.PublicQuestions(questions)
+            .Select(safe => activeIds.Contains(safe.Id) ? byId[safe.Id] : safe)
+            .ToList();
     }
 
     public sealed record ConsoleView(
@@ -102,6 +144,7 @@ public sealed partial class LiveService
         var match = await matches.GetMatchByIdAsync(matchId.ToString());
         var started = live.State.ValueKind == JsonValueKind.Object && live.State.EnumerateObject().Any();
         var waiting = LiveFacts.IsWaitingState(live.State);
+        object? roundState = null;
 
         Dictionary<string, object?> projection;
         if (started && waiting)
@@ -121,6 +164,7 @@ public sealed partial class LiveService
         else if (started)
         {
             var state = LiveState.ParseRoundState(live.RoundId, live.State);
+            roundState = state;
             var board = await ScoreTableAsync(match);
             var view = LiveView.BuildPlayerView(new LiveView.ViewInput(
                 matchId.ToString(),
@@ -137,7 +181,8 @@ public sealed partial class LiveService
                 await RevealedAnswersAsync(matchId, state),
                 board.TieBreak));
             view.Remove("me");
-            view["answers"] = await AnswerRowsOfAsync(match, live.RoundId, view);
+            var answerIds = AnswerQuestionIds(ActiveQuestionIds(view, roundState), live.RoundId, match.QuestionsList);
+            view["answers"] = await AnswerRowsOfAsync(match, live.RoundId, answerIds);
             projection = view;
         }
         else
@@ -162,7 +207,7 @@ public sealed partial class LiveService
             live.Version,
             live.RoundId,
             live.State,
-            match.QuestionsList,
+            ConsoleQuestions(match.QuestionsList, ActiveQuestionIds(projection, roundState)),
             projection,
             LiveFacts.IsRoundEnded(live.RoundId, live.State),
             hub.ConnectedUsers(matchId.ToString()),

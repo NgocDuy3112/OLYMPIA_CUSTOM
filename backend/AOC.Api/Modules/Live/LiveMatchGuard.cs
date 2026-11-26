@@ -56,4 +56,27 @@ public static class LiveMatchGuard
             throw ApiException.NotFound($"tournament {tournamentId} not found");
         return match;
     }
+
+    public static async Task<MatchEntity> RequirePortalWriteAsync(
+        HttpContext http, string tournamentId, string matchId, UserEntity user)
+    {
+        var match = await RequirePairAsync(http, tournamentId, matchId);
+        var matches = http.RequestServices.GetRequiredService<MatchesService>();
+
+        TournamentEntity tournament;
+        try
+        {
+            tournament = await matches.RequireTournamentAsync(match.TournamentId);
+        }
+        catch (MatchError)
+        {
+            throw ApiException.NotFound($"tournament {tournamentId} not found");
+        }
+
+        if (!TournamentAccess.CanView(tournament, user))
+            throw ApiException.NotFound($"tournament {tournamentId} not found");
+        if (!TournamentAccess.CanWrite(tournament, user))
+            throw ApiException.Forbidden("Only the owner or an admin may open the console");
+        return match;
+    }
 }

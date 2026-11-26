@@ -129,30 +129,13 @@ public static class LiveFacts
     private static string StageOf(Flow flow) => flow == Flow.rieng ? "phase1" : "phase2";
 
     public static List<MatchQuestion> PublicQuestions(List<MatchQuestion> questions)
-        => questions.Select(q =>
-        {
-            JsonElement safePayload;
-            if (q.Kind == QuestionKind.CHOICE && q.Payload is QuestionPayload.Choice choice)
-            {
-                safePayload = JsonSerializer.SerializeToElement(
-                    new Dictionary<string, object?> { ["options"] = choice.Options }, Http.JsonApi.Options);
-            }
-            else if (q.Kind == QuestionKind.KEYWORD && q.Payload is QuestionPayload.Keyword keyword)
-            {
-                safePayload = JsonSerializer.SerializeToElement(
-                    new Dictionary<string, object?> { ["codeLength"] = keyword.Code.Length }, Http.JsonApi.Options);
-            }
-            else
-            {
-                Dictionary<string, object?> empty = new();
-                safePayload = JsonSerializer.SerializeToElement(empty, Http.JsonApi.Options);
-            }
+        => questions.Select(q => q with { Payload = PublicPayloadOf(q.Payload) }).ToList();
 
-            var json = JsonSerializer.SerializeToElement(q, JsonDefaults.Options)
-                .Deserialize<Dictionary<string, JsonElement>>()!;
-            json["payload"] = safePayload;
-            return JsonSerializer
-                .SerializeToElement(json, JsonDefaults.Options)
-                .Deserialize<MatchQuestion>(JsonDefaults.Options)!;
-        }).ToList();
+    private static QuestionPayload PublicPayloadOf(QuestionPayload payload) => payload switch
+    {
+        QuestionPayload.Choice choice => new QuestionPayload.Choice(choice.Options, []),
+        QuestionPayload.Keyword keyword => new QuestionPayload.Keyword(new string('*', keyword.Code.Length)),
+        QuestionPayload.Text => new QuestionPayload.Text([]),
+        _ => throw new LiveStateError("unknown question payload shape", ["payload"])
+    };
 }

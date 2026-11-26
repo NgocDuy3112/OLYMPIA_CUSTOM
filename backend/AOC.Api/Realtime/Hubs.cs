@@ -309,7 +309,7 @@ public sealed class ConsoleLiveHub(
 
         try
         {
-            await LiveMatchGuard.RequirePortalAsync(
+            await LiveMatchGuard.RequirePortalWriteAsync(
                 http, ParseTournamentIdFromPath(http), MatchId, user);
         }
         catch (ApiException ex)

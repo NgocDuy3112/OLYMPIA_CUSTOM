@@ -196,7 +196,7 @@ public static class LiveRoutes
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
             var matchId = Validate.RouteUuid(http, "matchId");
-            await LiveMatchGuard.RequirePortalAsync(http, tournamentId, matchId, user);
+            await LiveMatchGuard.RequirePortalWriteAsync(http, tournamentId, matchId, user);
             var service = http.RequestServices.GetRequiredService<LiveService>();
             var payload = await service.ConsoleViewOfAsync(Guid.Parse(matchId));
             if (payload is null) throw ApiException.NotFound("no live round");
