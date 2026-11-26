@@ -2,12 +2,49 @@ import { expect, vi } from "vitest"
 import { render } from "@testing-library/react"
 
 import type { ConsoleFacts } from "@/components/stage/deck"
-import type { LiveResponse, VeDichConsole } from "@/lib/live"
+import type { LiveResponse, VeDichCapabilities, VeDichConsole } from "@/lib/live"
 import { roundModuleOf } from "@/rounds"
+
+export type ProjectionOverride = Omit<Partial<LiveResponse["projection"]>, "capabilities"> & {
+    capabilities?: Partial<VeDichCapabilities>
+}
+
+function capabilitiesOf(
+    mc: VeDichConsole | null,
+    projection: ProjectionOverride,
+    remaining: number | null,
+): VeDichCapabilities {
+    const open = projection.open?.[0] ?? null
+    const hasOpen = open !== null
+    const phase2 = mc?.phase === 2
+    const revealed = mc?.revealed ?? false
+    const started = mc?.clockStarted === true
+    const oral = mc?.openStage === "current"
+    const buzz = mc?.openStage === "buzz"
+    const buzzer = mc?.buzzerId ?? null
+    const counting = Boolean(open?.deadlineAt) && (remaining ?? 0) > 0
+    const pending = mc?.pendingQuestionId ?? null
+    const powersLeft = mc?.powersLeft
+    const hasPower = powersLeft === undefined || powersLeft.length > 0
+    const duel = mc?.assignedToId != null
+    return {
+        canOpenQuestion: !hasOpen,
+        canSwitchQuestion: hasOpen && !revealed && !started && buzzer === null,
+        canReveal: hasOpen && !revealed,
+        canStartClock: hasOpen && revealed && !started,
+        canCloseCurrentAnswer: phase2 && hasOpen && oral && started && !counting,
+        canLockBuzz: hasOpen && buzz && buzzer === null && started,
+        canCloseQuestion: mc?.phase === 1 && hasOpen && revealed && started,
+        canResolve: hasOpen && !(phase2 && oral) && (!duel || buzzer !== null || (started && !counting)),
+        canStorePower: phase2 && !hasOpen && pending !== null && hasPower
+            && mc?.turnPowerUsed !== true && (mc?.stagedPower ?? null) === null,
+        canUnstagePower: phase2 && !hasOpen && pending !== null && (mc?.stagedPower ?? null) !== null,
+    }
+}
 
 export function facts(
     over: Partial<ConsoleFacts> = {},
-    projection: Partial<LiveResponse["projection"]> = {},
+    projection: ProjectionOverride = {},
     mc: unknown = null,
     questions: LiveResponse["questions"] = [],
     roundId = "khoi-dong",
@@ -26,6 +63,10 @@ export function facts(
             table: [{ id: "u1", displayName: "An", points: 10, rank: 1 }],
             hintAnswers: {},
             ...projection,
+            capabilities: {
+                ...capabilitiesOf(mc as VeDichConsole | null, projection, over.remaining ?? 30),
+                ...projection.capabilities,
+            },
         },
         roundEnded: false,
         connected: [],
@@ -69,7 +110,7 @@ export function facts(
 export function renderRound(
     roundId: string,
     over: Partial<ConsoleFacts> = {},
-    projection: Partial<LiveResponse["projection"]> = {},
+    projection: ProjectionOverride = {},
     mc: unknown = null,
     questions: LiveResponse["questions"] = [],
 ): ConsoleFacts {

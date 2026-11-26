@@ -1,4 +1,4 @@
-import type { ConsoleQuestion, QuestionAnswerRow, VeDichConsole } from "@/lib/live"
+import type { ConsoleQuestion, QuestionAnswerRow, VeDichCapabilities, VeDichConsole } from "@/lib/live"
 import type { ScreenCore } from "@/rounds/types"
 
 export type VeDichPickCtx = ScreenCore & {
@@ -24,3 +24,9 @@ export type VeDichChungCtx = VeDichPlayCtx & { rows: QuestionAnswerRow[] }
 export type VeDichRiengPickCtx = VeDichPickCtx
 
 export type VeDichChungPickCtx = VeDichPickCtx
+
+export function capsOf(projection: ScreenCore["v"]["projection"]): VeDichCapabilities {
+    const caps = projection.capabilities
+    if (caps === undefined) throw new Error("the ve-dich projection carries no capabilities")
+    return caps
+}

@@ -468,7 +468,8 @@ describe("VeDichRieng — buttons match what the engine will accept", () => {
         it("after Khoá chuông — nobody buzzed, the race is over", async () => {
             const user = userEvent.setup()
             const f = renderRound(
-                "ve-dich", { verdictOf: () => "CORRECT", hetLuot: vi.fn() }, raced, duel(),
+                "ve-dich", { verdictOf: () => "CORRECT", hetLuot: vi.fn() },
+                { ...raced, capabilities: { canResolve: true } }, duel(),
             )
 
             expect(screen.getByRole("button", { name: "Khoá chuông" })).toBeInTheDocument()
@@ -497,14 +498,12 @@ describe("VeDichRieng — buttons match what the engine will accept", () => {
             expect(f.hetLuot).toHaveBeenCalledOnce()
         })
 
-        it("while the race is still live the engine answers RACE_IN_PROGRESS", () => {
-            // The view has no "locked" fact, so the console cannot tell a locked race
-            // from a running one: the button stays pressable and the engine guards it.
+        it("while the race is still live the engine withholds the resolve", () => {
             renderRound(
                 "ve-dich", { verdictOf: () => "CORRECT" }, raced, duel(),
             )
 
-            expect(screen.getByRole("button", { name: "Hết lượt" })).toBeInTheDocument()
+            expect(screen.queryByRole("button", { name: "Hết lượt" })).toBeNull()
         })
     })
 })

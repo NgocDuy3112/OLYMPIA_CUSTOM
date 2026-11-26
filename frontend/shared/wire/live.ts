@@ -62,6 +62,19 @@ export interface PlayerConsole {
     powersLeft?: PowerKind[]
 }
 
+export interface VeDichCapabilities {
+    canOpenQuestion: boolean
+    canSwitchQuestion: boolean
+    canReveal: boolean
+    canStartClock: boolean
+    canCloseCurrentAnswer: boolean
+    canLockBuzz: boolean
+    canCloseQuestion: boolean
+    canResolve: boolean
+    canStorePower: boolean
+    canUnstagePower: boolean
+}
+
 export interface RevealedContestant {
     userId: string
     name: string
@@ -137,6 +150,7 @@ export interface PlayerView {
         answeredMs?: number | null
     }>
     tiebreak?: TieBreakView | null
+    capabilities?: VeDichCapabilities
     audioGate?: { allowed: string[] }
     mediaPolicy?: MediaPolicy
     revealed?: { contestants: RevealedContestant[] }

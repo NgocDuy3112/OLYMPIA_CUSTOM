@@ -15,6 +15,7 @@ import type {
     Projection,
     QuestionAnswerRow,
     RawLiveResponse,
+    VeDichCapabilities,
     VeDichConsole,
 } from "@shared/wire/live"
 import type { ConsoleQuestion, SanitizedQuestion } from "@shared/wire/questions"
@@ -30,6 +31,7 @@ export type {
     QuestionAnswerRow,
     RawLiveResponse,
     SanitizedQuestion,
+    VeDichCapabilities,
     VeDichConsole,
 }
 

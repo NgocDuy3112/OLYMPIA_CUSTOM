@@ -5,11 +5,12 @@ import type { LiveAction } from "@/lib/live-actions"
 import { COPY } from "@shared/deck/copy"
 import { turnChipHint, turnChipsOf } from "@shared/deck/ve-dich-board"
 import { formatDurationMs, timerRemainingOf } from "@shared/lib/clock"
-import type { VeDichRiengCtx } from "./stage"
+import { capsOf, type VeDichRiengCtx } from "./stage"
 
 export function VeDichPlayRieng({ ctx }: { ctx: VeDichRiengCtx }) {
     const { v, remaining, baseCards, consoleVeDich, flash } = ctx
     const projection = v.projection
+    const caps = capsOf(projection)
 
     const openNow = projection.open[0] ?? null
     const boardCells = projection.board ?? []
@@ -28,42 +29,12 @@ export function VeDichPlayRieng({ ctx }: { ctx: VeDichRiengCtx }) {
     if (consoleVeDich?.buzzerId) buzzerMissing = ctx.verdictOf(qid, consoleVeDich.buzzerId) === null
     const turnOpen = needsVerdict || buzzerMissing
 
-    const racing = consoleVeDich?.power === "ASSIGN"
-    // `openStage` names the window's mode, not that it is running: the engine
-    // only takes a lock once the window started (LockBuzzWindow: HasStarted).
-    const canLockBuzz = consoleVeDich?.openStage === "buzz" && consoleVeDich.buzzerId === null
-        && consoleVeDich.clockStarted === true
-
-    let counting = false
-    if (openNow?.deadlineAt && (remaining ?? 0) > 0) counting = true
-
-    // The engine only opens a question that is still pending, and only switches
-    // before the window started (Open/SwitchPhase2Question: INVALID_QUESTION,
-    // ALREADY_OPEN). A played question can never come back onto the stage.
-    const canSwitch = openNow !== null && !revealed
-        && consoleVeDich?.clockStarted !== true && consoleVeDich?.buzzerId == null
-
-    let powerStorable = true
-    if (consoleVeDich?.phase !== 2) powerStorable = false
-    if (openNow !== null) powerStorable = false
-    if (consoleVeDich?.turnPlayerId === null) powerStorable = false
-    // A power is staged against the turn's remaining picks: with none left the
-    // engine refuses every declaration (NOTHING_OPEN).
+    const [assignArmed, setAssignArmed] = useState(false)
+    const armed = assignArmed && caps.canStorePower
+    const turnPlayerId = consoleVeDich?.turnPlayerId ?? null
     const pendingQuestionId = consoleVeDich?.pendingQuestionId ?? null
-    if (pendingQuestionId === null) powerStorable = false
-    // One power per turn, re-armed every turn — only an empty set locks it.
-    // (An absent field is not "empty": keep the buttons live.)
     const turnPowers = consoleVeDich?.powersLeft
     const hasPower = turnPowers === undefined || turnPowers.length > 0
-    if (!hasPower) powerStorable = false
-    // Staging spends the turn's only power (engine: ONE_POWER_PER_TURN), so a
-    // used or already-staged power keeps the buttons inert until it is cancelled.
-    const stagedPower = consoleVeDich?.stagedPower ?? null
-    if (consoleVeDich?.turnPowerUsed || stagedPower !== null) powerStorable = false
-    const [assignArmed, setAssignArmed] = useState(false)
-    let armed = assignArmed
-    if (!powerStorable) armed = false
-    const turnPlayerId = consoleVeDich?.turnPlayerId ?? null
     const declarePower = (power: "STAR" | "ASSIGN" | null, targetId?: string) => {
         const playerId = consoleVeDich?.turnPlayerId
         if (!playerId) return
@@ -71,14 +42,11 @@ export function VeDichPlayRieng({ ctx }: { ctx: VeDichRiengCtx }) {
         setAssignArmed(false)
     }
     let stageStar: (() => void) | undefined
-    if (powerStorable) stageStar = () => declarePower("STAR")
+    if (caps.canStorePower) stageStar = () => declarePower("STAR")
     let toggleAssign: (() => void) | undefined
-    if (powerStorable) toggleAssign = () => setAssignArmed((was) => !was)
-    // Cancelling hands the turn's power back (engine: DeclarePower(power: null)).
+    if (caps.canStorePower) toggleAssign = () => setAssignArmed((was) => !was)
     let unstagePower: (() => void) | undefined = undefined
-    if (openNow === null && stagedPower !== null && turnPlayerId !== null && pendingQuestionId !== null) {
-        unstagePower = () => declarePower(null)
-    }
+    if (caps.canUnstagePower) unstagePower = () => declarePower(null)
     let starSpent = false
     if (!hasPower) starSpent = true
     let starContent: string | undefined
@@ -93,32 +61,12 @@ export function VeDichPlayRieng({ ctx }: { ctx: VeDichRiengCtx }) {
     }
 
     let startClock: (() => void) | undefined = undefined
-    if (openNow) {
-        if (revealed) {
-            if (consoleVeDich?.openStage === "current") {
-                // The clock is a budget, not a stopwatch: once it started the engine
-                // refuses a second start (ALREADY_OPEN), expired or not.
-                if (!counting && consoleVeDich.clockStarted !== true) {
-                    startClock = () => ctx.send({ kind: "ve-dich.startClock" })
-                }
-            }
-        }
-    }
+    if (caps.canStartClock) startClock = () => ctx.send({ kind: "ve-dich.startClock" })
 
     let closeCurrent: (() => void) | undefined = undefined
-    if (consoleVeDich?.openStage === "current") {
-        if (!racing) {
-            let clockDone = false
-            if (consoleVeDich.clockStarted) {
-                if (!counting) clockDone = true
-            }
-            if (clockDone) closeCurrent = () => ctx.send({ kind: "ve-dich.closeCurrentAnswer" })
-        }
-    }
-    // Clearing an already-empty turn would send an empty batch for nothing; with
-    // no pending picks the strip is already back at the pick screen.
+    if (caps.canCloseCurrentAnswer) closeCurrent = () => ctx.send({ kind: "ve-dich.closeCurrentAnswer" })
     let clearPicks: (() => void) | undefined = undefined
-    if (openNow === null && pendingQuestionId !== null) {
+    if (caps.canOpenQuestion && pendingQuestionId !== null) {
         clearPicks = () => {
             const playerId = consoleVeDich?.turnPlayerId
             if (!playerId) return
@@ -126,18 +74,11 @@ export function VeDichPlayRieng({ ctx }: { ctx: VeDichRiengCtx }) {
         }
     }
     let lockBuzz: (() => void) | undefined = undefined
-    if (canLockBuzz) lockBuzz = () => ctx.send({ kind: "ve-dich.lockBuzz" })
+    if (caps.canLockBuzz) lockBuzz = () => ctx.send({ kind: "ve-dich.lockBuzz" })
     let buzzText = "—"
     if (consoleVeDich?.buzzerMs != null) buzzText = formatDurationMs(consoleVeDich.buzzerMs)
-    // Resolving waits for the oral window to be closed ("Mở chuông" turns it into
-    // the buzz window; the engine refuses while it is still oral — ALREADY_OPEN).
-    // An ASSIGN duel is deliberately NOT gated on `open.Power`: that flag stays
-    // "ASSIGN" for the whole question, and the view carries no "locked" fact, so
-    // a race gate here could not tell a locked race from a running one. The
-    // engine's RACE_IN_PROGRESS is the guard while the two players are racing;
-    // every settled race (locked, buzzed and judged, or timed out) resolves here.
-    let endTurn: (() => void) | undefined = () => ctx.hetLuot()
-    if (turnOpen || consoleVeDich?.openStage === "current") endTurn = undefined
+    let endTurn: (() => void) | undefined = undefined
+    if (!turnOpen && caps.canResolve) endTurn = () => ctx.hetLuot()
     const timerRemaining = timerRemainingOf(openNow, remaining)
 
     // A verdict needs someone to grade: the rail's ticked card, or the screen's
@@ -175,12 +116,12 @@ export function VeDichPlayRieng({ ctx }: { ctx: VeDichRiengCtx }) {
                     label: COPY.powerStar,
                     onClick: stageStar,
                     content: starContent,
-                    muted: !powerStorable,
+                    muted: !caps.canStorePower,
                 },
                 {
                     label: COPY.powerAssign,
                     onClick: toggleAssign,
-                    muted: !powerStorable,
+                    muted: !caps.canStorePower,
                 },
                 {
                     label: COPY.powerNone,
@@ -236,8 +177,8 @@ export function VeDichPlayRieng({ ctx }: { ctx: VeDichRiengCtx }) {
                             chips={turnChips.map((chip) => {
                                 const isOpen = chip.where === "open"
                                 let clickable = false
-                                if (isOpen) clickable = !revealed
-                                else if (chip.where === "waiting") clickable = openNow === null || canSwitch
+                                if (isOpen) clickable = caps.canReveal
+                                else if (chip.where === "waiting") clickable = caps.canOpenQuestion || caps.canSwitchQuestion
                                 return {
                                     id: chip.questionId,
                                     label: String(chip.value),

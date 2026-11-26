@@ -3,11 +3,12 @@ import { backToLobbyAction } from "@/components/stage/actions"
 import type { LiveAction } from "@/lib/live-actions"
 import { COPY } from "@shared/deck/copy"
 import { turnChipHint, turnChipsOf } from "@shared/deck/ve-dich-board"
-import type { VeDichChungCtx } from "./stage"
+import { capsOf, type VeDichChungCtx } from "./stage"
 
 export function VeDichPlayChung({ ctx }: { ctx: VeDichChungCtx }) {
     const { v, remaining, baseCards, consoleVeDich, flash, rows } = ctx
     const projection = v.projection
+    const caps = capsOf(projection)
 
     const openNow = projection.open[0] ?? null
     const boardCells = projection.board ?? []
@@ -42,15 +43,7 @@ export function VeDichPlayChung({ ctx }: { ctx: VeDichChungCtx }) {
     let counting = false
     if (openNow?.deadlineAt && (remaining ?? 0) > 0) counting = true
     let startClock: (() => void) | undefined = undefined
-    if (openNow) {
-        if (revealed) {
-            // The clock is a budget, not a stopwatch: once it started the engine
-            // refuses a second start (ALREADY_OPEN), expired or not.
-            if (!counting && consoleVeDich?.clockStarted !== true) {
-                startClock = () => ctx.send({ kind: "ve-dich.startClock" })
-            }
-        }
-    }
+    if (caps.canStartClock) startClock = () => ctx.send({ kind: "ve-dich.startClock" })
     let revealAnswer: (() => void) | undefined = undefined
     if (openNow) {
         let clockDone = false
@@ -63,27 +56,18 @@ export function VeDichPlayChung({ ctx }: { ctx: VeDichChungCtx }) {
     if (openNow?.deadlineAt) timerRemaining = remaining
 
     const unjudged = rows.some((row) => row.verdict === null)
-    // The controller opens any staged question at will — there is no "Câu tiếp".
     // Leaving an open question is refused while it may still be costing someone
     // plays: a running clock has contestants who have not submitted yet (they
     // are absent from `rows`), and anyone who did submit must be graded first.
     const submitted = rows.length > 0
     const settled = submitted && !unjudged
     const untouched = !submitted && !counting && !consoleVeDich?.clockStarted
-    const canSwitch = !openNow || settled || untouched
+    const canSwitch = caps.canOpenQuestion || settled || untouched
 
-    // "Hết lượt" closes the question currently on stage (hetLuotAction: phase 1 →
-    // ve-dich.closeQuestion) and the turn moves on to the next staged pick. The
-    // engine only closes a question that was revealed and had its clock started
-    // (NOT_REVEALED / CLOCK_NOT_STARTED), so the button stays inert until then —
-    // grading only exists while the question is open (VeDichJudge needs it) and
-    // answers keep arriving until the clock runs out, so it waits for both. It
-    // matches the strip's own switch rule (canSwitch).
-    // With nothing open the batch is done (the last close, or a strip nobody
-    // opened) and there is nothing left to close.
-    let endTurn: (() => void) | undefined = () => ctx.hetLuot()
-    if (openNow === null || unjudged || counting) endTurn = undefined
-    if (consoleVeDich?.clockStarted !== true) endTurn = undefined
+    // Grading only exists while the question is open (VeDichJudge needs it) and
+    // answers keep arriving until the clock runs out, so Hết lượt waits for both.
+    let endTurn: (() => void) | undefined = undefined
+    if (caps.canCloseQuestion && !unjudged && !counting) endTurn = () => ctx.hetLuot()
 
     // The rail arrives as plain cards: stamp the ticked card's ring here so a
     // click on a card always shows which player it marked (the rieng screen does
@@ -127,11 +111,8 @@ export function VeDichPlayChung({ ctx }: { ctx: VeDichChungCtx }) {
                         <QuestionChips
                             chips={turnChips.map((chip) => {
                                 const isOpen = chip.where === "open"
-                                // Only a question still waiting can be opened: a played
-                                // one left PendingPicks for good (OpenPending:
-                                // INVALID_QUESTION), so its chip is a record, not a button.
                                 let clickable = false
-                                if (isOpen) clickable = !revealed
+                                if (isOpen) clickable = caps.canReveal
                                 else if (chip.where === "waiting") clickable = canSwitch
                                 return {
                                     id: chip.questionId,
@@ -144,11 +125,7 @@ export function VeDichPlayChung({ ctx }: { ctx: VeDichChungCtx }) {
                             onSelect={(id: string) => {
                                 const actions: LiveAction[] = []
                                 if (openNow === null || id !== openNow.questionId) {
-                                    // Moving on: an untouched question is swapped back
-                                    // into the batch by OpenPending itself; only a
-                                    // clocked one is closed first (CloseQuestion refuses
-                                    // a question whose clock never started).
-                                    if (openNow !== null && consoleVeDich?.clockStarted === true) {
+                                    if (caps.canCloseQuestion) {
                                         actions.push({ kind: "ve-dich.closeQuestion" })
                                     }
                                     actions.push({ kind: "ve-dich.openPending", questionId: id })
