@@ -22,7 +22,7 @@ public sealed class TieBreakStore(AOCDbContext db, Guid matchId)
 
         if (row is null) throw new LiveNotFoundError(matchId.ToString());
 
-        var result = await fn(new PgLiveTx(db, matchId, row), new TieBreakTx(row));
+        var result = await fn(new PgLiveTx(db, matchId, row, []), new TieBreakTx(row));
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
         return result;

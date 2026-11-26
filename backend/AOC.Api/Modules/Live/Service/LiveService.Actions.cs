@@ -21,7 +21,9 @@ public sealed partial class LiveService
         Guid ActorId,
         string Now);
 
-    public async Task<LiveRecord<JsonElement>> ApplyLiveActionAsync(
+    public sealed record ActionApplied(LiveRecord<JsonElement> Record, List<VerdictChange> VerdictChanges);
+
+    public async Task<ActionApplied> ApplyLiveActionAsync(
         Guid tournamentId, Guid matchId, int expectedVersion, LiveAction action, Guid actorId)
     {
         var match = await matches.GetMatchAsync(tournamentId.ToString(), matchId.ToString());
@@ -195,7 +197,7 @@ public sealed partial class LiveService
         });
 
         await BroadcastSfxAsync(matchId, action, next);
-        return next;
+        return new ActionApplied(next, store.VerdictChanges);
     }
 
     public static ButPhaState ButPhaEngineSeed(

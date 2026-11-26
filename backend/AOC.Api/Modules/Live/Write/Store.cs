@@ -11,6 +11,8 @@ namespace AOC.Api.Modules.Live;
 
 public sealed class PgLiveStore(AOCDbContext db, Guid matchId) : ILiveStore<JsonElement>
 {
+    public List<VerdictChange> VerdictChanges { get; } = [];
+
     public async Task<T> Transact<T>(Func<ILiveTx<JsonElement>, Task<T>> fn)
     {
         await using var transaction = await db.Database.BeginTransactionAsync();
@@ -21,13 +23,15 @@ public sealed class PgLiveStore(AOCDbContext db, Guid matchId) : ILiveStore<Json
 
         if (row is null) throw new LiveNotFoundError(matchId.ToString());
 
-        var result = await fn(new PgLiveTx(db, matchId, row));
+        var result = await fn(new PgLiveTx(db, matchId, row, VerdictChanges));
         await transaction.CommitAsync();
         return result;
     }
 }
 
-internal sealed class PgLiveTx(AOCDbContext db, Guid matchId, MatchLiveEntity row) : ILiveTx<JsonElement>
+internal sealed class PgLiveTx(
+    AOCDbContext db, Guid matchId, MatchLiveEntity row, List<VerdictChange> verdictChanges)
+    : ILiveTx<JsonElement>
 {
     public Task<LiveRecord<JsonElement>> Load() => Task.FromResult(new LiveRecord<JsonElement>(
         row.Version,
@@ -121,6 +125,10 @@ internal sealed class PgLiveTx(AOCDbContext db, Guid matchId, MatchLiveEntity ro
                 });
                 continue;
             }
+            if (target.Verdict is { } previous && previous != judge.Verdict)
+                verdictChanges.Add(new VerdictChange(
+                    row.RoundId, judge.QuestionId, judge.UserId, previous, judge.Verdict));
+
             target.Verdict = judge.Verdict;
             target.PointsAwarded = judge.PointsAwarded;
         }
