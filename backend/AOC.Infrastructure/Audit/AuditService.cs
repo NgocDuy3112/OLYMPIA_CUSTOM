@@ -17,13 +17,19 @@ public sealed class AuditEvent
     public string? UserAgent { get; set; }
 }
 
-public sealed class AuditService(AOCDbContext db, ILogger<AuditService> logger)
+public sealed class AuditService(
+    AOCDbContext db,
+    ILogger<AuditService> logger,
+    IEnumerable<IAuditObserver> observers)
 {
+    private static readonly TimeSpan ObserverTimeout = TimeSpan.FromSeconds(5);
+
     public async Task AuditAsync(AuditEvent e)
     {
+        AuditRecord record;
         try
         {
-            db.AuditEvents.Add(new AuditEventEntity
+            var entity = new AuditEventEntity
             {
                 Action = e.Action,
                 ActorId = e.ActorId,
@@ -32,12 +38,32 @@ public sealed class AuditService(AOCDbContext db, ILogger<AuditService> logger)
                 Details = e.Details is null ? null : JsonSerializer.SerializeToElement(e.Details, JsonDefaults.Options),
                 Ip = e.Ip,
                 UserAgent = e.UserAgent
-            });
+            };
+            db.AuditEvents.Add(entity);
             await db.SaveChangesAsync();
+
+            record = new AuditRecord(entity.Id, entity.Action, entity.ActorId, entity.TargetId,
+                entity.MatchId, entity.Details, entity.Ip, entity.UserAgent, entity.CreatedAt);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "audit write failed for \"{Action}\"", e.Action);
+            return;
+        }
+
+        foreach (var observer in observers)
+            _ = NotifyAsync(observer, record);
+    }
+
+    private async Task NotifyAsync(IAuditObserver observer, AuditRecord record)
+    {
+        try
+        {
+            await observer.OnAuditWrittenAsync(record).WaitAsync(ObserverTimeout);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "audit observer failed for \"{Action}\"", record.Action);
         }
     }
 }

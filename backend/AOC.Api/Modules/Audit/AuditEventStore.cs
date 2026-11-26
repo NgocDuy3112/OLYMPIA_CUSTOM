@@ -33,6 +33,9 @@ public sealed class AuditEventStore(AOCDbContext db)
             .ToListAsync();
     }
 
+    public async Task<AuditEventRow> ReadRowAsync(Guid id)
+        => await Project(db.AuditEvents.AsNoTracking().Where(e => e.Id == id)).SingleAsync();
+
     public async Task<IReadOnlyList<string>> ActionsAsync()
         => await db.AuditEvents.AsNoTracking()
             .Select(e => e.Action)

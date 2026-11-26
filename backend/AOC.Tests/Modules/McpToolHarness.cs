@@ -72,7 +72,7 @@ internal sealed class McpToolHarness : IDisposable
             services.GetRequiredService<MatchTransitionService>(),
             services.GetRequiredService<LiveService>(),
             Hub,
-            new AuditService(Db, NullLogger<AuditService>.Instance),
+            new AuditService(Db, NullLogger<AuditService>.Instance, []),
             new HttpContextAccessor { HttpContext = http });
     }
 

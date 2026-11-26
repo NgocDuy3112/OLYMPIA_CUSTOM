@@ -66,6 +66,9 @@ builder.Services.AddHostedService<AOC.Api.Email.EmailDispatchService>();
 builder.Services.AddSingleton<GoogleOidcService>();
 builder.Services.AddScoped<AOC.Infrastructure.Audit.AuditService>();
 builder.Services.AddSingleton<MatchHubRegistry>();
+builder.Services.AddSingleton<AOC.Api.Realtime.AuditStreamRegistry>();
+builder.Services.AddSingleton<AOC.Infrastructure.Audit.IAuditObserver>(
+    sp => sp.GetRequiredService<AOC.Api.Realtime.AuditStreamRegistry>());
 builder.Services.AddSingleton<AOC.Api.Modules.MatchCodes.ClaimAttemptLimiter>();
 
 builder.Services.AddScoped<AOC.Api.Modules.Auth.AuthService>();
@@ -192,6 +195,7 @@ app.MapRtcRoutes();
 app.MapHub<PlayerLiveHub>("/api/matches/{matchId}/live/stream");
 app.MapHub<ConsoleLiveHub>("/portal/tournaments/{tournamentId}/matches/{matchId}/live/stream");
 app.MapHub<SpectateLiveHub>("/spectate/tournaments/{tournamentId}/matches/{matchId}/live/stream");
+app.MapHub<AuditStreamHub>("/portal/audit/stream");
 
 if (Environment.GetEnvironmentVariable("SKIP_MIGRATIONS") is not ("1" or "true"))
 {

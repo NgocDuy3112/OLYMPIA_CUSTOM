@@ -50,6 +50,11 @@ public static class Protocol
             ["url"] = url
         });
 
+    public static Dictionary<string, object?> Audit(object row)
+        => Envelope("audit_event", null, new AuditFrame(row));
+
+    public sealed record AuditFrame(object Event);
+
     public static Dictionary<string, object?> SfxStop()
         => Envelope("sfx", null, new Dictionary<string, object?> { ["stop"] = true });
 
