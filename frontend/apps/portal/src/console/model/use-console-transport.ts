@@ -69,11 +69,7 @@ export function useConsoleTransport(tournamentId: string, matchId: string): Cons
     }
 
     const userSeats = (matches.data?.items.find((m) => m.id === matchId)?.players ?? [])
-        .flatMap((seat) => {
-            if (!("userId" in seat)) return []
-            if (!seat.userId) return []
-            return [seat.userId]
-        })
+        .map((seat) => seat.userId)
 
     let flash: string | null = null
     if (writer.isError) {

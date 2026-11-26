@@ -22,6 +22,7 @@ const match: MatchSummary = {
     players: [{ kind: "user", userId: "u1", seed: 1 }],
     questions: [],
     assemblyRevision: 3,
+    assembledAt: null,
 }
 
 const callKey = (call: [RequestInfo | URL, RequestInit?]) =>

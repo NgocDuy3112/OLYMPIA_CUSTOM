@@ -5,7 +5,7 @@ import { ApiError, api, type PageResult } from "@shared/lib/api"
 import { Badge } from "@shared/ui/badge"
 import { ComposeDndProvider } from "@/components/compose-group"
 import { MatchDirectImportDialog } from "@/components/match-direct-import-dialog"
-import { useTournament, type MatchSummary } from "@/lib/tournament"
+import { useTournament, type MatchDetail, type MatchSummary } from "@/lib/tournament"
 import { BankPickerPane } from "./match-question/bank-picker-pane"
 import { GroupPanes } from "./match-question/group-panes"
 import { HeaderActions } from "./match-question/header-actions"
@@ -63,7 +63,7 @@ export function MatchQuestionSurface({
     const detail = useQuery({
         queryKey: ["match-detail", tournamentId, match.id],
         queryFn: () =>
-            api<MatchSummary>(`/portal/tournaments/${tournamentId}/matches/${match.id}`),
+            api<MatchDetail>(`/portal/tournaments/${tournamentId}/matches/${match.id}`),
         staleTime: 15_000,
     })
     const lastEvent = detail.data?.assemblyEvents?.[0]

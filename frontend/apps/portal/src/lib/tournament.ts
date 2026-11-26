@@ -64,16 +64,21 @@ export interface MatchSummary {
     scheduledAt: string
     players: MatchSeat[]
     questions: unknown[]
-    assemblyRevision?: number
-    assembledAt?: string | null
-    assemblyEvents?: Array<{
-        id: string
-        revision: number
-        mode: string
-        addedCount: number
-        removedCount: number
-        at: string
-    }>
+    assemblyRevision: number
+    assembledAt: string | null
+}
+
+export interface MatchAssemblyEvent {
+    id: string
+    revision: number
+    mode: string
+    addedCount: number
+    removedCount: number
+    at: string
+}
+
+export interface MatchDetail extends MatchSummary {
+    assemblyEvents: MatchAssemblyEvent[]
 }
 
 interface StandingRow {
