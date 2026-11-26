@@ -2,6 +2,7 @@ import { useCountdown, useServerClock } from "@shared/lib/clock"
 import { fetchOperatorRtcToken, useAudioGate, useHostBroadcast, useMediaPolicy, useRtcPeerControls, useRtcPeerTracks, useRtcRoom, type HostBroadcast, type RtcPeerControlsMap } from "@shared/lib/rtc"
 import { useLive, useLiveAction, type ConsoleQuestion, type LiveResponse, type Projection } from "@/lib/live"
 import type { LiveAction } from "@/lib/live-actions"
+import { collapseKeywordVerdicts } from "@/lib/live-actions"
 import { useMatches } from "@/lib/tournament"
 
 export interface ConsoleTransport {
@@ -58,7 +59,7 @@ export function useConsoleTransport(tournamentId: string, matchId: string): Cons
         writer.mutate(action)
 
     const sendChain = async (actions: LiveAction[]) => {
-        for (const action of actions) {
+        for (const action of collapseKeywordVerdicts(actions)) {
             try {
                 await writer.mutateAsync(action)
             } catch {

@@ -5,6 +5,12 @@ export interface Verdict {
     correct: boolean
 }
 
+export interface KeywordVerdict {
+    playerId: string
+    questionId: string
+    correct: boolean
+}
+
 export type LiveAction =
     | { kind: "giai-ma.start"; playerIds: string[]; hintIds: string[] }
     | { kind: "giai-ma.openHint"; hintId: string }
@@ -13,6 +19,7 @@ export type LiveAction =
     | { kind: "giai-ma.resolveHint"; verdicts: Verdict[] }
     | { kind: "giai-ma.submitKeyword"; playerId: string; questionId: string; text: string; suggestion: "CORRECT" | "INCORRECT" }
     | { kind: "giai-ma.judgeKeyword"; playerId: string; questionId: string; correct: boolean }
+    | { kind: "giai-ma.judgeKeywords"; verdicts: KeywordVerdict[] }
     | { kind: "giai-ma.endRound" }
     | { kind: "giai-ma.lockHints" }
     | { kind: "giai-ma.startKeywordWindow" }
@@ -49,6 +56,7 @@ export type LiveAction =
     | { kind: "ve-dich.openPending"; questionId: string }
     | { kind: "ve-dich.switchQuestion"; questionId: string }
     | { kind: "ve-dich.closeQuestion" }
+    | { kind: "ve-dich.nextQuestion" }
     | { kind: "ve-dich.clearPicks" }
     | { kind: "ve-dich.judge"; playerId: string; correct: boolean }
     | { kind: "round.goTo"; roundId: string }
@@ -56,6 +64,20 @@ export type LiveAction =
     | { kind: "score.adjust"; userId: string; delta: number; reason: string }
     | { kind: "answer.regrade"; questionId: string; playerId: string; delta: number }
     | { kind: "reveal.answer"; questionId: string }
+
+export function collapseKeywordVerdicts(actions: LiveAction[]): LiveAction[] {
+    if (actions.length === 0) return actions
+    const verdicts: KeywordVerdict[] = []
+    for (const action of actions) {
+        if (action.kind !== "giai-ma.judgeKeyword") return actions
+        verdicts.push({
+            playerId: action.playerId,
+            questionId: action.questionId,
+            correct: action.correct,
+        })
+    }
+    return [{ kind: "giai-ma.judgeKeywords", verdicts }]
+}
 
 export function startAction(
     roundId: string,

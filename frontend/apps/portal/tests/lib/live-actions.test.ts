@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { startAction, type LiveAction } from "@/lib/live-actions"
+import { collapseKeywordVerdicts, startAction, type LiveAction } from "@/lib/live-actions"
 import type { ConsoleQuestion } from "@/lib/live"
 
 
@@ -61,5 +61,38 @@ describe("startAction", () => {
             startAction("ve-dich", { playerIds: [], questions: [] }),
         ]
         for (const action of built) expect(action).not.toBeNull()
+    })
+})
+
+describe("collapseKeywordVerdicts", () => {
+    it("sends one batch action when the whole chain is keyword judging", () => {
+        const actions: LiveAction[] = [
+            { kind: "giai-ma.judgeKeyword", playerId: "p1", questionId: "q1", correct: true },
+            { kind: "giai-ma.judgeKeyword", playerId: "p2", questionId: "q1", correct: false },
+        ]
+
+        expect(collapseKeywordVerdicts(actions)).toEqual([
+            {
+                kind: "giai-ma.judgeKeywords",
+                verdicts: [
+                    { playerId: "p1", questionId: "q1", correct: true },
+                    { playerId: "p2", questionId: "q1", correct: false },
+                ],
+            },
+        ])
+    })
+
+    it("leaves a mixed chain untouched", () => {
+        const actions: LiveAction[] = [
+            { kind: "giai-ma.judgeKeyword", playerId: "p1", questionId: "q1", correct: true },
+            { kind: "giai-ma.endRound" },
+        ]
+
+        expect(collapseKeywordVerdicts(actions)).toBe(actions)
+    })
+
+    it("leaves an empty chain untouched", () => {
+        const actions: LiveAction[] = []
+        expect(collapseKeywordVerdicts(actions)).toBe(actions)
     })
 })
