@@ -52,6 +52,45 @@ public abstract class LiveHubBase(MatchHubRegistry registry) : Hub
         stopSubscription = null;
     }
 
+    protected void ArmSessionMonitor(
+        Guid userId, int tokenVersion, IServiceScopeFactory scopes, ILogger logger, Action stop)
+    {
+        var connection = Context;
+        _ = Task.Run(async () =>
+        {
+            while (!connection.ConnectionAborted.IsCancellationRequested)
+            {
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(30), connection.ConnectionAborted);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+
+                try
+                {
+                    using var scope = scopes.CreateScope();
+                    var reader = scope.ServiceProvider.GetRequiredService<LiveReader>();
+                    if (await reader.IsSessionActiveAsync(userId, tokenVersion)) continue;
+                    await PushAsync(Protocol.Error("SESSION_ENDED", "session ended"));
+                    stop();
+                    connection.Abort();
+                    break;
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "session monitor check failed for match {MatchId}", MatchId);
+                }
+            }
+        });
+    }
+
     protected async Task<string> ResolveMatchIdAsync()
     {
         MatchId = ParseMatchId(Context.GetHttpContext()!);
@@ -70,13 +109,13 @@ public sealed class PlayerLiveHub(
     SubmitService submit,
     SessionTokens tokens,
     IHubContext<PlayerLiveHub> self,
-    IServiceScopeFactory scopes)
+    IServiceScopeFactory scopes,
+    ILogger<PlayerLiveHub> logger)
     : LiveHubBase(registry)
 {
     public override async Task OnConnectedAsync()
     {
         var http = Context.GetHttpContext()!;
-        var hubContext = Context;
         ArmSelf(self.Clients.Client(Context.ConnectionId));
         try
         {
@@ -133,33 +172,7 @@ public sealed class PlayerLiveHub(
         var stop = Subscribe(userId.ToString(), SendAsync, "player");
         HoldSubscription(stop);
 
-        _ = Task.Run(async () =>
-        {
-            while (!hubContext.ConnectionAborted.IsCancellationRequested)
-            {
-                try
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(30), hubContext.ConnectionAborted);
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
-                using var scope = scopes.CreateScope();
-                var scopedReader = scope.ServiceProvider.GetRequiredService<LiveReader>();
-                if (!await scopedReader.IsSessionActiveAsync(userId, tokenVersion))
-                {
-                    try
-                    {
-                        await PushAsync(Protocol.Error("SESSION_ENDED", "session ended"));
-                    }
-                    catch {  }
-                    stop();
-                    hubContext.Abort();
-                    break;
-                }
-            }
-        });
+        ArmSessionMonitor(userId, tokenVersion, scopes, logger, stop);
 
         try
         {
@@ -270,13 +283,13 @@ public sealed class PlayerLiveHub(
 public sealed class ConsoleLiveHub(
     MatchHubRegistry registry,
     IHubContext<ConsoleLiveHub> self,
-    IServiceScopeFactory scopes)
+    IServiceScopeFactory scopes,
+    ILogger<ConsoleLiveHub> logger)
     : LiveHubBase(registry)
 {
     public override async Task OnConnectedAsync()
     {
         var http = Context.GetHttpContext()!;
-        var hubContext = Context;
         ArmSelf(self.Clients.Client(Context.ConnectionId));
         try
         {
@@ -331,33 +344,7 @@ public sealed class ConsoleLiveHub(
 
         var userId = user.Id;
         var tokenVersion = user.TokenVersion;
-        _ = Task.Run(async () =>
-        {
-            while (!hubContext.ConnectionAborted.IsCancellationRequested)
-            {
-                try
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(30), hubContext.ConnectionAborted);
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
-                using var scope = scopes.CreateScope();
-                var scopedReader = scope.ServiceProvider.GetRequiredService<LiveReader>();
-                if (!await scopedReader.IsSessionActiveAsync(userId, tokenVersion))
-                {
-                    try
-                    {
-                        await PushAsync(Protocol.Error("SESSION_ENDED", "session ended"));
-                    }
-                    catch {  }
-                    stop();
-                    hubContext.Abort();
-                    break;
-                }
-            }
-        });
+        ArmSessionMonitor(userId, tokenVersion, scopes, logger, stop);
 
         try
         {
