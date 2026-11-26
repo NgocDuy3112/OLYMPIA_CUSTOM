@@ -13,9 +13,7 @@ public class ArchTests
     private static readonly string[] GrandfatheredRawConnectionFiles =
     [
         "Modules/Auth/PlayerAccountRoutes.cs",
-        "Modules/Matches/AssemblePatch.cs",
-        "Modules/Questions/Staging/StagingService.cs",
-        "Modules/Roster/RosterService.cs"
+        "Modules/Matches/AssemblePatch.cs"
     ];
 
     private static readonly Dictionary<string, int> DictionaryBaseline = new()
@@ -74,7 +72,7 @@ public class ArchTests
     }
 
     [Fact]
-    public void No_new_raw_connection_outside_the_known_four()
+    public void No_new_raw_connection_outside_the_known_two()
     {
         var root = ApiRoot();
         var offenders = SourceFiles(root)
@@ -83,6 +81,19 @@ public class ArchTests
             .ToList();
 
         Assert.Empty(offenders.Except(GrandfatheredRawConnectionFiles));
+    }
+
+    [Fact]
+    public void Raw_connection_grandfather_list_matches_the_code()
+    {
+        var root = ApiRoot();
+        var expected = string.Join("\n", GrandfatheredRawConnectionFiles.Order(StringComparer.Ordinal));
+        var actual = string.Join("\n", SourceFiles(root)
+            .Where(path => OpensRawConnection(File.ReadAllText(path)))
+            .Select(path => Relative(root, path))
+            .Order(StringComparer.Ordinal));
+
+        Assert.Equal(expected, actual);
     }
 
     [Fact]

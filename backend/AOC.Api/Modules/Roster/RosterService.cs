@@ -214,39 +214,25 @@ public sealed class RosterService(AOCDbContext db)
             throw new TournamentError(TournamentErrorCode.NOT_ENROLLED,
                 "this player is not enrolled in the tournament");
 
-        await using var connection = await RawSql.OpenAsync(db);
-        await using var command = connection.CreateCommand();
-        command.CommandText = """
-            SELECT (
-                (SELECT count(*) FROM answers a
-                   JOIN matches m ON m.id = a.match_id
-                  WHERE m.tournament_id = @tid AND a.user_id = @uid)
-              + (SELECT count(*) FROM match_stats s
-                  WHERE s.tournament_id = @tid AND s.user_id = @uid)
-              + (SELECT count(*) FROM score_adjustments adj
-                   JOIN matches m2 ON m2.id = adj.match_id
-                  WHERE m2.tournament_id = @tid AND adj.user_id = @uid)
-            )::int AS played
-            """;
-        AddParam(command, "tid", tid);
-        AddParam(command, "uid", uid);
-        var played = Convert.ToInt32(await command.ExecuteScalarAsync());
+        var played = await db.Answers.CountAsync(a => a.UserId == uid
+                && db.Matches.Any(m => m.Id == a.MatchId && m.TournamentId == tid))
+            + await db.MatchStats.CountAsync(s => s.TournamentId == tid && s.UserId == uid)
+            + await db.ScoreAdjustments.CountAsync(adj => adj.UserId == uid
+                && db.Matches.Any(m => m.Id == adj.MatchId && m.TournamentId == tid));
         if (played > 0)
             throw new TournamentError(TournamentErrorCode.CONFLICT,
                 "this contestant has played in this tournament — their results are on the record",
                 [played.ToString()]);
 
-        await using var seatCommand = connection.CreateCommand();
-        seatCommand.CommandText = """
-            SELECT count(*)::int AS seated FROM matches m
-             WHERE m.tournament_id = @tid
+        var needle = JsonSerializer.Serialize(new[] { new { userId } });
+        var seated = await db.Database.SqlQueryRaw<int>(
+            """
+            SELECT count(*)::int AS "Value" FROM matches m
+             WHERE m.tournament_id = {0}::uuid
                AND m.deleted_at IS NULL
-               AND m.players @> @needle::jsonb
-            """;
-        AddParam(seatCommand, "tid", tid);
-        AddParam(seatCommand, "needle",
-            System.Text.Json.JsonSerializer.Serialize(new[] { new { userId = userId } }));
-        var seated = Convert.ToInt32(await seatCommand.ExecuteScalarAsync());
+               AND m.players @> {1}::jsonb
+            """,
+            tid, needle).SingleAsync();
         if (seated > 0)
             throw new TournamentError(TournamentErrorCode.CONFLICT,
                 "this contestant still holds a seat in a match — take them out of the match first");
@@ -276,12 +262,5 @@ public sealed class RosterService(AOCDbContext db)
     private Task<TournamentPlayerEntity?> EnrolledRowAsync(Guid tournamentId, Guid userId)
         => db.TournamentPlayers.AsNoTracking()
             .FirstOrDefaultAsync(p => p.TournamentId == tournamentId && p.UserId == userId);
-
-    private static void AddParam(System.Data.Common.DbCommand command, string name, object value)
-    {
-        var parameter = command.CreateParameter();
-        parameter.ParameterName = name;
-        parameter.Value = value;
-        command.Parameters.Add(parameter);
-    }
 }
+
