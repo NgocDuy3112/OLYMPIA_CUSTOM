@@ -38,7 +38,7 @@ public static class StandingsRoutes
             var audit = http.RequestServices.GetRequiredService<AOC.Infrastructure.Audit.AuditService>();
             await audit.AuditAsync(new AOC.Infrastructure.Audit.AuditEvent
             {
-                Action = "tournament_updated",
+                Action = "standings_recomputed",
                 ActorId = user.Id,
                 Ip = http.Connection.RemoteIpAddress?.ToString(),
                 UserAgent = http.Request.Headers.UserAgent.ToString(),

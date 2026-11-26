@@ -50,7 +50,7 @@ public sealed partial class LiveService
         var sums = await reader.SumPointsByPlayerAsync(match.Id);
         var adjustments = await reader.SumAdjustmentsByPlayerAsync(match.Id);
 
-        var guids = userIds.Select(id => Guid.Parse(id)).ToList();
+        var guids = userIds.Select(StoredId.Player).ToList();
         var names = await db.Users.AsNoTracking()
             .Where(u => guids.Contains(u.Id))
             .Select(u => new { u.Id, u.DisplayName })

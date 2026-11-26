@@ -29,7 +29,7 @@ public sealed class TieBreakService(
             .ToListAsync();
         var questionById = bank.ToDictionary(q => q.Id.ToString());
 
-        var playerIds = state.Players.Select(Guid.Parse).Distinct().ToList();
+        var playerIds = state.Players.Distinct().Select(StoredId.Player).ToList();
         var names = await db.Users.AsNoTracking()
             .Where(u => playerIds.Contains(u.Id))
             .Select(u => new { u.Id, u.DisplayName })

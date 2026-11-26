@@ -373,7 +373,7 @@ public sealed class SubmitService(
             if (value is null) throw new JsonException();
             return value;
         }
-        catch (JsonException)
+        catch (Exception ex) when (ex is JsonException or NotSupportedException)
         {
             throw new SubmitError(400, "BAD_VALUE", "invalid answer value");
         }

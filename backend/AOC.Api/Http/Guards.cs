@@ -11,12 +11,17 @@ public static class Guards
 {
     public const string SessionUserKey = "sessionUser";
 
-    private static readonly HashSet<string> PasswordChangeExempt =
+    private static readonly string[] PasswordChangeExempt =
     [
         "/api/auth/me",
         "/api/auth/logout",
         "/api/auth/change-password"
     ];
+
+    public static bool IsPasswordChangeExempt(string path)
+        => PasswordChangeExempt.Any(exempt =>
+            path.Equals(exempt, StringComparison.Ordinal)
+            || path.StartsWith(exempt + "/", StringComparison.Ordinal));
 
     public static async Task<UserEntity> AuthenticateAsync(HttpContext http, Surface surface)
     {
@@ -57,7 +62,7 @@ public static class Guards
         if (user.MustChangePassword)
         {
             var path = http.Request.Path.Value ?? "";
-            if (!PasswordChangeExempt.Contains(path))
+            if (!IsPasswordChangeExempt(path))
             {
                 throw new ApiException(409, "PASSWORD_CHANGE_REQUIRED", "Hãy đặt mật khẩu của bạn trước khi tiếp tục.");
             }

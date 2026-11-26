@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AOC.Api.Http;
+using AOC.Domain.Contracts;
 using AOC.Domain.Gameplay;
 
 namespace AOC.Api.Modules.Live;
@@ -33,6 +34,14 @@ public sealed class LiveStateError(string message, IReadOnlyList<string>? detail
 
 public sealed class LiveNotFoundError(string matchId)
     : Exception($"no live round for match {matchId}");
+
+public static class StoredId
+{
+    public static Guid Player(string raw)
+        => Guid.TryParse(raw, out var parsed)
+            ? parsed
+            : throw new RuleError("STATE_INVALID", $"stored player id \"{raw}\" is not a uuid");
+}
 
 public static class StateGuard
 {

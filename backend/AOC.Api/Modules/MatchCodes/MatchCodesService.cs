@@ -180,7 +180,7 @@ public static class MatchCodeRoutes
             var audit = http.RequestServices.GetRequiredService<AOC.Infrastructure.Audit.AuditService>();
             await audit.AuditAsync(new AOC.Infrastructure.Audit.AuditEvent
             {
-                Action = "tournament_updated",
+                Action = "seat_claimed",
                 ActorId = user.Id,
                 MatchId = result.MatchId,
                 Ip = http.Connection.RemoteIpAddress?.ToString(),
@@ -215,7 +215,7 @@ public static class MatchCodeRoutes
             var audit = http.RequestServices.GetRequiredService<AOC.Infrastructure.Audit.AuditService>();
             await audit.AuditAsync(new AOC.Infrastructure.Audit.AuditEvent
             {
-                Action = "tournament_updated",
+                Action = "code_rotated",
                 ActorId = user.Id,
                 MatchId = Guid.Parse(matchId),
                 Ip = http.Connection.RemoteIpAddress?.ToString(),

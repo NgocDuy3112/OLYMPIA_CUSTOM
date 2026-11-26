@@ -159,7 +159,7 @@ public static class MatchRoutes
             await TournamentAccess.RequireWriteAsync(http, tournamentId);
 
             await service.EjectSeatAsync(tournamentId, matchId, userId);
-            await AuditAsync(http, "tournament_updated", matchId, new Dictionary<string, object?>
+            await AuditAsync(http, "seat_ejected", matchId, new Dictionary<string, object?>
             {
                 ["tournamentId"] = tournamentId,
                 ["seatEjected"] = userId

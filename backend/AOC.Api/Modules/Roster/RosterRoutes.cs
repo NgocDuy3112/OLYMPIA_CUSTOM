@@ -77,7 +77,7 @@ public static class RosterRoutes
             var service = http.RequestServices.GetRequiredService<RosterService>();
             var enrolled = await service.EnrollPlayersAsync(Guid.Parse(tournamentId), userIds);
 
-            await AuditAsync(http, "tournament_updated", new Dictionary<string, object?>
+            await AuditAsync(http, "player_enrolled", new Dictionary<string, object?>
             {
                 ["tournamentId"] = tournamentId,
                 ["enrolled"] = enrolled
@@ -96,7 +96,7 @@ public static class RosterRoutes
             var service = http.RequestServices.GetRequiredService<RosterService>();
             await service.RemoveContestantAsync(tournamentId, userId);
 
-            await AuditAsync(http, "tournament_updated", new Dictionary<string, object?>
+            await AuditAsync(http, "player_removed", new Dictionary<string, object?>
             {
                 ["tournamentId"] = tournamentId,
                 ["removedContestant"] = userId
@@ -136,7 +136,7 @@ public static class RosterRoutes
                 }, JsonApi.Options);
             }
 
-            await AuditAsync(http, "tournament_updated", new Dictionary<string, object?>
+            await AuditAsync(http, "group_assigned", new Dictionary<string, object?>
             {
                 ["tournamentId"] = tournamentId,
                 ["userId"] = userId,
