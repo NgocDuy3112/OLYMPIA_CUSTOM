@@ -147,7 +147,7 @@ public static partial class QuestionRoutes
             var row = await service.DuplicateQuestionAsync(new QuestionsService.WriteContext(user.Id), questionId);
             http.Response.StatusCode = 201;
             return Results.Json(row, JsonApi.Options);
-        });
+        }).RequireRateLimiting("strict10");
 
         app.MapGet("/portal/questions/{questionId}/usage", async (HttpContext http) =>
         {
