@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom"
 import { describe, expect, it, vi } from "vitest"
-import { ChangePasswordPage } from "@/pages/ChangePasswordPage"
+import { ChangePasswordPage } from "@shared/results/ChangePasswordPage"
 import { LoginPage } from "@/pages/LoginPage"
 
 function WhereAmI() {

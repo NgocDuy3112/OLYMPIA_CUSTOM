@@ -13,6 +13,7 @@ import { PortalShell } from "@/components/portal-shell"
 import { IconField } from "@shared/decors/icon-field"
 import { GlowWash } from "@shared/decors/glow-wash"
 import { ErrorBoundary } from "@shared/lib/error-boundary"
+import { ChangePasswordPage } from "@shared/results/ChangePasswordPage"
 
 
 export default function App() {
@@ -52,14 +53,14 @@ export default function App() {
           }
         />
 
-        <Route
-          path="/login"
+        <Route path="/login"
           element={
             <RedirectIfSignedIn>
               <LoginPage />
             </RedirectIfSignedIn>
           }
         />
+        <Route path="/password" element={<ChangePasswordPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       </BrowserRouter>

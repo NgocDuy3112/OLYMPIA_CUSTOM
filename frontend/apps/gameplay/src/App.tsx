@@ -11,6 +11,7 @@ import { useSchedule, useTournament, type TournamentDetail } from "@shared/resul
 import { IconField } from "@shared/decors/icon-field"
 import { GlowWash } from "@shared/decors/glow-wash"
 import { ErrorBoundary } from "@shared/lib/error-boundary"
+import { ChangePasswordPage } from "@shared/results/ChangePasswordPage"
 
 interface TournamentContext { tournament: TournamentDetail }
 
@@ -101,6 +102,7 @@ function App() {
                         <Route path="matches/:id" element={<MatchRoute />} />
                     </Route>
                     <Route path="/privacy" element={<PrivacyPage />} />
+                    <Route path="/password" element={<ChangePasswordPage />} />
                     
                     <Route path="*" element={<NotFoundPage />} />
                 </Route>
