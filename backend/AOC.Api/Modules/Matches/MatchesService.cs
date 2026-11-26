@@ -380,8 +380,18 @@ public sealed class MatchesService(
         var mid = Guid.Parse(matchId);
         var tid = Guid.Parse(tournamentId);
 
-        var existing = await GetMatchAsync(tournamentId, matchId);
-        if (existing.Status == next) return existing;
+        await using var transaction = await db.Database.BeginTransactionAsync();
+
+        var existing = await db.Matches
+            .FromSqlInterpolated($"SELECT * FROM matches WHERE id = {mid} FOR UPDATE")
+            .FirstOrDefaultAsync();
+        if (existing is null || existing.TournamentId != tid || existing.DeletedAt is not null)
+            throw new MatchError(MatchErrorCode.NOT_FOUND, $"match {matchId} not found");
+        if (existing.Status == next)
+        {
+            await transaction.CommitAsync();
+            return existing;
+        }
 
         if (!Edges[existing.Status].Contains(next))
             throw new MatchError(MatchErrorCode.INVALID_TRANSITION,
@@ -432,14 +442,13 @@ public sealed class MatchesService(
                     $"match {matchId} is not ready to go live", shortfalls);
         }
 
-        var tracked = await db.Matches.FirstAsync(m => m.Id == mid);
-        tracked.Status = next;
-        tracked.UpdatedAt = DateTime.UtcNow;
+        existing.Status = next;
+        existing.UpdatedAt = DateTime.UtcNow;
 
         if (next == MatchStatus.LIVE)
         {
             var tournament = await RequireTournamentAsync(tid);
-            var ordered = MatchRounds.OrderedMatchRounds(tournament.RoundsList, tracked.RoundConfigsMap);
+            var ordered = MatchRounds.OrderedMatchRounds(tournament.RoundsList, existing.RoundConfigsMap);
             var first = MatchRounds.NextRoundId(ordered, null);
             if (first is not null && !await db.MatchLive.AnyAsync(l => l.MatchId == mid))
             {
@@ -456,15 +465,16 @@ public sealed class MatchesService(
         }
 
         if (next == MatchStatus.FINISHED)
-            await ScoreMatchAsync(mid, tracked);
+        {
+            await ScoreMatchAsync(mid, existing);
+            await db.SaveChangesAsync();
+            await standings.RecomputeStandingsAsync(tournamentId);
+        }
 
         await db.SaveChangesAsync();
+        await transaction.CommitAsync();
 
-        if (next == MatchStatus.FINISHED)
-            await standings.RecomputeStandingsAsync(tournamentId);
-
-
-        return tracked;
+        return existing;
     }
 
     public async Task<MatchEntity> DeleteMatchAsync(string tournamentId, string matchId)
