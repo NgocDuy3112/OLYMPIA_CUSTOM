@@ -37,6 +37,14 @@ public static class AdminRoutes
             return Results.Json(new { items }, JsonApi.Options);
         });
 
+        app.MapPatch("/portal/operators/{userId}/status", (HttpContext http) =>
+            SetAccountStatusAsync(http, (service, userId, disabled) =>
+                service.SetOperatorStatusAsync(userId, disabled)));
+
+        app.MapPatch("/portal/players/{userId}/status", (HttpContext http) =>
+            SetAccountStatusAsync(http, (service, userId, disabled) =>
+                service.SetPlayerStatusAsync(userId, disabled)));
+
         app.MapPost("/portal/operators", async (HttpContext http) =>
         {
             await http.RequireRoleAsync(Surface.PORTAL, "ADMIN");
@@ -116,4 +124,33 @@ public static class AdminRoutes
 
         return app;
     }
+
+    private static async Task<IResult> SetAccountStatusAsync(HttpContext http,
+        Func<AccountStatusService, Guid, bool, Task<AccountStatusService.PublicAccountStatus>> setStatus)
+    {
+        var actor = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN");
+        var userId = Guid.Parse(Validate.RouteUuid(http, "userId"));
+        var body = Validate.Object(await Validate.ReadJsonBodyAsync(http));
+        var disabled = Validate.RequiredBool(body, "disabled");
+
+        var service = http.RequestServices.GetRequiredService<AccountStatusService>();
+        var account = await setStatus(service, userId, disabled);
+
+        var audit = http.RequestServices.GetRequiredService<AOC.Infrastructure.Audit.AuditService>();
+        await audit.AuditAsync(new AOC.Infrastructure.Audit.AuditEvent
+        {
+            Action = disabled ? "account_disabled" : "account_enabled",
+            ActorId = actor.Id,
+            TargetId = account.UserId,
+            Ip = http.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = http.Request.Headers.UserAgent.ToString(),
+            Details = new AccountStatusAudit(
+                account.UserId, account.Username, account.Role.ToString(), account.DisabledAt)
+        });
+
+        return Results.Json(account, JsonApi.Options);
+    }
+
+    private sealed record AccountStatusAudit(
+        Guid UserId, string Username, string Role, DateTime? DisabledAt);
 }

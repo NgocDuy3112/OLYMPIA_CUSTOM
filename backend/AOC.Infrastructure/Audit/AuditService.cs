@@ -12,7 +12,7 @@ public sealed class AuditEvent
     public Guid? ActorId { get; set; }
     public Guid? TargetId { get; set; }
     public Guid? MatchId { get; set; }
-    public Dictionary<string, object?>? Details { get; set; }
+    public object? Details { get; set; }
     public string? Ip { get; set; }
     public string? UserAgent { get; set; }
 }

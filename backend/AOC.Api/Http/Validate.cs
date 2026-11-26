@@ -84,6 +84,13 @@ public static class Validate
         return v.GetBoolean();
     }
 
+    public static bool RequiredBool(JsonElement obj, string name, string where = "body")
+    {
+        if (!obj.TryGetProperty(name, out var v) || v.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+            throw ApiException.BadRequest($"{where} must have required property '{name}'");
+        return v.GetBoolean();
+    }
+
     public static List<JsonElement> RequiredArray(JsonElement obj, string name, int? minItems = null,
         int? maxItems = null, string where = "body")
     {

@@ -71,6 +71,7 @@ builder.Services.AddScoped<GroupTablesService>();
 builder.Services.AddScoped<MatchesService>();
 builder.Services.AddScoped<AssemblePatchService>();
 builder.Services.AddScoped<RosterService>();
+builder.Services.AddScoped<AOC.Api.Modules.Admin.AccountStatusService>();
 builder.Services.AddScoped<MatchCodesService>();
 builder.Services.AddScoped<SubmitService>();
 builder.Services.AddScoped<LiveService>();
