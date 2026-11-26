@@ -242,6 +242,59 @@ public class RawSqlRegressionTests
     }
 
     [DbFact]
+    public async Task List_filters_by_status_kind_search_and_bucket_at_once()
+    {
+        await AuthTestDb.EnsureSchemaAsync();
+        using var db = AuthTestDb.OpenDb();
+
+        var fixture = await SeedAsync(db);
+        try
+        {
+            var service = new QuestionReadStore(db);
+            var filter = new QuestionFilter(
+                Status: QuestionStatus.PUBLISHED,
+                Kind: QuestionKind.KEYWORD,
+                Search: "fixture",
+                Bucket: "giai-ma");
+
+            var page = await service.ListAsync(filter, new Page(20, 0));
+            Assert.Contains(fixture.Question.Id, page.Items.Select(row => row.Id));
+
+            var miss = await service.ListAsync(
+                filter with { Search = "no-such-question-token" }, new Page(20, 0));
+            Assert.DoesNotContain(fixture.Question.Id, miss.Items.Select(row => row.Id));
+        }
+        finally
+        {
+            await CleanupAsync(db, fixture);
+        }
+    }
+
+    [DbFact]
+    public async Task A_search_term_reaches_the_database_as_data_not_as_sql()
+    {
+        await AuthTestDb.EnsureSchemaAsync();
+        using var db = AuthTestDb.OpenDb();
+
+        var fixture = await SeedAsync(db);
+        try
+        {
+            var service = new QuestionReadStore(db);
+            var page = await service.ListAsync(
+                new QuestionFilter(Search: "x'); DELETE FROM question_bank; --"),
+                new Page(20, 0));
+
+            Assert.Empty(page.Items);
+            Assert.True(await db.QuestionBank.AsNoTracking()
+                .AnyAsync(q => q.Id == fixture.Question.Id));
+        }
+        finally
+        {
+            await CleanupAsync(db, fixture);
+        }
+    }
+
+    [DbFact]
     public async Task BucketCounts_reports_the_seeded_bucket()
     {
         await AuthTestDb.EnsureSchemaAsync();
