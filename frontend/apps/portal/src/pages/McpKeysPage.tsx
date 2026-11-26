@@ -218,7 +218,11 @@ function RevokeDialog({ keyRow, onClose }: { keyRow: McpKey | null; onClose: () 
     const [error, setError] = useState<string | null>(null)
 
     const revoke = useMutation({
-        mutationFn: () => api(`/portal/mcp-keys/${keyRow!.id}`, { method: "DELETE" }),
+        mutationFn: (id: string) =>
+            api<{ revoked: number; ids: string[] }>("/portal/mcp-keys/revoke", {
+                method: "POST",
+                body: JSON.stringify({ ids: [id] }),
+            }),
         onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: ["mcp-keys"] })
             onClose()
@@ -246,7 +250,9 @@ function RevokeDialog({ keyRow, onClose }: { keyRow: McpKey | null; onClose: () 
                     <Button
                         variant="destructive"
                         disabled={revoke.isPending}
-                        onClick={() => revoke.mutate()}
+                        onClick={() => {
+                            if (keyRow !== null) revoke.mutate(keyRow.id)
+                        }}
                     >
                         {revokeLabel}
                     </Button>
