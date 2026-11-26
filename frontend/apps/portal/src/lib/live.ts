@@ -146,6 +146,13 @@ export function postControl(
     )
 }
 
+export function postHeartbeat(tournamentId: string, matchId: string): Promise<MatchController> {
+    return api<MatchController>(
+        `/portal/tournaments/${tournamentId}/matches/${matchId}/live/heartbeat`,
+        { method: "POST" }
+    )
+}
+
 
 export interface LobbyData {
     title: string

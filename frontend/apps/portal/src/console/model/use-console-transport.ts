@@ -4,6 +4,7 @@ import { useLive, useLiveAction, type ConsoleQuestion, type LiveResponse, type P
 import type { LiveAction } from "@/lib/live-actions"
 import { collapseKeywordVerdicts } from "@/lib/live-actions"
 import { useMatches } from "@/lib/tournament"
+import { useControllerHeartbeat } from "./use-controller-heartbeat"
 
 export interface ConsoleTransport {
     clock: ReturnType<typeof useServerClock>
@@ -34,6 +35,7 @@ export function useConsoleTransport(tournamentId: string, matchId: string): Cons
     const live = useLive(tournamentId, matchId, clock.sync)
     const matches = useMatches(tournamentId)
     const writer = useLiveAction(tournamentId, matchId)
+    const heartbeatError = useControllerHeartbeat(tournamentId, matchId)
 
     const v = live.data
     const projection = v?.projection
@@ -72,7 +74,8 @@ export function useConsoleTransport(tournamentId: string, matchId: string): Cons
         .map((seat) => seat.userId)
 
     let flash: string | null = null
-    if (writer.isError) {
+    if (heartbeatError !== null) flash = heartbeatError
+    else if (writer.isError) {
         flash = (writer.error as { message?: string } | null)?.message ?? "Trạng thái đã đổi — đã tải lại"
     }
 
