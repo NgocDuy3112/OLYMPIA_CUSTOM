@@ -7,7 +7,6 @@ using AOC.Domain.Contracts;
 using AOC.Api.Modules.Questions;
 using AOC.Api.Modules.Questions.Reads;
 using AOC.Api.Modules.McpKeys;
-using AOC.Api.Modules.Tournaments;
 using AOC.Api.Shared;
 using AOC.Infrastructure.Audit;
 using AOC.Infrastructure.Data;
@@ -17,7 +16,6 @@ namespace AOC.Api.Modules.Mcp;
 
 public sealed class McpTools(
     QuestionReadStore questions,
-    TournamentsService tournaments,
     AOCDbContext db,
     AuditService audit,
     IHttpContextAccessor httpContextAccessor)
@@ -31,19 +29,28 @@ public sealed class McpTools(
         return McpActorAccessor.Require(http);
     }
 
-    private static void AssertTournamentVisible(TournamentEntity tournament, string? role)
+    private async Task<UserEntity> ActorUserAsync(McpActor actor)
     {
-        var user = new UserEntity { Role = ParseRole(role) };
+        if (actor.UserId is not { } userId)
+            throw new ToolError("UNAUTHORIZED", "MCP key has no owning account");
+        return await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId)
+               ?? throw new ToolError("UNAUTHORIZED", "MCP key owner account not found");
+    }
+
+    private static void AssertTournamentVisible(TournamentEntity tournament, UserEntity user)
+    {
         if (!TournamentAccess.CanView(tournament, user))
             throw new ToolError("NOT_FOUND", $"tournament {tournament.Id} not found");
     }
 
-    private static UserRole ParseRole(string? role) => role switch
+    private async Task<TournamentEntity> RequireVisibleTournamentAsync(Guid tournamentId, McpActor actor)
     {
-        "ADMIN" => UserRole.ADMIN,
-        "OPERATOR" => UserRole.OPERATOR,
-        _ => UserRole.PLAYER
-    };
+        var tournament = await db.Tournaments.AsNoTracking()
+                             .FirstOrDefaultAsync(t => t.Id == tournamentId && t.DeletedAt == null)
+                         ?? throw new ToolError("NOT_FOUND", $"tournament {tournamentId} not found");
+        AssertTournamentVisible(tournament, await ActorUserAsync(actor));
+        return tournament;
+    }
 
     private static Guid ParseTournamentId(string tournamentId)
     {
@@ -84,13 +91,11 @@ public sealed class McpTools(
         Content = [new TextContentBlock { Text = JsonSerializer.Serialize(new { error = code, message }, Options) }]
     };
 
-    private CallToolResult Run(Func<object> fn, string toolName, Guid? tournamentId,
-        Dictionary<string, object?>? filters = null)
+    private static async Task<CallToolResult> Run(Func<Task<object>> fn)
     {
         try
         {
-            var data = fn();
-            return Text(data);
+            return Text(await fn());
         }
         catch (Exception error) when (error is ToolError or QuestionError or McpKeyError)
         {
@@ -131,24 +136,22 @@ public sealed class McpTools(
     }
 
 
-    public CallToolResult ListQuestions(string tournamentId, string? kind = null,
+    public async Task<CallToolResult> ListQuestions(string tournamentId, string? kind = null,
         string? search = null, int limit = 20, int offset = 0)
     {
         var actor = Actor();
         var tid = ParseTournamentId(tournamentId);
         var parsedKind = ParseKind(kind);
-        return Run(() =>
+        return await Run(async () =>
         {
             McpActorAccessor.RequireScope(actor, "READ");
-            var tournament = db.Tournaments.AsNoTracking().First(t => t.Id == tid && t.DeletedAt == null);
-            AssertTournamentVisible(tournament, actor.Role);
+            await RequireVisibleTournamentAsync(tid, actor);
 
-            var page = questions.ListForAgentAsync(parsedKind, search, new Page(limit, offset))
-                .GetAwaiter().GetResult();
+            var page = await questions.ListForAgentAsync(parsedKind, search, new Page(limit, offset));
 
-            AuditAsync(actor, "list_questions", tid,
+            await AuditAsync(actor, "list_questions", tid,
                 new Dictionary<string, object?> { ["kind"] = kind, ["search"] = search },
-                page.Total).GetAwaiter().GetResult();
+                page.Total);
 
             return new
             {
@@ -157,52 +160,48 @@ public sealed class McpTools(
                 limit = page.Limit,
                 offset = page.Offset
             };
-        }, "list_questions", tid,
-            new Dictionary<string, object?> { ["kind"] = kind, ["search"] = search });
+        });
     }
 
 
-    public CallToolResult GetQuestion(string questionId, string tournamentId)
+    public async Task<CallToolResult> GetQuestion(string questionId, string tournamentId)
     {
         var actor = Actor();
         var tid = ParseTournamentId(tournamentId);
-        return Run(() =>
+        return await Run(async () =>
         {
             McpActorAccessor.RequireScope(actor, "READ");
-            var tournament = db.Tournaments.AsNoTracking().First(t => t.Id == tid && t.DeletedAt == null);
-            AssertTournamentVisible(tournament, actor.Role);
+            await RequireVisibleTournamentAsync(tid, actor);
 
-            var row = questions.GetForAgentAsync(questionId).GetAwaiter().GetResult();
+            var row = await questions.GetForAgentAsync(questionId);
 
-            AuditAsync(actor, "get_question", tid,
+            await AuditAsync(actor, "get_question", tid,
                 new Dictionary<string, object?> { ["questionId"] = questionId, ["status"] = row.Status.ToString() },
-                null).GetAwaiter().GetResult();
+                null);
 
             return AgentQuestion(row);
-        }, "get_question", tid, null);
+        });
     }
 
 
-    public CallToolResult EligibleQuestions(string tournamentId, string? kind = null,
+    public async Task<CallToolResult> EligibleQuestions(string tournamentId, string? kind = null,
         string? search = null, int limit = 20, int offset = 0)
     {
         var actor = Actor();
         var tid = ParseTournamentId(tournamentId);
         var parsedKind = ParseKind(kind);
-        return Run(() =>
+        return await Run(async () =>
         {
             McpActorAccessor.RequireScope(actor, "READ");
-            var tournament = db.Tournaments.AsNoTracking().First(t => t.Id == tid && t.DeletedAt == null);
-            AssertTournamentVisible(tournament, actor.Role);
+            await RequireVisibleTournamentAsync(tid, actor);
 
             List<QuestionKind>? kinds = parsedKind is { } pk ? [pk] : null;
 
-            var page = questions.ListForAssemblyAsync(kinds, null, search, new Page(limit, offset))
-                .GetAwaiter().GetResult();
+            var page = await questions.ListForAssemblyAsync(kinds, null, search, new Page(limit, offset));
 
-            AuditAsync(actor, "eligible_questions", tid,
+            await AuditAsync(actor, "eligible_questions", tid,
                 new Dictionary<string, object?> { ["kind"] = kind, ["search"] = search },
-                page.Total).GetAwaiter().GetResult();
+                page.Total);
 
             return new
             {
@@ -211,7 +210,6 @@ public sealed class McpTools(
                 limit = page.Limit,
                 offset = page.Offset
             };
-        }, "eligible_questions", tid,
-            new Dictionary<string, object?> { ["kind"] = kind, ["search"] = search });
+        });
     }
 }
