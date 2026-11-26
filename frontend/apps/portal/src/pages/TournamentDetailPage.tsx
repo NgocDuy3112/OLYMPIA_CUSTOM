@@ -2,16 +2,24 @@ import { useState } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@shared/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/ui/tabs"
+import { errorMessage } from "@shared/lib/error-text"
 import { Page, PageHeader } from "@/components/page"
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog"
-import { useDeleteTournament, useMatches, useTournament } from "@/lib/tournament"
+import { useCloseTournament, useDeleteTournament, useMatches, useTournament } from "@/lib/tournament"
 import { useMe } from "@/lib/session"
 import { MatchesTab } from "@/components/matches-tab"
 import { StagesTab } from "@/components/stages-tab"
 import { StandingsTab } from "@/components/standings-tab"
 import { GroupsTab } from "@/components/groups-tab"
-import { ChevronRight, Trash2 } from "lucide-react"
+import { ChevronRight, Lock, Trash2 } from "lucide-react"
 
 
 export function TournamentDetailPage() {
@@ -21,7 +29,9 @@ export function TournamentDetailPage() {
     const matches = useMatches(tournamentId)
     const me = useMe()
     const remove = useDeleteTournament(tournamentId)
+    const close = useCloseTournament(tournamentId)
     const [confirming, setConfirming] = useState(false)
+    const [closing, setClosing] = useState(false)
 
     if (tournament.isPending) return <p className="p-6 text-sm text-muted-foreground">Loading tournament…</p>
     if (tournament.isError) return <p role="alert" className="p-6 text-sm text-destructive">{tournament.error.message}</p>
@@ -30,10 +40,17 @@ export function TournamentDetailPage() {
     const assembled = matches.isPending || (matches.data?.items ?? []).some((match) => match.questions.length > 0)
     const frozen = s.closedAt !== null || assembled
     const isAdmin = me.data?.role === "ADMIN"
+    const isOwner = me.data?.id === s.ownerId
+    const canClose = (isAdmin || isOwner) && s.closedAt === null
+    let closeTitle = "Close tournament"
+    if (s.closedAt !== null) closeTitle = "Tournament already closed"
+    else if (!canClose) closeTitle = "Only the owner or an admin can close a tournament"
     let deleteTitle = "Only an admin can delete a tournament"
     if (isAdmin) deleteTitle = "Delete tournament"
     let deleteError: string | null = null
     if (remove.isError) deleteError = remove.error.message
+    let closeError: string | null = null
+    if (close.isError) closeError = errorMessage(close.error)
 
     return (
         <Page>
@@ -49,6 +66,16 @@ export function TournamentDetailPage() {
                         {s.current && <Badge>Current</Badge>}
                         {s.closedAt && <Badge variant="secondary">Closed</Badge>}
                         {frozen && <Badge variant="outline">Rules frozen</Badge>}
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            aria-label="Close tournament"
+                            title={closeTitle}
+                            disabled={!canClose || close.isPending}
+                            onClick={() => setClosing(true)}
+                        >
+                            <Lock className="size-4" aria-hidden /> Close
+                        </Button>
                         <Button
                             size="sm"
                             variant="destructive"
@@ -92,6 +119,35 @@ export function TournamentDetailPage() {
                 </TabsContent>
 
             </Tabs>
+
+            {closing && (
+                <Dialog open onOpenChange={(next) => { if (!next) setClosing(false) }}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Close this tournament?</DialogTitle>
+                        </DialogHeader>
+                        <div className="grid gap-3">
+                            <p className="rounded-lg border px-3 py-2 text-sm text-foreground">{s.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                                It stops being the current tournament and refuses further changes. Its matches,
+                                standings and assembled questions stay.
+                            </p>
+                        </div>
+                        {closeError && <p role="alert" className="text-sm text-destructive">{closeError}</p>}
+                        <DialogFooter className="gap-2">
+                            <Button variant="outline" onClick={() => setClosing(false)} disabled={close.isPending}>
+                                Cancel
+                            </Button>
+                            <Button
+                                disabled={close.isPending}
+                                onClick={() => close.mutate(undefined, { onSuccess: () => setClosing(false) })}
+                            >
+                                Close tournament
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            )}
 
             {confirming && (
                 <ConfirmDeleteDialog

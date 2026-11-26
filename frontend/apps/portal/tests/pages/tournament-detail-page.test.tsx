@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { screen, within } from "@testing-library/react"
+import { screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter, Route, Routes } from "react-router-dom"
 
@@ -89,5 +89,59 @@ describe("deleting a tournament", () => {
         const button = await screen.findByRole("button", { name: "Delete tournament" })
         expect(button).toBeDisabled()
         expect(button).toHaveAttribute("title", "Only an admin can delete a tournament")
+    })
+})
+
+describe("closing a tournament", () => {
+    it("confirms, then POSTs the close and keeps the page open", async () => {
+        const user = userEvent.setup()
+        const { fetchMock } = draw("ADMIN", {
+            [`POST /portal/tournaments/${TOURNAMENT}/close`]: { body: season },
+        })
+
+        await user.click(await screen.findByRole("button", { name: "Close tournament" }))
+        const dialog = await screen.findByRole("dialog")
+        await user.click(within(dialog).getByRole("button", { name: "Close tournament" }))
+
+        if (!fetchMock) throw new Error("fetch was not stubbed")
+        await waitFor(() =>
+            expect(
+                fetchMock.mock.calls.filter(
+                    ([url, init]) =>
+                        url === `/portal/tournaments/${TOURNAMENT}/close` && init?.method === "POST"
+                )
+            ).toHaveLength(1)
+        )
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+    })
+
+    it("shows the server's reason when a LIVE match blocks the close", async () => {
+        const user = userEvent.setup()
+        draw("ADMIN", {
+            [`POST /portal/tournaments/${TOURNAMENT}/close`]: {
+                status: 409,
+                body: { error: "CONFLICT", message: `tournament ${TOURNAMENT} still has a LIVE match` },
+            },
+        })
+
+        await user.click(await screen.findByRole("button", { name: "Close tournament" }))
+        const dialog = await screen.findByRole("dialog")
+        await user.click(within(dialog).getByRole("button", { name: "Close tournament" }))
+
+        expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+            `tournament ${TOURNAMENT} still has a LIVE match`
+        )
+    })
+
+    it("disables close once the tournament is already closed", async () => {
+        draw("ADMIN", {
+            [`GET /portal/tournaments/${TOURNAMENT}`]: {
+                body: { ...season, closedAt: "2026-11-20T00:00:00.000Z" },
+            },
+        })
+
+        const button = await screen.findByRole("button", { name: "Close tournament" })
+        expect(button).toBeDisabled()
+        expect(button).toHaveAttribute("title", "Tournament already closed")
     })
 })

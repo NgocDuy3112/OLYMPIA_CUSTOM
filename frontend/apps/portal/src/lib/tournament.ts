@@ -321,6 +321,18 @@ export function useRotateMatchCode(tournamentId: string) {
     })
 }
 
+export function useCloseTournament(tournamentId: string) {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: () =>
+            api<Tournament>(`/portal/tournaments/${tournamentId}/close`, { method: "POST" }),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ["tournament", tournamentId] })
+            void queryClient.invalidateQueries({ queryKey: ["tournaments"] })
+        },
+    })
+}
+
 export function useDeleteTournament(tournamentId: string) {
     const queryClient = useQueryClient()
     return useMutation({
