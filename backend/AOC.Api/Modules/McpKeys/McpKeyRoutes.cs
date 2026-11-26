@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.RateLimiting;
 using AOC.Api.Http;
+using AOC.Api.Modules.Mcp;
 using AOC.Api.Shared;
 using AOC.Infrastructure.Audit;
 using AOC.Infrastructure.Configuration;
@@ -81,6 +82,12 @@ public static class McpKeyRoutes
             var service = http.RequestServices.GetRequiredService<McpKeysService>();
             return Results.Json(await service.ListMcpKeysAsync(userId, Pagination.ParsePage(query)),
                 JsonApi.Options);
+        });
+
+        app.MapGet("/portal/mcp-keys/scopes", async (HttpContext http) =>
+        {
+            await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
+            return Results.Json(new McpScopesResponse(McpToolCatalog.Scopes()), JsonApi.Options);
         });
 
         app.MapPost("/portal/mcp-keys/revoke", async (HttpContext http) =>

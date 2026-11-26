@@ -102,7 +102,8 @@ builder.Services.AddSignalR(options =>
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddMcpServer()
     .WithHttpTransport()
-    .WithTools(AOC.Api.Modules.Mcp.McpToolCatalog.BuildTools(BuildMcpTools));
+    .WithTools(AOC.Api.Modules.Mcp.McpToolCatalog.BuildTools(BuildMcpTools))
+    .WithResources([AOC.Api.Modules.Mcp.McpCatalogue.CreateResource()]);
 
 builder.Services.AddRateLimiter(options =>
 {
@@ -126,6 +127,9 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("live30", http => RateLimitPartition.GetFixedWindowLimiter(
         http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(1) }));
+    options.AddPolicy("mcp120", http => RateLimitPartition.GetFixedWindowLimiter(
+        http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 120, Window = TimeSpan.FromMinutes(1) }));
 });
 
 builder.Services.AddCors();

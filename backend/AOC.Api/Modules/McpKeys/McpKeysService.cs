@@ -38,6 +38,7 @@ public static class McpKeyTokens
 
 public sealed class McpKeysService(AOCDbContext db)
 {
+    public static readonly TimeSpan LastUsedWriteInterval = TimeSpan.FromSeconds(60);
     public sealed record PublicMcpKey(
         Guid Id,
         Guid UserId,
@@ -155,11 +156,15 @@ public sealed class McpKeysService(AOCDbContext db)
             ?? Unauthorized2<UserEntity>("Account not found");
         if (user.DisabledAt is not null) Unauthorized("Account disabled");
 
-        var tracked = await db.McpKeys.FirstAsync(k => k.Id == key.Id);
-        tracked.LastUsedAt = DateTime.UtcNow;
-        if (ip is not null && ip != tracked.LastIp) tracked.LastIp = ip;
-        if (userAgent is not null && userAgent != tracked.LastUserAgent) tracked.LastUserAgent = userAgent;
-        await db.SaveChangesAsync();
+        var now = DateTime.UtcNow;
+        if (key.LastUsedAt <= now - LastUsedWriteInterval)
+        {
+            var tracked = await db.McpKeys.FirstAsync(k => k.Id == key.Id);
+            tracked.LastUsedAt = now;
+            if (ip is not null && ip != tracked.LastIp) tracked.LastIp = ip;
+            if (userAgent is not null && userAgent != tracked.LastUserAgent) tracked.LastUserAgent = userAgent;
+            await db.SaveChangesAsync();
+        }
 
         return new VerifiedMcpKey(PublicOf(key), user);
 

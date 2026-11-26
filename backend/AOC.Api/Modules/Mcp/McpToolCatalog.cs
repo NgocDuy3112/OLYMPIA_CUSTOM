@@ -3,6 +3,8 @@ using ModelContextProtocol.Server;
 
 namespace AOC.Api.Modules.Mcp;
 
+public sealed record McpScopesResponse(IReadOnlyList<McpScopeInfo> Scopes);
+
 public sealed record McpToolDescriptor(
     string Name,
     McpScope Scope,

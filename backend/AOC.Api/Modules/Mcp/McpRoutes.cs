@@ -13,7 +13,7 @@ public static class McpRoutes
 {
     public static IEndpointRouteBuilder MapMcpRoutes(this IEndpointRouteBuilder app)
     {
-        app.MapMcp("/mcp").AddEndpointFilter(async (context, next) =>
+        app.MapMcp("/mcp").RequireRateLimiting("mcp120").AddEndpointFilter(async (context, next) =>
         {
             var http = context.HttpContext;
             var header = http.Request.Headers.Authorization.ToString();
