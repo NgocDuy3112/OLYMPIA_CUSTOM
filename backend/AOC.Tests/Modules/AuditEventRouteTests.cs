@@ -456,6 +456,26 @@ public class AuditEventRouteTests : IDisposable
     }
 
     [Fact]
+    public void Audit_event_row_serializes_the_wire_field_names_in_camel_case()
+    {
+        using var details = JsonDocument.Parse("""{"tool":"list_questions"}""");
+        var row = new AuditEventRow(
+            Guid.NewGuid(), "mcp_key_issued", Guid.NewGuid(), "Actor Name", Guid.NewGuid(),
+            "Target Name", Guid.NewGuid(), details.RootElement.Clone(), "127.0.0.1", "agent/1.0",
+            new DateTime(2026, 11, 26, 12, 0, 0, DateTimeKind.Utc));
+
+        var json = JsonSerializer.Serialize(row, JsonApi.Options);
+        using var document = JsonDocument.Parse(json);
+
+        Assert.Equal(
+            ["id", "action", "actorId", "actorName", "targetId", "targetName", "matchId",
+                "details", "ip", "userAgent", "createdAt"],
+            document.RootElement.EnumerateObject().Select(property => property.Name));
+        Assert.Equal("list_questions",
+            document.RootElement.GetProperty("details").GetProperty("tool").GetString());
+    }
+
+    [Fact]
     public void Csv_neutralizes_formula_leads_in_user_agent_and_details()
     {
         using var details = JsonDocument.Parse("-5");

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using AOC.Api.Modules.Audit;
 using AOC.Api.Modules.Live;
@@ -64,6 +65,24 @@ public class AuditObserverTests : IDisposable
         public IGroupManager Groups { get; } = new NoGroups();
     }
 
+    private sealed class CapturingLogger : ILogger<AuditService>
+    {
+        private readonly TaskCompletionSource<string> warning =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task<string> Warning => warning.Task;
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            if (logLevel == LogLevel.Warning) warning.TrySetResult(formatter(state, exception));
+        }
+    }
+
     [DbFact]
     public async Task A_throwing_observer_does_not_fail_the_audit_write()
     {
@@ -75,6 +94,21 @@ public class AuditObserverTests : IDisposable
 
         var row = await db.AuditEvents.AsNoTracking().SingleAsync(e => e.Action == action);
         Assert.Equal(action, row.Action);
+    }
+
+    [DbFact]
+    public async Task A_failing_observer_is_logged_without_failing_the_audit_write()
+    {
+        await AuthTestDb.EnsureSchemaAsync();
+        var logger = new CapturingLogger();
+        var action = "zz-logged-" + Guid.NewGuid().ToString("N");
+        var audit = new AuditService(db, logger, [new ThrowingObserver()]);
+
+        await audit.AuditAsync(new AuditEvent { Action = action });
+
+        var warning = await logger.Warning.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Contains(action, warning);
+        Assert.True(await db.AuditEvents.AsNoTracking().AnyAsync(e => e.Action == action));
     }
 
     [DbFact]
