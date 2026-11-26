@@ -147,6 +147,20 @@ describe("QuestionsPage", () => {
         expect(await screen.findByText(draftRow.questionText)).toBeInTheDocument()
     })
 
+    it("rolls a refused status change back to the cached row", async () => {
+        const user = userEvent.setup()
+        stubBank({
+            "PATCH /portal/questions/q1/status": { body: { message: "cannot publish an archived question" }, status: 409 },
+        })
+        renderWithProviders(<QuestionsPage />)
+
+        await user.click(await screen.findByRole("button", { name: /Publish/ }))
+
+        expect(await screen.findByRole("alert")).toHaveTextContent("cannot publish an archived question")
+        const row = screen.getByText(draftRow.questionText).closest("tr")!
+        expect(within(row).getByText("Draft")).toBeInTheDocument()
+    })
+
     it("archives through the confirm dialog with DELETE, not a status PATCH", async () => {
         const user = userEvent.setup()
         const fetchMock = stubBank({

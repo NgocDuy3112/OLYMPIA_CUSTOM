@@ -5,8 +5,21 @@ import userEvent from "@testing-library/user-event"
 import { AdjustScoreDialog } from "@/console/AdjustScoreDialog"
 
 
-function renderDialog(onSubmit = vi.fn(), onCancel = vi.fn()) {
-    render(<AdjustScoreDialog playerName="An" onCancel={onCancel} onSubmit={onSubmit} />)
+function renderDialog(
+    onSubmit = vi.fn(),
+    onCancel = vi.fn(),
+    pending = false,
+    error: string | null = null
+) {
+    render(
+        <AdjustScoreDialog
+            playerName="An"
+            pending={pending}
+            error={error}
+            onCancel={onCancel}
+            onSubmit={onSubmit}
+        />
+    )
     return { onSubmit, onCancel }
 }
 
@@ -40,5 +53,23 @@ describe("AdjustScoreDialog", () => {
 
         await user.click(screen.getByRole("button", { name: "Hủy" }))
         expect(onCancel).toHaveBeenCalledTimes(1)
+    })
+
+    it("keeps the typed score while the action is pending, and refuses to dismiss", async () => {
+        const user = userEvent.setup()
+        const { onCancel } = renderDialog(vi.fn(), vi.fn(), true)
+
+        await user.type(screen.getByLabelText(/Điểm/), "-5")
+        expect(screen.getByLabelText(/Điểm/)).toHaveValue(-5)
+        expect(screen.getByRole("button", { name: "Hủy" })).toBeDisabled()
+        expect(screen.getByRole("button", { name: "Đang lưu…" })).toBeDisabled()
+
+        await user.keyboard("{Escape}")
+        expect(onCancel).not.toHaveBeenCalled()
+    })
+
+    it("shows the refusal inside the dialog", () => {
+        renderDialog(vi.fn(), vi.fn(), false, "Điểm vượt giới hạn")
+        expect(screen.getByRole("alert")).toHaveTextContent("Điểm vượt giới hạn")
     })
 })

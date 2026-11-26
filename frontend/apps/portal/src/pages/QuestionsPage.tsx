@@ -128,6 +128,20 @@ export function QuestionsPage() {
     const transition = useMutation({
         mutationFn: (input: { id: string; to: Status }) =>
             api(`/portal/questions/${input.id}/status`, { method: "PATCH", body: JSON.stringify({ status: input.to }) }),
+        onMutate: async (input) => {
+            await queryClient.cancelQueries({ queryKey: ["questions"] })
+            const previous = queryClient.getQueriesData<Paged>({ queryKey: ["questions"] })
+            queryClient.setQueriesData<Paged>({ queryKey: ["questions"] }, (data) => {
+                if (!data) return data
+                return {
+                    ...data,
+                    items: data.items.map((row) =>
+                        row.id === input.id ? { ...row, status: input.to } : row
+                    ),
+                }
+            })
+            return { previous }
+        },
         onSuccess: () => {
             setFlash(null)
             setConfirming(null)
@@ -135,7 +149,10 @@ export function QuestionsPage() {
             void queryClient.invalidateQueries({ queryKey: ["bucket-counts"] })
             void queryClient.invalidateQueries({ queryKey: ["keyword-hints"] })
         },
-        onError: (cause, input) => setFlash({ id: input.id, message: errorMessage(cause) }),
+        onError: (cause, input, context) => {
+            for (const [key, data] of context?.previous ?? []) queryClient.setQueryData(key, data)
+            setFlash({ id: input.id, message: errorMessage(cause) })
+        },
     })
 
     const archive = useMutation({

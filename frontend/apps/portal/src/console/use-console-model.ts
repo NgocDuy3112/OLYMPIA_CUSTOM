@@ -36,10 +36,14 @@ export interface ConsoleControl {
 
 type ConsoleModel = {
     adjustFor: string | null
+    adjustPending: boolean
+    adjustError: string | null
     openAdjust: (userId: string) => void
     closeAdjust: () => void
     submitAdjust: (delta: number, reason: string) => void
     regradeFor: string | null
+    regradePending: boolean
+    regradeError: string | null
     openRegrade: (userId: string) => void
     closeRegrade: () => void
     submitRegrade: (questionId: string, delta: number) => void
@@ -129,7 +133,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         onStartError: setStartError,
     })
 
-    const adjust = useConsoleAdjust(send)
+    const adjust = useConsoleAdjust({ sendScore: transport.sendScore, projection })
 
     const me = useMe()
     const controller: MatchController | null = v?.controller ?? null

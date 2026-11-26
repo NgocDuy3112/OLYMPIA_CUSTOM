@@ -46,9 +46,30 @@ export function useUpdatePlayer() {
                 }
             )
         },
+        onMutate: async (edit) => {
+            await queryClient.cancelQueries({ queryKey: ["players"] })
+            const previous = queryClient.getQueryData<{ items: PlayerRow[] }>(["players"])
+            if (previous) {
+                queryClient.setQueryData<{ items: PlayerRow[] }>(["players"], {
+                    ...previous,
+                    items: previous.items.map((row) => {
+                        if (row.userId !== edit.userId) return row
+                        const next = { ...row }
+                        if (edit.displayName !== undefined) next.displayName = edit.displayName
+                        if (edit.email !== undefined) next.email = edit.email
+                        if (edit.discordId !== undefined) next.discordId = edit.discordId
+                        return next
+                    }),
+                })
+            }
+            return { previous }
+        },
         onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: ["players"] })
             void queryClient.invalidateQueries({ queryKey: ["enrolled"] })
+        },
+        onError: (_cause, _edit, context) => {
+            if (context?.previous) queryClient.setQueryData(["players"], context.previous)
         },
     })
 }

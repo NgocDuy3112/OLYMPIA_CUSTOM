@@ -237,6 +237,8 @@ describe("editing an account — no tournament in the URL", () => {
         await userEvent.click(screen.getByRole("button", { name: "Lưu" }))
 
         expect(await screen.findByRole("alert")).toHaveTextContent(/already belongs to/)
+        expect(screen.getByText("ngoc@example.test")).toBeInTheDocument()
+        expect(screen.queryByText("an@example.test")).toBeNull()
     })
 
     it("refuses a Discord field that is not an ID", async () => {

@@ -1,8 +1,10 @@
 import { useState } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@shared/ui/dialog"
 
-export function AdjustScoreDialog({ playerName, onCancel, onSubmit }: {
+export function AdjustScoreDialog({ playerName, pending, error, onCancel, onSubmit }: {
     playerName: string
+    pending: boolean
+    error: string | null
     onCancel: () => void
     onSubmit: (delta: number, reason: string) => void
 }) {
@@ -13,7 +15,7 @@ export function AdjustScoreDialog({ playerName, onCancel, onSubmit }: {
     const valid = Number.isInteger(parsed) && parsed !== 0 && reason.trim().length > 0
 
     return (
-        <Dialog open onOpenChange={(next) => { if (!next) onCancel() }}>
+        <Dialog open onOpenChange={(next) => { if (!next && !pending) onCancel() }}>
             <DialogContent showCloseButton={false} className="w-full max-w-sm gap-0 p-5 sm:max-w-sm">
                 <form
                     onSubmit={(event) => {
@@ -51,20 +53,22 @@ export function AdjustScoreDialog({ playerName, onCancel, onSubmit }: {
                         />
                     </label>
 
+                    {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
                     <div className="mt-5 flex justify-end gap-2">
                         <button
                             type="button"
                             onClick={onCancel}
-                            className="rounded-lg border px-4 py-2 text-sm font-semibold text-muted-foreground transition hover:bg-muted"
+                            disabled={pending}
+                            className="rounded-lg border px-4 py-2 text-sm font-semibold text-muted-foreground transition hover:bg-muted disabled:opacity-50"
                         >
                             Hủy
                         </button>
                         <button
                             type="submit"
-                            disabled={!valid}
+                            disabled={!valid || pending}
                             className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-50"
                         >
-                            Lưu
+                            {pending ? "Đang lưu…" : "Lưu"}
                         </button>
                     </div>
                 </form>

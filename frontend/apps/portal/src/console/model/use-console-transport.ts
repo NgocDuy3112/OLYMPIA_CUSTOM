@@ -9,6 +9,8 @@ export interface ConsoleTransport {
     clock: ReturnType<typeof useServerClock>
     live: ReturnType<typeof useLive>
     writer: ReturnType<typeof useLiveAction>
+    scoreWriter: ReturnType<typeof useLiveAction>
+    sendScore: (action: LiveAction) => Promise<void>
     v: LiveResponse | undefined
     projection: Projection | undefined
     roundId: string
@@ -33,6 +35,8 @@ export function useConsoleTransport(tournamentId: string, matchId: string): Cons
     const clock = useServerClock()
     const live = useLive(tournamentId, matchId, clock.sync)
     const writer = useLiveAction(tournamentId, matchId)
+    const chainWriter = useLiveAction(tournamentId, matchId)
+    const scoreWriter = useLiveAction(tournamentId, matchId)
     const heartbeatError = useControllerHeartbeat(tournamentId, matchId)
 
     const v = live.data
@@ -61,11 +65,15 @@ export function useConsoleTransport(tournamentId: string, matchId: string): Cons
     const sendChain = async (actions: LiveAction[]) => {
         for (const action of collapseKeywordVerdicts(actions)) {
             try {
-                await writer.mutateAsync(action)
+                await chainWriter.mutateAsync(action)
             } catch {
                 return
             }
         }
+    }
+
+    const sendScore = async (action: LiveAction) => {
+        await scoreWriter.mutateAsync(action)
     }
 
     const userSeats = (projection?.table ?? []).map((row) => row.id)
@@ -74,12 +82,18 @@ export function useConsoleTransport(tournamentId: string, matchId: string): Cons
     if (heartbeatError !== null) flash = heartbeatError
     else if (writer.isError) {
         flash = (writer.error as { message?: string } | null)?.message ?? "Trạng thái đã đổi — đã tải lại"
+    } else if (chainWriter.isError) {
+        flash = (chainWriter.error as { message?: string } | null)?.message ?? "Trạng thái đã đổi — đã tải lại"
+    } else if (scoreWriter.isError) {
+        flash = (scoreWriter.error as { message?: string } | null)?.message ?? "Trạng thái đã đổi — đã tải lại"
     }
 
     return {
         clock,
         live,
         writer,
+        scoreWriter,
+        sendScore,
         v,
         projection,
         roundId: v?.roundId ?? "",

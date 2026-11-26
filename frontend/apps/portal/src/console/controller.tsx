@@ -126,6 +126,8 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
                     {model.adjustFor && (
                         <AdjustScoreDialog
                             playerName={facts.baseCards.find((c) => c.id === model.adjustFor)?.name ?? model.adjustFor}
+                            pending={model.adjustPending}
+                            error={model.adjustError}
                             onCancel={model.closeAdjust}
                             onSubmit={model.submitAdjust}
                         />
@@ -133,6 +135,8 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
                     {model.regradeFor && (
                         <RegradeDialog
                             playerName={facts.baseCards.find((c) => c.id === model.regradeFor)?.name ?? model.regradeFor}
+                            pending={model.regradePending}
+                            error={model.regradeError}
                             rows={(facts.v.projection.answers ?? [])
                                 .filter((a) => a.userId === model.regradeFor)
                                 .map((a) => ({
