@@ -393,7 +393,7 @@ public sealed class DraftWriter(AOCDbContext db)
                 RETURNING 1 AS "Value"
                 """,
                 matchId, questionId, userId, JsonSerializer.Serialize(value, JsonApi.Options), drafts,
-                answeredMs, answeredMs).ToListAsync()
+                answeredMs!, answeredMs!).ToListAsync()
             : await db.Database.SqlQueryRaw<int>(
                 """
                 INSERT INTO answers (match_id, question_id, user_id, value, drafts, first_answered_ms, answered_ms)
@@ -402,7 +402,7 @@ public sealed class DraftWriter(AOCDbContext db)
                 RETURNING 1 AS "Value"
                 """,
                 matchId, questionId, userId, JsonSerializer.Serialize(value, JsonApi.Options), drafts,
-                answeredMs, answeredMs).ToListAsync();
+                answeredMs!, answeredMs!).ToListAsync();
 
         if (written.Count > 0) return;
 
