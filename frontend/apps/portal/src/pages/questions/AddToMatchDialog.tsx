@@ -15,7 +15,6 @@ import { useTournaments } from "@/lib/tournaments"
 import {
     ALL_GROUPS,
     entryFromFrozen,
-    type FrozenQuestion,
 } from "@/components/match-question/model"
 import { bucketOf } from "./model"
 import { errorMessage } from "@shared/lib/error-text"
@@ -63,8 +62,7 @@ export function AddToMatchDialog({ rows, onClose }: { rows: BankQuestion[] | nul
 
     const save = useMutation({
         mutationFn: () => {
-            const frozen = (match?.questions ?? []) as FrozenQuestion[]
-            const kept = frozen.map((question) => entryFromFrozen(question)).map((entry) => {
+            const kept = (match?.questions ?? []).map((question) => entryFromFrozen(question)).map((entry) => {
                 const item: { roundId: string; turnId: string; sourceId: string; points?: number } = {
                     roundId: entry.roundId,
                     turnId: entry.turnId,

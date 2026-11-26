@@ -1,17 +1,6 @@
 import type { RoundConfig } from "@/lib/tournament"
 import type { ComposeRow } from "@/components/compose-group"
-
-export interface FrozenQuestion {
-    _id?: string
-    roundId: string
-    turnId: string
-    position?: number
-    kind?: string
-    questionText: string
-    points?: number
-    payload?: Record<string, unknown>
-    sourceId?: string
-}
+import type { MatchQuestion } from "@shared/wire/questions"
 
 export interface Entry {
     roundId: string
@@ -141,30 +130,28 @@ export function badgeOfRow(row: Pick<BankRow, "kind" | "payload" | "keywordId">)
     return row.kind
 }
 
-export function badgeOfFrozen(question: FrozenQuestion): string {
-    const declared = question.payload?.type
-    if (typeof declared === "string" && declared.length > 0) return declared
+export function badgeOfFrozen(question: MatchQuestion): string {
     if (question.kind === "KEYWORD") return "KEYWORD"
     if (question.kind === "TEXT" && question.roundId === "giai-ma") return "Gợi ý"
-    return question.kind ?? "TEXT"
+    return question.kind
 }
 
-export function entryFromFrozen(question: FrozenQuestion, group?: GroupDef): Entry {
+export function entryFromFrozen(question: MatchQuestion, group?: GroupDef): Entry {
     const entry: Entry = {
         roundId: question.roundId,
         turnId: question.turnId,
-        sourceId: question.sourceId ?? "",
+        sourceId: question.sourceId,
         questionText: question.questionText,
         kind: question.kind,
+        points: question.points,
+        position: question.position,
         badge: badgeOfFrozen(question),
     }
-    if (question.points !== undefined) entry.points = question.points
-    if (question.position !== undefined) entry.position = question.position
     if (group?.points !== undefined && entry.points === undefined) entry.points = group.points
     return entry
 }
 
-export function bucketize(questions: FrozenQuestion[]): { groups: Record<string, Entry[]>; unplaced: Entry[] } {
+export function bucketize(questions: MatchQuestion[]): { groups: Record<string, Entry[]>; unplaced: Entry[] } {
     const groups: Record<string, Entry[]> = Object.fromEntries(ALL_GROUPS.map((group) => [group.bucket, []]))
     const unplaced: Entry[] = []
     for (const question of questions) {

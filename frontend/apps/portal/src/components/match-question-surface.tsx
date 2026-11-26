@@ -24,7 +24,6 @@ import {
     spliceInto,
     type BankRow,
     type Entry,
-    type FrozenQuestion,
 } from "./match-question/model"
 
 export function MatchQuestionSurface({
@@ -37,7 +36,7 @@ export function MatchQuestionSurface({
     const queryClient = useQueryClient()
     const { data: tournament } = useTournament(tournamentId)
 
-    const questions = match.questions as FrozenQuestion[]
+    const questions = match.questions
     const original = bucketize(questions)
 
     const [draft, setDraft] = useState<Record<string, Entry[]> | null>(null)
