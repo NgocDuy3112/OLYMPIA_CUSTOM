@@ -114,10 +114,10 @@ public class VeDichApplierTests
         // Phase 1 questions opened from the confirmed batch have no single
         // answerer — a resolve would write an answer for the empty user id.
         var state = VeDichTurn.OpenPending(
-            VeDichTurn.PickRound(
+            VeDichTurn.ConfirmPicks(VeDichTurn.PickRound(
                 VeDichTurn.CreateVeDich(Board(), [
                     new VeDichPlayerState { Id = "a", Score = 0, Powers = PowerSet.Fresh() }]),
-                ["20-1"]),
+                ["20-1"])),
             "20-1");
 
         var error = Assert.Throws<VeDichRuleError>(() =>
@@ -164,8 +164,11 @@ public class VeDichApplierTests
             .GroupBy(f => f.UserId)
             .ToDictionary(g => g.Key, g => g.Sum(f => f.PointsAwarded));
 
-        var phase1Done = VeDichTurn.CloseQuestion(
-            VeDichTurn.OpenPending(VeDichTurn.CloseQuestion(opened), "20-2"));
+        // The console plays the batch out: reveal each question, start its clock,
+        // close it, then move on to the next one.
+        VeDichState CloseOpen(VeDichState state) => VeDichTurn.CloseQuestion(
+            VeDichTurn.StartClock(VeDichTurn.RevealQuestion(state, Now), Now));
+        var phase1Done = CloseOpen(VeDichTurn.OpenPending(CloseOpen(opened), "20-2"));
         var (phase2, _) = VeDichApplier.Apply(
             phase1Done, new LiveAction.VeDichBeginPhase2(),
             CtxWithScores([("a", sums.GetValueOrDefault("a")), ("b", sums.GetValueOrDefault("b"))]));

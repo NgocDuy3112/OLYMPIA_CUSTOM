@@ -216,6 +216,10 @@ public static class VeDichTurn
     public static VeDichState OpenPending(VeDichState state, string questionId)
     {
         if (state.Phase != 1) throw Err("WRONG_PHASE", "openPending only applies in Phase 1");
+        // Model A: the console confirms the batch before any question of it goes
+        // on stage — an unconfirmed pick set is still editable (pickRound/clearPicks).
+        if (!state.PicksConfirmed)
+            throw Err("PICKS_NOT_CONFIRMED", "confirm the picked questions first");
         var question = state.PendingPicks.FirstOrDefault(q => q.Id == questionId)
             ?? throw Err("INVALID_QUESTION", $"question {questionId} is not picked");
         var pending = state.PendingPicks.Where(q => q.Id != questionId).ToList();
@@ -273,6 +277,11 @@ public static class VeDichTurn
     {
         if (state.Phase != 1) throw Err("WRONG_PHASE", "closeQuestion only applies in Phase 1");
         if (state.Open is null) return state;
+        // Mirrors phase 2: a question nobody has seen or clocked yet is not played,
+        // and closing it would mark it played for good (burning a board question).
+        if (!state.Open.Revealed) throw Err("NOT_REVEALED", "reveal the question first");
+        if (!state.Open.Window.HasStarted)
+            throw Err("CLOCK_NOT_STARTED", "the question's clock has not started yet");
         // A closed question has been played: it leaves every pool for good, so
         // neither a later advance nor phase 2 can pick it up again.
         var question = state.Open.Question;
@@ -290,6 +299,8 @@ public static class VeDichTurn
         if (state.Open is not null) throw Err("ALREADY_OPEN", "a question is already open");
         if (state.PendingPicks.Count == 0)
             throw Err("NO_PICKS", "no questions are picked");
+        if (!state.PicksConfirmed)
+            throw Err("PICKS_NOT_CONFIRMED", "confirm the picked questions first");
 
         var next = state.PendingPicks[0];
         return state with
@@ -316,6 +327,9 @@ public static class VeDichTurn
         {
             Remaining = state.Remaining.Concat(state.PendingPicks).ToList(),
             PendingPicks = [],
+            // The strip is the confirmed batch: clearing the picks clears it too,
+            // otherwise the console keeps showing questions that went back to the board.
+            TurnQuestions = [],
             PicksConfirmed = false
         };
     }

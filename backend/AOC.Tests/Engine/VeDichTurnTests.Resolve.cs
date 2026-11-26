@@ -408,7 +408,7 @@ public partial class VeDichTurnTests
     {
         var s = Phase1("a", "b");
         var ids = s.Remaining.Where(q => q.Value == 20).Take(2).Select(q => q.Id).ToList();
-        s = VeDichTurn.PickRound(s, ids);
+        s = VeDichTurn.ConfirmPicks(VeDichTurn.PickRound(s, ids));
 
         var first = VeDichTurn.NextQuestion(s);
         Assert.Equal(ids[0], first.Open!.Question.Id);
@@ -417,14 +417,16 @@ public partial class VeDichTurnTests
         Assert.Null(first.Open!.Window.OpenedAt);
         Assert.Single(first.PendingPicks);
 
-        var second = VeDichTurn.NextQuestion(VeDichTurn.CloseQuestion(first));
+        var second = VeDichTurn.NextQuestion(VeDichTurn.CloseQuestion(
+            VeDichTurn.StartClock(VeDichTurn.RevealQuestion(first, Now), Now)));
         Assert.Equal(ids[1], second.Open!.Question.Id);
         Assert.Empty(second.PendingPicks);
 
         // An open question must be closed before the strip advances.
         Assert.Equal("ALREADY_OPEN", CodeOf(() => VeDichTurn.NextQuestion(second)));
 
-        var closed = VeDichTurn.CloseQuestion(second);
+        var closed = VeDichTurn.CloseQuestion(
+            VeDichTurn.StartClock(VeDichTurn.RevealQuestion(second, Now), Now));
         Assert.Contains(closed.Played, q => q.Id == ids[1]);
         Assert.Equal("NO_PICKS", CodeOf(() => VeDichTurn.NextQuestion(closed)));
     }

@@ -68,7 +68,7 @@ public static class LiveFacts
                     ? state.Players[state.TurnIndex]
                     : null;
                 var open = state.Open;
-                return new Dictionary<string, object?>
+                var facts = new Dictionary<string, object?>
                 {
                     ["phase"] = state.Phase,
                     ["turnPlayerId"] = turnPlayer?.Id,
@@ -84,13 +84,16 @@ public static class LiveFacts
                     ["pendingValues"] = state.PendingPicks.Select(q => q.Value).ToList(),
                     ["turnQuestions"] = (state.TurnQuestions ?? []).Select(q => q.Id).ToList(),
                     ["turnValues"] = (state.TurnQuestions ?? []).Select(q => q.Value).ToList(),
-                    ["turnPicked"] = state.TurnPicked,
                     ["picksConfirmed"] = state.PicksConfirmed,
                     ["pickCount"] = state.Rules.PickCount,
                     ["powersLeft"] = turnPlayer?.Powers.Available ?? [],
                     ["stagedPower"] = LiveView.StagedPowerOf(turnPlayer),
                     ["turnPowerUsed"] = turnPlayer?.Powers.UsedThisTurn ?? false
                 };
+                // "How many questions did the current player pick" only exists in
+                // phase 2 (one player picks a batch); phase 1 picks a shared set.
+                if (state.Phase == 2) facts["turnPicked"] = state.TurnPicked;
+                return facts;
             }
             case "khoi-dong":
             {

@@ -127,6 +127,26 @@ public class LiveViewWireTests
     };
 
     [Fact]
+    public void Phase1ConsoleFactsLeaveOutTurnPicked()
+    {
+        // turnPicked counts the questions the current player staged, which only
+        // exists in phase 2 (phase 1 confirms a shared batch).
+        var phase1 = new VeDichState
+        {
+            Phase = 1,
+            Players = [new VeDichPlayerState { Id = "u1" }, new VeDichPlayerState { Id = "u2" }]
+        };
+
+        var phase1Facts = LiveFacts.ConsoleFacts("ve-dich", Raw(phase1), T0);
+        var phase2Facts = LiveFacts.ConsoleFacts("ve-dich", Raw(VeDich()), T0);
+
+        Assert.NotNull(phase1Facts);
+        Assert.NotNull(phase2Facts);
+        Assert.DoesNotContain("turnPicked", phase1Facts.Keys);
+        Assert.Equal(0, Assert.IsType<int>(phase2Facts["turnPicked"]));
+    }
+
+    [Fact]
     public void FourViews_KeepEveryWireKey()
     {
         var keys = new HashSet<string>();

@@ -79,6 +79,9 @@ public static class VeDichApplier
                 return (VeDichTurn.LockBuzzWindow(state), []);
 
             case LiveAction.VeDichPickRound pickRound:
+                // No PICK fact here: phase 1 picks one shared batch for the whole
+                // board, so the action carries no question→player mapping to attribute
+                // an event to (Facts.Pick needs a user id).
                 return (VeDichTurn.PickRound(state, pickRound.QuestionIds), []);
 
             case LiveAction.VeDichOpenPending openPending:

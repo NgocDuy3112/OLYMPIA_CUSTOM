@@ -92,15 +92,36 @@ public partial class VeDichTurnTests
             .Select(q => q.Id).ToList();
         s = VeDichTurn.PickRound(s, ids);
         Assert.False(VeDichTurn.Phase1Complete(s));
+        s = VeDichTurn.ConfirmPicks(s);
 
         // Model A: no turn advancing — the console closes the batch question by
         // question, and phase 1 only ends when the last one is closed.
         for (var i = 0; i < ids.Count; i++)
         {
-            s = VeDichTurn.OpenPending(s, ids[i]);
-            s = VeDichTurn.CloseQuestion(s);
+            s = ClosePlayed(s, ids[i]);
             Assert.Equal(i == ids.Count - 1, VeDichTurn.Phase1Complete(s));
         }
+    }
+
+    [Fact]
+    public void Transitions_CloseQuestionRefusesAQuestionNobodySawOrClocked()
+    {
+        // Phase-1 asymmetry fix: closing marks the question played for good, so an
+        // untouched one may not be closed (mirrors phase 2's started-question guard).
+        var state = VeDichTurn.CreateVeDich(Pool, OrderedPlayers);
+        var ids = state.Remaining.Where(q => q.Value == 20).Take(OrderedPlayers.Count)
+            .Select(q => q.Id).ToList();
+        var opened = VeDichTurn.OpenPending(
+            VeDichTurn.ConfirmPicks(VeDichTurn.PickRound(state, ids)), ids[0]);
+
+        Assert.Equal("NOT_REVEALED", CodeOf(() => VeDichTurn.CloseQuestion(opened)));
+
+        var revealed = VeDichTurn.RevealQuestion(opened, Now);
+        Assert.Equal("CLOCK_NOT_STARTED", CodeOf(() => VeDichTurn.CloseQuestion(revealed)));
+
+        var played = VeDichTurn.CloseQuestion(VeDichTurn.StartClock(revealed, Now));
+        Assert.Null(played.Open);
+        Assert.Contains(played.Played, q => q.Id == opened.Open!.Question.Id);
     }
 
     [Fact]
@@ -184,8 +205,20 @@ public partial class VeDichTurnTests
             .Select(q => q.Id).ToList();
         s = VeDichTurn.ConfirmPicks(VeDichTurn.PickRound(s, ids));
         foreach (var id in ids)
-            s = VeDichTurn.CloseQuestion(VeDichTurn.OpenPending(s, id));
+            s = ClosePlayed(s, id);
         return s;
+    }
+
+    /// <summary>
+    /// The console's phase-1 flow for one question of the confirmed batch: open it,
+    /// reveal it, start its clock, then close the turn — the engine refuses to close
+    /// a question nobody has seen or clocked yet.
+    /// </summary>
+    private static VeDichState ClosePlayed(VeDichState state, string questionId)
+    {
+        var opened = VeDichTurn.OpenPending(state, questionId);
+        return VeDichTurn.CloseQuestion(
+            VeDichTurn.StartClock(VeDichTurn.RevealQuestion(opened, Now), Now));
     }
 
     private static VeDichState Buzzing()

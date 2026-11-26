@@ -1,3 +1,5 @@
+using System.Text.Json;
+using AOC.Api.Http;
 using AOC.Api.Modules.Live;
 using AOC.Domain.Contracts;
 using AOC.Domain.Gameplay.Turns;
@@ -93,5 +95,21 @@ public class VeDichViewTests
         Assert.Equal("free", where["20-1"]);
         Assert.Equal("deferred", where["40-1"]);
         Assert.Equal("deferred", where["50-1"]);
+    }
+
+    [Fact]
+    public void ClearingThePicksClearsTheConsoleStrip()
+    {
+        var state = VeDichTurn.CreateVeDich(Board(), [Player("a"), Player("b")]);
+        var picked = VeDichTurn.ConfirmPicks(
+            VeDichTurn.PickRound(state, ["20-1", "20-2"]));
+        var cleared = VeDichTurn.ClearPicks(picked);
+
+        var facts = LiveFacts.ConsoleFacts(
+            "ve-dich", JsonSerializer.SerializeToElement(cleared, JsonApi.Options), Now);
+
+        Assert.NotNull(facts);
+        Assert.Empty(Assert.IsType<List<string>>(facts["turnQuestions"]));
+        Assert.Empty(Assert.IsType<List<int>>(facts["turnValues"]));
     }
 }
