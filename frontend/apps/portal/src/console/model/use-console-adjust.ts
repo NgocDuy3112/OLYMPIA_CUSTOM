@@ -19,7 +19,7 @@ interface ConsoleAdjustInput {
     projection: Projection | undefined
 }
 
-export interface ConsoleAdjust {
+interface ConsoleAdjust {
     adjustFor: string | null
     adjustPending: boolean
     adjustError: string | null

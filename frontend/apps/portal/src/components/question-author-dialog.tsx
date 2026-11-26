@@ -682,5 +682,3 @@ export function QuestionAuthorDialog({
         </Dialog>
     )
 }
-
-export default QuestionAuthorDialog

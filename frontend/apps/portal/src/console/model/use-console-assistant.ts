@@ -2,19 +2,19 @@ import { useState } from "react"
 import type { AssistantFrameRead } from "@shared/lib/ws"
 import { isLiveActionKind, type LiveAction } from "@/lib/live-actions"
 
-export interface AssistantProposal {
+interface AssistantProposal {
     proposalId: string
     action: LiveAction
     rationale?: string
 }
 
-export interface AssistantTranscriptEntry {
+interface AssistantTranscriptEntry {
     turnId: string
     text: string
     done: boolean
 }
 
-export interface AssistantDecision {
+interface AssistantDecision {
     proposalId: string
     action: LiveAction
     outcome: "applied" | "dismissed"

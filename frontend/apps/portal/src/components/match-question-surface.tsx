@@ -456,5 +456,3 @@ export function MatchQuestionSurface({
         </ComposeDndProvider>
     )
 }
-
-export default MatchQuestionSurface
