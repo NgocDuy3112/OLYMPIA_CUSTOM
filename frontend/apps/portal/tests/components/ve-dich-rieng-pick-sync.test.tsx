@@ -43,7 +43,7 @@ function facts(pending: string[], over: Partial<ConsoleFacts> = {}): ConsoleFact
             state: {},
             questions: [],
             roundEnded: false,
-            console: mc,
+            console: { roundId: "ve-dich", console: mc },
             projection: {
                 matchId: "m1",
                 roundId: "ve-dich",

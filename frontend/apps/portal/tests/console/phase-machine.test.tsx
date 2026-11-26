@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 import { Controller } from "@/console/controller"
-import type { LobbyData, LiveResponse } from "@/lib/live"
+import type { LobbyData, LiveResponse, RawLiveResponse } from "@/lib/live"
 import { stubFetch } from "../helpers/render"
 
 
@@ -19,7 +19,7 @@ const LIVE_PATH = `/portal/tournaments/${T}/matches/${M}/live`
 const CONTROL_PATH = `/portal/tournaments/${T}/matches/${M}/live/control`
 const ME = "GET /portal/auth/me"
 
-function liveView(over: Partial<LiveResponse> = {}): LiveResponse {
+function liveView(over: Partial<RawLiveResponse> = {}): RawLiveResponse {
     return {
         version: 7,
         roundId: "khoi-dong",

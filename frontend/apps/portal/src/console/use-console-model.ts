@@ -6,7 +6,6 @@ import { useMe } from "@/lib/session"
 import { useTransitionMatch } from "@/lib/tournament"
 import { startAction } from "@/lib/live-actions"
 import type { HostBroadcast } from "@shared/lib/rtc"
-import { consoleOf } from "@shared/wire/live"
 import { ApiError } from "@shared/lib/api"
 import { setGlow, roundGlowOf, glowKeyOf } from "@shared/lib/glow"
 import { useConsoleTransport } from "./model/use-console-transport"
@@ -100,7 +99,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         sendChain,
     })
 
-    const consoleState = consoleOf(roundId, v?.console ?? null)
+    const consoleState = v?.console ?? null
     let consoleGiaiMa: GiaiMaConsole | null = null
     if (consoleState?.roundId === "giai-ma") consoleGiaiMa = consoleState.console
     let consoleVeDich: VeDichConsole | null = null

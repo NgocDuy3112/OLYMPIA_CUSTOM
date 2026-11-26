@@ -226,8 +226,12 @@ export interface LiveResponse {
     projection: Projection
     roundEnded: boolean
     connected: string[]
-    console: Record<string, unknown> | null
+    console: ConsoleState | null
     controller: MatchController | null
+}
+
+export interface RawLiveResponse extends Omit<LiveResponse, "console"> {
+    console?: Record<string, unknown> | null
 }
 
 export class WireError extends Error {
@@ -279,4 +283,8 @@ export function consoleOf(
         default:
             throw new WireError(`no console state for round "${roundId}"`, "roundId")
     }
+}
+
+export function liveResponseOf(raw: RawLiveResponse): LiveResponse {
+    return { ...raw, console: consoleOf(raw.roundId, raw.console) }
 }

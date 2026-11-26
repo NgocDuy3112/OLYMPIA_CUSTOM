@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { consoleOf, WireError } from "../wire/live"
+import { consoleOf, liveResponseOf, WireError } from "../wire/live"
+import type { RawLiveResponse } from "../wire/live"
 import type { AnswerWindow } from "../wire/tiebreak"
 import type { AuditEventRow } from "../wire/audit"
 
@@ -54,6 +55,34 @@ describe("consoleOf", () => {
 
     it("rejects a round the wire has no console family for", () => {
         expect(() => consoleOf("tiebreak", giaiMa)).toThrow(/no console state for round "tiebreak"/)
+    })
+})
+
+describe("liveResponseOf", () => {
+    const base = {
+        version: 1,
+        roundId: "giai-ma",
+        state: {},
+        questions: [],
+        projection: {},
+        roundEnded: false,
+        connected: [],
+        controller: null,
+    } as unknown as RawLiveResponse
+
+    it("validates the raw console into the round's own console state", () => {
+        expect(liveResponseOf({ ...base, console: giaiMa }).console).toEqual({
+            roundId: "giai-ma",
+            console: giaiMa,
+        })
+    })
+
+    it("has no console state when the wire carries none", () => {
+        expect(liveResponseOf({ ...base, console: null }).console).toBeNull()
+    })
+
+    it("rejects a console that belongs to another round", () => {
+        expect(() => liveResponseOf({ ...base, console: veDich })).toThrow(WireError)
     })
 })
 

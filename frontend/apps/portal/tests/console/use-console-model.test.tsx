@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import type { ReactNode } from "react"
 import { describe, expect, it } from "vitest"
 import { useConsoleModel } from "@/console/use-console-model"
-import type { LobbyData, LiveResponse } from "@/lib/live"
+import type { LobbyData, LiveResponse, RawLiveResponse } from "@/lib/live"
 import { stubFetch } from "../helpers/render"
 
 
@@ -28,7 +28,7 @@ const ME_BODY = {
     avatarUrl: null,
 }
 
-function liveView(over: Partial<LiveResponse> = {}): LiveResponse {
+function liveView(over: Partial<RawLiveResponse> = {}): RawLiveResponse {
     return {
         version: 7,
         roundId: "khoi-dong",
@@ -132,13 +132,15 @@ describe("useConsoleModel — the deck and the waiting room", () => {
         const { result } = renderModel()
         await waitFor(() => expect(phaseOf(result.current)).toBe("deck"))
 
-        const mc = deckOf(result.current).v.console as Record<string, unknown> | null
-        expect(mc).toMatchObject({
-            questionIndex: 2,
-            questionCount: 12,
-            attempt: 1,
-            windowOpen: true,
-            buzzerId: null,
+        expect(deckOf(result.current).v.console).toMatchObject({
+            roundId: "khoi-dong",
+            console: {
+                questionIndex: 2,
+                questionCount: 12,
+                attempt: 1,
+                windowOpen: true,
+                buzzerId: null,
+            },
         })
     })
 

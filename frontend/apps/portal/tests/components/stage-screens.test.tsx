@@ -11,15 +11,16 @@ function facts(
     projection: Partial<LiveResponse["projection"]> = {},
     mc: unknown = null,
     questions: LiveResponse["questions"] = [],
+    roundId = "khoi-dong",
 ): ConsoleFacts {
     const v: LiveResponse = {
         version: 1,
-        roundId: "khoi-dong",
+        roundId,
         state: {},
         questions,
         projection: {
             matchId: "m1",
-            roundId: "khoi-dong",
+            roundId,
             version: 1,
             stage: "phase1",
             open: [],
@@ -29,7 +30,7 @@ function facts(
         },
         roundEnded: false,
         connected: [],
-        console: mc as LiveResponse["console"],
+        console: (mc === null ? null : { roundId, console: mc }) as unknown as LiveResponse["console"],
         controller: null,
     }
     return {
@@ -73,7 +74,7 @@ function renderRound(
     mc: unknown = null,
     questions: LiveResponse["questions"] = [],
 ): ConsoleFacts {
-    const f = facts(over, projection, mc, questions)
+    const f = facts(over, projection, mc, questions, roundId)
     const mod = roundModuleOf(roundId)
     if (!mod) throw new Error(`no round module for "${roundId}"`)
     render(mod.render(f))
@@ -874,6 +875,7 @@ it("phase 1: clicking a board cell stages that cell, clicking it again drops it"
             },
             veDichMc({ phase: 1, turnPlayerId: "u1" }),
             [veQuestion("a", 20), veQuestion("b", 30), veQuestion("c", 20)],
+            "ve-dich",
         )
         const { rerender } = render(mod.render(view([])))
 
@@ -905,6 +907,7 @@ it("phase 1: clicking a board cell stages that cell, clicking it again drops it"
             },
             veDichMc({ phase: 1, turnPlayerId: "u1" }),
             [veQuestion("a", 20), veQuestion("b", 30)],
+            "ve-dich",
         )
         const { rerender } = render(mod.render(view(["a"])))
 
@@ -1036,7 +1039,7 @@ it("phase 1: with nothing picked, there is no confirm — Chọn lại clears", 
             veDichMc({ phase: 1, picksConfirmed: true }),
         )
 
-        expect(f.v.console).toMatchObject({ picksConfirmed: true })
+        expect(f.v.console).toMatchObject({ roundId: "ve-dich", console: { picksConfirmed: true } })
         expect(screen.queryByRole("button", { name: "Xác nhận" })).toBeNull()
         expect(screen.queryByRole("button", { name: "Chọn lại" })).toBeNull()
         expect(screen.getByText("Đếm giờ")).toBeInTheDocument()

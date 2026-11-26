@@ -4,6 +4,7 @@ import { logError } from "@shared/lib/log"
 import { playSfx, stopSfx } from "@shared/lib/sfx"
 import { isOlderView, keepNewestRead } from "@shared/lib/view-version"
 import { readAssistantFrame, useSocketStream, type AssistantFrameRead, type StreamStatus } from "@shared/lib/ws"
+import { liveResponseOf } from "@shared/wire/live"
 import type { LiveAction, Verdict } from "./live-actions"
 import type {
     ButPhaConsole,
@@ -13,6 +14,7 @@ import type {
     MatchController,
     Projection,
     QuestionAnswerRow,
+    RawLiveResponse,
     VeDichConsole,
 } from "@shared/wire/live"
 import type { ConsoleQuestion, SanitizedQuestion } from "@shared/wire/questions"
@@ -26,6 +28,7 @@ export type {
     MatchController,
     Projection,
     QuestionAnswerRow,
+    RawLiveResponse,
     SanitizedQuestion,
     VeDichConsole,
 }
@@ -80,7 +83,7 @@ interface ConsoleStreamFrame {
     v?: number
     type?: "console" | "error" | "sfx" | "assistant"
     at?: string
-    data?: { view?: LiveResponse; name?: string; url?: string; stop?: boolean }
+    data?: { view?: RawLiveResponse; name?: string; url?: string; stop?: boolean }
 }
 
 export function useLive(
@@ -111,7 +114,7 @@ export function useLive(
 
             if (frame.type === "console" && frame.data?.view) {
                 if (frame.at) onFrame?.(frame.at)
-                const next = frame.data.view
+                const next = liveResponseOf(frame.data.view)
                 if (!isOlderView(next, queryClient.getQueryData<LiveResponse>(liveKey(tournamentId, matchId)))) {
                     queryClient.setQueryData<LiveResponse>(liveKey(tournamentId, matchId), next)
                 }
@@ -127,9 +130,11 @@ export function useLive(
 
     const query = useQuery({
         queryKey: liveKey(tournamentId, matchId),
-        queryFn: () =>
-            api<LiveResponse>(
-                `/portal/tournaments/${tournamentId}/matches/${matchId}/live`
+        queryFn: async () =>
+            liveResponseOf(
+                await api<RawLiveResponse>(
+                    `/portal/tournaments/${tournamentId}/matches/${matchId}/live`
+                )
             ),
         enabled: Boolean(tournamentId && matchId),
         structuralSharing: (old, next) =>
