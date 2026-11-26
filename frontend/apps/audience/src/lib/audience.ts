@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { api } from "@shared/lib/api"
+import { useCountdown, type ServerClock } from "@shared/lib/clock"
 import type { PlayerCtx, PlayerView } from "@shared/deck/types"
 
 
@@ -28,14 +29,32 @@ export function audienceView(read: AudienceRead): PlayerView {
 
 const noop = () => {}
 
-export function audienceCtx(view: PlayerView): PlayerCtx {
+/**
+ * The LED has no clock handshake: spectate deadlines are absolute server times,
+ * so the local clock is the only reference and the skew stays zero.
+ */
+const AUDIENCE_CLOCK: ServerClock = { sync: noop, skew: () => 0 }
+
+export interface AudienceRemaining {
+    remaining: number
+    oralRemaining: number
+}
+
+/** The audience ticks its own countdown; refetching only refreshes the view. */
+export function useAudienceCtx(view: PlayerView): PlayerCtx {
+    const remaining = useCountdown(view.open[0]?.deadlineAt ?? null, AUDIENCE_CLOCK)
+    const oralRemaining = useCountdown(view.oral?.deadlineAt ?? null, AUDIENCE_CLOCK)
+    return audienceCtx(view, { remaining, oralRemaining })
+}
+
+export function audienceCtx(view: PlayerView, remaining: AudienceRemaining): PlayerCtx {
     return {
         v: view,
         stage: view.stage,
         open: view.open,
-        remaining: 0,
-        oralRemaining: 0,
-        clock: { sync: () => {}, skew: () => 0 },
+        remaining: remaining.remaining,
+        oralRemaining: remaining.oralRemaining,
+        clock: AUDIENCE_CLOCK,
         myId: null,
         audience: true,
         flash: null,

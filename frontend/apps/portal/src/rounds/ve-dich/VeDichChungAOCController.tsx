@@ -55,7 +55,11 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
     let startClock: (() => void) | undefined = undefined
     if (openNow) {
         if (revealed) {
-            if (!counting) startClock = () => ctx.send({ kind: "ve-dich.startClock" })
+            // The clock is a budget, not a stopwatch: once it started the engine
+            // refuses a second start (ALREADY_OPEN), expired or not.
+            if (!counting && consoleVeDich?.clockStarted !== true) {
+                startClock = () => ctx.send({ kind: "ve-dich.startClock" })
+            }
         }
     }
     let revealAnswer: (() => void) | undefined = undefined

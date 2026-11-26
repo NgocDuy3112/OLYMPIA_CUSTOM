@@ -115,6 +115,20 @@ interface StreamFrame {
 
 const liveKey = (matchId: string) => ["live", matchId] as const
 
+/**
+ * A view frame may race a slower REST refetch: never paint a frame older than the
+ * cached view, or the deck jumps back a stage and drops a buzz window. The version
+ * is optional on both sides, so only two comparable versions can prove staleness.
+ */
+export function isOlderView(
+    frame: { version?: number } | null | undefined,
+    cached: { version?: number } | null | undefined
+): boolean {
+    if (!frame || !cached) return false
+    if (typeof frame.version !== "number" || typeof cached.version !== "number") return false
+    return frame.version < cached.version
+}
+
 const streamPathOf = (matchId: string) => `/api/matches/${matchId}/live/stream`
 
 interface UseLiveMatch {
@@ -145,7 +159,10 @@ export function useLiveHub(matchId: string, enabled: boolean): HubInvoker {
 
             if (frame.type === "view" && frame.data?.view) {
                 if (frame.at) clock.sync(frame.at)
-                queryClient.setQueryData(liveKey(matchId), frame.data.view)
+                const next = frame.data.view
+                if (!isOlderView(next, queryClient.getQueryData<LiveView>(liveKey(matchId)))) {
+                    queryClient.setQueryData(liveKey(matchId), next)
+                }
                 return
             }
 

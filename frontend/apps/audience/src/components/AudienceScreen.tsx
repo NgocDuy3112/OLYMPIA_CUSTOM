@@ -1,4 +1,4 @@
-import { audienceCtx } from "@/lib/audience"
+import { useAudienceCtx } from "@/lib/audience"
 import { playerScreenOf } from "@shared/deck/dispatch"
 import { Gate } from "@shared/deck/primitives"
 import type { PlayerView } from "@shared/deck/types"
@@ -13,7 +13,7 @@ import { VeDichRiengAOCPlayer } from "@shared/deck/screens/VeDichRiengAOCPlayer"
 
 
 export function AudienceScreen({ view }: { view: PlayerView }) {
-    const ctx = audienceCtx(view)
+    const ctx = useAudienceCtx(view)
     const screen = playerScreenOf(view)
 
     switch (screen) {

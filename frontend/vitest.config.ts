@@ -5,6 +5,7 @@ export default defineConfig({
         projects: [
             "apps/portal/vitest.config.ts",
             "apps/gameplay/vitest.config.ts",
+            "apps/audience/vitest.config.ts",
             "apps/results/vitest.config.ts",
             // "shared/vitest.config.ts",
         ],

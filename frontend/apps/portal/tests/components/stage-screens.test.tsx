@@ -1136,6 +1136,18 @@ describe("VeDichChung — S7, phase 1 question", () => {
         expect(f.send).toHaveBeenCalledWith({ kind: "ve-dich.startClock" })
     })
 
+    it("Đếm giờ does not re-arm once the clock already started", () => {
+        // Engine: StartClock refuses an already started window (ALREADY_OPEN).
+        renderRound(
+            "ve-dich",
+            { remaining: 0 },
+            { open: [{ questionId: "q1", deadlineAt: "2026-01-01T00:00:00.000Z", question: null }] },
+            veDichMc({ phase: 1, revealed: true, clockStarted: true }),
+        )
+
+        expect(screen.queryByRole("button", { name: "Đếm giờ" })).toBeNull()
+    })
+
 it("keeps Hết lượt locked while an answer is still unjudged", () => {
         renderRound(
             "ve-dich",
@@ -1328,7 +1340,7 @@ it("offers no Hết lượt in the chung phase — and strip buttons carry no to
 
         // Chung may stage one question per player — up to four.
         expect(screen.getAllByTitle(/^Câu \d+ đang mở$/)).toHaveLength(1)
-        const chips = document.querySelectorAll('button[title^="Mở lại câu"], button[title^="Mở câu "]')
+        const chips = document.querySelectorAll('button[title^="Câu 30 điểm đã chơi"], button[title^="Mở câu "]')
         expect(chips.length).toBe(3)
     })
 
@@ -1495,18 +1507,32 @@ describe("VeDichRieng — S8, phase 2 question", () => {
         expect(document.querySelectorAll('[aria-pressed="true"]')).toHaveLength(1)
     })
 
-    it("offers the full turn strip: chuông, verdicts, hết lượt, về sảnh", async () => {
+    it("the oral window owns the turn: Hết lượt waits for Mở chuông", async () => {
         const user = userEvent.setup()
         const f = renderRound(
             "ve-dich",
             { send: vi.fn(), hetLuot: vi.fn(), target: "u1", verdictOf: () => "CORRECT" },
             { open: [openQ] },
-            veDichMc({ phase: 2, clockStarted: true }),
+            veDichMc({ phase: 2, openStage: "current", clockStarted: true }),
         )
 
-        expectButtonsInOrder(["Mở chuông", "Đúng", "Sai", "Hết lượt", "Về sảnh"])
+        expectButtonsInOrder(["Mở chuông", "Đúng", "Sai", "Về sảnh"])
+        // Resolving now would hit a window the engine still holds open (ALREADY_OPEN).
+        expect(screen.queryByRole("button", { name: "Hết lượt" })).toBeNull()
         await user.click(screen.getByRole("button", { name: "Mở chuông" }))
         expect(f.send).toHaveBeenCalledWith({ kind: "ve-dich.closeCurrentAnswer" })
+        expect(f.hetLuot).not.toHaveBeenCalled()
+    })
+
+    it("once the buzzer window is up, Hết lượt resolves the turn", async () => {
+        const user = userEvent.setup()
+        const f = renderRound(
+            "ve-dich",
+            { send: vi.fn(), hetLuot: vi.fn(), target: "u1", verdictOf: () => "CORRECT" },
+            { open: [openQ] },
+            veDichMc({ phase: 2, openStage: "buzz", clockStarted: true }),
+        )
+
         await user.click(screen.getByRole("button", { name: "Hết lượt" }))
         expect(f.hetLuot).toHaveBeenCalledOnce()
     })
@@ -1542,6 +1568,214 @@ describe("VeDichRieng — S8, phase 2 question", () => {
         const f = renderRound("ve-dich", { verdictOf: () => "CORRECT" }, { open: [openQ] }, veDichMc({ phase: 2 }))
         await user.click(screen.getByRole("button", { name: "Về sảnh" }))
         expect(f.backToLobby).toHaveBeenCalledOnce()
+    })
+})
+
+// Each of these buttons used to be live while the engine would answer 400/409:
+// the screen now asks the engine's own preconditions instead of the clock.
+describe("VeDichRieng — buttons match what the engine will accept", () => {
+    const staged = {
+        open: [],
+        board: [
+            { questionId: "q1", value: 40, where: "pending" as const },
+            { questionId: "q2", value: 40, where: "taken" as const },
+        ],
+    }
+    const twoChips = { turnQuestions: ["q1", "q2"], turnValues: [40, 40], picksConfirmed: true }
+
+    it("no second Đếm giờ once the clock already started", () => {
+        // Engine: StartClock refuses a window that already started (ALREADY_OPEN) —
+        // an expired clock included, it is a budget, not a stopwatch.
+        renderRound(
+            "ve-dich", { remaining: 0 },
+            { open: [{ questionId: "q1", deadlineAt: "2026-01-01T00:00:00.000Z", question: null }] },
+            veDichMc({ phase: 2, openStage: "current", revealed: true, clockStarted: true }),
+        )
+
+        expect(screen.queryByRole("button", { name: "Đếm giờ" })).toBeNull()
+    })
+
+    it("Đếm giờ is live before the clock was ever started", () => {
+        renderRound(
+            "ve-dich", { remaining: 0 },
+            { open: [{ questionId: "q1", deadlineAt: null, question: null }] },
+            veDichMc({ phase: 2, openStage: "current", revealed: true, clockStarted: false }),
+        )
+
+        expect(screen.getByRole("button", { name: "Đếm giờ" })).toBeInTheDocument()
+    })
+
+    it("a played question stays on the strip but is no longer clickable", async () => {
+        const user = userEvent.setup()
+        // Engine: OpenPhase2Question only takes a question still in PendingPicks.
+        const f = renderRound(
+            "ve-dich", { sendChain: vi.fn() }, staged,
+            veDichMc({ phase: 2, turnPlayerId: "u1", pendingQuestionId: "q1", ...twoChips }),
+        )
+
+        const played = screen.getByTitle("Câu 40 điểm đã chơi")
+        expect(played).toHaveAttribute("aria-disabled", "true")
+        await user.click(played)
+        expect(f.sendChain).not.toHaveBeenCalled()
+
+        await user.click(screen.getByTitle("Mở câu 40 điểm"))
+        expect(f.sendChain).toHaveBeenCalledWith([
+            { kind: "ve-dich.openQuestion", questionId: "q1" },
+            { kind: "ve-dich.reveal" },
+        ])
+    })
+
+    it("a pending chip cannot be switched to once the window started", () => {
+        // Engine: SwitchPhase2Question refuses a revealed/clocked question (ALREADY_OPEN).
+        renderRound(
+            "ve-dich", {},
+            {
+                open: [{ questionId: "q1", deadlineAt: null, question: null }],
+                board: [
+                    { questionId: "q1", value: 40, where: "open" },
+                    { questionId: "q2", value: 40, where: "pending" },
+                ],
+            },
+            veDichMc({
+                phase: 2, turnPlayerId: "u1", pendingQuestionId: "q2",
+                revealed: true, clockStarted: true,
+                turnQuestions: ["q1", "q2"], turnValues: [40, 40], picksConfirmed: true,
+            }),
+        )
+
+        expect(screen.getByTitle("Mở câu 40 điểm")).toHaveAttribute("aria-disabled", "true")
+    })
+
+    it("an untouched window still lets the console switch to a pending chip", async () => {
+        const user = userEvent.setup()
+        const f = renderRound(
+            "ve-dich", { sendChain: vi.fn() },
+            {
+                open: [{ questionId: "q1", deadlineAt: null, question: null }],
+                board: [
+                    { questionId: "q1", value: 40, where: "open" },
+                    { questionId: "q2", value: 50, where: "pending" },
+                ],
+            },
+            veDichMc({
+                phase: 2, turnPlayerId: "u1", pendingQuestionId: "q2",
+                turnQuestions: ["q1", "q2"], turnValues: [40, 50], picksConfirmed: true,
+            }),
+        )
+
+        await user.click(screen.getByTitle("Mở câu 50 điểm"))
+        expect(f.sendChain).toHaveBeenCalledWith([
+            { kind: "ve-dich.switchQuestion", questionId: "q2" },
+            { kind: "ve-dich.reveal" },
+        ])
+    })
+
+    it("no power is offered once the turn has no question left to open", () => {
+        // Engine: DeclarePower answers NOTHING_OPEN with an empty PendingPicks.
+        renderRound(
+            "ve-dich", {}, { open: [], board: [] },
+            veDichMc({ phase: 2, turnPlayerId: "u1", pendingQuestionId: null, picksConfirmed: true }),
+        )
+
+        expect(screen.queryByRole("button", { name: "Ngôi sao hy vọng" })).toBeNull()
+        expect(screen.queryByRole("button", { name: "Chỉ định đối kháng" })).toBeNull()
+    })
+
+    it("Chọn lại is inert when the turn has nothing left to clear", async () => {
+        const user = userEvent.setup()
+        // An empty batch would send the screen back to the pick board for nothing.
+        const f = renderRound(
+            "ve-dich", { send: vi.fn() }, { open: [], board: [] },
+            veDichMc({ phase: 2, turnPlayerId: "u1", pendingQuestionId: null, picksConfirmed: true }),
+        )
+
+        expect(screen.queryByRole("button", { name: "Chọn lại" })).toBeNull()
+        await user.click(screen.getByText("Chọn lại"))
+        expect(f.send).not.toHaveBeenCalled()
+    })
+
+    it("Đúng/Sai wait for a ticked card — nobody to grade means no verdict", async () => {
+        const user = userEvent.setup()
+        const f = renderRound(
+            "ve-dich",
+            { setVerdict: vi.fn(), baseCards: [{ id: "u1", name: "An", points: 10 }] },
+            { open: [openQ] },
+            veDichMc({ phase: 2, openStage: "buzz" }),
+        )
+
+        expect(screen.getByText("chọn thẻ để chấm")).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: "Đúng" })).toBeNull()
+        expect(screen.queryByRole("button", { name: "Sai" })).toBeNull()
+        await user.click(screen.getByText("An"))
+        expect(f.setVerdict).not.toHaveBeenCalled()
+    })
+
+    it("a ticked card makes Đúng/Sai live again", () => {
+        renderRound(
+            "ve-dich",
+            { selectedIds: new Set(["u1"]), baseCards: [{ id: "u1", name: "An", points: 10 }] },
+            { open: [openQ] },
+            veDichMc({ phase: 2, openStage: "buzz" }),
+        )
+
+        expect(screen.queryByText("chọn thẻ để chấm")).toBeNull()
+        expect(screen.getByRole("button", { name: "Đúng" })).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Sai" })).toBeInTheDocument()
+    })
+
+    // An ASSIGN question is resolved once the race is settled — locking the buzz
+    // window, a recorded buzz with both verdicts, or the race clock running out.
+    // `open.power` stays "ASSIGN" for all of them, so it cannot gate the button.
+    describe("an ASSIGN question resolves once its race is settled", () => {
+        const duel = (over: Partial<VeDichConsole> = {}) => veDichMc({
+            phase: 2, openStage: "buzz", clockStarted: true,
+            power: "ASSIGN", assignedToId: "u2",
+            ...over,
+        })
+        const raced = { open: [{ questionId: "q1", deadlineAt: "2026-01-01T00:00:30.000Z", question: null }] }
+        const expired = { open: [{ questionId: "q1", deadlineAt: "2026-01-01T00:00:00.000Z", question: null }] }
+
+        it("after Khoá chuông — nobody buzzed, the race is over", async () => {
+            const user = userEvent.setup()
+            const f = renderRound(
+                "ve-dich", { verdictOf: () => "CORRECT", hetLuot: vi.fn() }, raced, duel(),
+            )
+
+            expect(screen.getByRole("button", { name: "Khoá chuông" })).toBeInTheDocument()
+            await user.click(screen.getByRole("button", { name: "Hết lượt" }))
+            expect(f.hetLuot).toHaveBeenCalledOnce()
+        })
+
+        it("after a buzz with both verdicts in", async () => {
+            const user = userEvent.setup()
+            const f = renderRound(
+                "ve-dich", { verdictOf: () => "CORRECT", hetLuot: vi.fn() }, raced,
+                duel({ buzzerId: "u2" }),
+            )
+
+            await user.click(screen.getByRole("button", { name: "Hết lượt" }))
+            expect(f.hetLuot).toHaveBeenCalledOnce()
+        })
+
+        it("after the race clock ran out", async () => {
+            const user = userEvent.setup()
+            const f = renderRound(
+                "ve-dich", { verdictOf: () => "CORRECT", hetLuot: vi.fn(), remaining: 0 }, expired, duel(),
+            )
+
+            await user.click(screen.getByRole("button", { name: "Hết lượt" }))
+            expect(f.hetLuot).toHaveBeenCalledOnce()
+        })
+
+        it("while the race is still live the engine answers RACE_IN_PROGRESS", () => {
+            // The view has no "locked" fact, so the console cannot tell a locked race
+            // from a running one: the button stays pressable and the engine guards it.
+            renderRound(
+                "ve-dich", { verdictOf: () => "CORRECT" }, raced, duel(),
+            )
+
+            expect(screen.getByRole("button", { name: "Hết lượt" })).toBeInTheDocument()
+        })
     })
 })
 

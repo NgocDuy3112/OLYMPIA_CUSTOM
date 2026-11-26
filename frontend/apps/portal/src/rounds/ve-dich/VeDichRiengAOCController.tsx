@@ -48,10 +48,20 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
     let counting = false
     if (openNow?.deadlineAt && (remaining ?? 0) > 0) counting = true
 
+    // The engine only opens a question that is still pending, and only switches
+    // before the window started (Open/SwitchPhase2Question: INVALID_QUESTION,
+    // ALREADY_OPEN). A played question can never come back onto the stage.
+    const canSwitch = openNow !== null && !revealed
+        && consoleVeDich?.clockStarted !== true && consoleVeDich?.buzzerId == null
+
     let powerStorable = true
     if (consoleVeDich?.phase !== 2) powerStorable = false
     if (openNow !== null) powerStorable = false
     if (consoleVeDich?.turnPlayerId === null) powerStorable = false
+    // A power is staged against the turn's remaining picks: with none left the
+    // engine refuses every declaration (NOTHING_OPEN).
+    const pendingQuestionId = consoleVeDich?.pendingQuestionId ?? null
+    if (pendingQuestionId === null) powerStorable = false
     // One power per turn, re-armed every turn — only an empty set locks it.
     // (An absent field is not "empty": keep the buttons live.)
     const turnPowers = consoleVeDich?.powersLeft
@@ -77,7 +87,7 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
     if (powerStorable) toggleAssign = () => setAssignArmed((was) => !was)
     // Cancelling hands the turn's power back (engine: DeclarePower(power: null)).
     let unstagePower: (() => void) | undefined = undefined
-    if (openNow === null && stagedPower !== null && turnPlayerId !== null) {
+    if (openNow === null && stagedPower !== null && turnPlayerId !== null && pendingQuestionId !== null) {
         unstagePower = () => declarePower(null)
     }
     let starSpent = false
@@ -97,7 +107,11 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
     if (openNow) {
         if (revealed) {
             if (consoleVeDich?.openStage === "current") {
-                if (!counting) startClock = () => ctx.send({ kind: "ve-dich.startClock" })
+                // The clock is a budget, not a stopwatch: once it started the engine
+                // refuses a second start (ALREADY_OPEN), expired or not.
+                if (!counting && consoleVeDich.clockStarted !== true) {
+                    startClock = () => ctx.send({ kind: "ve-dich.startClock" })
+                }
             }
         }
     }
@@ -112,8 +126,10 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
             if (clockDone) closeCurrent = () => ctx.send({ kind: "ve-dich.closeCurrentAnswer" })
         }
     }
+    // Clearing an already-empty turn would send an empty batch for nothing; with
+    // no pending picks the strip is already back at the pick screen.
     let clearPicks: (() => void) | undefined = undefined
-    if (openNow === null) {
+    if (openNow === null && pendingQuestionId !== null) {
         clearPicks = () => {
             const playerId = consoleVeDich?.turnPlayerId
             if (!playerId) return
@@ -124,12 +140,25 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
     if (canLockBuzz) lockBuzz = () => ctx.send({ kind: "ve-dich.lockBuzz" })
     let buzzText = "—"
     if (consoleVeDich?.buzzerMs != null) buzzText = formatDurationMs(consoleVeDich.buzzerMs)
+    // Resolving waits for the oral window to be closed ("Mở chuông" turns it into
+    // the buzz window; the engine refuses while it is still oral — ALREADY_OPEN).
+    // An ASSIGN duel is deliberately NOT gated on `open.Power`: that flag stays
+    // "ASSIGN" for the whole question, and the view carries no "locked" fact, so
+    // a race gate here could not tell a locked race from a running one. The
+    // engine's RACE_IN_PROGRESS is the guard while the two players are racing;
+    // every settled race (locked, buzzed and judged, or timed out) resolves here.
     let endTurn: (() => void) | undefined = () => ctx.hetLuot()
-    if (turnOpen) endTurn = undefined
+    if (turnOpen || consoleVeDich?.openStage === "current") endTurn = undefined
     const timerRemaining = timerRemainingOf(openNow, remaining)
 
+    // A verdict needs someone to grade: the rail's ticked card, or the screen's
+    // target. This screen has no answer rows, so an unticked rail makes
+    // setVerdict a silent no-op — keep the buttons inert and ask for the tick.
     let canVerdict = false
-    if (openNow !== null) canVerdict = true
+    if (openNow !== null) {
+        if (ctx.selectedIds.size > 0 || ctx.target !== null) canVerdict = true
+    }
+    const judgeHint = openNow !== null && !canVerdict
 
     // Mirror the chung screen: clicking a card must show which one is ticked.
     // The console only lights a "selected" card while a question is being
@@ -191,6 +220,11 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
                     content: buzzText,
                     muted: true,
                 },
+                {
+                    label: "chọn thẻ để chấm",
+                    muted: true,
+                    empty: !judgeHint,
+                },
                 ...verdictActions({
                     canVerdict,
                     onVerdict: ctx.setVerdict,
@@ -212,11 +246,14 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
                         <QuestionChips
                             chips={turnChips.map((chip) => {
                                 const isOpen = chip.where === "open"
+                                let clickable = false
+                                if (isOpen) clickable = !revealed
+                                else if (chip.where === "waiting") clickable = openNow === null || canSwitch
                                 return {
                                     id: chip.questionId,
                                     label: String(chip.value),
                                     active: isOpen,
-                                    clickable: !revealed,
+                                    clickable,
                                     title: turnChipHint(chip.where, chip.value),
                                 }
                             })}

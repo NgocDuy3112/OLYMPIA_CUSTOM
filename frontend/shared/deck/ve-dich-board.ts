@@ -100,7 +100,9 @@ export function turnChipsOf(input: {
 
 export function turnChipHint(where: TurnChipState, value: number): string {
     if (where === "open") return `Câu ${value} đang mở`
-    if (where === "done") return `Mở lại câu ${value} điểm`
+    // A played question leaves the turn's pending list for good: neither
+    // OpenPhase2Question nor SwitchPhase2Question can bring it back.
+    if (where === "done") return `Câu ${value} điểm đã chơi`
     return `Mở câu ${value} điểm`
 }
 
