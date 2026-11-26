@@ -4,7 +4,7 @@ import { auditExportUrl, useAuditEvents, useAuditEventsActions, useAuditStream }
 import { errorMessage } from "@shared/lib/error-text"
 import type { StreamStatus } from "@shared/lib/ws"
 import { Badge } from "@shared/ui/badge"
-import { Button } from "@shared/ui/button"
+import { Button, buttonVariants } from "@shared/ui/button"
 import { Input } from "@shared/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
 import type { AuditEventRow, AuditFilterParams } from "@shared/wire/audit"
@@ -214,13 +214,13 @@ export function AuditPage() {
                         <Badge variant={streamStatus === "live" ? "default" : "outline"}>
                             {streamLabel(streamStatus)}
                         </Badge>
-                        <Button
-                            variant="outline"
-                            nativeButton={false}
-                            render={<a href={auditExportUrl(filters)} download />}
+                        <a
+                            className={buttonVariants({ variant: "outline" })}
+                            href={auditExportUrl(filters)}
+                            download
                         >
                             <Download className="size-4" aria-hidden /> Export CSV
-                        </Button>
+                        </a>
                     </>
                 }
             />
