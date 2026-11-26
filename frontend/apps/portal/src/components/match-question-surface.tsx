@@ -44,7 +44,6 @@ export function MatchQuestionSurface({
     const [search, setSearch] = useState("")
     const [debounced, setDebounced] = useState("")
     const [flash, setFlash] = useState<string | null>(null)
-    const [saveError, setSaveError] = useState<string | null>(null)
     const [conflict, setConflict] = useState<string | null>(null)
     const [notice, setNotice] = useState<string | null>(null)
     const [importOpen, setImportOpen] = useState(false)
@@ -97,7 +96,6 @@ export function MatchQuestionSurface({
     const enterCompose = () => {
         setDraft(bucketize(questions).groups)
         setFlash(null)
-        setSaveError(null)
         setConflict(null)
         setNotice(null)
     }
@@ -164,7 +162,7 @@ export function MatchQuestionSurface({
             return
         }
 
-        void insertRow(row, bucket, index).catch((error) => setSaveError(errorMessage(error)))
+        void insertRow(row, bucket, index).catch((error) => setFlash(errorMessage(error)))
     }
 
     useEffect(() => {
@@ -321,7 +319,6 @@ export function MatchQuestionSurface({
                     closeAfterSaveRef.current = false
                     setDraft(null)
                 }
-                setSaveError(null)
                 setConflict(null)
                 setNotice(`Đã lưu — revision ${result.assemblyRevision}.`)
                 void queryClient.invalidateQueries({ queryKey: ["matches", tournamentId] })
@@ -334,9 +331,7 @@ export function MatchQuestionSurface({
                 if (error instanceof ApiError && error.code === "CONFLICT") {
                     setConflict(error.message)
                     void queryClient.invalidateQueries({ queryKey: ["matches", tournamentId] })
-                    return
                 }
-                setSaveError(errorMessage(error))
             },
         })
 
@@ -368,8 +363,15 @@ export function MatchQuestionSurface({
         if (conflict) return
         setDraft(null)
         setFlash(null)
-        setSaveError(null)
         setConflict(null)
+    }
+
+    let saveError: string | null = null
+    if (save.isError) {
+        const failure = save.error
+        if (!(failure instanceof ApiError && failure.code === "CONFLICT")) {
+            saveError = errorMessage(failure)
+        }
     }
 
     let statusText = saveReason ?? "Đang chờ tự lưu…"

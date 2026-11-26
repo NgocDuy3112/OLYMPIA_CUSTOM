@@ -4,21 +4,9 @@ import { useQueryClient } from "@tanstack/react-query"
 import { Upload, X } from "lucide-react"
 import { Button } from "@shared/ui/button"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@shared/ui/dialog"
-
-interface RowDetail {
-    index: number
-    message: string
-}
+import { ApiError, UploadError, uploadWithProgress, type UploadRowError } from "@shared/lib/api"
 
 type Phase = "idle" | "uploading" | "processing" | "success" | "error"
-
-function parseJson(text: string): unknown {
-    try {
-        return JSON.parse(text) as unknown
-    } catch {
-        return null
-    }
-}
 
 export function MatchDirectImportDialog({
     open,
@@ -38,9 +26,9 @@ export function MatchDirectImportDialog({
     const [phase, setPhase] = useState<Phase>("idle")
     const [percent, setPercent] = useState(0)
     const [message, setMessage] = useState<string | null>(null)
-    const [rows, setRows] = useState<RowDetail[]>([])
+    const [rows, setRows] = useState<UploadRowError[]>([])
     const [created, setCreated] = useState(0)
-    const activeRef = useRef<XMLHttpRequest | null>(null)
+    const activeRef = useRef<AbortController | null>(null)
 
     const invalidate = () => {
         void queryClient.invalidateQueries({ queryKey: ["matches", tournamentId] })
@@ -48,53 +36,6 @@ export function MatchDirectImportDialog({
         void queryClient.invalidateQueries({ queryKey: ["eligible"] })
         void queryClient.invalidateQueries({ queryKey: ["questions"] })
         void queryClient.invalidateQueries({ queryKey: ["bucket-counts"] })
-    }
-
-    const readDetails = (body: unknown): RowDetail[] => {
-        if (body === null) return []
-        if (typeof body !== "object") return []
-        const details = (body as { details?: unknown }).details
-        if (Array.isArray(details) === false) return []
-        const out: RowDetail[] = []
-        for (const item of details as unknown[]) {
-            if (item === null) continue
-            if (typeof item !== "object") continue
-            const index = (item as { index?: unknown }).index
-            const text = (item as { message?: unknown }).message
-            if (typeof index !== "number") continue
-            if (typeof text !== "string") continue
-            out.push({ index, message: text })
-        }
-        return out
-    }
-
-    const readMessage = (body: unknown): string => {
-        if (body !== null && typeof body === "object") {
-            const text = (body as { message?: unknown }).message
-            if (typeof text === "string" && text.length > 0) return text
-        }
-        return "Máy chủ từ chối file — thử lại."
-    }
-
-    const succeed = (body: unknown) => {
-        let count = 0
-        let revision = 0
-        if (body !== null && typeof body === "object") {
-            const result = body as { created?: unknown; assemblyRevision?: unknown }
-            if (typeof result.created === "number") count = result.created
-            if (typeof result.assemblyRevision === "number") revision = result.assemblyRevision
-        }
-        setCreated(count)
-        setPhase("success")
-        invalidate()
-        if (onDone) onDone(count, revision)
-        onClose()
-    }
-
-    const fail = (text: string, details: RowDetail[]) => {
-        setMessage(text)
-        setRows(details)
-        setPhase("error")
     }
 
     const start = () => {
@@ -105,37 +46,42 @@ export function MatchDirectImportDialog({
         setRows([])
         setPercent(0)
         setPhase("uploading")
-        const xhr = new XMLHttpRequest()
-        activeRef.current = xhr
-        xhr.open("POST", `/portal/tournaments/${tournamentId}/matches/${matchId}/questions/import`)
-        xhr.withCredentials = true
-        xhr.upload.onprogress = (event: ProgressEvent) => {
-            if (event.lengthComputable) setPercent(Math.round((event.loaded / event.total) * 100))
-        }
-        xhr.upload.onload = () => setPhase("processing")
-        xhr.onload = () => {
-            const body = parseJson(xhr.responseText)
-            if (xhr.status >= 200 && xhr.status < 300) {
-                succeed(body)
-                return
-            }
-            fail(readMessage(body), readDetails(body))
-        }
-        xhr.onerror = () => {
-            fail("Không tải được file — kiểm tra mạng và thử lại.", [])
-        }
-        xhr.onabort = () => {
-            fail("Đã hủy tải lên.", [])
-        }
-        const form = new FormData()
-        form.append("file", file, file.name)
-        xhr.send(form)
+
+        const controller = new AbortController()
+        activeRef.current = controller
+        void uploadWithProgress(
+            `/portal/tournaments/${tournamentId}/matches/${matchId}/questions/import`,
+            file,
+            (progress) => {
+                setPercent(progress.percent)
+                if (progress.processing) setPhase("processing")
+            },
+            controller.signal
+        )
+            .then((report) => {
+                setCreated(report.created)
+                setPhase("success")
+                invalidate()
+                onDone?.(report.created, report.assemblyRevision)
+                onClose()
+            })
+            .catch((error: unknown) => {
+                if (error instanceof UploadError) {
+                    setMessage(error.message)
+                    setRows(error.rows)
+                    setPhase("error")
+                    return
+                }
+                if (error instanceof ApiError) {
+                    setMessage(error.message)
+                    setRows([])
+                    setPhase("error")
+                }
+            })
     }
 
     const close = () => {
-        const active = activeRef.current
-        if (phase === "uploading" && active !== null) active.abort()
-        if (phase === "processing" && active !== null) active.abort()
+        if (phase === "uploading" || phase === "processing") activeRef.current?.abort()
         onClose()
     }
 
