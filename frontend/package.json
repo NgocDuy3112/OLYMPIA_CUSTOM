@@ -19,7 +19,7 @@
         "build:audience": "tsc -p apps/audience --noEmit && vite build --config apps/audience/vite.config.ts",
         "dev:results": "vite --config apps/results/vite.config.ts",
         "build:results": "tsc -p apps/results --noEmit && vite build --config apps/results/vite.config.ts",
-        "typecheck": "tsc -p apps/portal --noEmit && tsc -p apps/gameplay --noEmit && tsc -p apps/audience --noEmit && tsc -p apps/results --noEmit"
+        "typecheck": "tsc -p shared --noEmit && tsc -p apps/portal --noEmit && tsc -p apps/gameplay --noEmit && tsc -p apps/audience --noEmit && tsc -p apps/results --noEmit"
     },
     "dependencies": {
         "@base-ui/react": "^1.8.0",

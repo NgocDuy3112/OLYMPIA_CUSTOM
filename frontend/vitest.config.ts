@@ -7,7 +7,7 @@ export default defineConfig({
             "apps/gameplay/vitest.config.ts",
             "apps/audience/vitest.config.ts",
             "apps/results/vitest.config.ts",
-            // "shared/vitest.config.ts",
+            "shared/vitest.config.ts",
         ],
     },
 })
