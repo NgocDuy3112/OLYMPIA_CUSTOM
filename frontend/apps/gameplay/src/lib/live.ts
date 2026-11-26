@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useRef } from "react"
+import { useContext, useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api, ApiError } from "@shared/lib/api"
 import { useServerClock, type ServerClock } from "@shared/lib/clock"
@@ -216,6 +216,8 @@ export function useTieBreakMatch(matchId: string, enabled: boolean) {
         staleTime: 0,
     })
 
+    const [buzzedFor, setBuzzedFor] = useState<string | null>(null)
+
     const buzz = useMutation({
         mutationFn: async (questionId: string) => {
             if (!ready) throw new Error("Chuông chưa sẵn sàng")
@@ -225,17 +227,26 @@ export function useTieBreakMatch(matchId: string, enabled: boolean) {
             void queryClient.invalidateQueries({ queryKey: tieBreakKey(matchId) })
             return result
         },
+        onMutate: (questionId: string) => setBuzzedFor(questionId),
         onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: liveKey(matchId) })
         },
         onError: () => {
+            setBuzzedFor(null)
             void queryClient.invalidateQueries({ queryKey: tieBreakKey(matchId) })
         },
     })
 
+    const view = query.data
+    const buzzed = view !== undefined
+        && view.windowOpen
+        && view.questionId !== null
+        && buzzedFor === view.questionId
+
     return {
-        view: query.data,
+        view,
         refetch: () => void query.refetch(),
         buzz,
+        buzzed,
     }
 }

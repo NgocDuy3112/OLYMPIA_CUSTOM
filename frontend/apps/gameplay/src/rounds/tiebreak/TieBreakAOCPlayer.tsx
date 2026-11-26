@@ -28,14 +28,25 @@ export function TieBreakAOCPlayer({ ctx }: { ctx: PlayerCtx }) {
             }
         }
     }
-    let buzzClick: (() => void) | undefined = undefined
-    if (canBuzz) {
-        if (qid) {
-            if (!tie.buzz.isPending) {
-                const questionId = qid
-                buzzClick = () => tie.buzz.mutate(questionId)
-            }
-        }
+    let buzzButton = null
+    if (canBuzz && qid) {
+        const questionId = qid
+        const pressed = tie.buzzed
+        let label: string = COPY.buzz
+        if (pressed) label = "Đã bấm — chờ trọng tài"
+        buzzButton = (
+            <button
+                type="button"
+                onClick={() => tie.buzz.mutate(questionId)}
+                disabled={tie.buzz.isPending || pressed}
+                aria-pressed={pressed}
+                className="flex h-[3.3cqw] items-center gap-[0.8cqw] rounded-lg bg-destructive px-[2cqw] font-sans text-base font-bold uppercase text-destructive-foreground shadow-sm transition hover:brightness-110 disabled:opacity-60"
+                style={{ borderRadius: STRIP_R }}
+                title={label}
+            >
+                <Hand className="size-4" aria-hidden /> {label}
+            </button>
+        )
     }
 
     let timerRemaining: number | null = null
@@ -78,18 +89,7 @@ export function TieBreakAOCPlayer({ ctx }: { ctx: PlayerCtx }) {
             />
             {statusLine}
             {buzzError}
-            {buzzClick ? (
-                <button
-                    type="button"
-                    onClick={buzzClick}
-                    disabled={tie.buzz.isPending}
-                    className="flex h-[3.3cqw] items-center gap-[0.8cqw] rounded-lg bg-destructive px-[2cqw] font-sans text-base font-bold uppercase text-destructive-foreground shadow-sm transition hover:brightness-110 disabled:opacity-60"
-                    style={{ borderRadius: STRIP_R }}
-                    title={COPY.buzz}
-                >
-                    <Hand className="size-4" aria-hidden /> {COPY.buzz}
-                </button>
-            ) : null}
+            {buzzButton}
         </PlayerStage>
     )
 }
