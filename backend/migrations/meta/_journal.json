@@ -232,6 +232,13 @@
       "when": 1796100000000,
       "tag": "0032_audit_details_trgm",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1796200000000,
+      "tag": "0033_claim_attempts",
+      "breakpoints": true
     }
   ]
 }

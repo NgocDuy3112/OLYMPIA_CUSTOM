@@ -1,53 +1,52 @@
+using Microsoft.EntityFrameworkCore;
+using AOC.Infrastructure.Data;
+
 namespace AOC.Api.Modules.MatchCodes;
 
-public sealed class ClaimAttemptLimiter
+public sealed class ClaimAttemptLimiter(AOCDbContext db)
 {
     private const int MaxAttempts = 5;
     private static readonly TimeSpan Window = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan Lockout = TimeSpan.FromMinutes(15);
 
-    private sealed record Entry(int Count, DateTime WindowStart, DateTime? LockedUntil);
+    private const string LockedMessage = "quá nhiều lần thử vào trận — vui lòng thử lại sau.";
 
-    private readonly Dictionary<Guid, Entry> entries = [];
-    private readonly object gate = new();
-
-    public void AssertAllowed(Guid userId)
+    public async Task AssertAllowedAsync(Guid userId)
     {
-        lock (gate)
-        {
-            if (!entries.TryGetValue(userId, out var entry)) return;
-            if (entry.LockedUntil is null) return;
-            if (entry.LockedUntil > DateTime.UtcNow)
-                throw new CodeError(CodeErrorCode.CONFLICT,
-                    "quá nhiều lần thử vào trận — vui lòng thử lại sau.");
-            entries.Remove(userId);
-        }
+        var now = DateTime.UtcNow;
+        var locked = await db.ClaimAttempts.AsNoTracking()
+            .AnyAsync(a => a.UserId == userId && a.LockedUntil != null && a.LockedUntil > now);
+        if (locked) throw new CodeError(CodeErrorCode.CONFLICT, LockedMessage);
     }
 
-    public void RegisterFailure(Guid userId)
-    {
-        lock (gate)
-        {
-            var now = DateTime.UtcNow;
-            int count;
-            DateTime windowStart;
-            if (entries.TryGetValue(userId, out var entry) && now - entry.WindowStart <= Window)
-            {
-                count = entry.Count + 1;
-                windowStart = entry.WindowStart;
-            }
-            else
-            {
-                count = 1;
-                windowStart = now;
-            }
-            DateTime? lockedUntil = count >= MaxAttempts ? now + Lockout : null;
-            entries[userId] = new Entry(count, windowStart, lockedUntil);
-        }
-    }
+    public Task RegisterFailureAsync(Guid userId) =>
+        db.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO claim_attempts (user_id, attempts, window_start, locked_until, updated_at)
+            VALUES ({userId}, 1, now(), NULL, now())
+            ON CONFLICT (user_id) DO UPDATE SET
+                attempts = CASE WHEN claim_attempts.window_start > now() - {Window}
+                                THEN claim_attempts.attempts + 1
+                                ELSE 1 END,
+                window_start = CASE WHEN claim_attempts.window_start > now() - {Window}
+                                THEN claim_attempts.window_start
+                                ELSE now() END,
+                locked_until = CASE WHEN claim_attempts.window_start <= now() - {Window}
+                                THEN NULL
+                                WHEN claim_attempts.attempts + 1 >= {MaxAttempts}
+                                THEN now() + {Lockout}
+                                ELSE NULL END,
+                updated_at = now()
+            """);
 
-    public void Reset(Guid userId)
+    public Task ResetAsync(Guid userId) =>
+        db.ClaimAttempts.Where(a => a.UserId == userId).ExecuteDeleteAsync();
+
+    public Task PurgeExpiredAsync()
     {
-        lock (gate) entries.Remove(userId);
+        var now = DateTime.UtcNow;
+        return db.ClaimAttempts
+            .Where(a => a.WindowStart <= now - Window
+                && (a.LockedUntil == null || a.LockedUntil <= now))
+            .ExecuteDeleteAsync();
     }
 }

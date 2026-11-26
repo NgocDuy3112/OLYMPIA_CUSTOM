@@ -28,6 +28,7 @@ public class AOCDbContext(DbContextOptions<AOCDbContext> options) : DbContext(op
 
     public DbSet<AuditEventEntity> AuditEvents => Set<AuditEventEntity>();
     public DbSet<PasswordResetCodeEntity> PasswordResetCodes => Set<PasswordResetCodeEntity>();
+    public DbSet<ClaimAttemptEntity> ClaimAttempts => Set<ClaimAttemptEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -290,6 +291,15 @@ public class AOCDbContext(DbContextOptions<AOCDbContext> options) : DbContext(op
             e.Property(x => x.ExpiresAt).IsRequired();
             e.Property(x => x.Attempts).HasDefaultValue(0);
             e.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
+        });
+
+        modelBuilder.Entity<ClaimAttemptEntity>(e =>
+        {
+            e.ToTable("claim_attempts");
+            e.HasKey(x => x.UserId);
+            e.Property(x => x.Attempts).HasDefaultValue(0);
+            e.Property(x => x.WindowStart).IsRequired();
+            e.Property(x => x.UpdatedAt).HasDefaultValueSql("now()");
         });
     }
 }

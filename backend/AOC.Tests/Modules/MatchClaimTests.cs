@@ -86,8 +86,8 @@ public class MatchClaimTests
         return new Seeded(tournamentId, matchId, ownerId, userIds);
     }
 
-    private static MatchCodesService ServiceFor(AOCDbContext db, ClaimAttemptLimiter limiter)
-        => new(db, limiter, MatchCodesOptions.Default);
+    private static MatchCodesService ServiceFor(AOCDbContext db)
+        => new(db, new ClaimAttemptLimiter(db), MatchCodesOptions.Default);
 
     private static async Task RemoveAsync(AOCDbContext db, Seeded seeded)
     {
@@ -108,7 +108,7 @@ public class MatchClaimTests
 
         try
         {
-            var service = ServiceFor(db, new ClaimAttemptLimiter());
+            var service = ServiceFor(db);
             var error = await Assert.ThrowsAsync<CodeError>(
                 () => service.ClaimSeatAsync(seeded.UserIds[0].ToString(), Code));
             Assert.Equal(CodeErrorCode.CONFLICT, error.Code);
@@ -128,7 +128,7 @@ public class MatchClaimTests
 
         try
         {
-            var service = ServiceFor(db, new ClaimAttemptLimiter());
+            var service = ServiceFor(db);
             var error = await Assert.ThrowsAsync<CodeError>(
                 () => service.ClaimSeatAsync(seeded.UserIds[0].ToString(), Code));
             Assert.Equal(CodeErrorCode.CONFLICT, error.Code);
@@ -145,7 +145,6 @@ public class MatchClaimTests
         await AuthTestDb.EnsureSchemaAsync();
         var admin = AuthTestDb.OpenDb();
         var seeded = await SeedAsync(admin, MatchStatus.UPCOMING, seats: 1, players: 2);
-        var limiter = new ClaimAttemptLimiter();
 
         try
         {
@@ -154,7 +153,7 @@ public class MatchClaimTests
                 var db = AuthTestDb.OpenDb();
                 try
                 {
-                    await ServiceFor(db, limiter).ClaimSeatAsync(userId.ToString(), Code);
+                    await ServiceFor(db).ClaimSeatAsync(userId.ToString(), Code);
                     return true;
                 }
                 catch (CodeError)
@@ -187,8 +186,7 @@ public class MatchClaimTests
         await AuthTestDb.EnsureSchemaAsync();
         var db = AuthTestDb.OpenDb();
         var seeded = await SeedAsync(db, MatchStatus.UPCOMING, seats: 1, players: 1);
-        var limiter = new ClaimAttemptLimiter();
-        var service = ServiceFor(db, limiter);
+        var service = ServiceFor(db);
         var userId = seeded.UserIds[0].ToString();
 
         try
@@ -211,12 +209,130 @@ public class MatchClaimTests
     }
 
     [DbFact]
+    public async Task The_attempt_counter_restarts_once_the_window_has_passed()
+    {
+        await AuthTestDb.EnsureSchemaAsync();
+        var db = AuthTestDb.OpenDb();
+        var seeded = await SeedAsync(db, MatchStatus.UPCOMING, seats: 1, players: 1);
+        var service = ServiceFor(db);
+        var userId = seeded.UserIds[0].ToString();
+
+        try
+        {
+            for (var attempt = 0; attempt < 4; attempt++)
+                await Assert.ThrowsAsync<CodeError>(() => service.ClaimSeatAsync(userId, "WRONG1"));
+
+            await db.ClaimAttempts.Where(a => a.UserId == seeded.UserIds[0])
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(a => a.WindowStart, DateTime.UtcNow.AddMinutes(-20)));
+
+            await Assert.ThrowsAsync<CodeError>(() => service.ClaimSeatAsync(userId, "WRONG1"));
+
+            var row = await db.ClaimAttempts.AsNoTracking()
+                .FirstAsync(a => a.UserId == seeded.UserIds[0]);
+            Assert.Equal(1, row.Attempts);
+            Assert.Null(row.LockedUntil);
+
+            var claim = await service.ClaimSeatAsync(userId, Code);
+            Assert.Equal(seeded.MatchId, claim.MatchId);
+        }
+        finally
+        {
+            await RemoveAsync(db, seeded);
+        }
+    }
+
+    [DbFact]
+    public async Task Concurrent_bad_codes_never_exceed_the_attempt_counter()
+    {
+        await AuthTestDb.EnsureSchemaAsync();
+        var db = AuthTestDb.OpenDb();
+        var seeded = await SeedAsync(db, MatchStatus.UPCOMING, seats: 1, players: 1);
+        var userId = seeded.UserIds[0].ToString();
+
+        try
+        {
+            async Task FailAsync()
+            {
+                var own = AuthTestDb.OpenDb();
+                try
+                {
+                    await ServiceFor(own).ClaimSeatAsync(userId, "WRONG1");
+                }
+                catch (CodeError)
+                {
+                    return;
+                }
+                finally
+                {
+                    await own.DisposeAsync();
+                }
+                throw new InvalidOperationException("a bad code was accepted");
+            }
+
+            await Task.WhenAll(Enumerable.Range(0, 5).Select(_ => FailAsync()));
+
+            var row = await db.ClaimAttempts.AsNoTracking()
+                .FirstAsync(a => a.UserId == seeded.UserIds[0]);
+            Assert.Equal(5, row.Attempts);
+            Assert.NotNull(row.LockedUntil);
+        }
+        finally
+        {
+            await RemoveAsync(db, seeded);
+        }
+    }
+
+    [DbFact]
+    public async Task Minting_a_room_code_purges_attempts_that_expired()
+    {
+        await AuthTestDb.EnsureSchemaAsync();
+        var db = AuthTestDb.OpenDb();
+        var seeded = await SeedAsync(db, MatchStatus.UPCOMING, seats: 1, players: 1);
+        var service = ServiceFor(db);
+
+        try
+        {
+            db.ClaimAttempts.AddRange(
+                new ClaimAttemptEntity
+                {
+                    UserId = seeded.UserIds[0],
+                    Attempts = 2,
+                    WindowStart = DateTime.UtcNow.AddMinutes(-30),
+                    LockedUntil = null
+                },
+                new ClaimAttemptEntity
+                {
+                    UserId = seeded.OwnerId,
+                    Attempts = 2,
+                    WindowStart = DateTime.UtcNow
+                });
+            await db.SaveChangesAsync();
+
+            await service.RotateRoomCodeAsync(
+                seeded.TournamentId.ToString(), seeded.MatchId.ToString(), seeded.OwnerId);
+
+            db.ChangeTracker.Clear();
+            var kept = await db.ClaimAttempts.AsNoTracking()
+                .FirstAsync(a => a.UserId == seeded.OwnerId);
+            Assert.Equal(2, kept.Attempts);
+            Assert.False(await db.ClaimAttempts.AsNoTracking()
+                .AnyAsync(a => a.UserId == seeded.UserIds[0]));
+        }
+        finally
+        {
+            db.ChangeTracker.Clear();
+            await RemoveAsync(db, seeded);
+        }
+    }
+
+    [DbFact]
     public async Task A_rotated_code_expires_after_the_configured_ttl()
     {
         await AuthTestDb.EnsureSchemaAsync();
         var db = AuthTestDb.OpenDb();
         var seeded = await SeedAsync(db, MatchStatus.UPCOMING, seats: 1, players: 1);
-        var service = new MatchCodesService(db, new ClaimAttemptLimiter(), new MatchCodesOptions(30 * 60 * 1000));
+        var service = new MatchCodesService(db, new ClaimAttemptLimiter(db), new MatchCodesOptions(30 * 60 * 1000));
 
         try
         {

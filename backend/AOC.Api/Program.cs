@@ -69,7 +69,7 @@ builder.Services.AddSingleton<MatchHubRegistry>();
 builder.Services.AddSingleton<AOC.Api.Realtime.AuditStreamRegistry>();
 builder.Services.AddSingleton<AOC.Infrastructure.Audit.IAuditObserver>(
     sp => sp.GetRequiredService<AOC.Api.Realtime.AuditStreamRegistry>());
-builder.Services.AddSingleton<AOC.Api.Modules.MatchCodes.ClaimAttemptLimiter>();
+builder.Services.AddScoped<AOC.Api.Modules.MatchCodes.ClaimAttemptLimiter>();
 
 builder.Services.AddScoped<AOC.Api.Modules.Auth.AuthService>();
 builder.Services.AddScoped<AOC.Api.Modules.Auth.GoogleAuthService>();

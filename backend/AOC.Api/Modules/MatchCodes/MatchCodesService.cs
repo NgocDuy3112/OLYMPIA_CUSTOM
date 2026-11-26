@@ -85,6 +85,7 @@ public sealed class MatchCodesService(AOCDbContext db, ClaimAttemptLimiter attem
             .ToListAsync();
         db.MatchCodes.RemoveRange(stale);
         await db.SaveChangesAsync();
+        await attempts.PurgeExpiredAsync();
 
         return new RoomCode(row.MatchId, row.Code, row.ExpiresAt);
     }
@@ -107,22 +108,22 @@ public sealed class MatchCodesService(AOCDbContext db, ClaimAttemptLimiter attem
     public async Task<ClaimResult> ClaimSeatAsync(string userId, string rawCode)
     {
         var uid = Guid.Parse(userId);
-        attempts.AssertAllowed(uid);
+        await attempts.AssertAllowedAsync(uid);
 
         var code = NormalizeCode(rawCode);
         var now = DateTime.UtcNow;
-
-        await using var transaction = await db.Database.BeginTransactionAsync();
 
         var codeRow = await db.MatchCodes.AsNoTracking()
             .FirstOrDefaultAsync(c => c.Code == code && c.ExpiresAt > now);
         if (codeRow is null)
         {
-            attempts.RegisterFailure(uid);
+            await attempts.RegisterFailureAsync(uid);
             throw new CodeError(CodeErrorCode.NOT_FOUND,
                 "Mã không đúng hoặc đã hết hạn — xin hỏi lại ban điều hành.");
         }
         var matchId = codeRow.MatchId;
+
+        await using var transaction = await db.Database.BeginTransactionAsync();
 
         var lockedId = await db.Database
             .SqlQueryRaw<Guid>(
@@ -148,7 +149,7 @@ public sealed class MatchCodesService(AOCDbContext db, ClaimAttemptLimiter attem
         if (MatchSeats.IsSeatedInMatch(seats, uid))
         {
             await transaction.CommitAsync();
-            attempts.Reset(uid);
+            await attempts.ResetAsync(uid);
             return new ClaimResult(matchId, tournament.Id.ToString(), tournament.Slug, match.Label);
         }
 
@@ -164,7 +165,7 @@ public sealed class MatchCodesService(AOCDbContext db, ClaimAttemptLimiter attem
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
 
-        attempts.Reset(uid);
+        await attempts.ResetAsync(uid);
         return new ClaimResult(matchId, tournament.Id.ToString(), tournament.Slug, match.Label);
     }
 }

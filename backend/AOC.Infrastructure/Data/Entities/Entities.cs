@@ -366,3 +366,12 @@ public class PasswordResetCodeEntity
     public int Attempts { get; set; }
     public DateTime CreatedAt { get; set; }
 }
+
+public class ClaimAttemptEntity
+{
+    public Guid UserId { get; set; }
+    public int Attempts { get; set; }
+    public DateTime WindowStart { get; set; }
+    public DateTime? LockedUntil { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
