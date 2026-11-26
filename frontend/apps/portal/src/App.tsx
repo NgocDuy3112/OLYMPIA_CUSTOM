@@ -9,6 +9,7 @@ import { StagePage } from "@/pages/StagePage"
 import { QuestionsPage } from "@/pages/QuestionsPage"
 import { McpKeysPage } from "@/pages/McpKeysPage"
 import { OperatorsPage } from "@/pages/OperatorsPage"
+import { AuditPage } from "@/pages/AuditPage"
 import { PortalShell } from "@/components/portal-shell"
 import { IconField } from "@shared/decors/icon-field"
 import { GlowWash } from "@shared/decors/glow-wash"
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="/questions" element={<QuestionsPage />} />
           <Route path="/mcp-keys" element={<McpKeysPage />} />
           <Route path="/operators" element={<OperatorsPage />} />
+          <Route path="/audit" element={<AuditPage />} />
         </Route>
 
         

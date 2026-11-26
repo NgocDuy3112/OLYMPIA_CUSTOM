@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from "react-router-dom"
-import { BookOpen, KeyRound, LogOut, Trophy, Users, UsersRound } from "lucide-react"
+import { BookOpen, KeyRound, LogOut, ScrollText, Trophy, Users, UsersRound } from "lucide-react"
 import { Button } from "@shared/ui/button"
 import { SfxUnlockBar } from "@shared/ui/sfx-unlock-bar"
 import { useLogout, useMe } from "@/lib/session"
@@ -16,6 +16,7 @@ const NAV = [
     { to: "/questions", label: "Questions", icon: BookOpen, match: (p: string) => p.startsWith("/questions") },
     { to: "/mcp-keys", label: "MCP keys", icon: KeyRound, match: (p: string) => p.startsWith("/mcp-keys") },
     { to: "/operators", label: "Operators", icon: Users, match: (p: string) => p.startsWith("/operators"), adminOnly: true },
+    { to: "/audit", label: "Audit log", icon: ScrollText, match: (p: string) => p.startsWith("/audit"), adminOnly: true },
 ] as const
 
 
