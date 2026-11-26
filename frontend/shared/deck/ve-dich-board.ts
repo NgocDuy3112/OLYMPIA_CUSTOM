@@ -98,12 +98,25 @@ export function turnChipsOf(input: {
     }))
 }
 
+/**
+ * Console copy: there the chip is a button, so a waiting question is named by the
+ * command it performs.
+ */
 export function turnChipHint(where: TurnChipState, value: number): string {
     if (where === "open") return `Câu ${value} đang mở`
     // A played question leaves the turn's pending list for good: neither
     // OpenPhase2Question nor SwitchPhase2Question can bring it back.
     if (where === "done") return `Câu ${value} điểm đã chơi`
     return `Mở câu ${value} điểm`
+}
+
+/**
+ * Player copy: the deck's chip is a record, not a control, so a waiting question
+ * describes its state instead of ordering the console's open.
+ */
+export function playerTurnChipHint(where: TurnChipState, value: number): string {
+    if (where === "waiting") return `Câu ${value} điểm — chưa mở`
+    return turnChipHint(where, value)
 }
 
 /**
@@ -125,6 +138,6 @@ export function playerTurnChips(view: {
         id: chip.questionId,
         label: String(chip.value),
         active: chip.where === "open",
-        title: turnChipHint(chip.where, chip.value),
+        title: playerTurnChipHint(chip.where, chip.value),
     }))
 }

@@ -31,13 +31,17 @@ const cellTitle = (value: number, where: string, picked: boolean): string => {
 
 const pickTitle = (value: number): string => `Chọn câu ${value} điểm`
 
+// Rules cap the batch: a free cell past the cap is still free but no longer pickable.
+const fullTitle = (): string => "Đã đủ câu"
+
 const dropTitle = (value: number): string => `Bỏ câu ${value} điểm`
 
-export function VeDichPickBoard({ cells, pickedIds, values, locked, onPick }: {
+export function VeDichPickBoard({ cells, pickedIds, values, locked, full, onPick }: {
     cells: PickBoardCell[]
     pickedIds: string[]
     values?: number[]
     locked?: boolean
+    full?: boolean
     onPick?: (questionId: string) => void
 }) {
     const bands = values ?? CHUNG_PICK_VALUES
@@ -58,6 +62,7 @@ export function VeDichPickBoard({ cells, pickedIds, values, locked, onPick }: {
                         let title = cellTitle(cell.value, where, picked)
                         if (onPick) {
                             if (picked) title = dropTitle(cell.value)
+                            else if (pressable && full === true) title = fullTitle()
                             else if (pressable) title = pickTitle(cell.value)
                         }
                         let disabled = !dropped && !pressable

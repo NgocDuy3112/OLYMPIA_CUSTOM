@@ -858,23 +858,58 @@ it("phase 1: clicking a board cell stages that cell, clicking it again drops it"
 
     it("phase 1: Xác nhận waits for the full N — one pick per player", async () => {
         const user = userEvent.setup()
-        renderRound(
-            "ve-dich",
+        const mod = roundModuleOf("ve-dich")!
+        const view = (pending: string[]) => facts(
             {},
             {
                 open: [],
-                board: [freeCell("a", 20), freeCell("b", 30), freeCell("c", 20)],
+                board: [
+                    { questionId: "a", value: 20, where: pending.includes("a") ? ("pending" as const) : ("free" as const) },
+                    { questionId: "b", value: 30, where: pending.includes("b") ? ("pending" as const) : ("free" as const) },
+                    { questionId: "c", value: 20, where: pending.includes("c") ? ("pending" as const) : ("free" as const) },
+                ],
                 table: THREE_PLAYERS,
             },
             veDichMc({ phase: 1, turnPlayerId: "u1" }),
             [veQuestion("a", 20), veQuestion("b", 30), veQuestion("c", 20)],
         )
+        const { rerender } = render(mod.render(view([])))
 
         await user.click(screen.getAllByTitle("Chọn câu 20 điểm")[0])
+        rerender(mod.render(view(["a"])))
         expect(screen.queryByRole("button", { name: "Xác nhận" })).toBeNull()
+
+        await user.click(screen.getByTitle("Chọn câu 30 điểm"))
+        rerender(mod.render(view(["a", "b"])))
+        expect(screen.queryByRole("button", { name: "Xác nhận" })).toBeNull()
+
+        await user.click(screen.getByTitle("Chọn câu 20 điểm"))
+        rerender(mod.render(view(["a", "b", "c"])))
+        expect(screen.getByRole("button", { name: "Xác nhận" })).toBeInTheDocument()
+    })
+
+    it("phase 1: a local batch the server has not echoed does not arm Xác nhận", async () => {
+        const user = userEvent.setup()
+        const mod = roundModuleOf("ve-dich")!
+        const view = (pending: string[]) => facts(
+            {},
+            {
+                open: [],
+                board: [
+                    { questionId: "a", value: 20, where: pending.includes("a") ? ("pending" as const) : ("free" as const) },
+                    { questionId: "b", value: 30, where: pending.includes("b") ? ("pending" as const) : ("free" as const) },
+                ],
+                table: TWO_PLAYERS,
+            },
+            veDichMc({ phase: 1, turnPlayerId: "u1" }),
+            [veQuestion("a", 20), veQuestion("b", 30)],
+        )
+        const { rerender } = render(mod.render(view(["a"])))
+
         await user.click(screen.getByTitle("Chọn câu 30 điểm"))
         expect(screen.queryByRole("button", { name: "Xác nhận" })).toBeNull()
-        await user.click(screen.getAllByTitle("Chọn câu 20 điểm")[0])
+
+        rerender(mod.render(view(["a", "b"])))
         expect(screen.getByRole("button", { name: "Xác nhận" })).toBeInTheDocument()
     })
 
@@ -1032,7 +1067,7 @@ it("phase 1: with nothing picked, there is no confirm — Chọn lại clears", 
             selectedPlayerId: "u1",
         }, veDichMc({ phase: 2, pendingQuestionId: "q9", turnPicked: 3 }))
 
-        await user.click(screen.getByTitle("Chọn câu 50 điểm"))
+        await user.click(screen.getByTitle("Đã đủ câu"))
         expect(f.send).not.toHaveBeenCalled()
     })
 
@@ -1048,7 +1083,7 @@ it("phase 1: with nothing picked, there is no confirm — Chọn lại clears", 
             selectedPlayerId: "u1",
         }, veDichMc({ phase: 2, pendingQuestionId: "q9", turnPicked: 2, pickCount: 2 }))
 
-        await user.click(screen.getByTitle("Chọn câu 40 điểm"))
+        await user.click(screen.getByTitle("Đã đủ câu"))
         expect(f.send).not.toHaveBeenCalled()
     })
 
@@ -1153,6 +1188,7 @@ describe("VeDichChung — S7, phase 1 question", () => {
                     { questionId: "q2", value: 30, where: "pending" as const },
                     { questionId: "q3", value: 20, where: "pending" as const },
                 ],
+                table: THREE_PLAYERS,
             },
             veDichMc({ phase: 1 }),
         )
@@ -1208,13 +1244,13 @@ it("keeps Hết lượt locked while an answer is still unjudged", () => {
         expect(screen.queryByRole("button", { name: "Hết lượt" })).toBeNull()
     })
 
-it("Hết lượt closes the question on stage once everyone submitted was graded", async () => {
+it("Hết lượt closes the question on stage once the clock ran and everyone was graded", async () => {
         const user = userEvent.setup()
         const f = renderRound(
             "ve-dich",
             { hetLuot: vi.fn(), rows: [answerRow("u1", "CORRECT")], target: "u1" },
             { open: [openQ] },
-            veDichMc({ phase: 1 }),
+            veDichMc({ phase: 1, revealed: true, clockStarted: true }),
         )
 
         expectButtonsInOrder(["Chấm điểm", "Hết lượt", "Về sảnh"])
@@ -1222,17 +1258,17 @@ it("Hết lượt closes the question on stage once everyone submitted was grade
         expect(f.hetLuot).toHaveBeenCalledOnce()
     })
 
-    it("Hết lượt is offered even when nobody submitted — the turn can move on", async () => {
-        const user = userEvent.setup()
-        const f = renderRound(
+    it("Hết lượt stays inert until the question's clock started", () => {
+        // Engine: CloseQuestion refuses NOT_REVEALED / CLOCK_NOT_STARTED, and an
+        // untouched question is not played yet — the turn must not move on.
+        renderRound(
             "ve-dich",
             { hetLuot: vi.fn(), rows: [] },
             { open: [openQ] },
             veDichMc({ phase: 1, clockStarted: false }),
         )
 
-        await user.click(screen.getByRole("button", { name: "Hết lượt" }))
-        expect(f.hetLuot).toHaveBeenCalledOnce()
+        expect(screen.queryByRole("button", { name: "Hết lượt" })).toBeNull()
     })
 
     it("with no question open the batch is done — no Hết lượt left to press", () => {
@@ -1474,14 +1510,13 @@ it("Hết lượt closes the question on stage once everyone submitted was grade
                     { questionId: "q2", value: 30, where: "pending" },
                 ],
             },
-            veDichMc({ phase: 1, revealed: false }),
+            veDichMc({ phase: 1, revealed: true, clockStarted: true }),
         )
 
         await user.click(screen.getByRole("button", { name: /^30$/ }))
         expect(f.sendChain).toHaveBeenCalledWith([
             { kind: "ve-dich.closeQuestion" },
             { kind: "ve-dich.openPending", questionId: "q2" },
-            { kind: "ve-dich.reveal" },
         ])
     })
 
@@ -1497,7 +1532,7 @@ it("Hết lượt closes the question on stage once everyone submitted was grade
                     { questionId: "q2", value: 30, where: "pending" },
                 ],
             },
-            veDichMc({ phase: 1, revealed: true }),
+            veDichMc({ phase: 1, revealed: true, clockStarted: true }),
         )
 
         await user.click(screen.getByRole("button", { name: /^30$/ }))
@@ -1562,13 +1597,15 @@ it("Hết lượt closes the question on stage once everyone submitted was grade
                     { questionId: "q2", value: 30, where: "pending" },
                 ],
             },
-            veDichMc({ phase: 1, revealed: true, clockStarted: false }),
+            veDichMc({ phase: 1, revealed: false, clockStarted: false }),
         )
 
         await user.click(screen.getByRole("button", { name: /^30$/ }))
+        // Engine: CloseQuestion refuses a question whose clock never started; OpenPending
+        // swaps the untouched question back into the batch itself, so no close is sent.
         expect(f.sendChain).toHaveBeenCalledWith([
-            { kind: "ve-dich.closeQuestion" },
             { kind: "ve-dich.openPending", questionId: "q2" },
+            { kind: "ve-dich.reveal" },
         ])
     })
 
@@ -1600,8 +1637,9 @@ it("Hết lượt closes the question on stage once everyone submitted was grade
         expect(f.sendChain).not.toHaveBeenCalled()
 
         await user.click(screen.getByTitle("Mở câu 40 điểm"))
+        // The open question was never clocked, so OpenPending swaps it back instead of
+        // closing it (CloseQuestion: CLOCK_NOT_STARTED).
         expect(f.sendChain).toHaveBeenCalledWith([
-            { kind: "ve-dich.closeQuestion" },
             { kind: "ve-dich.openPending", questionId: "q3" },
             { kind: "ve-dich.reveal" },
         ])

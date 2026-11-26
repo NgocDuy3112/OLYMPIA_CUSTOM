@@ -42,6 +42,15 @@ describe("VeDichPickBoard", () => {
         expect(screen.getAllByTitle("Chọn câu 30 điểm")).toHaveLength(6)
     })
 
+    it("a full batch stops offering picks — the free cells say so", () => {
+        render(<VeDichPickBoard cells={cells} pickedIds={["a"]} full onPick={() => {}} />)
+
+        // Still free, but past the rule's cap: the hint must not promise a pick.
+        expect(screen.queryAllByTitle(/^Chọn câu/)).toHaveLength(0)
+        expect(screen.getAllByTitle("Đã đủ câu")).toHaveLength(10)
+        expect(screen.getByTitle("Bỏ câu 20 điểm")).toBeInTheDocument()
+    })
+
     it("says a staged pick apart from a used question", () => {
         render(<VeDichPickBoard cells={cells} pickedIds={[]} />)
 

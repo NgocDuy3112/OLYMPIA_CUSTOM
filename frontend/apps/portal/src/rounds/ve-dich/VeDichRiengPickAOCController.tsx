@@ -11,6 +11,11 @@ export type VeDichRiengPickCtx = ScreenCore & {
     setSelectedPlayer: (userId: string) => void
 }
 
+function sameIds(a: string[], b: string[]): boolean {
+    if (a.length !== b.length) return false
+    return a.every((id) => b.includes(id))
+}
+
 
 export function VeDichRiengPickAOCController({ ctx }: { ctx: VeDichRiengPickCtx }) {
     const { v, baseCards, flash } = ctx
@@ -29,11 +34,17 @@ export function VeDichRiengPickAOCController({ ctx }: { ctx: VeDichRiengPickCtx 
         setSeenPending(pendingKey)
         setChosen(pendingIds)
     }
+    // A refused batch leaves the local picks ahead of the server and the pending key
+    // untouched (the server never took them). A failed action is what raises `flash`,
+    // and the view it carries is the last server truth — fold back onto it rather than
+    // keep picks the server rejected.
+    if (flash !== null && !sameIds(chosen, pendingIds)) setChosen(pendingIds)
     const openNow = projection.open[0] ?? null
     // The rule allows AT MOST `pickCount` questions per turn — one is already a
     // batch. The engine owns that number (Rules), so read it from the wire and
     // only fall back while the view does not carry it yet.
     const maxPicks = consoleVeDich?.pickCount ?? 3
+    const full = chosen.length >= maxPicks
     const pickedThisTurn = (consoleVeDich?.turnPicked ?? 0) >= 1
     const picking = openNow === null && turnPlayer !== null && (projection.selectedPlayerId ?? null) !== null
 
@@ -123,6 +134,7 @@ export function VeDichRiengPickAOCController({ ctx }: { ctx: VeDichRiengPickCtx 
                     pickedIds={chosen}
                     values={RIENG_PICK_VALUES}
                     locked={turnPlayer === null || (projection.selectedPlayerId ?? null) === null}
+                    full={full}
                     onPick={picking ? togglePick : undefined}
                 />
             </QuestionCard>

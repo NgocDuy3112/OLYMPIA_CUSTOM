@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { api } from "@shared/lib/api"
 import { useCountdown, type ServerClock } from "@shared/lib/clock"
-import { isOlderView } from "@shared/lib/view-version"
+import { keepNewestRead } from "@shared/lib/view-version"
 import type { PlayerCtx, PlayerView } from "@shared/deck/types"
 
 
@@ -16,11 +16,11 @@ const audienceKey = (tournamentId: string, matchId: string) =>
  * The 2s poll can land behind the event stream that already moved the view on.
  * Mirror the stream's guard: a read older than the cached version never repaints
  * the LED. A read without a version is kept — it proves nothing.
+ *
+ * Shared with the deck's REST reads (gameplay/src/lib/live.ts) — one definition of
+ * "the newer view wins".
  */
-export function keepNewestRead<T extends { version?: number }>(old: T | undefined, next: T): T {
-    if (old !== undefined && isOlderView(next, old)) return old
-    return next
-}
+export { keepNewestRead }
 
 export function useAudienceLive(tournamentId: string, matchId: string) {
     return useQuery({

@@ -86,14 +86,16 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
 
     // "Hết lượt" closes the question currently on stage (hetLuotAction: phase 1 →
     // ve-dich.closeQuestion) and the turn moves on to the next staged pick. The
-    // engine closes any open phase-1 question, but grading only exists while the
-    // question is open (VeDichJudge needs it) and answers keep arriving until the
-    // clock runs out, so the button waits for both — closing first would bury
-    // those points. It matches the strip's own switch rule (canSwitch).
+    // engine only closes a question that was revealed and had its clock started
+    // (NOT_REVEALED / CLOCK_NOT_STARTED), so the button stays inert until then —
+    // grading only exists while the question is open (VeDichJudge needs it) and
+    // answers keep arriving until the clock runs out, so it waits for both. It
+    // matches the strip's own switch rule (canSwitch).
     // With nothing open the batch is done (the last close, or a strip nobody
     // opened) and there is nothing left to close.
     let endTurn: (() => void) | undefined = () => ctx.hetLuot()
     if (openNow === null || unjudged || counting) endTurn = undefined
+    if (consoleVeDich?.clockStarted !== true) endTurn = undefined
 
     // The rail arrives as plain cards: stamp the ticked card's ring here so a
     // click on a card always shows which player it marked (the rieng screen does
@@ -154,9 +156,13 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
                             onSelect={(id: string) => {
                                 const actions: LiveAction[] = []
                                 if (openNow === null || id !== openNow.questionId) {
-                                    // Moving on: close the open question first, or the
-                                    // engine refuses (a revealed/clocked one is locked).
-                                    if (openNow !== null) actions.push({ kind: "ve-dich.closeQuestion" })
+                                    // Moving on: an untouched question is swapped back
+                                    // into the batch by OpenPending itself; only a
+                                    // clocked one is closed first (CloseQuestion refuses
+                                    // a question whose clock never started).
+                                    if (openNow !== null && consoleVeDich?.clockStarted === true) {
+                                        actions.push({ kind: "ve-dich.closeQuestion" })
+                                    }
                                     actions.push({ kind: "ve-dich.openPending", questionId: id })
                                 }
                                 if (!revealed) actions.push({ kind: "ve-dich.reveal" })

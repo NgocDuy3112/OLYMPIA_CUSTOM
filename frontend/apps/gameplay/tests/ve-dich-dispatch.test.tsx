@@ -171,8 +171,9 @@ describe("ve-dich phase 2 waits on the rieng screen once the picks are confirmed
         expect(document.querySelector('[style*="grid-template-columns"]')).toBeNull()
         expect(screen.getByText("Lượt cá nhân")).toBeInTheDocument()
         // The turn's questions are still on screen while the room waits.
-        expect(screen.getByTitle("Mở câu 40 điểm")).toBeInTheDocument()
-        expect(screen.getByTitle("Mở câu 50 điểm")).toBeInTheDocument()
+        // The deck describes the turn's questions; "Mở câu" is the console's command.
+        expect(screen.getByTitle("Câu 40 điểm — chưa mở")).toBeInTheDocument()
+        expect(screen.getByTitle("Câu 50 điểm — chưa mở")).toBeInTheDocument()
     })
 
     it("phase 2 without the confirmation is still the pick board", () => {

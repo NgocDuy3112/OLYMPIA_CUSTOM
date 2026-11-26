@@ -5,7 +5,7 @@ import { useServerClock, type ServerClock } from "@shared/lib/clock"
 import type { LobbyData } from "@shared/deck/types"
 import { useHubInvoker, type HubInvoker, type StreamStatus } from "@shared/lib/ws"
 import { logError } from "@shared/lib/log"
-import { isOlderView } from "@shared/lib/view-version"
+import { isOlderView, keepNewestRead } from "@shared/lib/view-version"
 
 interface ViewFailure {
     status: number
@@ -177,6 +177,10 @@ export function useLiveMatch(matchId: string, enabled: boolean): UseLiveMatch {
         retry: false,
         staleTime: Infinity,
         refetchOnWindowFocus: false,
+        // A REST read this slow can land behind a stream frame that already moved
+        // the room on: the cache keeps whichever version is newer.
+        structuralSharing: (old, next) =>
+            keepNewestRead(old as LiveView | undefined, next as LiveView),
         // The stream is the primary source. While it is down the view is stale
         // by definition, so fall back to polling instead of freezing the deck.
         refetchInterval: (state) => {

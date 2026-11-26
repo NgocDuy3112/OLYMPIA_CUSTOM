@@ -10,11 +10,18 @@ export type VeDichChungPickCtx = ScreenCore & {
     setSelectedPlayer: (userId: string) => void
 }
 
+function sameIds(a: string[], b: string[]): boolean {
+    if (a.length !== b.length) return false
+    return a.every((id) => b.includes(id))
+}
+
 export function VeDichChungPickAOCController({ ctx }: { ctx: VeDichChungPickCtx }) {
     const { v, baseCards, flash } = ctx
     const projection = v.projection
 
-    const need = Math.max(1, projection.table.length)
+    // rules.md §7.4: phase 1 stages one open question per player — the server
+    // counts the same way (VeDichTurn.ConfirmPicks wants Players.Count picks).
+    const need = projection.table.length
     const pendingIds = (projection.board ?? [])
         .filter((c) => c.where === "pending")
         .map((c) => c.questionId)
@@ -25,6 +32,11 @@ export function VeDichChungPickAOCController({ ctx }: { ctx: VeDichChungPickCtx 
         setSeenPending(pendingKey)
         setChosen(pendingIds)
     }
+    // A refused pick leaves the local batch ahead of the server, and the pending key
+    // never moves because the server never took the pick. A failed action is the only
+    // thing that raises `flash`, and the view it carries is the last server truth — so
+    // fold the local batch back onto it instead of keeping a pick that does not exist.
+    if (flash !== null && !sameIds(chosen, pendingIds)) setChosen(pendingIds)
 
     const boardCells = projection.board ?? []
     const stagedCells: Array<{ questionId: string; value: number }> = []
@@ -46,11 +58,16 @@ export function VeDichChungPickAOCController({ ctx }: { ctx: VeDichChungPickCtx 
         ctx.send({ kind: "ve-dich.pickRound", questionIds: next })
     }
 
-    const ready = chosen.length >= need
+    const full = need > 0 && chosen.length >= need
+    // Xác nhận locks the whole batch server-side, so it also waits for the server to
+    // hold exactly that batch: VeDichTurn.ConfirmPicks refuses any count but Players.Count.
+    const ready = full && pendingIds.length === need
 
     return (
         <ConsoleStage
-            rail={<Rail cards={baseCards} onSelect={ctx.setSelectedPlayer} onScoreClick={ctx.openRegrade} />}
+            // Phase 1 has no per-player turn — the batch is shared, so a rail click has
+            // no server action behind it and must not offer one.
+            rail={<Rail cards={baseCards} onScoreClick={ctx.openRegrade} />}
             actions={[
                 {
                     label: "Xác nhận",
@@ -92,7 +109,7 @@ export function VeDichChungPickAOCController({ ctx }: { ctx: VeDichChungPickCtx 
                     </span>
                 }
             >
-                <VeDichPickBoard cells={boardCells} pickedIds={chosen} onPick={togglePick} />
+                <VeDichPickBoard cells={boardCells} pickedIds={chosen} full={full} onPick={togglePick} />
             </QuestionCard>
         </ConsoleStage>
     )

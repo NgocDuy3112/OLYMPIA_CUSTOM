@@ -19,6 +19,8 @@ function view(over: Partial<PlayerView> = {}): PlayerView {
             { questionId: "a", value: 40, where: "pending" },
             { questionId: "b", value: 40, where: "pending" },
             { questionId: "c", value: 40, where: "free" },
+            { questionId: "d", value: 50, where: "free" },
+            { questionId: "e", value: 50, where: "free" },
         ],
         me: { pickedTiles: [], hintVerdicts: {}, pendingPicks: ["a", "b"] },
         ...over,
@@ -70,7 +72,9 @@ describe("VeDich pick players — staged picks from the server", () => {
 
     it("rieng: draws the 40s and 50s the turn can pick from", () => {
         render(<VeDichRiengPickAOCPlayer ctx={ctx(view())} />)
-        expect(screen.getByTitle("Câu 40 điểm còn trống")).toBeInTheDocument()
-        expect(screen.queryByText(/còn \d/)).toBeNull()
+        // The tiles carry no text of their own, so their state lives in the title.
+        expect(screen.getAllByTitle("Câu 40 điểm còn trống")).toHaveLength(1)
+        expect(screen.getAllByTitle("Ô câu 40 điểm — đã chọn")).toHaveLength(2)
+        expect(screen.getAllByTitle("Câu 50 điểm còn trống")).toHaveLength(2)
     })
 })

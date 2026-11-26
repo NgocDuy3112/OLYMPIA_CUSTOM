@@ -132,4 +132,21 @@ describe("VeDichRiengPick — chips sync with the server state", () => {
             questionIds: ["b"],
         })
     })
+
+    it("drops a batch the server refused — a failed action raises the flash", async () => {
+        const user = userEvent.setup()
+        const send = vi.fn()
+        const { rerender } = render(<VeDichRiengPickAOCController ctx={facts(["a"], { send }) as never} />)
+
+        await user.click(screen.getAllByTitle("Chọn câu 40 điểm")[0])
+        expect(screen.getAllByTitle("Bỏ câu 40 điểm")).toHaveLength(4)
+
+        rerender(
+            <VeDichRiengPickAOCController
+                ctx={facts(["a"], { send, flash: "Câu này vừa bị chọn ở thiết bị khác" }) as never}
+            />,
+        )
+
+        expect(screen.getAllByTitle("Bỏ câu 40 điểm")).toHaveLength(2)
+    })
 })
