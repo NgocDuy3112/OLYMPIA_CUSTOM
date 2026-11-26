@@ -377,39 +377,41 @@ public sealed class DraftWriter(AOCDbContext db)
         string? draftedBy = null, int? answeredMs = null, bool revise = true)
     {
         draftedBy ??= AutoDrafter;
-        var existing = await db.Answers.FirstOrDefaultAsync(a =>
-            a.MatchId == matchId && a.QuestionId == questionId && a.UserId == userId);
+        var drafts = JsonSerializer.Serialize(
+            new Dictionary<string, Verdict> { [draftedBy] = suggestion }, JsonApi.Options);
 
-        if (existing is { Verdict: not null })
+        var written = revise
+            ? await db.Database.SqlQueryRaw<int>(
+                """
+                INSERT INTO answers (match_id, question_id, user_id, value, drafts, first_answered_ms, answered_ms)
+                VALUES ({0}::uuid, {1}::uuid, {2}::uuid, {3}::jsonb, {4}::jsonb, {5}, {6})
+                ON CONFLICT (match_id, question_id, user_id) DO UPDATE
+                   SET value = EXCLUDED.value,
+                       drafts = coalesce(answers.drafts, jsonb_build_object()) || EXCLUDED.drafts,
+                       answered_ms = coalesce(EXCLUDED.answered_ms, answers.answered_ms)
+                 WHERE answers.verdict IS NULL
+                RETURNING 1 AS "Value"
+                """,
+                matchId, questionId, userId, JsonSerializer.Serialize(value, JsonApi.Options), drafts,
+                answeredMs, answeredMs).ToListAsync()
+            : await db.Database.SqlQueryRaw<int>(
+                """
+                INSERT INTO answers (match_id, question_id, user_id, value, drafts, first_answered_ms, answered_ms)
+                VALUES ({0}::uuid, {1}::uuid, {2}::uuid, {3}::jsonb, {4}::jsonb, {5}, {6})
+                ON CONFLICT (match_id, question_id, user_id) DO NOTHING
+                RETURNING 1 AS "Value"
+                """,
+                matchId, questionId, userId, JsonSerializer.Serialize(value, JsonApi.Options), drafts,
+                answeredMs, answeredMs).ToListAsync();
+
+        if (written.Count > 0) return;
+
+        var verdict = await db.Answers.AsNoTracking()
+            .Where(a => a.MatchId == matchId && a.QuestionId == questionId && a.UserId == userId)
+            .Select(a => a.Verdict)
+            .FirstOrDefaultAsync();
+        if (verdict is not null)
             throw new RuleError("ALREADY_JUDGED", "this answer already has a final verdict");
-
-        var drafts = existing?.Drafts is { } d && d.ValueKind == JsonValueKind.Object
-            ? d.Deserialize<Dictionary<string, Verdict>>(JsonApi.Options) ?? []
-            : new Dictionary<string, Verdict>();
-        drafts[draftedBy] = suggestion;
-
-        if (existing is not null)
-        {
-            if (!revise)
-                throw new RuleError("ALREADY_ANSWERED", "this question already has an answer");
-            existing.Value = value;
-            existing.Drafts = JsonSerializer.SerializeToElement(drafts, JsonApi.Options);
-            if (answeredMs is not null) existing.AnsweredMs = answeredMs;
-        }
-        else
-        {
-            db.Answers.Add(new AnswerEntity
-            {
-                MatchId = matchId,
-                QuestionId = questionId,
-                UserId = userId,
-                Value = value,
-                Drafts = JsonSerializer.SerializeToElement(drafts, JsonApi.Options),
-                FirstAnsweredMs = answeredMs,
-                AnsweredMs = answeredMs
-            });
-        }
-
-        await db.SaveChangesAsync();
+        throw new RuleError("ALREADY_ANSWERED", "this question already has an answer");
     }
 }
