@@ -108,23 +108,6 @@ public static class MatchRoutes
             return Results.Json(row, JsonApi.Options);
         });
 
-        app.MapPost("/portal/tournaments/{tournamentId}/matches/{matchId}/assemble", async (HttpContext http) =>
-        {
-            var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
-            var tournamentId = Validate.RouteUuid(http, "tournamentId");
-            var matchId = Validate.RouteUuid(http, "matchId");
-            var body = await Validate.ReadJsonBodyAsync(http);
-            var service = http.RequestServices.GetRequiredService<MatchesService>();
-
-            var scope = await service.RequireMatchScopeAsync(tournamentId, matchId);
-            AssertView(scope.Tournament, user, tournamentId);
-            AssertWrite(scope.Tournament, user);
-
-            var entries = MatchSchemas.ParseAssemble(body);
-            var row = await service.AssembleMatchAsync(tournamentId, matchId, entries);
-            return Results.Json(row, JsonApi.Options);
-        });
-
         app.MapPatch("/portal/tournaments/{tournamentId}/matches/{matchId}/assemble", async (HttpContext http) =>
         {
             var user = await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");

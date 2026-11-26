@@ -328,28 +328,6 @@ public sealed class MatchesService(
         return match;
     }
 
-    public async Task<MatchEntity> AssembleMatchAsync(string tournamentId, string matchId, List<AssemblyEntry> entries)
-    {
-        var existing = await GetMatchAsync(tournamentId, matchId);
-        if (existing.Status != MatchStatus.UPCOMING)
-            throw new MatchError(MatchErrorCode.IMMUTABLE,
-                $"match {matchId} is {existing.Status} and can no longer be assembled");
-        if (entries.Count == 0)
-            throw new MatchError(MatchErrorCode.VALIDATION, "provide questions");
-
-        var tournament = await RequireTournamentAsync(Guid.Parse(tournamentId));
-        var assembly = new MatchAssembly(db);
-        var questions = await assembly.BuildQuestionCopiesAsync(
-            tournament, existing.RoundConfigsMap, entries);
-
-        var tracked = await db.Matches.FirstAsync(m => m.Id == Guid.Parse(matchId));
-        tracked.Questions = JsonDefaults.Serialize(questions);
-        tracked.UpdatedAt = DateTime.UtcNow;
-        await db.SaveChangesAsync();
-        return tracked;
-    }
-
-
     public async Task<MatchEntity> SetMatchResultsAsync(string tournamentId, string matchId,
         List<(string UserId, int Score)> totals)
     {

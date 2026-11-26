@@ -110,14 +110,6 @@ public static partial class QuestionRoutes
             return Results.Json(items, JsonApi.Options);
         });
 
-        app.MapGet("/portal/questions/{questionId}", async (HttpContext http) =>
-        {
-            await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");
-            var questionId = Validate.RouteUuid(http, "questionId");
-            var service = http.RequestServices.GetRequiredService<IQuestionReads>();
-            return Results.Json(await service.RequireAsync(questionId), JsonApi.Options);
-        });
-
         app.MapPatch("/portal/questions/{questionId}", async (HttpContext http) =>
         {
             await http.RequireRoleAsync(Surface.PORTAL, "ADMIN", "OPERATOR");

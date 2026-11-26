@@ -224,15 +224,6 @@ public static class LiveRoutes
             return Results.Json(await service.LobbyOfAsync(Guid.Parse(matchId)), JsonApi.Options);
         });
 
-        app.MapGet("/spectate/tournaments/{tournamentId}/matches/{matchId}/lobby", async (HttpContext http) =>
-        {
-            var tournamentId = Validate.RouteUuid(http, "tournamentId");
-            var matchId = Validate.RouteUuid(http, "matchId");
-            await LiveMatchGuard.RequireSpectatableAsync(http, tournamentId, matchId);
-            var service = http.RequestServices.GetRequiredService<LiveService>();
-            return Results.Json(await service.LobbyOfAsync(Guid.Parse(matchId)), JsonApi.Options);
-        }).RequireRateLimiting("public60");
-
         app.MapGet("/api/matches/{matchId}/live", async (HttpContext http) =>
         {
             var user = await http.RequireAuthAsync(Surface.GAMEPLAY);

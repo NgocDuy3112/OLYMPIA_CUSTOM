@@ -204,13 +204,6 @@ public static class MatchSchemas
             hasPlayers, hasRoundConfigs);
     }
 
-    public static List<AssemblyEntry> ParseAssemble(JsonElement input)
-    {
-        if (input.ValueKind != JsonValueKind.Object) throw Invalid(["<root>: Expected object"]);
-        if (!input.TryGetProperty("questions", out var q)) return [];
-        return ParseAssemblyEntries(q);
-    }
-
     public static string ParseTransition(JsonElement input)
     {
         if (input.ValueKind != JsonValueKind.Object) throw Invalid(["<root>: Expected object"]);
