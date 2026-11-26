@@ -148,11 +148,11 @@ internal sealed class PgLiveTx(AOCDbContext db, Guid matchId, MatchLiveEntity ro
                 var powers = await db.MatchEvents.AsNoTracking()
                     .Where(e => e.MatchId == matchId && e.UserId == userId
                         && e.Kind == AOC.Infrastructure.Data.MatchEventKind.POWER)
-                    .Select(e => e.Payload)
+                    .Select(e => new { e.QuestionId, e.Payload })
                     .ToListAsync();
                 var wanted = evt.Payload.TryGetProperty("power", out var pw) ? pw.GetString() : null;
-                duplicate = powers.Any(p => p.TryGetProperty("power", out var existing)
-                    && existing.GetString() == wanted);
+                duplicate = MatchEventAudit.PowerLogged(
+                    powers.Select(p => (p.QuestionId, p.Payload)), questionId, wanted);
             }
             if (duplicate) continue;
 

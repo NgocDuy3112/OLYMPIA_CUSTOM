@@ -24,6 +24,9 @@ public static class Facts
 
     public static EventFact Buzz(string questionId, string userId, string roundId, int buzzMs)
     {
+        // "won" is the buzz race, not the answer: the fact is only emitted once the
+        // engine accepted the press, so it always says the window was won. Whether
+        // the player then answered correctly is carried by the answer verdict.
         var payload = JsonSerializer.SerializeToElement(
             new { kind = "BUZZ", buzzMs, won = true }, JsonApiOptions.Options);
         return new EventFact(questionId, userId, roundId, MatchEventKind.BUZZ, payload);
