@@ -147,6 +147,28 @@ public class LiveViewWireTests
     }
 
     [Fact]
+    public void The_ve_dich_projection_carries_the_engine_capabilities()
+    {
+        var view = PlayerView("ve-dich", VeDich());
+
+        var caps = Assert.IsType<VeDichCapabilities>(view["capabilities"]);
+        var wire = JsonSerializer.SerializeToElement(caps, JsonApi.Options);
+
+        Assert.Equal(
+            [
+                "canOpenQuestion", "canSwitchQuestion", "canReveal", "canStartClock",
+                "canCloseCurrentAnswer", "canLockBuzz", "canCloseQuestion",
+                "canResolve", "canStorePower", "canUnstagePower"
+            ],
+            wire.EnumerateObject().Select(property => property.Name));
+
+        Assert.False(caps.CanSwitchQuestion);
+        Assert.False(caps.CanReveal);
+        Assert.True(caps.CanResolve);
+        Assert.False(caps.CanLockBuzz);
+    }
+
+    [Fact]
     public void FourViews_KeepEveryWireKey()
     {
         var keys = new HashSet<string>();

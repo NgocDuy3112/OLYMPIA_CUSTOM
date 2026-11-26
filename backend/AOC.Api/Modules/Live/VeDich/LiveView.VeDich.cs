@@ -32,40 +32,11 @@ public static partial class LiveView
         };
     }
 
-    private static bool CanBuzz(OpenQuestion? open, string playerId, string nowIso)
-    {
-        if (open is null) return false;
-        if (open.Window.Mode != AnswerMode.Buzz) return false;
-        if (open.Window.Buzzer is not null) return false;
-        if (!open.Window.IsOpen(nowIso)) return false;
-
-        if (open.Window.Eligibility == AnswerEligibility.Others)
-            return playerId != open.Window.TurnPlayerId;
-        if (open.Window.Eligibility == AnswerEligibility.Pair)
-            return playerId == open.Window.PairA || playerId == open.Window.PairB;
-        return false;
-    }
-
     internal sealed record AudioGate(List<string> Allowed);
 
     internal sealed record MediaPolicy(
         string Mode, string? TurnPlayerId, string? AnswererId,
         string? AssignedToId, string? BuzzerId, List<string> Allowed);
-
-    private static bool CanAnswerOf(VeDichState state, OpenQuestion? open, string userId)
-    {
-        if (open is null) return false;
-        if (open.Window.Mode != AnswerMode.Typed) return false;
-        if (!open.Window.HasStarted) return false;
-        if (open.Window.Locked) return false;
-
-        if (open.Window.Eligibility == AnswerEligibility.Everyone) return true;
-        if (open.Window.Eligibility == AnswerEligibility.CurrentTurn)
-            return open.Window.TurnPlayerId == userId;
-        if (open.Window.Eligibility == AnswerEligibility.Pair)
-            return open.Window.PairA == userId || open.Window.PairB == userId;
-        return false;
-    }
 
     private static string? SelectedPlayerOf(VeDichState state, OpenQuestion? open)
     {
@@ -186,8 +157,8 @@ public static partial class LiveView
             ["isMyTurn"] = isMyTurn,
             ["pendingPicks"] = state.PendingPicks.Select(q => q.Id).ToList(),
             ["isAnswerer"] = open?.Answerer == input.UserId,
-            ["canAnswer"] = CanAnswerOf(state, open, input.UserId),
-            ["canBuzz"] = CanBuzz(open, input.UserId, input.Now),
+            ["canAnswer"] = VeDichTurn.CanAnswer(state, input.UserId),
+            ["canBuzz"] = VeDichTurn.CanBuzz(state, input.UserId, input.Now),
             ["power"] = open?.Power,
             ["buzzer"] = open?.Window.Buzzer,
             ["buzzerMs"] = open?.Window.BuzzerMs,
@@ -207,6 +178,7 @@ public static partial class LiveView
         view["turnPlayerId"] = turnPlayerId;
         view["answererId"] = state.Open?.Answerer;
         view["assignedToId"] = AssignedToId(state.Open);
+        view["capabilities"] = VeDichTurn.Capabilities(state, input.Now);
         view["stagedPower"] = StagedPowerOf(
             state.TurnIndex < state.Players.Count ? state.Players[state.TurnIndex] : null);
         view["console"] = new Dictionary<string, object?>

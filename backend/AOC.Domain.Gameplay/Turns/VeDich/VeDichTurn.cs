@@ -227,7 +227,7 @@ public static class VeDichTurn
         if (state.Open is not null)
         {
             var open = state.Open;
-            if (open.Revealed || open.Window.HasStarted || open.Window.Buzzer is not null)
+            if (!Swappable(open))
                 throw Err("ALREADY_OPEN", "the question already started — finish it first");
             pending.Insert(0, open.Question);
         }
@@ -252,7 +252,7 @@ public static class VeDichTurn
         if (state.Phase != 2) throw Err("WRONG_PHASE", "switchQuestion only applies in Phase 2");
         if (state.Open is null) throw Err("NOTHING_OPEN", "no question is open");
         var open = state.Open;
-        if (open.Revealed || open.Window.HasStarted || open.Window.Buzzer is not null)
+        if (!Swappable(open))
             throw Err("ALREADY_OPEN", "the question already started — finish it first");
         if (open.Question.Id == questionId) return state;
 
@@ -533,13 +533,8 @@ public static class VeDichTurn
             throw Err("WINDOW_CLOSED", "the buzz window has closed");
         if (state.Open.Window.Buzzer is not null)
             throw Err("ALREADY_OPEN", "someone already buzzed first");
-        if (state.Open.Window.Eligibility == AnswerEligibility.Others
-            && playerId == state.Open.Window.TurnPlayerId)
-            throw Err("NOT_YOUR_TURN", "you are answering this question, not buzzing it");
-        if (state.Open.Window.Eligibility == AnswerEligibility.Pair
-            && playerId != state.Open.Window.PairA
-            && playerId != state.Open.Window.PairB)
-            throw Err("NOT_YOUR_TURN", "this race is between the two assigned players");
+        if (!EligibleForBuzz(state.Open.Window, playerId))
+            throw Err("NOT_YOUR_TURN", "this question is not yours to buzz");
 
         return state with
         {
@@ -671,6 +666,91 @@ public static class VeDichTurn
             Players = state.Players.Select(p => p with { Powers = p.Powers.ResetForTurn() }).ToList(),
             TurnPicked = 0,
             PicksConfirmed = false
+        };
+    }
+
+    private static bool Swappable(OpenQuestion open)
+        => !open.Revealed && !open.Window.HasStarted && open.Window.Buzzer is null;
+
+    private static bool EligibleForBuzz(AnswerWindow window, string playerId)
+    {
+        if (window.Eligibility == AnswerEligibility.Others) return window.TurnPlayerId != playerId;
+        if (window.Eligibility == AnswerEligibility.Pair)
+            return window.PairA == playerId || window.PairB == playerId;
+        return false;
+    }
+
+    public static bool CanBuzz(VeDichState state, string playerId, string nowIso)
+    {
+        if (state.Phase != 2) return false;
+        if (state.Open is not { } open) return false;
+        if (open.Window.Mode != AnswerMode.Buzz) return false;
+        if (open.Window.Buzzer is not null) return false;
+        if (!open.Window.IsOpen(nowIso)) return false;
+        return EligibleForBuzz(open.Window, playerId);
+    }
+
+    public static bool CanAnswer(VeDichState state, string playerId)
+    {
+        if (state.Open is not { } open) return false;
+        if (open.Window.Mode != AnswerMode.Typed) return false;
+        if (!open.Window.HasStarted) return false;
+        if (open.Window.Locked) return false;
+
+        if (open.Window.Eligibility == AnswerEligibility.Everyone) return true;
+        if (open.Window.Eligibility == AnswerEligibility.CurrentTurn)
+            return open.Window.TurnPlayerId == playerId;
+        if (open.Window.Eligibility == AnswerEligibility.Pair)
+            return open.Window.PairA == playerId || open.Window.PairB == playerId;
+        return false;
+    }
+
+    public static VeDichCapabilities Capabilities(VeDichState state, string nowIso)
+    {
+        var open = state.Open;
+        var turnPlayer = state.TurnIndex < state.Players.Count
+            ? state.Players[state.TurnIndex]
+            : null;
+
+        var swappable = open is not null && Swappable(open);
+        var powers = turnPlayer?.Powers;
+
+        return new VeDichCapabilities
+        {
+            CanOpenQuestion = open is null,
+            CanSwitchQuestion = swappable,
+            CanReveal = open is not null && !open.Revealed,
+            CanStartClock = open is not null
+                && open.Revealed && !open.Window.Locked && !open.Window.HasStarted,
+            CanCloseCurrentAnswer = state.Phase == 2
+                && open is not null
+                && open.Window.Mode == AnswerMode.Oral
+                && open.Window.HasStarted
+                && !open.Window.IsOpen(nowIso),
+            CanLockBuzz = open is not null
+                && open.Window.Mode == AnswerMode.Buzz
+                && open.Window.Buzzer is null
+                && open.Window.HasStarted,
+            CanCloseQuestion = state.Phase == 1
+                && open is not null
+                && open.Revealed
+                && open.Window.HasStarted,
+            CanResolve = open is not null
+                && !(state.Phase == 2 && open.Window.Mode == AnswerMode.Oral)
+                && (PartnerOf(open) is null
+                    || open.Window.Buzzer is not null
+                    || (open.Window.HasStarted && !open.Window.IsOpen(nowIso))),
+            CanStorePower = state.Phase == 2
+                && open is null
+                && state.PendingPicks.Count > 0
+                && powers is not null
+                && powers.Available.Count > 0
+                && !powers.UsedThisTurn
+                && powers.Staged is null,
+            CanUnstagePower = state.Phase == 2
+                && open is null
+                && state.PendingPicks.Count > 0
+                && powers?.Staged is not null
         };
     }
 }
