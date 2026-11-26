@@ -21,6 +21,10 @@ public sealed record VeDichState
     public string? SelectedPlayerId { get; init; }
     [JsonPropertyName("pendingPicks")] public List<VeDichQuestion> PendingPicks { get; init; } = [];
 
+    /// <summary>Questions already closed or resolved this round — they leave the
+    /// board for good and never come back through any pool.</summary>
+    [JsonPropertyName("played")] public List<VeDichQuestion> Played { get; init; } = [];
+
     /// <summary>The questions picked for the current turn — kept after they are
     /// opened so the console can always show the whole turn's strip.</summary>
     [JsonPropertyName("turnQuestions")]

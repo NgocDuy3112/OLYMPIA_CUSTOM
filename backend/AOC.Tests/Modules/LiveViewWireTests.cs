@@ -2,6 +2,7 @@ using System.Text.Json;
 using AOC.Api.Http;
 using AOC.Api.Modules.Live;
 using AOC.Domain.Contracts;
+using AOC.Domain.Gameplay;
 using AOC.Domain.Gameplay.Turns;
 using Xunit;
 
@@ -16,7 +17,7 @@ public class LiveViewWireTests
         "stage", "phase2Begun", "phase2Closed", "questionIndex", "questionCount",
         "windowOpen", "oral", "openStage", "clockStarted", "buzzerId", "buzzerMs",
         "assignedToId", "answererId", "power", "stagedPower", "turnPowerUsed",
-        "pendingQuestionId", "pendingValues", "turnPicked", "picksConfirmed",
+        "pendingQuestionId", "pendingValues", "turnPicked", "picksConfirmed", "pickCount",
         "powersLeft", "hintsRemaining", "hintsPicked", "openHintId", "hintsLocked",
         "questionId", "opened", "deadlineAt", "frozenRemainingMs", "canAnswer",
         "canBuzz", "answerState", "verdicts"
@@ -145,6 +146,10 @@ public class LiveViewWireTests
         CollectConsoleKeys("ve-dich", VeDich(), keys);
 
         Assert.All(WireKeys, key => Assert.Contains(key, keys));
+
+        var console = LiveFacts.ConsoleFacts("ve-dich", Raw(VeDich()), T0);
+        Assert.NotNull(console);
+        Assert.Equal(RuleBatches.VeDich.PickCount, Assert.IsType<int>(console["pickCount"]));
 
         var oral = Assert.IsType<Dictionary<string, object?>>(
             PlayerView("khoi-dong", KhoiDongRieng())["oral"]);

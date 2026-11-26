@@ -88,14 +88,79 @@ public class VeDichChungAnswerTests
     }
 
     [Fact]
-    public void Closing_a_question_puts_it_back_on_the_strip()
+    public void Closing_a_question_plays_it_for_good()
     {
         var opened = VeDichTurn.OpenPending(Phase1Picked("q20-0", "q20-1"), "q20-0");
         var closed = VeDichTurn.CloseQuestion(opened);
 
         Assert.Null(closed.Open);
-        Assert.Contains(closed.PendingPicks, q => q.Id == "q20-0");
+        Assert.DoesNotContain(closed.PendingPicks, q => q.Id == "q20-0");
+        Assert.Contains(closed.Played, q => q.Id == "q20-0");
         Assert.Equal(2, closed.TurnQuestions!.Count);
+    }
+
+    [Fact]
+    public void AClosedQuestionNeverReturnsToThePhase2Pool()
+    {
+        var picked = VeDichTurn.PickRound(
+            Phase1PlayerState(), ["q20-0", "q20-1"]);
+        var closed = VeDichTurn.CloseQuestion(VeDichTurn.OpenPending(picked, "q20-0"));
+
+        var advanced = VeDichTurn.AdvanceTurn(closed);
+        Assert.DoesNotContain(advanced.Remaining, q => q.Id == "q20-0");
+
+        var second = VeDichTurn.CloseQuestion(VeDichTurn.OpenPending(closed, "q20-1"));
+        var phase2 = VeDichTurn.BeginPhase2(second);
+        Assert.DoesNotContain(phase2.Remaining, q => q.Id == "q20-0");
+        Assert.DoesNotContain(phase2.Remaining, q => q.Id == "q20-1");
+    }
+
+    [Fact]
+    public void ModelA_ConfirmThenPlayTheWholeBatchUnlocksPhase2()
+    {
+        var state = Phase1PlayerState();
+        var ids = new[] { "q20-0", "q20-1" };
+
+        var picked = VeDichTurn.PickRound(state, ids);
+        var confirmed = VeDichTurn.ConfirmPicks(picked);
+        Assert.True(confirmed.PicksConfirmed);
+        Assert.False(VeDichTurn.Phase1Complete(confirmed));
+
+        var afterFirst = VeDichTurn.CloseQuestion(VeDichTurn.OpenPending(confirmed, ids[0]));
+        Assert.False(VeDichTurn.Phase1Complete(afterFirst));
+
+        var afterLast = VeDichTurn.CloseQuestion(VeDichTurn.OpenPending(afterFirst, ids[1]));
+        Assert.True(VeDichTurn.Phase1Complete(afterLast));
+
+        var phase2 = VeDichTurn.BeginPhase2(afterLast);
+        Assert.Equal(2, phase2.Phase);
+        Assert.False(phase2.PicksConfirmed);
+        Assert.DoesNotContain(phase2.Remaining, q => ids.Contains(q.Id));
+    }
+
+    [Fact]
+    public void BeginPhase2RefusesAPartlyPlayedBatch()
+    {
+        var picked = VeDichTurn.PickRound(Phase1PlayerState(), ["q20-0", "q20-1"]);
+        var partly = VeDichTurn.CloseQuestion(VeDichTurn.OpenPending(picked, "q20-0"));
+
+        var error = Assert.Throws<VeDichRuleError>(() => VeDichTurn.BeginPhase2(partly));
+        Assert.Equal("PHASE1_INCOMPLETE", error.Code);
+    }
+
+    private static VeDichState Phase1PlayerState()
+    {
+        var questions = new List<VeDichQuestion>();
+        for (var i = 0; i < 6; i++) questions.Add(new VeDichQuestion { Id = $"q20-{i}", Value = 20 });
+        for (var i = 0; i < 6; i++) questions.Add(new VeDichQuestion { Id = $"q30-{i}", Value = 30 });
+        for (var i = 0; i < 4; i++) questions.Add(new VeDichQuestion { Id = $"q40-{i}", Value = 40 });
+        for (var i = 0; i < 4; i++) questions.Add(new VeDichQuestion { Id = $"q50-{i}", Value = 50 });
+        var players = new List<VeDichPlayerState>
+        {
+            new() { Id = "u1", Powers = PowerSet.Fresh() },
+            new() { Id = "u2", Powers = PowerSet.Fresh() },
+        };
+        return VeDichTurn.CreateVeDich(questions, players, RuleBatches.VeDich);
     }
 
     [Fact]

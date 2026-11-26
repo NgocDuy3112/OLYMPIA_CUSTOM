@@ -43,6 +43,10 @@ public static partial class LiveState
             foreach (var q in deferred.EnumerateArray())
                 ValidateQuestion(q, details, "deferred");
 
+        if (obj.TryGetProperty("played", out var played) && played.ValueKind == JsonValueKind.Array)
+            foreach (var q in played.EnumerateArray())
+                ValidateQuestion(q, details, "played");
+
         StateGuard.RequireInteger(obj, "turnIndex", details);
 
         if (!obj.TryGetProperty("open", out var open))

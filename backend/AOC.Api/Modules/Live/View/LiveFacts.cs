@@ -86,6 +86,7 @@ public static class LiveFacts
                     ["turnValues"] = (state.TurnQuestions ?? []).Select(q => q.Value).ToList(),
                     ["turnPicked"] = state.TurnPicked,
                     ["picksConfirmed"] = state.PicksConfirmed,
+                    ["pickCount"] = state.Rules.PickCount,
                     ["powersLeft"] = turnPlayer?.Powers.Available ?? [],
                     ["stagedPower"] = LiveView.StagedPowerOf(turnPlayer),
                     ["turnPowerUsed"] = turnPlayer?.Powers.UsedThisTurn ?? false

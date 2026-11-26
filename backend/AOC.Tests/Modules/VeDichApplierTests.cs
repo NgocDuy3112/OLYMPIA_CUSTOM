@@ -109,6 +109,23 @@ public class VeDichApplierTests
     }
 
     [Fact]
+    public void ResolveActionRefusesAPhase1TypedQuestionWithNoAnswerer()
+    {
+        // Phase 1 questions opened from the confirmed batch have no single
+        // answerer — a resolve would write an answer for the empty user id.
+        var state = VeDichTurn.OpenPending(
+            VeDichTurn.PickRound(
+                VeDichTurn.CreateVeDich(Board(), [
+                    new VeDichPlayerState { Id = "a", Score = 0, Powers = PowerSet.Fresh() }]),
+                ["20-1"]),
+            "20-1");
+
+        var error = Assert.Throws<VeDichRuleError>(() =>
+            VeDichApplier.Apply(state, new LiveAction.VeDichResolve(true, null), Ctx([])));
+        Assert.Equal("INVALID_ANSWERER", error.Code);
+    }
+
+    [Fact]
     public void StartPhase2_KeepsAPlayedPhase1QuestionOffTheBoard()
     {
         var state = VeDichTurn.CreateVeDich(
@@ -134,7 +151,10 @@ public class VeDichApplierTests
                 new VeDichPlayerState { Id = "a", Score = 0, Powers = PowerSet.Fresh() },
                 new VeDichPlayerState { Id = "b", Score = 0, Powers = PowerSet.Fresh() }
             ]);
-        var opened = VeDichTurn.PickPhase1(state, "a", "20-1");
+        // Model A: confirm one question per player, then play the whole batch.
+        var picked = VeDichTurn.ConfirmPicks(
+            VeDichTurn.PickRound(state, ["20-1", "20-2"]));
+        var opened = VeDichTurn.OpenPending(picked, "20-1");
 
         // The judge action records points as facts (the answers table is the
         // source of truth), so phase 2 gets those totals through the context.
@@ -144,7 +164,8 @@ public class VeDichApplierTests
             .GroupBy(f => f.UserId)
             .ToDictionary(g => g.Key, g => g.Sum(f => f.PointsAwarded));
 
-        var phase1Done = opened with { Open = null, TurnIndex = 2 };
+        var phase1Done = VeDichTurn.CloseQuestion(
+            VeDichTurn.OpenPending(VeDichTurn.CloseQuestion(opened), "20-2"));
         var (phase2, _) = VeDichApplier.Apply(
             phase1Done, new LiveAction.VeDichBeginPhase2(),
             CtxWithScores([("a", sums.GetValueOrDefault("a")), ("b", sums.GetValueOrDefault("b"))]));

@@ -83,15 +83,24 @@ public partial class VeDichTurnTests
     }
 
     [Fact]
-    public void Transitions_Phase1NotCompleteUntilEveryPlayerPlayed()
+    public void Transitions_Phase1CompletesOnlyAfterTheConfirmedBatchIsPlayedOut()
     {
         var s = VeDichTurn.CreateVeDich(Pool, OrderedPlayers);
         Assert.False(VeDichTurn.Phase1Complete(s));
-        s = VeDichTurn.AdvanceTurn(s);
-        s = VeDichTurn.AdvanceTurn(s);
+
+        var ids = s.Remaining.Where(q => q.Value == 20).Take(OrderedPlayers.Count)
+            .Select(q => q.Id).ToList();
+        s = VeDichTurn.PickRound(s, ids);
         Assert.False(VeDichTurn.Phase1Complete(s));
-        s = VeDichTurn.AdvanceTurn(s);
-        Assert.True(VeDichTurn.Phase1Complete(s));
+
+        // Model A: no turn advancing — the console closes the batch question by
+        // question, and phase 1 only ends when the last one is closed.
+        for (var i = 0; i < ids.Count; i++)
+        {
+            s = VeDichTurn.OpenPending(s, ids[i]);
+            s = VeDichTurn.CloseQuestion(s);
+            Assert.Equal(i == ids.Count - 1, VeDichTurn.Phase1Complete(s));
+        }
     }
 
     [Fact]
@@ -169,9 +178,13 @@ public partial class VeDichTurnTests
 
     private static VeDichState Phase1Done()
     {
+        // Model A: one confirmed question per player, then play the whole batch.
         var s = VeDichTurn.CreateVeDich(Pool, OrderedPlayers);
-        for (var i = 0; i < OrderedPlayers.Count; i++)
-            s = VeDichTurn.AdvanceTurn(s);
+        var ids = s.Remaining.Where(q => q.Value == 20).Take(OrderedPlayers.Count)
+            .Select(q => q.Id).ToList();
+        s = VeDichTurn.ConfirmPicks(VeDichTurn.PickRound(s, ids));
+        foreach (var id in ids)
+            s = VeDichTurn.CloseQuestion(VeDichTurn.OpenPending(s, id));
         return s;
     }
 

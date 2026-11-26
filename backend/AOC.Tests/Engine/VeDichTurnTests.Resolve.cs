@@ -417,13 +417,16 @@ public partial class VeDichTurnTests
         Assert.Null(first.Open!.Window.OpenedAt);
         Assert.Single(first.PendingPicks);
 
-        var second = VeDichTurn.NextQuestion(first);
+        var second = VeDichTurn.NextQuestion(VeDichTurn.CloseQuestion(first));
         Assert.Equal(ids[1], second.Open!.Question.Id);
         Assert.Empty(second.PendingPicks);
 
-        var finished = VeDichTurn.NextQuestion(second);
-        Assert.Null(finished.Open);
-        Assert.Equal("NO_PICKS", CodeOf(() => VeDichTurn.NextQuestion(finished)));
+        // An open question must be closed before the strip advances.
+        Assert.Equal("ALREADY_OPEN", CodeOf(() => VeDichTurn.NextQuestion(second)));
+
+        var closed = VeDichTurn.CloseQuestion(second);
+        Assert.Contains(closed.Played, q => q.Id == ids[1]);
+        Assert.Equal("NO_PICKS", CodeOf(() => VeDichTurn.NextQuestion(closed)));
     }
 
     [Fact]

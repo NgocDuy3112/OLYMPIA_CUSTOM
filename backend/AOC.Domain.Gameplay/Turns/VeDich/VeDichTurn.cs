@@ -57,10 +57,23 @@ public static class VeDichTurn
     }
 
     public static bool Phase1Complete(VeDichState state)
-        => state.Phase == 1 && state.Open is null && state.TurnIndex >= state.Players.Count;
+    {
+        // Model A: the console confirms one question per player, then walks that
+        // batch question by question. Phase 1 ends when the whole confirmed batch
+        // has been played out — not after N turns.
+        if (state.Phase != 1 || state.Open is not null) return false;
+        if (state.PendingPicks.Count > 0) return false;
+        var batch = state.TurnQuestions ?? [];
+        // Legacy turn-by-turn states have no confirmed batch: they are done once
+        // every player had a turn (and at least one question was played).
+        if (batch.Count == 0)
+            return state.Played.Count > 0 && state.TurnIndex >= state.Players.Count;
+        return batch.All(q => state.Played.Any(p => p.Id == q.Id));
+    }
 
     public static bool Phase1Untouched(VeDichState state)
-        => state.Phase == 1 && state.TurnIndex == 0 && state.Open is null && state.PendingPicks.Count == 0;
+        => state.Phase == 1 && state.TurnIndex == 0 && state.Open is null
+            && state.PendingPicks.Count == 0 && state.Played.Count == 0;
 
     public static bool Phase2Complete(VeDichState state)
         => state.Phase == 2 && state.Open is null && state.TurnIndex >= state.Players.Count;
@@ -68,6 +81,7 @@ public static class VeDichTurn
     public static VeDichState BeginPhase2(VeDichState state)
     {
         if (state.Phase != 1) throw Err("WRONG_PHASE", "already in phase 2");
+        if (state.Ended) throw Err("WRONG_PHASE", "the round has already ended");
         if (!Phase1Complete(state) && !Phase1Untouched(state))
             throw Err("PHASE1_INCOMPLETE", "phase 1 is not complete");
         var remaining = new List<VeDichQuestion>(state.Remaining);
@@ -83,7 +97,8 @@ public static class VeDichTurn
             PendingPicks = [],
             TurnQuestions = [],
             Open = null,
-            TurnPicked = 0
+            TurnPicked = 0,
+            PicksConfirmed = false
         };
     }
 
@@ -258,25 +273,23 @@ public static class VeDichTurn
     {
         if (state.Phase != 1) throw Err("WRONG_PHASE", "closeQuestion only applies in Phase 1");
         if (state.Open is null) return state;
-        // Put the question back at the head of the strip: it is still part of the
-        // turn, and the console may switch back to it.
-        if (state.PendingPicks.Any(q => q.Id == state.Open.Question.Id))
-            return state with { Open = null };
+        // A closed question has been played: it leaves every pool for good, so
+        // neither a later advance nor phase 2 can pick it up again.
+        var question = state.Open.Question;
         return state with
         {
             Open = null,
-            PendingPicks = [state.Open.Question, .. state.PendingPicks]
+            PendingPicks = state.PendingPicks.Where(q => q.Id != question.Id).ToList(),
+            Played = MarkPlayed(state.Played, question)
         };
     }
 
     public static VeDichState NextQuestion(VeDichState state)
     {
         if (state.Phase != 1) throw Err("WRONG_PHASE", "nextQuestion only applies in Phase 1");
-        if (state.Open is null && state.PendingPicks.Count == 0)
-            throw Err("NO_PICKS", "no questions are picked");
-
+        if (state.Open is not null) throw Err("ALREADY_OPEN", "a question is already open");
         if (state.PendingPicks.Count == 0)
-            return state with { Open = null };
+            throw Err("NO_PICKS", "no questions are picked");
 
         var next = state.PendingPicks[0];
         return state with
@@ -524,6 +537,12 @@ public static class VeDichTurn
     {
         if (state.Open is null) throw Err("NOTHING_OPEN", "no question is open");
         var open = state.Open;
+        // Phase 1 typed questions are answered by everyone at once, so there is no
+        // single answerer to score (and no user id to write an answer for) — the
+        // console grades each player with the judge action instead.
+        if (state.Phase == 1 && open.Answerer.Length == 0)
+            throw Err("INVALID_ANSWERER",
+                "phase 1 questions have no single answerer — judge every player instead");
         var partner = PartnerOf(open);
 
         if (open.Window.Mode == AnswerMode.Oral && state.Phase == 2)
@@ -556,7 +575,7 @@ public static class VeDichTurn
 
         var deltas = new List<(string Id, int Delta)> { (open.Answerer, answererPoints) };
         if (open.Window.Buzzer is not null) deltas.Add((open.Window.Buzzer, buzzerPoints));
-        return ApplyDeltas(state, deltas);
+        return ApplyDeltas(state, deltas, open.Question);
     }
 
     private static VeDichState ResolveAssign(VeDichState state, Verdicts verdicts)
@@ -568,18 +587,23 @@ public static class VeDichTurn
         if (buzzer is null)
         {
             var payout = Scoring.VeDichScoring.Assign(open.Question.Value, null, state.Rules.Assign);
-            return ApplyDeltas(state, [(open.Answerer, payout.Buzzer), (partner, payout.Partner)]);
+            return ApplyDeltas(state, [(open.Answerer, payout.Buzzer), (partner, payout.Partner)], open.Question);
         }
 
         var payout2 = Scoring.VeDichScoring.Assign(open.Question.Value, verdicts.Buzzer, state.Rules.Assign);
         var other = buzzer == open.Answerer ? partner : open.Answerer;
-        return ApplyDeltas(state, [(buzzer, payout2.Buzzer), (other, payout2.Partner)]);
+        return ApplyDeltas(state, [(buzzer, payout2.Buzzer), (other, payout2.Partner)], open.Question);
     }
 
     private static string? PartnerOf(OpenQuestion open)
         => open.Window.Eligibility == AnswerEligibility.Pair ? open.Window.PairB : null;
 
-    private static VeDichState ApplyDeltas(VeDichState state, IReadOnlyList<(string Id, int Delta)> deltas)
+    private static List<VeDichQuestion> MarkPlayed(
+        IReadOnlyList<VeDichQuestion> played, VeDichQuestion question)
+        => played.Any(q => q.Id == question.Id) ? played.ToList() : [.. played, question];
+
+    private static VeDichState ApplyDeltas(
+        VeDichState state, IReadOnlyList<(string Id, int Delta)> deltas, VeDichQuestion question)
     {
         var scoreDelta = new Dictionary<string, int>();
         foreach (var (id, delta) in deltas)
@@ -589,6 +613,8 @@ public static class VeDichTurn
         {
             Players = state.Players.Select(p =>
                 scoreDelta.TryGetValue(p.Id, out var delta) ? p with { Score = p.Score + delta } : p).ToList(),
+            // A resolved question is done for the round: keep it out of every pool.
+            Played = MarkPlayed(state.Played, question),
             Open = null
         };
     }
@@ -601,6 +627,7 @@ public static class VeDichTurn
             TurnIndex = state.TurnIndex + 1,
             SelectedPlayerId = null,
             // Unplayed picks go back to the pool so a later turn can play them.
+            // Played questions are absent from PendingPicks and stay off the board.
             Remaining = state.Remaining.Concat(state.PendingPicks).ToList(),
             PendingPicks = [],
             TurnQuestions = [],
