@@ -107,7 +107,7 @@ public static class AocRulebook
                     Flow = Contracts.Flow.chung, Buckets = ["ve-dich:20", "ve-dich:30"],
                     Window = new WindowSpec
                     {
-                        Mode = AnswerMode.Typed, Eligibility = AnswerEligibility.CurrentTurn
+                        Mode = AnswerMode.Typed, Eligibility = AnswerEligibility.Everyone
                     },
                     PickCount = b.PickCount,
                     SecondsByValue = b.SecondsByValue

@@ -123,7 +123,7 @@ describe("ve-dich dispatch follows picksConfirmed, not just open[]", () => {
         expect(screen.getByTitle("Câu 20 điểm còn trống")).toBeInTheDocument()
     })
 
-    it("routes on staged picks even when the frame carries no console block", () => {
+    it("keeps the pick board for staged picks when the frame carries no console block", () => {
         const old = ctx({
             v: view({
                 open: [],
@@ -132,7 +132,11 @@ describe("ve-dich dispatch follows picksConfirmed, not just open[]", () => {
             }),
         })
         render(<>{veDichAOC.render(old)}</>)
-        expect(screen.queryByTitle("Câu 20 điểm đã dùng")).toBeNull()
+        // rules.md §7.3: staged (`pending`) picks stay on the board and can still
+        // be dropped — only console `Xác nhận` moves the room to the play screen.
+        // A frame without a console block therefore reads as "not confirmed".
+        expect(document.querySelector('[style*="grid-template-columns"]')).not.toBeNull()
+        expect(screen.getByTitle("Câu 20 điểm đã dùng")).toBeInTheDocument()
         expect(screen.getByText("Lượt chung")).toBeInTheDocument()
     })
 })
