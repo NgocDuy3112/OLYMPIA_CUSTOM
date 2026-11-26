@@ -4,13 +4,18 @@ import { screenCore, type RoundAction, type RoundModule } from "@/rounds/types"
 import { GiaiMaAOCController, type GiaiMaCtx } from "./GiaiMaAOCController"
 
 
+function giaiMaConsole(f: ConsoleFacts): GiaiMaConsole | null {
+    if (f.v.console?.roundId !== "giai-ma") return null
+    return f.v.console.console
+}
+
 function giaiMaCtx(f: ConsoleFacts): GiaiMaCtx {
     return {
         ...screenCore(f),
         remaining: f.remaining,
         keywordRemaining: f.keywordRemaining,
         questions: f.v.questions,
-        consoleGiaiMa: (f.v.console ?? null) as GiaiMaConsole | null,
+        consoleGiaiMa: giaiMaConsole(f),
         toggleSelect: f.toggleSelect,
         commitHintReady: f.commitHintReady,
         commitKeywordReady: f.commitKeywordReady,

@@ -7,11 +7,16 @@ import { VeDichRiengPickAOCController, type VeDichRiengPickCtx } from "./VeDichR
 import { VeDichRiengAOCController, type VeDichRiengCtx } from "./VeDichRiengAOCController"
 
 
+function veDichConsole(f: ConsoleFacts): VeDichConsole | null {
+    if (f.v.console?.roundId !== "ve-dich") return null
+    return f.v.console.console
+}
+
 function pickCtx(f: ConsoleFacts): VeDichChungPickCtx & VeDichRiengPickCtx {
     return {
         ...screenCore(f),
         questions: f.v.questions,
-        consoleVeDich: (f.v.console ?? null) as VeDichConsole | null,
+        consoleVeDich: veDichConsole(f),
         setSelectedPlayer: f.setSelectedPlayer,
     }
 }
@@ -20,7 +25,7 @@ function chungCtx(f: ConsoleFacts): VeDichChungCtx {
     return {
         ...screenCore(f),
         remaining: f.remaining,
-        consoleVeDich: (f.v.console ?? null) as VeDichConsole | null,
+        consoleVeDich: veDichConsole(f),
         target: f.target,
         setVerdict: f.setVerdict,
         setSelectedPlayer: f.setSelectedPlayer,
@@ -50,7 +55,7 @@ export function hetLuotAction(facts: HetLuotFacts): RoundAction | null {
 
 export const veDichAOC: RoundModule = {
     render: (f) => {
-        const consoleView = f.v.console as VeDichConsole | null
+        const consoleView = veDichConsole(f)
         if (f.v.projection.open.length === 0) {
             if (consoleView?.phase === 2) {
                 if (!consoleView.picksConfirmed) return <VeDichRiengPickAOCController ctx={pickCtx(f)} />

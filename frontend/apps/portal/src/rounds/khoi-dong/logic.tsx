@@ -10,11 +10,16 @@ function riengCtx(f: ConsoleFacts): KhoiDongRiengCtx {
     return { ...screenCore(f), oralRemaining: f.oralRemaining }
 }
 
+function khoiDongConsole(f: ConsoleFacts): KhoiDongConsole | null {
+    if (f.v.console?.roundId !== "khoi-dong") return null
+    return f.v.console.console
+}
+
 function chungCtx(f: ConsoleFacts): KhoiDongChungCtx {
     return {
         ...screenCore(f),
         remaining: f.remaining,
-        consoleKhoiDong: (f.v.console ?? null) as KhoiDongConsole | null,
+        consoleKhoiDong: khoiDongConsole(f),
         target: f.target,
         setSelectedPlayer: f.setSelectedPlayer
     }

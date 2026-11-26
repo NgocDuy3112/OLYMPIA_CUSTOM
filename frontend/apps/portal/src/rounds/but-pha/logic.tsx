@@ -7,6 +7,11 @@ import { ButPhaAOCController, type ButPhaCtx } from "./ButPhaAOCController"
 
 const TOTAL_QUESTIONS = 4
 
+function butPhaConsole(f: ConsoleFacts): ButPhaConsole | null {
+    if (f.v.console?.roundId !== "but-pha") return null
+    return f.v.console.console
+}
+
 function butPhaCtx(f: ConsoleFacts): ButPhaCtx {
     return {
         ...screenCore(f),
@@ -16,7 +21,7 @@ function butPhaCtx(f: ConsoleFacts): ButPhaCtx {
         setVerdict: f.setVerdict,
         setSelectedPlayer: f.setSelectedPlayer,
         byId: f.byId,
-        consoleButPha: (f.v.console ?? null) as ButPhaConsole | null,
+        consoleButPha: butPhaConsole(f),
     }
 }
 

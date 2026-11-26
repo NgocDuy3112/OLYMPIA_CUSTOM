@@ -20,7 +20,8 @@ function sameIds(a: string[], b: string[]): boolean {
 export function VeDichRiengPickAOCController({ ctx }: { ctx: VeDichRiengPickCtx }) {
     const { v, baseCards, flash } = ctx
     const projection = v.projection
-    const consoleVeDich = (ctx.v.console ?? null) as VeDichConsole | null
+    const consoleState = ctx.v.console
+    const consoleVeDich = consoleState?.roundId === "ve-dich" ? consoleState.console : null
     const turnPlayer = consoleVeDich?.turnPlayerId ?? null
 
 
