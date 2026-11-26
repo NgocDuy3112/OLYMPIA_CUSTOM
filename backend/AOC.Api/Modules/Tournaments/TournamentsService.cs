@@ -300,6 +300,35 @@ public sealed class TournamentsService(AOCDbContext db)
     private async Task<bool> HasAssembledMatchAsync(Guid tournamentId)
         => await db.Matches.AnyAsync(m => m.TournamentId == tournamentId && m.DeletedAt == null);
 
+    public async Task<TournamentEntity> CloseTournamentAsync(string tournamentId)
+    {
+        var id = Guid.Parse(tournamentId);
+        var now = DateTime.UtcNow;
+
+        var closed = await db.Tournaments
+            .Where(t => t.Id == id && t.DeletedAt == null && t.ClosedAt == null
+                        && !db.Matches.Any(m => m.TournamentId == id && m.DeletedAt == null
+                                                  && m.Status == MatchStatus.LIVE))
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(t => t.ClosedAt, now)
+                .SetProperty(t => t.Current, false)
+                .SetProperty(t => t.UpdatedAt, now));
+
+        if (closed == 0)
+        {
+            var existing = await db.Tournaments.AsNoTracking()
+                .FirstOrDefaultAsync(t => t.Id == id && t.DeletedAt == null);
+            if (existing is null)
+                throw new TournamentError(TournamentErrorCode.NOT_FOUND, $"tournament {tournamentId} not found");
+            if (existing.ClosedAt is not null)
+                throw new TournamentError(TournamentErrorCode.CLOSED, $"tournament {tournamentId} is already closed");
+            throw new TournamentError(TournamentErrorCode.CONFLICT,
+                $"tournament {tournamentId} still has a LIVE match");
+        }
+
+        return await db.Tournaments.AsNoTracking().FirstAsync(t => t.Id == id);
+    }
+
     public async Task<TournamentEntity> DeleteTournamentAsync(string tournamentId)
     {
         var id = Guid.Parse(tournamentId);
@@ -307,6 +336,12 @@ public sealed class TournamentsService(AOCDbContext db)
             .FirstOrDefaultAsync(t => t.Id == id && t.DeletedAt == null);
         if (row is null)
             throw new TournamentError(TournamentErrorCode.NOT_FOUND, $"tournament {tournamentId} not found");
+
+        var matches = await db.Matches.CountAsync(m => m.TournamentId == id && m.DeletedAt == null);
+        if (matches > 0)
+            throw new TournamentError(TournamentErrorCode.CONFLICT,
+                $"tournament {tournamentId} still has {matches} match(es) — delete them first");
+
         row.DeletedAt = DateTime.UtcNow;
         row.UpdatedAt = DateTime.UtcNow;
         row.Current = false;

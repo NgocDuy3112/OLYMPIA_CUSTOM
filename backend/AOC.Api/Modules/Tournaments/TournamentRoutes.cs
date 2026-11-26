@@ -93,6 +93,23 @@ public static class TournamentRoutes
             return Results.Json(row, JsonApi.Options);
         });
 
+        app.MapPost("/portal/tournaments/{tournamentId}/close", async (HttpContext http) =>
+        {
+            var user = await Staff(http);
+            var tournamentId = Validate.RouteUuid(http, "tournamentId");
+            var service = http.RequestServices.GetRequiredService<TournamentsService>();
+
+            var tournament = await service.RequireTournamentAsync(tournamentId);
+            if (!TournamentAccess.CanView(tournament, user))
+                throw new TournamentError(TournamentErrorCode.NOT_FOUND,
+                    $"tournament {tournamentId} not found");
+            if (!TournamentAccess.CanWrite(tournament, user))
+                throw ApiException.Forbidden("Only the owner or an admin may close this tournament");
+
+            var row = await service.CloseTournamentAsync(tournamentId);
+            return Results.Json(row, JsonApi.Options);
+        });
+
         app.MapDelete("/portal/tournaments/{tournamentId}", async (HttpContext http) =>
         {
             await http.RequireRoleAsync(Surface.PORTAL, "ADMIN");
