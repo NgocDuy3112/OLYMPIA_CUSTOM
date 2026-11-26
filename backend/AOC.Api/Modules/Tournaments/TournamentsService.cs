@@ -80,6 +80,12 @@ public sealed class TournamentsService(AOCDbContext db)
         return row;
     }
 
+    public async Task<TournamentDetail> DetailAsync(TournamentEntity tournament)
+    {
+        var places = await db.TournamentPlayers.CountAsync(p => p.TournamentId == tournament.Id);
+        return TournamentDetail.Of(tournament, places);
+    }
+
     public async Task<TournamentEntity> CreateTournamentAsync(Guid ownerId, JsonElement input)
     {
         var dto = ParseCreate(input);

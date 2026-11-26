@@ -54,12 +54,10 @@ public static class TournamentRoutes
         {
             await Staff(http);
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
-            var db = http.RequestServices.GetRequiredService<AOCDbContext>();
+            var service = http.RequestServices.GetRequiredService<TournamentsService>();
 
             var tournament = await TournamentAccess.RequireViewAsync(http, tournamentId);
-
-            var places = await db.TournamentPlayers.CountAsync(p => p.TournamentId == tournament.Id);
-            return Results.Json(TournamentDetail.Of(tournament, places), JsonApi.Options);
+            return Results.Json(await service.DetailAsync(tournament), JsonApi.Options);
         });
 
         app.MapPatch("/portal/tournaments/{tournamentId}", async (HttpContext http) =>

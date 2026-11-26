@@ -65,6 +65,8 @@ builder.Services.AddSingleton<MatchHubRegistry>();
 builder.Services.AddSingleton<AOC.Api.Modules.MatchCodes.ClaimAttemptLimiter>();
 
 builder.Services.AddScoped<AOC.Api.Modules.Auth.AuthService>();
+builder.Services.AddScoped<AOC.Api.Modules.Auth.GoogleAuthService>();
+builder.Services.AddScoped<AOC.Api.Modules.Admin.AdminService>();
 builder.Services.AddScoped<TournamentsService>();
 builder.Services.AddScoped<StandingsService>();
 builder.Services.AddScoped<GroupTablesService>();

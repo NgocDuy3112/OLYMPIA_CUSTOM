@@ -6,14 +6,8 @@ public class ArchTests
 {
     private static readonly string[] GrandfatheredRouteFiles_WhoseServiceClassSharesTheFile =
     [
-        "Admin/AdminRoutes.cs",
-        "Auth/AuthRoutes.cs",
-        "Auth/GoogleAuthRoutes.cs",
         "Auth/PlayerAccountRoutes.cs",
-        "GameplayRead/GameplayReadRoutes.cs",
-        "McpKeys/McpKeyRoutes.cs",
-        "Questions/Staging/QuestionStagingRoutes.cs",
-        "Tournaments/TournamentRoutes.cs"
+        "Questions/Staging/QuestionStagingRoutes.cs"
     ];
 
     private static readonly string[] GrandfatheredRawConnectionFiles =
