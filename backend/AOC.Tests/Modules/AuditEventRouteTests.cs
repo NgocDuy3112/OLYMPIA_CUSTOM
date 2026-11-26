@@ -275,6 +275,30 @@ public class AuditEventRouteTests : IDisposable
     }
 
     [DbFact]
+    public async Task Admin_search_matches_terms_inside_nested_details_json()
+    {
+        var seeded = await SeedAppAsync();
+        try
+        {
+            var baseTime = new DateTime(2026, 11, 26, 12, 0, 0, DateTimeKind.Utc);
+            var token = "zz-nested-" + Guid.NewGuid().ToString("N");
+            AddAudit("question_updated", baseTime.AddMinutes(1),
+                details: new { nested = new { note = token } });
+            AddAudit("question_deleted", baseTime.AddMinutes(2));
+            await db.SaveChangesAsync();
+
+            var byDetails = await BodyJsonAsync(await SendAsync(seeded, AllEndpoints[0], "ADMIN",
+                "q=" + token));
+            Assert.Equal(["question_updated"],
+                byDetails.GetProperty("items").EnumerateArray().Select(row => row.GetProperty("action").GetString()));
+        }
+        finally
+        {
+            await seeded.App.DisposeAsync();
+        }
+    }
+
+    [DbFact]
     public async Task Admin_rows_join_actor_and_target_display_names()
     {
         var seeded = await SeedAppAsync();

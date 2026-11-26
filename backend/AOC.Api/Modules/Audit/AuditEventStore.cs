@@ -69,19 +69,17 @@ public sealed class AuditEventStore(AOCDbContext db)
             query = query.Where(e => e.CreatedAt <= to);
 
         if (filter.Search is { } term)
-            query = await SearchAsync(query, term);
+            query = SearchAsync(query, term);
 
         return query;
     }
 
-    private async Task<IQueryable<AuditEventEntity>> SearchAsync(
+    private IQueryable<AuditEventEntity> SearchAsync(
         IQueryable<AuditEventEntity> query, string term)
     {
         var pattern = LikePattern(term);
-        var detailMatches = await db.Database.SqlQueryRaw<Guid>(
-                "SELECT \"id\" AS \"Value\" FROM \"audit_events\" WHERE \"details\"::text ILIKE {0}",
-                pattern)
-            .ToListAsync();
+        var detailHits = db.AuditEvents.FromSqlRaw(
+            "SELECT * FROM \"audit_events\" WHERE \"details\"::text ILIKE {0}", pattern);
 
         return query.Where(e =>
             EF.Functions.ILike(e.Action, pattern)
@@ -92,7 +90,7 @@ public sealed class AuditEventStore(AOCDbContext db)
             || db.Users.Any(u => u.Id == e.TargetId
                                  && (EF.Functions.ILike(u.Username, pattern)
                                      || EF.Functions.ILike(u.DisplayName, pattern)))
-            || detailMatches.Contains(e.Id));
+            || detailHits.Any(d => d.Id == e.Id));
     }
 
     private IQueryable<AuditEventRow> Project(IQueryable<AuditEventEntity> query)
