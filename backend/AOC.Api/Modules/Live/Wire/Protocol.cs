@@ -7,6 +7,8 @@ public static class Protocol
 {
     public const int Version = 1;
 
+    public const int MaxClientMessageBytes = 64 * 1024;
+
     public const int SessionEndedCloseCode = 4401;
     public const int NotSeatedCloseCode = 4403;
 
@@ -51,7 +53,9 @@ public static class Protocol
     public static Dictionary<string, object?> SfxStop()
         => Envelope("sfx", null, new Dictionary<string, object?> { ["stop"] = true });
 
-    public static (string Type, string? RequestId, JsonElement Data)? ParseClientMessage(JsonElement raw)
+    public sealed record ClientMessage(string Type, string? RequestId, JsonElement Data, Guid? QuestionId);
+
+    public static ClientMessage? ParseClientMessage(JsonElement raw)
     {
         if (raw.ValueKind != JsonValueKind.Object) return null;
         if (!raw.TryGetProperty("v", out var v) || v.ValueKind != JsonValueKind.Number || v.GetInt32() != Version)
@@ -68,6 +72,15 @@ public static class Protocol
         if (!raw.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Object)
             return null;
 
-        return (type, requestId, data.Clone());
+        Guid? questionId = null;
+        if (data.TryGetProperty("questionId", out var questionEl))
+        {
+            if (questionEl.ValueKind != JsonValueKind.String) return null;
+            if (!Guid.TryParse(questionEl.GetString(), out var parsed)) return null;
+            questionId = parsed;
+        }
+        if (questionId is null && type is "answer" or "keyword") return null;
+
+        return new ClientMessage(type, requestId, data.Clone(), questionId);
     }
 }

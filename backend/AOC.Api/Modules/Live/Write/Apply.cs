@@ -15,6 +15,11 @@ public interface ILiveStore<S>
     Task<T> Transact<T>(Func<ILiveTx<S>, Task<T>> fn);
 }
 
+public sealed class LiveTxStore<S>(ILiveTx<S> tx) : ILiveStore<S>
+{
+    public Task<T> Transact<T>(Func<ILiveTx<S>, Task<T>> fn) => fn(tx);
+}
+
 public static class Apply
 {
     public static List<(string PlayerId, bool Correct)> CoveredVerdicts(

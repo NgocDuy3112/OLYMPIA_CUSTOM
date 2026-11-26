@@ -18,9 +18,6 @@ public sealed class TieBreakService(
 {
     public const int QuestionCount = 5;
 
-    public async Task<TieBreakState?> GetStateAsync(Guid matchId)
-        => (await reader.ReadLiveAsync(matchId))?.TieBreak;
-
     public async Task<TieBreakView?> ViewAsync(Guid matchId, Guid? meId)
     {
         var live = await reader.ReadLiveAsync(matchId);
@@ -81,10 +78,6 @@ public sealed class TieBreakService(
 
     public Task<TieBreakState> LockBuzzAsync(Guid matchId, int expectedVersion)
         => MutateAsync(matchId, expectedVersion, TieBreakTurn.LockBuzz);
-
-    public Task<TieBreakState> BuzzAsync(Guid matchId, Guid playerId, string? pressedAt = null)
-        => MutateAsync(matchId, -1,
-            state => TieBreakTurn.Buzz(state, playerId.ToString(), pressedAt ?? Now()));
 
     public Task<TieBreakState> JudgeAsync(Guid matchId, bool correct, int expectedVersion)
         => MutateAsync(matchId, expectedVersion, state => TieBreakTurn.Judge(state, correct));

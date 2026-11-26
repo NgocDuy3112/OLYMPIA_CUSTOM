@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using AOC.Api.Http;
+using AOC.Api.Modules.Live.TieBreak;
 using AOC.Api.Modules.Matches;
 using AOC.Api.Realtime;
 using AOC.Domain.Contracts;
@@ -299,8 +300,8 @@ public sealed class SubmitService(
     public async Task<object> SubmitVeDichCommandAsync(Guid matchId, Guid userId, string command,
         DateTimeOffset? pressedAt = null)
     {
-        var loaded = await LoadContextAsync(
-            new SubmitContext(matchId, userId, Guid.Empty, default, PressedAt: pressedAt));
+        var ctx = new SubmitContext(matchId, userId, Guid.Empty, default, PressedAt: pressedAt);
+        var loaded = await LoadContextAsync(ctx);
         if (loaded.Live.RoundId != "ve-dich")
             throw new SubmitError(409, "NO_ROUND", $"round {loaded.Live.RoundId} is not ve-dich");
 
@@ -309,26 +310,70 @@ public sealed class SubmitService(
             "buzz" => (LiveAction)new LiveAction.VeDichBuzz(userId.ToString()),
             _ => throw new SubmitError(400, "BAD_COMMAND", "unknown command")
         };
-        var now = ClampedPressIso(
-            new SubmitContext(matchId, userId, Guid.Empty, default, PressedAt: pressedAt),
-            loaded.Now);
 
-        var store = new PgLiveStore(db, matchId);
-        var applied = await Apply.MutateLive(store, async tx =>
+        var applied = await ApplyVeDichAsync(loaded, userId, action,
+            ClampedPressIso(ctx, loaded.Now), new PgLiveStore(db, matchId));
+
+        await BroadcastAsync(matchId, Sfx.FileFor(action, applied.State, applied.RoundId));
+        return new { applied = command };
+    }
+
+    private sealed record BuzzDispatch(TieBreakState? TieBreak, LiveRecord<JsonElement>? Live);
+
+    public async Task<object> SubmitBuzzAsync(Guid matchId, Guid userId, DateTimeOffset? pressedAt = null)
+    {
+        var ctx = new SubmitContext(matchId, userId, Guid.Empty, default, PressedAt: pressedAt);
+        var loaded = await LoadContextAsync(ctx);
+        var pressed = ClampedPressIso(ctx, loaded.Now);
+
+        var store = new TieBreakStore(db, matchId);
+        var dispatch = await store.TransactLive(async (liveTx, tieTx) =>
+        {
+            if (tieTx.Load() is { Ended: false } running)
+            {
+                var next = TieBreakTurn.Buzz(running, userId.ToString(), pressed);
+                tieTx.Save(next);
+                return new BuzzDispatch(next, null);
+            }
+
+            var current = await liveTx.Load();
+            if (current.RoundId != "ve-dich")
+                throw new SubmitError(409, "NO_ROUND", $"round {current.RoundId} is not ve-dich");
+
+            var applied = await ApplyVeDichAsync(loaded, userId, new LiveAction.VeDichBuzz(userId.ToString()),
+                pressed, new LiveTxStore<JsonElement>(liveTx));
+            return new BuzzDispatch(null, applied);
+        });
+
+        if (dispatch.TieBreak is { } tieBreakState)
+        {
+            await hub.PublishAsync(matchId.ToString());
+            return tieBreakState;
+        }
+
+        if (dispatch.Live is not { } live)
+            throw new InvalidOperationException("buzz dispatch produced no round");
+
+        await BroadcastAsync(matchId,
+            Sfx.FileFor(new LiveAction.VeDichBuzz(userId.ToString()), live.State, live.RoundId));
+        return new { applied = "buzz" };
+    }
+
+    private async Task<LiveRecord<JsonElement>> ApplyVeDichAsync(
+        Loaded loaded, Guid userId, LiveAction action, string pressed, ILiveStore<JsonElement> store)
+    {
+        return await Apply.MutateLive(store, async tx =>
         {
             var current = await tx.Load();
             var state = LiveState.ParseVeDich(current.State);
             var (nextState, facts) = VeDichApplier.Apply(state, action,
                 new VeDichApplier.VeDichContext(
-                    userId.ToString(), current.RoundId, now,
+                    userId.ToString(), current.RoundId, pressed,
                     RoundRules.ResolveVeDich(
-                        loaded.Match.RoundConfigsMap.GetValueOrDefault(loaded.Live.RoundId)),
+                        loaded.Match.RoundConfigsMap.GetValueOrDefault(current.RoundId)),
                     [], [], []));
             return ToTransition(nextState, facts);
         });
-
-        await BroadcastAsync(matchId, Sfx.FileFor(action, applied.State, applied.RoundId));
-        return new { applied = command };
     }
 
     private static SubmittedAnswerValue ParseValue(JsonElement raw)

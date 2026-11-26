@@ -92,7 +92,8 @@ builder.Services.AddScoped<MatchDirectImportService>();
 builder.Services.AddScoped<GameplayReadService>();
 builder.Services.AddScoped<McpKeysService>();
 
-builder.Services.AddSignalR();
+builder.Services.AddSignalR(options =>
+    options.MaximumReceiveMessageSize = AOC.Api.Modules.Live.Protocol.MaxClientMessageBytes);
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddMcpServer()

@@ -2,7 +2,6 @@ using System.Text.Json;
 using Microsoft.AspNetCore.SignalR;
 using AOC.Api.Http;
 using AOC.Api.Modules.Live;
-using AOC.Api.Modules.Live.TieBreak;
 using AOC.Api.Modules.Matches;
 using AOC.Infrastructure.Data;
 using AOC.Infrastructure.Data.Entities;
@@ -28,7 +27,11 @@ public abstract class LiveHubBase(MatchHubRegistry registry) : Hub
         var segments = http.Request.Path.Value?.Split('/', StringSplitOptions.RemoveEmptyEntries) ?? [];
         for (var i = 0; i < segments.Length - 1; i++)
             if (segments[i] == "matches")
+            {
+                if (!Guid.TryParse(segments[i + 1], out _))
+                    throw new ApiException(400, "Bad Request", "match id in the hub path is not a uuid");
                 return segments[i + 1];
+            }
         throw new ApiException(400, "Bad Request", "match id missing from hub path");
     }
 
@@ -65,7 +68,6 @@ public abstract class LiveHubBase(MatchHubRegistry registry) : Hub
 public sealed class PlayerLiveHub(
     MatchHubRegistry registry,
     SubmitService submit,
-    TieBreakService tieBreak,
     SessionTokens tokens,
     IHubContext<PlayerLiveHub> self,
     IServiceScopeFactory scopes)
@@ -197,7 +199,7 @@ public sealed class PlayerLiveHub(
             return;
         }
 
-        var (type, requestId, data) = parsed.Value;
+        var (type, requestId, data) = (parsed.Type, parsed.RequestId, parsed.Data);
         var http = Context.GetHttpContext()!;
         var user = await http.RequireAuthAsync(Surface.GAMEPLAY);
 
@@ -207,11 +209,12 @@ public sealed class PlayerLiveHub(
             {
                 case "answer":
                 {
-                    if (!data.TryGetProperty("questionId", out var qid)
-                        || !data.TryGetProperty("value", out var value))
+                    var questionId = parsed.QuestionId
+                        ?? throw new SubmitError(400, "BAD_MESSAGE", "unknown or malformed message");
+                    if (!data.TryGetProperty("value", out var value))
                         throw new SubmitError(400, "BAD_MESSAGE", "unknown or malformed message");
                     var result = await submit.SubmitAnswerAsync(new SubmitService.SubmitContext(
-                        Guid.Parse(MatchId), user.Id, Guid.Parse(qid.GetString()!), value.Clone(),
+                        Guid.Parse(MatchId), user.Id, questionId, value.Clone(),
                         http.Connection.RemoteIpAddress?.ToString(),
                         http.Request.Headers.UserAgent.ToString(),
                         SubmitService.ReadPressedAt(data)));
@@ -220,11 +223,12 @@ public sealed class PlayerLiveHub(
                 }
                 case "keyword":
                 {
-                    if (!data.TryGetProperty("questionId", out var qid)
-                        || !data.TryGetProperty("value", out var value))
+                    var questionId = parsed.QuestionId
+                        ?? throw new SubmitError(400, "BAD_MESSAGE", "unknown or malformed message");
+                    if (!data.TryGetProperty("value", out var value))
                         throw new SubmitError(400, "BAD_MESSAGE", "unknown or malformed message");
                     var result = await submit.SubmitKeywordAsync(new SubmitService.SubmitContext(
-                        Guid.Parse(MatchId), user.Id, Guid.Parse(qid.GetString()!), value.Clone(),
+                        Guid.Parse(MatchId), user.Id, questionId, value.Clone(),
                         http.Connection.RemoteIpAddress?.ToString(),
                         http.Request.Headers.UserAgent.ToString(),
                         SubmitService.ReadPressedAt(data)));
@@ -233,18 +237,8 @@ public sealed class PlayerLiveHub(
                 }
                 case "buzz":
                 {
-                    var pressedAt = SubmitService.ReadPressedAt(data);
-                    var state = await tieBreak.GetStateAsync(Guid.Parse(MatchId));
-                    if (state is { Ended: false })
-                    {
-                        var buzzNow = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
-                        var tieResult = await tieBreak.BuzzAsync(Guid.Parse(MatchId), user.Id,
-                            SubmitService.ClampPressed(pressedAt, buzzNow));
-                        await PushAsync(Protocol.Ack("buzz", tieResult, requestId));
-                        break;
-                    }
-                    var result = await submit.SubmitVeDichCommandAsync(
-                        Guid.Parse(MatchId), user.Id, "buzz", pressedAt);
+                    var result = await submit.SubmitBuzzAsync(
+                        Guid.Parse(MatchId), user.Id, SubmitService.ReadPressedAt(data));
                     await PushAsync(Protocol.Ack("buzz", result, requestId));
                     break;
                 }

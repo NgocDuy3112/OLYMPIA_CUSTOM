@@ -9,7 +9,10 @@ namespace AOC.Api.Modules.Live.TieBreak;
 
 public sealed class TieBreakStore(AOCDbContext db, Guid matchId)
 {
-    public async Task<T> Transact<T>(Func<TieBreakTx, Task<T>> fn)
+    public Task<T> Transact<T>(Func<TieBreakTx, Task<T>> fn)
+        => TransactLive((_, tieBreak) => fn(tieBreak));
+
+    public async Task<T> TransactLive<T>(Func<ILiveTx<JsonElement>, TieBreakTx, Task<T>> fn)
     {
         await using var transaction = await db.Database.BeginTransactionAsync();
 
@@ -19,7 +22,7 @@ public sealed class TieBreakStore(AOCDbContext db, Guid matchId)
 
         if (row is null) throw new LiveNotFoundError(matchId.ToString());
 
-        var result = await fn(new TieBreakTx(row));
+        var result = await fn(new PgLiveTx(db, matchId, row), new TieBreakTx(row));
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
         return result;
