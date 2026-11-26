@@ -139,7 +139,6 @@ export function useLiveAction(tournamentId: string, matchId: string) {
         mutationFn: post,
         onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: ["live"] })
-            void queryClient.invalidateQueries({ queryKey: ["question-answers"] })
         },
         onError: () => {
             void queryClient.invalidateQueries({ queryKey: ["live"] })
