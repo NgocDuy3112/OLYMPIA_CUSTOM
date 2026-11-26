@@ -84,6 +84,7 @@ builder.Services.AddScoped<MatchTransitionService>();
 builder.Services.AddScoped<AssemblePatchService>();
 builder.Services.AddScoped<RosterService>();
 builder.Services.AddScoped<AOC.Api.Modules.Admin.AccountStatusService>();
+builder.Services.AddSingleton(AOC.Api.Modules.MatchCodes.MatchCodesOptions.Default);
 builder.Services.AddScoped<MatchCodesService>();
 builder.Services.AddScoped<SubmitService>();
 builder.Services.AddScoped<LiveService>();

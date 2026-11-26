@@ -15,9 +15,13 @@ using AOC.Infrastructure.Data.Entities;
 
 namespace AOC.Api.Modules.MatchCodes;
 
-public sealed class MatchCodesService(AOCDbContext db, ClaimAttemptLimiter attempts)
+public sealed record MatchCodesOptions(int RoomCodeTtlMs)
 {
-    private const int RoomCodeTtlMs = 24 * 60 * 60 * 1000;
+    public static MatchCodesOptions Default { get; } = new(24 * 60 * 60 * 1000);
+}
+
+public sealed class MatchCodesService(AOCDbContext db, ClaimAttemptLimiter attempts, MatchCodesOptions options)
+{
     private const string Alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
     private const int CodeLength = 6;
     private const int MaxMintTries = 5;
@@ -45,7 +49,7 @@ public sealed class MatchCodesService(AOCDbContext db, ClaimAttemptLimiter attem
                 {
                     MatchId = matchId,
                     Code = RandomCode(),
-                    ExpiresAt = DateTime.UtcNow.AddMilliseconds(RoomCodeTtlMs),
+                    ExpiresAt = DateTime.UtcNow.AddMilliseconds(options.RoomCodeTtlMs),
                     CreatedBy = createdBy
                 };
                 db.MatchCodes.Add(row);

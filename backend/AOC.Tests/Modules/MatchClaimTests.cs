@@ -87,7 +87,7 @@ public class MatchClaimTests
     }
 
     private static MatchCodesService ServiceFor(AOCDbContext db, ClaimAttemptLimiter limiter)
-        => new(db, limiter);
+        => new(db, limiter, MatchCodesOptions.Default);
 
     private static async Task RemoveAsync(AOCDbContext db, Seeded seeded)
     {
@@ -203,6 +203,28 @@ public class MatchClaimTests
             var locked = await Assert.ThrowsAsync<CodeError>(
                 () => service.ClaimSeatAsync(userId, "WRONG1"));
             Assert.Equal(CodeErrorCode.CONFLICT, locked.Code);
+        }
+        finally
+        {
+            await RemoveAsync(db, seeded);
+        }
+    }
+
+    [DbFact]
+    public async Task A_rotated_code_expires_after_the_configured_ttl()
+    {
+        await AuthTestDb.EnsureSchemaAsync();
+        var db = AuthTestDb.OpenDb();
+        var seeded = await SeedAsync(db, MatchStatus.UPCOMING, seats: 1, players: 1);
+        var service = new MatchCodesService(db, new ClaimAttemptLimiter(), new MatchCodesOptions(30 * 60 * 1000));
+
+        try
+        {
+            var room = await service.RotateRoomCodeAsync(
+                seeded.TournamentId.ToString(), seeded.MatchId.ToString(), seeded.OwnerId);
+
+            var ttl = room.ExpiresAt - DateTime.UtcNow;
+            Assert.InRange(ttl.TotalMinutes, 29, 30);
         }
         finally
         {
