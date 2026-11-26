@@ -43,15 +43,7 @@ public static class TieBreakRoutes
 
             var audit = http.RequestServices.GetRequiredService<AuditService>();
             var (auditAction, details) = AuditOf(action, state, tournamentId);
-            await audit.AuditAsync(new AuditEvent
-            {
-                Action = auditAction,
-                ActorId = user.Id,
-                MatchId = Guid.Parse(matchId),
-                Ip = http.Connection.RemoteIpAddress?.ToString(),
-                UserAgent = http.Request.Headers.UserAgent.ToString(),
-                Details = details
-            });
+            await audit.AuditAsync(http, user.Id, AuditTarget.Match(matchId), auditAction, details);
 
             return Results.Json(view, JsonApi.Options);
         });

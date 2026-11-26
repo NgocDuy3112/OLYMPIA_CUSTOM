@@ -7,7 +7,7 @@ public class ArchTests
     private static readonly string[] GrandfatheredRouteFiles_WhoseServiceClassSharesTheFile =
     [
         "Auth/PlayerAccountRoutes.cs",
-        "Questions/Staging/QuestionStagingRoutes.cs"
+        "Questions/Import/QuestionStagingRoutes.cs"
     ];
 
     private static readonly string[] GrandfatheredRawConnectionFiles =
@@ -36,7 +36,7 @@ public class ArchTests
         ["Modules/Mcp/McpTools.cs"] = 6,
         ["Modules/McpKeys/McpKeyRoutes.cs"] = 2,
         ["Modules/Questions/Crud/QuestionRoutes.cs"] = 1,
-        ["Modules/Questions/Staging/QuestionStagingRoutes.cs"] = 1,
+        ["Modules/Questions/Import/QuestionStagingRoutes.cs"] = 1,
         ["Modules/Questions/Crud/QuestionsService.cs"] = 1,
         ["Modules/Roster/RosterRoutes.cs"] = 4,
         ["Modules/Standings/StandingsRoutes.cs"] = 1

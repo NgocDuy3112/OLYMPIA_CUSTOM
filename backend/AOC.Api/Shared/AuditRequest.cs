@@ -13,7 +13,7 @@ public sealed record AuditTarget(Guid? MatchId, Guid? TargetId)
     public static AuditTarget None { get; } = new(null, null);
 }
 
-public static class AuditAccess
+public static class AuditRequest
 {
     public static Task AuditAsync(this AuditService audit, HttpContext http, AuditTarget target,
         string action, object? details = null)
