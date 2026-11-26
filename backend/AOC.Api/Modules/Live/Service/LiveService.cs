@@ -66,12 +66,34 @@ public sealed partial class LiveService
 
     private async Task<List<object>> AnswerRowsOfAsync(MatchEntity match, string roundId, HashSet<string> activeIds)
     {
-        var rows = new List<object>();
-        foreach (var question in match.QuestionsList.Where(q => q.RoundId == roundId).OrderBy(q => q.Position))
+        var questionIds = new List<Guid>();
+        foreach (var question in match.QuestionsList
+                     .Where(q => q.RoundId == roundId && activeIds.Contains(q.Id))
+                     .OrderBy(q => q.Position))
         {
-            if (!activeIds.Contains(question.Id)) continue;
-            if (!Guid.TryParse(question.Id, out var parsed)) continue;
-            rows.AddRange(await reader.ReadQuestionAnswersAsync(match.Id, parsed));
+            if (Guid.TryParse(question.Id, out var parsed)) questionIds.Add(parsed);
+        }
+        if (questionIds.Count == 0) return [];
+
+        var stored = await reader.ReadQuestionAnswersAsync(match.Id, questionIds.ToArray());
+        var byQuestion = stored.ToLookup(row => row.QuestionId);
+        var rows = new List<object>();
+        foreach (var questionId in questionIds)
+        {
+            foreach (var row in byQuestion[questionId])
+            {
+                rows.Add(new
+                {
+                    questionId = row.QuestionId,
+                    userId = row.UserId,
+                    value = row.Value,
+                    drafts = row.Drafts,
+                    verdict = row.Verdict,
+                    pointsAwarded = row.PointsAwarded,
+                    submittedAt = row.SubmittedAt,
+                    answeredMs = row.AnsweredMs
+                });
+            }
         }
         return rows;
     }
@@ -136,7 +158,10 @@ public sealed partial class LiveService
         return await reader.ReadRevealedAnswersAsync(matchId, questionId);
     }
 
-    public async Task<ConsoleView?> ConsoleViewOfAsync(Guid matchId, bool revealAll = true)
+    public Task<ConsoleView?> ConsoleViewOfAsync(Guid matchId, bool revealAll = true)
+        => ConsoleViewOfAsync(matchId, new PublishScope(), revealAll);
+
+    public async Task<ConsoleView?> ConsoleViewOfAsync(Guid matchId, PublishScope scope, bool revealAll = true)
     {
         var live = await reader.ReadLiveAsync(matchId);
         if (live is null) return null;
@@ -213,7 +238,7 @@ public sealed partial class LiveService
             hub.ConnectedUsers(matchId.ToString()),
             LiveFacts.ConsoleFacts(live.RoundId, live.State,
                 DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")),
-            await ControllerOfAsync(matchId));
+            await scope.ControllerOfAsync(matchId, ControllerOfAsync));
     }
 
     public async Task<MatchController?> ControllerOfAsync(Guid matchId)
@@ -279,9 +304,12 @@ public sealed partial class LiveService
         return row.Visibility == Visibility.PUBLIC;
     }
 
-    public async Task<ConsoleView?> AudienceViewOfAsync(Guid matchId)
+    public Task<ConsoleView?> AudienceViewOfAsync(Guid matchId)
+        => AudienceViewOfAsync(matchId, new PublishScope());
+
+    public async Task<ConsoleView?> AudienceViewOfAsync(Guid matchId, PublishScope scope)
     {
-        var full = await ConsoleViewOfAsync(matchId, revealAll: false);
+        var full = await ConsoleViewOfAsync(matchId, scope, revealAll: false);
         if (full is null) return null;
         full.Projection.Remove("answers");
         return full with

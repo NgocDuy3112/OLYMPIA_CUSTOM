@@ -315,13 +315,22 @@ public sealed class LiveReader(AOCDbContext db)
         string QuestionId, Verdict? Verdict, int? AnsweredMs,
         Verdict? Suggestion = null, JsonElement Value = default);
 
-    public async Task<List<object>> ReadQuestionAnswersAsync(Guid matchId, Guid questionId)
+    public sealed record QuestionAnswerRow(
+        Guid QuestionId, Guid UserId, JsonElement Value, JsonElement? Drafts,
+        Verdict? Verdict, int? PointsAwarded, DateTime SubmittedAt, int? AnsweredMs);
+
+    public async Task<List<QuestionAnswerRow>> ReadQuestionAnswersAsync(Guid matchId, Guid[] questionIds)
     {
+        if (questionIds.Length == 0) return [];
+
         var rows = await db.Answers.AsNoTracking()
-            .Where(a => a.MatchId == matchId && a.QuestionId == questionId)
+            .Where(a => a.MatchId == matchId && questionIds.Contains(a.QuestionId))
+            .OrderBy(a => a.SubmittedAt)
+            .ThenBy(a => a.UserId)
             .Select(a => new
             {
-                UserId = a.UserId,
+                a.QuestionId,
+                a.UserId,
                 a.Value,
                 a.Drafts,
                 a.Verdict,
@@ -331,17 +340,9 @@ public sealed class LiveReader(AOCDbContext db)
             })
             .ToListAsync();
 
-        return rows.Select(r => (object)new
-        {
-            questionId = questionId,
-            userId = r.UserId,
-            value = r.Value,
-            drafts = r.Drafts,
-            verdict = r.Verdict,
-            pointsAwarded = r.PointsAwarded,
-            submittedAt = r.SubmittedAt,
-            answeredMs = r.AnsweredMs
-        }).ToList();
+        return rows.Select(r => new QuestionAnswerRow(
+            r.QuestionId, r.UserId, r.Value, r.Drafts, r.Verdict, r.PointsAwarded,
+            r.SubmittedAt, r.AnsweredMs)).ToList();
     }
 
     public async Task<List<RevealedAnswerRow>> ReadRevealedAnswersAsync(Guid matchId, Guid questionId)

@@ -97,10 +97,14 @@ public abstract class LiveHubBase(MatchHubRegistry registry) : Hub
         return MatchId;
     }
 
-    protected async Task PushAsync(Dictionary<string, object?> envelope)
-        => await (Self ?? Clients.Caller).SendAsync("message", envelope);
+    protected Task PushAsync(Dictionary<string, object?> envelope)
+        => PushAsync(envelope, CancellationToken.None);
 
-    protected Action Subscribe(string userId, Func<Task> push, string kind)
+    protected async Task PushAsync(Dictionary<string, object?> envelope, CancellationToken token)
+        => await (Self ?? Clients.Caller).SendAsync("message", envelope, token);
+
+    protected Action Subscribe(
+        string userId, Func<PublishScope, CancellationToken, Task> push, string kind)
         => registry.Subscribe(MatchId, new HubSubscriber(userId, push, PushAsync, kind));
 }
 
@@ -153,7 +157,7 @@ public sealed class PlayerLiveHub(
         var userId = user.Id;
         var tokenVersion = user.TokenVersion;
 
-        async Task SendAsync()
+        async Task SendAsync(PublishScope _, CancellationToken token)
         {
             using var scope = scopes.CreateScope();
             var provider = scope.ServiceProvider;
@@ -161,12 +165,12 @@ public sealed class PlayerLiveHub(
             var liveSnapshot = await provider.GetRequiredService<LiveReader>().ReadLiveAsync(Guid.Parse(MatchId));
             if (matchRow.Status != MatchStatus.LIVE || liveSnapshot is null)
             {
-                await PushAsync(Protocol.Error("UNAVAILABLE", "the match is not live"));
+                await PushAsync(Protocol.Error("UNAVAILABLE", "the match is not live"), token);
                 return;
             }
 
             var view = await provider.GetRequiredService<LiveService>().PlayerViewOfAsync(Guid.Parse(MatchId), userId);
-            await PushAsync(Protocol.View(view));
+            await PushAsync(Protocol.View(view), token);
         }
 
         var stop = Subscribe(userId.ToString(), SendAsync, "player");
@@ -176,7 +180,7 @@ public sealed class PlayerLiveHub(
 
         try
         {
-            await SendAsync();
+            await SendAsync(new PublishScope(), CancellationToken.None);
         }
         catch
         {
@@ -326,17 +330,17 @@ public sealed class ConsoleLiveHub(
             return;
         }
 
-        async Task SendAsync()
+        async Task SendAsync(PublishScope publish, CancellationToken token)
         {
             using var scope = scopes.CreateScope();
             var payload = await scope.ServiceProvider.GetRequiredService<LiveService>()
-                .ConsoleViewOfAsync(Guid.Parse(MatchId));
+                .ConsoleViewOfAsync(Guid.Parse(MatchId), publish);
             if (payload is null)
             {
-                await PushAsync(Protocol.Error("UNAVAILABLE", "no live round"));
+                await PushAsync(Protocol.Error("UNAVAILABLE", "no live round"), token);
                 return;
             }
-            await PushAsync(Protocol.Console(payload));
+            await PushAsync(Protocol.Console(payload), token);
         }
 
         var stop = Subscribe("__console__", SendAsync, "console");
@@ -348,7 +352,7 @@ public sealed class ConsoleLiveHub(
 
         try
         {
-            await SendAsync();
+            await SendAsync(new PublishScope(), CancellationToken.None);
         }
         catch
         {
@@ -399,24 +403,24 @@ public sealed class SpectateLiveHub(
             return;
         }
 
-        async Task SendAsync()
+        async Task SendAsync(PublishScope publish, CancellationToken token)
         {
             using var scope = scopes.CreateScope();
             var payload = await scope.ServiceProvider.GetRequiredService<LiveService>()
-                .AudienceViewOfAsync(Guid.Parse(MatchId));
+                .AudienceViewOfAsync(Guid.Parse(MatchId), publish);
             if (payload is null)
             {
-                await PushAsync(Protocol.Error("UNAVAILABLE", "no live round"));
+                await PushAsync(Protocol.Error("UNAVAILABLE", "no live round"), token);
                 return;
             }
-            await PushAsync(Protocol.Console(payload));
+            await PushAsync(Protocol.Console(payload), token);
         }
 
         var stop = Subscribe("__console__", SendAsync, "spectate");
         HoldSubscription(stop);
         try
         {
-            await SendAsync();
+            await SendAsync(new PublishScope(), CancellationToken.None);
         }
         catch
         {

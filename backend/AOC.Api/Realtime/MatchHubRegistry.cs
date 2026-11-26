@@ -4,6 +4,8 @@ public sealed class MatchHubRegistry(ILogger<MatchHubRegistry> logger)
 {
     public const string ConsoleSubscriber = "__console__";
 
+    private static readonly TimeSpan PushTimeout = TimeSpan.FromSeconds(5);
+
     private readonly object _gate = new();
     private readonly Dictionary<string, HashSet<HubSubscriber>> _byMatch = new();
 
@@ -41,16 +43,24 @@ public sealed class MatchHubRegistry(ILogger<MatchHubRegistry> logger)
             targets = set.ToList();
         }
 
-        foreach (var subscriber in targets)
+        var scope = new PublishScope();
+        await Task.WhenAll(targets.Select(subscriber => PushWithinAsync(matchId, subscriber, scope)));
+    }
+
+    private async Task PushWithinAsync(string matchId, HubSubscriber subscriber, PublishScope scope)
+    {
+        using var timeout = new CancellationTokenSource(PushTimeout);
+        try
         {
-            try
-            {
-                await subscriber.Push();
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "live push to a subscriber of match {MatchId} failed", matchId);
-            }
+            await subscriber.Push(scope, timeout.Token).WaitAsync(timeout.Token);
+        }
+        catch (OperationCanceledException) when (timeout.IsCancellationRequested)
+        {
+            logger.LogWarning("live push to a subscriber of match {MatchId} timed out", matchId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "live push to a subscriber of match {MatchId} failed", matchId);
         }
     }
 

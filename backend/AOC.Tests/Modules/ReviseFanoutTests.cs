@@ -141,7 +141,7 @@ public class ReviseFanoutTests
         var seeded = await SeedAsync();
         var pushes = 0;
         seeded.Hub.Subscribe(seeded.MatchId.ToString(),
-            new HubSubscriber(seeded.UserId.ToString(), () =>
+            new HubSubscriber(seeded.UserId.ToString(), (_, _) =>
             {
                 pushes += 1;
                 return Task.CompletedTask;
@@ -161,7 +161,7 @@ public class ReviseFanoutTests
         var seeded = await SeedAsync();
         var pushes = 0;
         seeded.Hub.Subscribe(seeded.MatchId.ToString(),
-            new HubSubscriber(seeded.UserId.ToString(), () =>
+            new HubSubscriber(seeded.UserId.ToString(), (_, _) =>
             {
                 pushes += 1;
                 return Task.CompletedTask;
