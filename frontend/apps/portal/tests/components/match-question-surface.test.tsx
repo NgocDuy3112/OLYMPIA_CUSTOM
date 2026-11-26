@@ -75,6 +75,7 @@ describe("the match's Câu hỏi tab", () => {
                     total: 1,
                 },
             },
+            [DETAIL_URL]: { body: { assemblyRevision: 7, assemblyEvents: [] } },
             [ASSEMBLE_URL]: { body: { assemblyRevision: 4 } },
         })
 
@@ -91,12 +92,38 @@ describe("the match's Câu hỏi tab", () => {
         )
 
         const body = JSON.parse(String(saved![1]?.body))
-        expect(body.baseRevision).toBe(3)
+        expect(body.baseRevision).toBe(7)
         expect(body.questions.map((entry: { sourceId: string }) => entry.sourceId)).toContain("q9")
 
         expect(await screen.findByText(/Đã lưu — revision 4/)).toBeInTheDocument()
         expect(screen.getByRole("button", { name: /Xong/ })).toBeInTheDocument()
         expect(screen.queryByRole("button", { name: /Lưu ·/ })).toBeNull()
+    })
+
+    it("refuses to save while the live match detail (and its revision) is missing", async () => {
+        window.history.pushState({}, "", "/?add=q9")
+        const { fetchMock } = draw({
+            [QUESTIONS_URL]: {
+                body: {
+                    items: [
+                        {
+                            id: "q9",
+                            kind: "TEXT",
+                            questionText: "Câu bứt phá",
+                            tags: ["but-pha"],
+                            payload: {},
+                        },
+                    ],
+                    total: 1,
+                },
+            },
+            [DETAIL_URL]: { status: 500, body: { message: "detail down" } },
+        })
+
+        expect(await screen.findByText(/Đã thêm 1 câu — tự lưu sau thao tác/)).toBeInTheDocument()
+        await new Promise((resolve) => setTimeout(resolve, 1200))
+
+        expect(callOf(fetchMock, ASSEMBLE_URL)).toBeUndefined()
     })
 
     it("hides the whole desk once the match is past UPCOMING", async () => {

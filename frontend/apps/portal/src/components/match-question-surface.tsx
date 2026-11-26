@@ -302,17 +302,21 @@ export function MatchQuestionSurface({
 
     const save =
         useMutation({
-            mutationFn: () =>
-                api<{ assemblyRevision: number }>(
+            mutationFn: () => {
+                if (detail.data === undefined) {
+                    throw new Error("Đang tải revision hiện tại của trận.")
+                }
+                return api<{ assemblyRevision: number }>(
                     `/portal/tournaments/${tournamentId}/matches/${match.id}/assemble`,
                     {
                         method: "PATCH",
                         body: JSON.stringify({
                             questions: buildPatchEntries(),
-                            baseRevision: match.assemblyRevision ?? 0,
+                            baseRevision: detail.data.assemblyRevision,
                         }),
                     }
-                ),
+                )
+            },
             onSuccess: (result) => {
                 if (closeAfterSaveRef.current) {
                     closeAfterSaveRef.current = false
@@ -338,6 +342,7 @@ export function MatchQuestionSurface({
         })
 
     let saveReason: string | null = null
+    if (detail.data === undefined) saveReason = "Đang tải revision hiện tại của trận."
     if (changes === 0) saveReason = "Chưa có thay đổi."
     if (duplicateInGroup) saveReason = "Trùng một câu trong cùng nhóm — gỡ trước khi lưu."
 
