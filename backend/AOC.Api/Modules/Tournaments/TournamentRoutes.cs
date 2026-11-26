@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using AOC.Api.Http;
 using AOC.Api.Shared;
 using AOC.Domain.Gameplay;
+using AOC.Infrastructure.Audit;
 using AOC.Infrastructure.Configuration;
 using AOC.Infrastructure.Data;
 
@@ -82,6 +83,11 @@ public static class TournamentRoutes
             await TournamentAccess.RequireWriteAsync(http, tournamentId);
 
             var row = await service.CloseTournamentAsync(tournamentId);
+
+            var audit = http.RequestServices.GetRequiredService<AuditService>();
+            await audit.AuditAsync(http, AuditTarget.None, "tournament_closed",
+                new TournamentClosedAudit(row.Id, row.Name, row.Slug, row.ClosedAt));
+
             return Results.Json(row, JsonApi.Options);
         });
 
@@ -90,11 +96,22 @@ public static class TournamentRoutes
             await http.RequireRoleAsync(Surface.PORTAL, "ADMIN");
             var tournamentId = Validate.RouteUuid(http, "tournamentId");
             var service = http.RequestServices.GetRequiredService<TournamentsService>();
-            await service.DeleteTournamentAsync(tournamentId);
+            var deleted = await service.DeleteTournamentAsync(tournamentId);
+
+            var audit = http.RequestServices.GetRequiredService<AuditService>();
+            await audit.AuditAsync(http, AuditTarget.None, "tournament_deleted",
+                new TournamentDeletedAudit(deleted.Id, deleted.Name, deleted.Slug, deleted.DeletedAt));
+
             http.Response.StatusCode = 204;
             return Results.Empty;
         });
 
         return app;
     }
+
+    private sealed record TournamentClosedAudit(
+        Guid TournamentId, string Name, string Slug, DateTime? ClosedAt);
+
+    private sealed record TournamentDeletedAudit(
+        Guid TournamentId, string Name, string Slug, DateTime? DeletedAt);
 }
