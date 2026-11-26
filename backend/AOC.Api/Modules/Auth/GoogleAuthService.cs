@@ -70,7 +70,7 @@ public sealed class GoogleAuthService(AOCDbContext db)
             {
                 var displayName = claims.Name ?? email;
                 var username = await Usernames.PickUsernameAsync(db,
-                    claims.Name ?? email.Split('@')[0] ?? displayName);
+                    claims.Name ?? email.Split('@')[0]);
 
                 var created = new UserEntity
                 {

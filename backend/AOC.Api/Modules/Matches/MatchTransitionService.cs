@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using AOC.Api.Modules.Questions;
 using AOC.Api.Modules.Standings;
 using AOC.Domain.Contracts;
+using AOC.Domain.Gameplay;
 using AOC.Infrastructure.Data;
 using AOC.Infrastructure.Data.Entities;
 
@@ -60,13 +61,11 @@ public sealed class MatchTransitionService(
 
             if (tournament.RoundsList.Any(r => r.Id == "khoi-dong"))
             {
-                var riengTurnId = Buckets.SlotForBucket("khoi-dong:rieng").TurnId;
-                var perPlayer = existing.RoundConfigsMap.GetValueOrDefault("khoi-dong") is { } cfg
-                    ? cfg.Turns.FirstOrDefault(t => t.Id == riengTurnId)?.QuestionCount ?? 6
-                    : 6;
+                var riengSlot = Buckets.SlotForBucket("khoi-dong:rieng");
+                var perPlayer = QuestionCountOf(existing, riengSlot, "khoi-dong Riêng");
                 var seats = existing.PlayersList.Count;
                 var assembled = existing.QuestionsList
-                    .Count(q => q.RoundId == "khoi-dong" && q.TurnId == riengTurnId);
+                    .Count(q => q.RoundId == "khoi-dong" && q.TurnId == riengSlot.TurnId);
                 var needed = perPlayer * seats;
                 if (assembled != needed)
                     shortfalls.Add(
@@ -75,10 +74,8 @@ public sealed class MatchTransitionService(
 
             if (tournament.RoundsList.Any(r => r.Id == "but-pha"))
             {
-                var butPhaTurnId = Buckets.SlotForBucket("but-pha").TurnId;
-                var butPhaCount = existing.RoundConfigsMap.GetValueOrDefault("but-pha") is { } bpCfg
-                    ? bpCfg.Turns.FirstOrDefault(t => t.Id == butPhaTurnId)?.QuestionCount ?? 4
-                    : 4;
+                var butPhaSlot = Buckets.SlotForBucket("but-pha");
+                var butPhaCount = QuestionCountOf(existing, butPhaSlot, "but-pha");
                 var butPhaAssembled = existing.QuestionsList
                     .Count(q => q.RoundId == "but-pha");
                 if (butPhaAssembled != butPhaCount)
@@ -124,5 +121,22 @@ public sealed class MatchTransitionService(
         await transaction.CommitAsync();
 
         return existing;
+    }
+
+    private static int QuestionCountOf(MatchEntity match, Buckets.Slot slot, string where)
+    {
+        var turnId = slot.TurnId
+            ?? throw new MatchError(MatchErrorCode.NOT_READY,
+                $"{where}: the bucket slot for round \"{slot.RoundId}\" names no turn");
+        var config = match.RoundConfigsMap.GetValueOrDefault(slot.RoundId)
+            ?? AocRulebook.AocRoundConfig(slot.RoundId)
+            ?? throw new MatchError(MatchErrorCode.NOT_READY,
+                $"{where}: round \"{slot.RoundId}\" has no rules to count assembled questions against");
+        var turn = config.Turns.FirstOrDefault(t => t.Id == turnId)
+            ?? throw new MatchError(MatchErrorCode.NOT_READY,
+                $"{where}: turn \"{turnId}\" is not part of round \"{slot.RoundId}\"");
+        return turn.QuestionCount
+            ?? throw new MatchError(MatchErrorCode.NOT_READY,
+                $"{where}: turn \"{turnId}\" of round \"{slot.RoundId}\" declares no questionCount");
     }
 }

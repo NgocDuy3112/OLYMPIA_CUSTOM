@@ -13,7 +13,7 @@ public sealed class HubAuthMiddleware(RequestDelegate next)
 
     public async Task InvokeAsync(HttpContext http)
     {
-        var gate = GateFor(http.Request.Path.Value ?? "");
+        var gate = GateFor(http.Request.Path.Value);
         if (gate is null)
         {
             await next(http);
@@ -41,8 +41,9 @@ public sealed class HubAuthMiddleware(RequestDelegate next)
         await next(http);
     }
 
-    private static Gate? GateFor(string path)
+    private static Gate? GateFor(string? path)
     {
+        if (path is null) return null;
         if (path == "/portal/audit/stream") return AuditGate;
         if (!path.EndsWith("/live/stream", StringComparison.Ordinal)) return null;
         if (path.StartsWith("/api/matches/", StringComparison.Ordinal)) return GameplayGate;

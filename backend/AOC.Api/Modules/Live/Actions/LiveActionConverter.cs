@@ -14,6 +14,18 @@ public sealed class LiveActionConverter : JsonConverter<LiveAction>
             throw new JsonException("invalid live action");
         var kind = kindEl.GetString()!;
 
+        static string RequireString(JsonElement element, string path)
+            => element.ValueKind == JsonValueKind.String
+                ? element.GetString()!
+                : throw new JsonException($"missing string '{path}'");
+
+        static JsonElement FieldOf(JsonElement element, string path, string field)
+        {
+            if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(field, out var v))
+                throw new JsonException($"missing '{field}' at '{path}'");
+            return v;
+        }
+
         string Str(string name)
         {
             if (root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String)
@@ -66,7 +78,9 @@ public sealed class LiveActionConverter : JsonConverter<LiveAction>
         {
             if (root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Array)
             {
-                return v.EnumerateArray().Select(e => e.GetString() ?? "").ToList();
+                return v.EnumerateArray()
+                    .Select((e, index) => RequireString(e, $"{name}[{index}]"))
+                    .ToList();
             }
             throw new JsonException($"missing array '{name}'");
         }
@@ -75,8 +89,8 @@ public sealed class LiveActionConverter : JsonConverter<LiveAction>
         {
             if (!root.TryGetProperty(name, out var v) || v.ValueKind != JsonValueKind.Array)
                 throw new JsonException($"missing array '{name}'");
-            return v.EnumerateArray().Select(e => (
-                e.TryGetProperty("playerId", out var p) ? p.GetString() ?? "" : "",
+            return v.EnumerateArray().Select((e, index) => (
+                RequireString(FieldOf(e, $"{name}[{index}]", "playerId"), $"{name}[{index}].playerId"),
                 e.TryGetProperty("correct", out var c) && c.ValueKind == JsonValueKind.True
             )).ToList();
         }
@@ -85,9 +99,9 @@ public sealed class LiveActionConverter : JsonConverter<LiveAction>
         {
             if (!root.TryGetProperty(name, out var v) || v.ValueKind != JsonValueKind.Array)
                 throw new JsonException($"missing array '{name}'");
-            return v.EnumerateArray().Select(e => (
-                e.TryGetProperty("playerId", out var p) ? p.GetString() ?? "" : "",
-                e.TryGetProperty("questionId", out var q) ? q.GetString() ?? "" : "",
+            return v.EnumerateArray().Select((e, index) => (
+                RequireString(FieldOf(e, $"{name}[{index}]", "playerId"), $"{name}[{index}].playerId"),
+                RequireString(FieldOf(e, $"{name}[{index}]", "questionId"), $"{name}[{index}].questionId"),
                 e.TryGetProperty("correct", out var c) && c.ValueKind == JsonValueKind.True
             )).ToList();
         }

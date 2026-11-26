@@ -49,7 +49,7 @@ public sealed class MatchScoringService(AOCDbContext db)
             competitors,
             rows.Select(r => new MatchScoring.AnswerForScoring(
                 r.UserId.ToString(),
-                questionById.TryGetValue(r.QuestionId.ToString(), out var q) ? q.RoundId : "unknown",
+                RoundOf(questionById, r, matchId),
                 r.PointsAwarded ?? 0)).ToList(),
             adjustments.ToDictionary(kv => kv.Key.ToString(), kv => kv.Value),
             tieBreak?.Correct,
@@ -79,13 +79,13 @@ public sealed class MatchScoringService(AOCDbContext db)
             foreach (var r in rows)
             {
                 questionById.TryGetValue(r.QuestionId.ToString(), out var question);
-                var key = (question?.RoundId ?? "unknown", r.QuestionId, r.UserId);
+                var key = (RoundOf(questionById, r, matchId), r.QuestionId, r.UserId);
                 if (existingKeys.Contains(key)) continue;
                 db.MatchStats.Add(new MatchStatEntity
                 {
                     MatchId = matchId,
                     TournamentId = match.TournamentId,
-                    RoundId = question?.RoundId ?? "unknown",
+                    RoundId = key.Item1,
                     QuestionId = r.QuestionId,
                     UserId = r.UserId,
                     BasePoints = question?.Points,
@@ -100,6 +100,13 @@ public sealed class MatchScoringService(AOCDbContext db)
 
         await db.SaveChangesAsync();
     }
+
+    private static string RoundOf(
+        Dictionary<string, MatchQuestion> questionById, AnswerEntity answer, Guid matchId)
+        => questionById.TryGetValue(answer.QuestionId.ToString(), out var question)
+            ? question.RoundId
+            : throw new MatchError(MatchErrorCode.NOT_READY,
+                $"match {matchId} has an answer to question {answer.QuestionId} that is not one of its questions");
 
     public async Task<MatchEntity> SetMatchResultsAsync(string tournamentId, string matchId,
         List<(string UserId, int Score)> totals)

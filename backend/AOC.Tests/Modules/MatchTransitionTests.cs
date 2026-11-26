@@ -15,7 +15,9 @@ namespace AOC.Tests.Modules;
 
 public class MatchTransitionTests
 {
-    private sealed record Seeded(Guid TournamentId, Guid MatchId, Guid FirstPlayerId, Guid SecondPlayerId);
+    private sealed record Seeded(
+        Guid TournamentId, Guid MatchId, Guid FirstPlayerId, Guid SecondPlayerId,
+        Guid FirstQuestionId, Guid SecondQuestionId, Guid ThirdQuestionId);
 
     private static async Task<Seeded> SeedAsync()
     {
@@ -28,6 +30,9 @@ public class MatchTransitionTests
         var secondPlayerId = Guid.NewGuid();
         var tournamentId = Guid.NewGuid();
         var matchId = Guid.NewGuid();
+        var firstQuestionId = Guid.NewGuid();
+        var secondQuestionId = Guid.NewGuid();
+        var thirdQuestionId = Guid.NewGuid();
 
         foreach (var (id, name) in new[]
         {
@@ -89,7 +94,10 @@ public class MatchTransitionTests
                 new Seat { Kind = "user", UserId = secondPlayerId.ToString(), Seed = 2 }
             }),
             RoundConfigs = JsonDefaults.Serialize(new Dictionary<string, RoundConfig>()),
-            Questions = JsonDefaults.Serialize(Array.Empty<MatchQuestion>()),
+            Questions = JsonDefaults.Serialize(new[]
+            {
+                Question(firstQuestionId), Question(secondQuestionId), Question(thirdQuestionId)
+            }),
             CreatedAt = now,
             UpdatedAt = now
         });
@@ -98,7 +106,7 @@ public class MatchTransitionTests
         db.Answers.Add(new AnswerEntity
         {
             MatchId = matchId,
-            QuestionId = Guid.NewGuid(),
+            QuestionId = firstQuestionId,
             UserId = firstPlayerId,
             Value = JsonSerializer.SerializeToElement(new AnswerValue.Text("Hà Nội"), JsonApi.Options),
             Verdict = Verdict.CORRECT,
@@ -108,7 +116,7 @@ public class MatchTransitionTests
         db.Answers.Add(new AnswerEntity
         {
             MatchId = matchId,
-            QuestionId = Guid.NewGuid(),
+            QuestionId = secondQuestionId,
             UserId = secondPlayerId,
             Value = JsonSerializer.SerializeToElement(new AnswerValue.Text("Huế"), JsonApi.Options),
             Verdict = Verdict.INCORRECT,
@@ -117,8 +125,23 @@ public class MatchTransitionTests
         });
         await db.SaveChangesAsync();
 
-        return new Seeded(tournamentId, matchId, firstPlayerId, secondPlayerId);
+        return new Seeded(tournamentId, matchId, firstPlayerId, secondPlayerId,
+            firstQuestionId, secondQuestionId, thirdQuestionId);
     }
+
+    private static MatchQuestion Question(Guid id) => new()
+    {
+        Id = id.ToString(),
+        RoundId = "but-pha",
+        TurnId = "phase1",
+        Position = 0,
+        Mode = QuestionMode.text,
+        Kind = QuestionKind.TEXT,
+        QuestionText = "Thủ đô của Việt Nam là?",
+        Points = 10,
+        Payload = new QuestionPayload.Text(["Hà Nội"]),
+        SourceId = id.ToString()
+    };
 
     private static MatchTransitionService Service(AOCDbContext db) =>
         new(db, new MatchesService(db, new MatchAssemblyService(db)), new MatchScoringService(db),
@@ -172,6 +195,30 @@ public class MatchTransitionTests
     }
 
     [DbFact]
+    public async Task Finishing_refuses_an_answer_to_a_question_the_match_does_not_hold()
+    {
+        var seeded = await SeedAsync();
+
+        using var db = AuthTestDb.OpenDb();
+        db.Answers.Add(new AnswerEntity
+        {
+            MatchId = seeded.MatchId,
+            QuestionId = Guid.NewGuid(),
+            UserId = seeded.FirstPlayerId,
+            Value = JsonSerializer.SerializeToElement(new AnswerValue.Text("Vinh"), JsonApi.Options),
+            Verdict = Verdict.INCORRECT,
+            PointsAwarded = 5,
+            SubmittedAt = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var error = await Assert.ThrowsAsync<MatchError>(() => Service(db).TransitionMatchAsync(
+            seeded.TournamentId.ToString(), seeded.MatchId.ToString(), "FINISHED"));
+        Assert.Equal(MatchErrorCode.NOT_READY, error.Code);
+        Assert.Contains("not one of its questions", error.Message);
+    }
+
+    [DbFact]
     public async Task A_failed_finish_leaves_the_match_live_and_writes_nothing()
     {
         var seeded = await SeedAsync();
@@ -180,7 +227,7 @@ public class MatchTransitionTests
         var pending = new AnswerEntity
         {
             MatchId = seeded.MatchId,
-            QuestionId = Guid.NewGuid(),
+            QuestionId = seeded.ThirdQuestionId,
             UserId = seeded.SecondPlayerId,
             Value = JsonSerializer.SerializeToElement(new AnswerValue.Text("Đà Nẵng"), JsonApi.Options),
             SubmittedAt = DateTime.UtcNow

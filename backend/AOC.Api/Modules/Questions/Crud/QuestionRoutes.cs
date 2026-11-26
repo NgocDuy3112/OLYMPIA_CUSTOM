@@ -37,7 +37,11 @@ public static partial class QuestionRoutes
             var body = Validate.Object(await Validate.ReadJsonBodyAsync(http));
             var action = Validate.RequiredString(body, "action");
             var ids = Validate.RequiredArray(body, "ids", minItems: 1, maxItems: QuestionsService.MaxBatchSize)
-                .Select(element => ParseUuid(element.GetString() ?? "", "ids"))
+                .Select(element => ParseUuid(
+                    element.ValueKind == JsonValueKind.String
+                        ? element.GetString()!
+                        : throw ApiException.BadRequest("ids: Expected an array of uuid strings"),
+                    "ids"))
                 .ToList();
 
             QuestionStatus? status = null;
