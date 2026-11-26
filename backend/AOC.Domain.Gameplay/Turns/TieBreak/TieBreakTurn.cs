@@ -60,7 +60,12 @@ public static class TieBreakTurn
         if (!state.Players.Contains(playerId)) throw Err("NOT_A_TIED_PLAYER", $"{playerId} is not in this tie-break");
         if (state.Eliminated.Contains(playerId)) throw Err("ELIMINATED", $"{playerId} left the tie-break");
 
-        return state with { Window = state.Window.Buzz(playerId, nowIso) };
+        var window = state.Window.Buzz(playerId, nowIso);
+        var times = new Dictionary<string, int>(state.BuzzMs);
+        if (window.BuzzerMs is { } ms && (!times.TryGetValue(playerId, out var fastest) || ms < fastest))
+            times[playerId] = ms;
+
+        return state with { Window = window, BuzzMs = times };
     }
 
     public static TieBreakState LockBuzz(TieBreakState state)
@@ -78,7 +83,7 @@ public static class TieBreakTurn
         {
             var scores = new Dictionary<string, int>(state.Correct);
             scores[buzzer] = scores.GetValueOrDefault(buzzer) + state.Rules.PointsPerCorrect;
-            return Advance(state with { Correct = scores });
+            return Advance(state with { Correct = scores, Window = FreshWindow(state.Rules) });
         }
 
         var eliminated = new List<string>(state.Eliminated) { buzzer };
@@ -96,6 +101,8 @@ public static class TieBreakTurn
     public static TieBreakState Advance(TieBreakState state)
     {
         if (state.Ended) throw Err("ENDED", "the tie-break has ended");
+        if (state.Window.Buzzer is not null || state.Window.Locked)
+            throw Err("WINDOW_BUSY", "settle the open buzz on this question before advancing");
         var next = state with
         {
             Cursor = state.Cursor + 1,
@@ -116,22 +123,27 @@ public static class TieBreakTurn
 
     public static Dictionary<string, int> RankWithTieBreak(
         IReadOnlyList<RankedEntry> entries,
-        IReadOnlyDictionary<string, int>? tieBreak)
+        IReadOnlyDictionary<string, int>? tieBreak,
+        IReadOnlyDictionary<string, int>? buzzMs = null)
     {
         int Key(RankedEntry e) => tieBreak is not null && tieBreak.TryGetValue(e.UserId, out var v) ? v : 0;
+        int Buzz(RankedEntry e) => buzzMs is not null && buzzMs.TryGetValue(e.UserId, out var ms)
+            ? ms
+            : int.MaxValue;
 
         var sorted = entries
             .OrderByDescending(e => e.TotalScore)
             .ThenByDescending(Key)
+            .ThenBy(Buzz)
             .ToList();
 
         var ranks = new Dictionary<string, int>();
         var rank = 0;
-        (int Total, int Tie)? last = null;
+        (int Total, int Tie, int Buzz)? last = null;
         foreach (var entry in sorted)
         {
-            var composite = (Total: entry.TotalScore, Tie: Key(entry));
-            if (last is null || composite.Total != last.Value.Total || composite.Tie != last.Value.Tie)
+            var composite = (Total: entry.TotalScore, Tie: Key(entry), Buzz: Buzz(entry));
+            if (last is null || composite != last.Value)
             {
                 rank += 1;
                 last = composite;

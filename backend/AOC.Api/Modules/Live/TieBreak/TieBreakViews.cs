@@ -18,7 +18,8 @@ public static class TieBreakViews
     {
         var ranks = TieBreakTurn.RankWithTieBreak(
             state.Players.Select(id => new RankedEntry(id, 0)).ToList(),
-            state.Correct);
+            state.Correct,
+            state.BuzzMs);
 
         var players = state.Players
             .Select(id => new TieBreakPlayerView(

@@ -129,7 +129,8 @@ public sealed class MatchesService(
                 questionById.TryGetValue(r.QuestionId.ToString(), out var q) ? q.RoundId : "unknown",
                 r.PointsAwarded ?? 0)).ToList(),
             adjustments.ToDictionary(kv => kv.Key.ToString(), kv => kv.Value),
-            tieBreak?.Correct));
+            tieBreak?.Correct,
+            tieBreak?.BuzzMs));
 
         if (!already)
         {

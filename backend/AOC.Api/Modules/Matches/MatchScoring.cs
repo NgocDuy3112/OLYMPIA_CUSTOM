@@ -10,25 +10,30 @@ public static class MatchScoring
         IReadOnlyList<string> Competitors,
         IReadOnlyList<AnswerForScoring> Answers,
         IReadOnlyDictionary<string, int>? Adjustments = null,
-        IReadOnlyDictionary<string, int>? TieBreak = null);
+        IReadOnlyDictionary<string, int>? TieBreak = null,
+        IReadOnlyDictionary<string, int>? BuzzMs = null);
 
     public static Dictionary<string, int> DenseRanks(
         IEnumerable<(string Key, int Total)> entries,
-        IReadOnlyDictionary<string, int>? tieBreak = null)
+        IReadOnlyDictionary<string, int>? tieBreak = null,
+        IReadOnlyDictionary<string, int>? buzzMs = null)
     {
         int TieOf((string Key, int Total) entry)
             => tieBreak is not null && tieBreak.TryGetValue(entry.Key, out var points) ? points : 0;
+        int BuzzOf((string Key, int Total) entry)
+            => buzzMs is not null && buzzMs.TryGetValue(entry.Key, out var ms) ? ms : int.MaxValue;
 
         var sorted = entries
             .OrderByDescending(e => e.Total)
             .ThenByDescending(TieOf)
+            .ThenBy(BuzzOf)
             .ToList();
         var ranks = new Dictionary<string, int>();
         var rank = 0;
-        (int Total, int Tie)? last = null;
+        (int Total, int Tie, int Buzz)? last = null;
         foreach (var entry in sorted)
         {
-            var key = (entry.Total, TieOf(entry));
+            var key = (entry.Total, TieOf(entry), BuzzOf(entry));
             if (last is null || key != last.Value)
             {
                 rank += 1;
@@ -62,7 +67,7 @@ public static class MatchScoring
                 byUser[userId] = bucket;
             }
 
-        var ranks = DenseRanks(byUser.Select(kv => (kv.Key, kv.Value.Total)), input.TieBreak);
+        var ranks = DenseRanks(byUser.Select(kv => (kv.Key, kv.Value.Total)), input.TieBreak, input.BuzzMs);
 
         return byUser
             .Select(kv => new ResultEntry

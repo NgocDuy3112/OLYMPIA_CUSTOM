@@ -13,5 +13,7 @@ public sealed record TieBreakState
     [JsonPropertyName("questionIds")] public List<string> QuestionIds { get; init; } = [];
     [JsonPropertyName("cursor")] public int Cursor { get; init; }
 
+    [JsonPropertyName("buzzMs")] public Dictionary<string, int> BuzzMs { get; init; } = [];
+
     [JsonPropertyName("window")] public AnswerWindow Window { get; init; } = new();
 }
