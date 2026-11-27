@@ -112,7 +112,7 @@ export function turnChipHint(where: TurnChipState, value: number): string {
  * Player copy: the deck's chip is a record, not a control, so a waiting question
  * describes its state instead of ordering the console's open.
  */
-export function playerTurnChipHint(where: TurnChipState, value: number): string {
+function playerTurnChipHint(where: TurnChipState, value: number): string {
     if (where === "waiting") return `Câu ${value} điểm — chưa mở`
     return turnChipHint(where, value)
 }

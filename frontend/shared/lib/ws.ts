@@ -141,7 +141,7 @@ export interface HubInvoker extends StreamState {
 }
 
 /** Server acks are expected within the blink of an eye; never leave a button pending. */
-export const INVOKE_TIMEOUT_MS = 8_000
+const INVOKE_TIMEOUT_MS = 8_000
 
 export interface HubOptions {
     /** Envelopes the invoker does not own (no matching requestId) are handed here. */

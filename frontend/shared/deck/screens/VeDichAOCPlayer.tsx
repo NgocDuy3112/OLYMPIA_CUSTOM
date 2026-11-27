@@ -19,9 +19,7 @@ import { timerRemainingOf } from "@shared/lib/clock"
 import { COPY } from "../copy"
 import type { AnswerValue, VeDichCommand } from "../types"
 
-export type VeDichPlayerVariant = "rieng" | "chung"
-
-export type VeDichPlayerPhase = "pick" | "play"
+type VeDichPlayerVariant = "rieng" | "chung"
 
 export type VeDichRiengPlayerCtx = PlayerCore & {
     remaining: number

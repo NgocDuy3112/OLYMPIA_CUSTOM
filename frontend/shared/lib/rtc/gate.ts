@@ -3,7 +3,7 @@ import { RoomEvent, type RemoteAudioTrack } from "livekit-client"
 import type { Room } from "livekit-client"
 import { errorMessage } from "../error-text"
 
-export type MediaPolicy = {
+type MediaPolicy = {
     mode: "all" | "countdown" | "assign"
     turnPlayerId: string | null
     answererId: string | null

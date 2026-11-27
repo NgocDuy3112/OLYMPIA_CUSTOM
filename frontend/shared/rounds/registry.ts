@@ -1,8 +1,8 @@
-export const ROUND_IDS = ["khoi-dong", "giai-ma", "but-pha", "ve-dich"] as const
+const ROUND_IDS = ["khoi-dong", "giai-ma", "but-pha", "ve-dich"] as const
 
-export type RoundId = (typeof ROUND_IDS)[number]
+type RoundId = (typeof ROUND_IDS)[number]
 
-export interface RoundRegistry<Module> {
+interface RoundRegistry<Module> {
     of: (roundId: string) => Module | null
 }
 

@@ -34,9 +34,6 @@ export type {
     AuthorDraft,
     AuthorRow,
     AuthorSave,
-    PayloadShape,
-    QuestionKind,
-    QuestionMedia,
 } from "./question-author/payload-shape"
 
 export interface AuthorDialogProps {

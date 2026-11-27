@@ -7,7 +7,7 @@ export type VeDichPickCtx = ScreenCore & {
     setSelectedPlayer: (userId: string) => void
 }
 
-export type VeDichPlayCtx = ScreenCore & {
+type VeDichPlayCtx = ScreenCore & {
     remaining: number | null
     consoleVeDich: VeDichConsole | null
     target: string | null

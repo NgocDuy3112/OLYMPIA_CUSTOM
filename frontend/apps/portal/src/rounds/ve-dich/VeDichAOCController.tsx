@@ -3,9 +3,7 @@ import { VeDichPickStage } from "./VeDichPickStage"
 import { VeDichPlayChung } from "./VeDichPlayChung"
 import { VeDichPlayRieng } from "./VeDichPlayRieng"
 
-export type VeDichVariant = "rieng" | "chung"
-
-export type VeDichPhase = "pick" | "play"
+type VeDichVariant = "rieng" | "chung"
 
 export type VeDichProps =
     | { variant: VeDichVariant; phase: "pick"; ctx: VeDichPickCtx }

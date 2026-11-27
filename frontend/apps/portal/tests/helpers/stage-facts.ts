@@ -171,7 +171,7 @@ export const answerRow = (userId: string, verdict: "CORRECT" | "INCORRECT" | nul
     pointsAwarded: verdict === "CORRECT" ? 20 : 0,
 })
 
-export function clickables(): string[] {
+function clickables(): string[] {
     return Array.from(document.querySelectorAll('button, [role="button"]')).map((el) => el.textContent ?? "")
 }
 
