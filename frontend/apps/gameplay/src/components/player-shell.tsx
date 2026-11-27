@@ -8,7 +8,7 @@ import { StageShell } from "@shared/deck/stage-shell"
 import { Lobby } from "@shared/deck/lobby"
 import { Gate } from "@shared/deck/primitives"
 import { Badges, MainCard, Rail, StageLayout } from "@shared/deck/player-deck"
-import { ROUND_LABEL, isWaitingStage, pt } from "@shared/deck/geometry"
+import { ROUND_LABEL, TYPE, isWaitingStage, pt } from "@shared/deck/geometry"
 import { PlayerGateScreen } from "./player-gates"
 import { LiveHubProvider } from "./live-hub-provider"
 
@@ -94,10 +94,10 @@ function PlayerShellBody({ matchId }: { matchId: string }) {
                 <StageLayout rail={<Rail view={v} myId={model.myId} />}>
                     <MainCard>
                         <Badges round={ROUND_LABEL[v.roundId] ?? v.roundId} />
-                        <p className="font-sans leading-relaxed text-foreground" style={{ fontSize: pt(16) }}>
+                        <p className="font-sans leading-relaxed text-foreground" style={{ fontSize: pt(TYPE.title) }}>
                             {model.lobbyHint}
                         </p>
-                        <p className="font-sans text-muted-foreground" style={{ fontSize: pt(13) }}>
+                        <p className="font-sans text-muted-foreground" style={{ fontSize: pt(TYPE.body) }}>
                             Điểm của bạn: <b className="tabular-nums text-foreground">{v.me.points ?? v.me.score ?? 0}</b>
                         </p>
                     </MainCard>

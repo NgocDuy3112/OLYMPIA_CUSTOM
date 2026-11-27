@@ -1,4 +1,4 @@
-import { DECK_PAD, pt } from "./geometry"
+import { CHIP_H, DECK_PAD, TYPE, pt } from "./geometry"
 import { CHUNG_PICK_VALUES, VE_GRID_COLUMNS, boardRows } from "./ve-dich-board"
 
 export interface PickBoardCell {
@@ -8,10 +8,10 @@ export interface PickBoardCell {
 }
 
 const CELL_BASE =
-    "flex h-[4.43cqw] flex-col items-center justify-center rounded-lg shadow-sm ring-1 transition"
+    `flex ${CHIP_H} flex-col items-center justify-center rounded-lg shadow-sm ring-1 transition`
 
 const cellTone = (where: string, picked: boolean, onPick?: (questionId: string) => void): string => {
-    if (picked) return `${CELL_BASE} bg-primary text-primary-foreground ring-2 ring-chart-4`
+    if (picked) return `${CELL_BASE} bg-primary text-primary-foreground ring-2 ring-(--warning)`
     if (where === "free" && onPick) return `${CELL_BASE} cursor-pointer bg-background/50 ring-border hover:bg-accent`
     if (where === "free") return `${CELL_BASE} bg-background/50 ring-border`
     // rules.md §7.4: a staged pick is chosen but not yet confirmed — the dashed edge keeps it
@@ -81,7 +81,7 @@ export function VeDichPickBoard({ cells, pickedIds, values, locked, full, onPick
                                 className={cellTone(where, picked, onPick)}
                                 style={{ ...DECK_PAD, gridColumn: `span ${row.span}` }}
                             >
-                                <b className="font-display leading-none" style={{ fontSize: pt(20) }}>{cell.value}</b>
+                                <b className="font-display leading-none" style={{ fontSize: pt(TYPE.value) }}>{cell.value}</b>
                             </button>
                         )
                     })}

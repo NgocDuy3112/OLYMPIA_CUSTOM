@@ -1,7 +1,7 @@
 import type { ReactNode } from "react"
 import { useCountdown, type ServerClock } from "@shared/lib/clock"
 import { AnswerBand, AnswerBandIdle, HintBars, KeywordBox, KeywordLengthBanner, PlayerStage, QuestionCard, Rail, SubmissionLog, Timer, type PlayerCore, type SubmissionEntry } from "../player-deck"
-import { STRIP_R, pt } from "../geometry"
+import { STRIP_R, TYPE, pt } from "../geometry"
 import type { AnswerValue } from "../types"
 
 type GiaiMaPlayerCtx = PlayerCore & {
@@ -29,7 +29,7 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
     let keywordSlot: ReactNode = null
     if (eliminated) {
         keywordSlot = (
-            <span className="flex h-[3.3cqw] items-center rounded-lg bg-destructive/10 px-[1.2cqw] font-sans font-semibold text-destructive ring-1 ring-destructive/30" style={{ fontSize: pt(12), borderRadius: STRIP_R }}>
+            <span className="flex h-[3.3cqw] items-center rounded-lg bg-destructive/10 px-[1.2cqw] font-sans font-semibold text-destructive ring-1 ring-destructive/30" style={{ fontSize: pt(TYPE.bodySm), borderRadius: STRIP_R }}>
                 Bạn không giải được từ khóa — bị loại vòng này
             </span>
         )
@@ -88,8 +88,8 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
 
             <QuestionCard
                 round="Giải mã"
-                size={28}
-                right={<Timer remaining={timerRemaining} size={32} />}
+                size={TYPE.digit}
+                right={<Timer remaining={timerRemaining} size={TYPE.timerSm} />}
                 question={questionText}
                 className="h-50"
             />

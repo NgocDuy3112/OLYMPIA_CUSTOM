@@ -5,7 +5,7 @@ import { useSelfCam } from "@shared/lib/rtc"
 import { Button } from "@shared/ui/button"
 import { SOLID_SURFACE } from "@shared/ui/solid"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@shared/ui/dialog"
-import { pt } from "./geometry"
+import { RAIL_CARD_H, TYPE, pt } from "./geometry"
 import { PlayerAvatar } from "./player-card"
 import { SelfCamControls } from "./cam-controls"
 import { PlayerCamControls } from "./player-cam-controls"
@@ -84,7 +84,7 @@ export function Lobby({
                     return (
                         <div
                             key={row.id}
-                            className={`flex h-[9.3cqw] w-[21cqw] shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl p-[0.9cqw] shadow-sm ${SOLID_SURFACE} ${rowRing}`}
+                            className={`flex ${RAIL_CARD_H} w-[21cqw] shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl p-[0.9cqw] shadow-sm ${SOLID_SURFACE} ${rowRing}`}
                         >
                             <div className="flex min-h-0 flex-1 gap-[0.7cqw]">
                                 <PlayerAvatar name={row.displayName} className="bg-muted text-muted-foreground">
@@ -103,10 +103,10 @@ export function Lobby({
                                     )}
                                 </PlayerAvatar>
                                 <div className="flex min-w-0 flex-1 flex-col justify-start gap-[0.3cqw] pt-[0.2cqw] text-center">
-                                    <span className="truncate font-display font-semibold leading-none text-foreground" style={{ fontSize: pt(16) }}>
+                                    <span className="truncate font-display font-semibold leading-none text-foreground" style={{ fontSize: pt(TYPE.title) }}>
                                         {row.displayName}
                                     </span>
-                                    <span className="font-display font-bold leading-none tabular-nums text-foreground" style={{ fontSize: pt(48) }}>
+                                    <span className="font-display font-bold leading-none tabular-nums text-foreground" style={{ fontSize: pt(TYPE.hero) }}>
                                         {row.points}
                                     </span>
                                 </div>

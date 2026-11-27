@@ -12,7 +12,7 @@ import {
     SubmissionLog,
     type SubmissionEntry,
 } from "../player-deck"
-import { pt, STRIP_R } from "../geometry"
+import { STRIP_R, TYPE, pt } from "../geometry"
 import { playerTurnChips, RIENG_PICK_VALUES } from "../ve-dich-board"
 import { VeDichPickBoard } from "../ve-dich-pick-board"
 import { timerRemainingOf } from "@shared/lib/clock"
@@ -76,7 +76,7 @@ function VeDichPickPlayer({ variant, ctx }: { variant: VeDichPlayerVariant; ctx:
                 right={
                     <span className="flex items-center gap-[1.2cqw]">
                         {turnName && (
-                            <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>
+                            <span className="font-sans text-muted-foreground" style={{ fontSize: pt(TYPE.bodySm) }}>
                                 Lượt: {turnName}
                             </span>
                         )}

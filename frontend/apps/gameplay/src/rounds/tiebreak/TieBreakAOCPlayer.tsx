@@ -1,7 +1,7 @@
 import { Hand } from "lucide-react"
 import { PlayerStage, QuestionCard, Rail, Timer } from "@shared/deck/player-deck"
 import { COPY } from "@shared/deck/copy"
-import { STRIP_R, pt } from "@shared/deck/geometry"
+import { CONTROL_H, STRIP_R, TYPE, pt } from "@shared/deck/geometry"
 import { useCountdown } from "@shared/lib/clock"
 import type { PlayerCtx } from "@shared/deck/player-deck"
 import { useTieBreakMatch } from "@/lib/live"
@@ -40,7 +40,8 @@ export function TieBreakAOCPlayer({ ctx }: { ctx: PlayerCtx }) {
                 onClick={() => tie.buzz.mutate(questionId)}
                 disabled={tie.buzz.isPending || pressed}
                 aria-pressed={pressed}
-                className="flex h-[3.3cqw] items-center gap-[0.8cqw] rounded-lg bg-destructive px-[2cqw] font-sans text-base font-bold uppercase text-destructive-foreground shadow-sm transition hover:brightness-110 disabled:opacity-60"
+                aria-busy={tie.buzz.isPending}
+                className={`flex ${CONTROL_H} items-center gap-[0.8cqw] rounded-lg bg-destructive px-[2cqw] font-sans text-base font-bold uppercase text-destructive-foreground shadow-sm transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60`}
                 style={{ borderRadius: STRIP_R }}
                 title={label}
             >
@@ -57,7 +58,7 @@ export function TieBreakAOCPlayer({ ctx }: { ctx: PlayerCtx }) {
     let statusLine = null
     if (eliminated) {
         statusLine = (
-            <span className="font-sans font-semibold text-destructive" style={{ fontSize: pt(12) }}>
+            <span role="status" className="font-sans font-semibold text-destructive" style={{ fontSize: pt(TYPE.bodySm) }}>
                 Bạn đã bị loại — theo dõi câu tiếp theo
             </span>
         )
@@ -71,7 +72,7 @@ export function TieBreakAOCPlayer({ ctx }: { ctx: PlayerCtx }) {
             ? tie.buzz.error.message
             : "Không gửi được chuông — thử lại"
         buzzError = (
-            <span role="alert" className="font-sans font-semibold text-destructive" style={{ fontSize: pt(12) }}>
+            <span role="alert" className="font-sans font-semibold text-destructive" style={{ fontSize: pt(TYPE.bodySm) }}>
                 {message}
             </span>
         )

@@ -1,5 +1,5 @@
 import { useState, type KeyboardEvent, type ReactNode } from "react"
-import { DECK_PAD, pt } from "./geometry"
+import { DECK_PAD, TYPE, pt } from "./geometry"
 import { Badges, CardHeader, MainCard } from "./primitives"
 
 const buildRevealProps = (onReveal?: () => void) => {
@@ -37,7 +37,7 @@ export function QuestionBlock({ question, media, mediaHint = "hình ảnh câu h
         >
             <p
                 className={`min-w-0 self-start flex-1 font-sans font-medium leading-snug text-foreground`}
-                style={{ fontSize: pt(15), ...DECK_PAD }}
+                style={{ fontSize: pt(TYPE.question), ...DECK_PAD }}
             >
                 {question ?? ""}
             </p>
@@ -56,7 +56,7 @@ function MediaWell({ media, mediaHint }: { media: { url: string; type: string };
         if (broken) mediaText = mediaHint
         return (
             <div className={`${wellClass} items-center justify-center px-[2cqw] py-[1.4cqw]`}>
-                <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>
+                <span className="font-sans text-muted-foreground" style={{ fontSize: pt(TYPE.bodySm) }}>
                     {mediaText}
                 </span>
             </div>
@@ -88,11 +88,11 @@ export function KeywordLengthBanner({ length, kind, code, onClick }: { length: n
             className="flex h-31.25 shrink-0 items-center justify-center gap-[1.5cqw] rounded-2xl bg-card px-[2cqw] shadow-md ring-2 ring-primary/30 transition hover:ring-primary/60"
         >
             {code !== null && code !== undefined && code !== "" ? (
-                <span className="font-display font-bold uppercase tracking-wide text-primary" style={{ fontSize: pt(40) }}>
+                <span className="font-display font-bold uppercase tracking-wide text-primary" style={{ fontSize: pt(TYPE.timer) }}>
                     {code}
                 </span>
             ) : (
-                <span className="font-display font-bold uppercase tracking-wide text-foreground" style={{ fontSize: pt(40) }}>
+                <span className="font-display font-bold uppercase tracking-wide text-foreground" style={{ fontSize: pt(TYPE.timer) }}>
                     Mật mã gồm có {length} {unit}
                 </span>
             )}
@@ -134,7 +134,7 @@ export function AudienceFace({ options }: { options: Array<{ id: string; text: s
         <div className="flex shrink-0 flex-col gap-[0.5cqw] rounded-xl bg-muted/60 px-[1.4cqw] py-[0.9cqw] ring-1 ring-border">
             <span
                 className="font-sans font-bold uppercase tracking-wide text-muted-foreground"
-                style={{ fontSize: pt(11) }}
+                style={{ fontSize: pt(TYPE.label) }}
             >
                 Khán giả chọn
             </span>
@@ -143,7 +143,7 @@ export function AudienceFace({ options }: { options: Array<{ id: string; text: s
                     <span
                         key={option.id}
                         className="flex items-center justify-center gap-[0.5cqw] rounded-lg bg-background px-[0.8cqw] py-[0.6cqw] text-center font-sans font-semibold text-foreground ring-1 ring-border"
-                        style={{ fontSize: pt(13) }}
+                        style={{ fontSize: pt(TYPE.body) }}
                     >
                         <b>{String.fromCharCode(65 + index)}.</b>
                         <span className="min-w-0 truncate">{option.text}</span>

@@ -1,16 +1,16 @@
 import { Star, Swords } from "lucide-react"
-import { pt } from "./geometry"
+import { TYPE, pt } from "./geometry"
 
 export type TurnIconKind = "star" | "swords"
 
 export function TurnIcon({ kind }: { kind: TurnIconKind }) {
     let Icon = Star
     let label = "Ngôi sao hy vọng"
-    let tone = "text-chart-4 fill-chart-4"
+    let tone = "text-(--warning) fill-(--warning)"
     if (kind === "swords") {
         Icon = Swords
         label = "Lượt chỉ định"
-        tone = "text-chart-3"
+        tone = "text-(--success)"
     }
     return (
         <span
@@ -18,7 +18,7 @@ export function TurnIcon({ kind }: { kind: TurnIconKind }) {
             aria-label={label}
             title={label}
             className="icon-pop inline-flex shrink-0 items-center justify-center"
-            style={{ fontSize: pt(12) }}
+            style={{ fontSize: pt(TYPE.bodySm) }}
         >
             <Icon className={`size-[1.15em] icon-throb ${tone}`} aria-hidden />
         </span>

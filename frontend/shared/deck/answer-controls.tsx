@@ -1,18 +1,18 @@
 import { useState } from "react"
 import { formatElapsed, type SubmissionEntry } from "./submission-log"
-import { STRIP_R, pt } from "./geometry"
+import { CONTROL_H, CONTROL_W, STRIP_R, TYPE, pt } from "./geometry"
 import { COPY } from "./copy"
 import type { AnswerValue, PlayerQuestion } from "./types"
 
 const INPUT =
-    "h-[3.3cqw] min-w-0 flex-1 rounded-lg border border-input bg-background px-[1.1cqw] font-sans text-foreground outline-none transition placeholder:text-muted-foreground focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+    `${CONTROL_H} min-w-0 flex-1 rounded-lg border border-input bg-background px-[1.1cqw] font-sans text-foreground outline-none transition placeholder:text-muted-foreground focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60`
 const SUBMIT =
-    "flex h-[3.3cqw] w-[9.08cqw] shrink-0 items-center justify-center rounded-lg font-sans font-semibold uppercase tracking-wide shadow-sm transition"
+    `flex ${CONTROL_H} ${CONTROL_W} shrink-0 items-center justify-center rounded-lg font-sans font-semibold uppercase tracking-wide shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`
 
 const optionClass = (selected: boolean): string => {
     let tone = "bg-muted text-foreground ring-1 ring-border hover:bg-accent"
     if (selected) tone = "bg-primary text-primary-foreground ring-2 ring-ring"
-    return `flex h-[3.3cqw] w-[9.08cqw] shrink-0 items-center justify-center px-[0.5cqw] text-center font-sans font-semibold leading-tight shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${tone}`
+    return `flex ${CONTROL_H} ${CONTROL_W} shrink-0 items-center justify-center px-[0.5cqw] text-center font-sans font-semibold leading-tight shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ${tone}`
 }
 
 const submitClass = (ready: boolean): string => {
@@ -53,14 +53,14 @@ export function AnswerBand({ question, answered, disabled, busy, error, typedOnl
 
 
     if (!question) {
-        return <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}></span>
+        return <span className="font-sans text-muted-foreground" style={{ fontSize: pt(TYPE.bodySm) }}></span>
     }
     const options = question.payload.options ?? []
     const isMc = question.kind === "CHOICE" && options.length > 0 && !typedOnly
 
     if (isMc) {
         return (
-            <div className={`flex w-full items-center gap-[1cqw]${disabled ? "" : " control-breathe"}`}>
+            <div className={`flex w-full items-center gap-[1cqw]${disabled ? "" : " control-breathe"}`} aria-busy={busy === true}>
                 {options.map((option, i) => (
                     <button
                         key={option.id}
@@ -70,7 +70,7 @@ export function AnswerBand({ question, answered, disabled, busy, error, typedOnl
                         aria-pressed={state.picked === option.id}
                         onClick={() => setDraft({ qid, picked: option.id, text: "" })}
                         className={optionClass(state.picked === option.id)}
-                        style={{ fontSize: pt(10), borderRadius: STRIP_R }}
+                        style={{ fontSize: pt(TYPE.meta), borderRadius: STRIP_R }}
                     >
                         <span className="truncate">
                             <b>{String.fromCharCode(65 + i)}.</b> {option.text}
@@ -82,7 +82,7 @@ export function AnswerBand({ question, answered, disabled, busy, error, typedOnl
                     disabled={!state.picked || disabled || busy}
                     onClick={() => send({ picked: [state.picked] })}
                     className={submitClass(Boolean(state.picked) && !disabled && !busy)}
-                    style={{ fontSize: pt(11), borderRadius: STRIP_R }}
+                    style={{ fontSize: pt(TYPE.label), borderRadius: STRIP_R }}
                 >
                     {sendLabel}
                 </button>
@@ -94,7 +94,7 @@ export function AnswerBand({ question, answered, disabled, busy, error, typedOnl
     if (error) textPlaceholder = "Bấm nút Gửi để thử lại"
 
     return (
-        <div className={`flex w-full items-center gap-[1cqw]${disabled ? "" : " control-breathe"}`}>
+        <div className={`flex w-full items-center gap-[1cqw]${disabled ? "" : " control-breathe"}`} aria-busy={busy === true}>
             <input
                 type="text"
                 value={state.text}
@@ -107,7 +107,7 @@ export function AnswerBand({ question, answered, disabled, busy, error, typedOnl
                 }}
                 placeholder={textPlaceholder}
                 className={INPUT}
-                style={{ fontSize: pt(13) }}
+                style={{ fontSize: pt(TYPE.body) }}
                 aria-label="Câu trả lời của bạn"
             />
             <button
@@ -115,7 +115,7 @@ export function AnswerBand({ question, answered, disabled, busy, error, typedOnl
                 disabled={!state.text.trim() || disabled || busy}
                 onClick={() => send({ text: state.text.trim() })}
                 className={submitClass(Boolean(state.text.trim()) && !disabled && !busy)}
-                style={{ fontSize: pt(11), borderRadius: STRIP_R }}
+                style={{ fontSize: pt(TYPE.label), borderRadius: STRIP_R }}
             >
                 {sendLabel}
             </button>
@@ -138,7 +138,7 @@ export function SubmissionLog({ entries }: { entries: SubmissionEntry[] }) {
                         key={`${entry.kind}:${entry.answer}:${entry.elapsedS}`}
                         role="status"
                         className="font-sans text-muted-foreground"
-                        style={{ fontSize: pt(12) }}
+                        style={{ fontSize: pt(TYPE.bodySm) }}
                     >
                         Bạn đã trả lời {label}: <b className="font-semibold text-foreground">{entry.answer}</b> ({formatElapsed(entry.elapsedS)}s)
                     </p>
@@ -157,14 +157,14 @@ export function AnswerBandIdle() {
                 readOnly
                 disabled
                 className={INPUT}
-                style={{ fontSize: pt(13) }}
+                style={{ fontSize: pt(TYPE.body) }}
                 aria-label="Câu trả lời của bạn"
             />
             <button
                 type="button"
                 disabled
                 className={submitClass(false)}
-                style={{ fontSize: pt(11), borderRadius: STRIP_R }}
+                style={{ fontSize: pt(TYPE.label), borderRadius: STRIP_R }}
             >
                 {COPY.send}
             </button>
@@ -176,10 +176,10 @@ export function KeywordBox({ busy, disabled, onSubmit }: { busy: boolean; disabl
     const [draft, setDraft] = useState({ locked: false, text: "" })
     const [confirming, setConfirming] = useState(false)
     if (draft.locked) {
-        return <span className="inline-flex items-center gap-[0.5cqw] font-sans font-semibold text-chart-3" style={{ fontSize: pt(12) }}>Đã nộp từ khóa — chờ điều hành chốt</span>
+        return <span role="status" className="inline-flex items-center gap-[0.5cqw] font-sans font-semibold text-(--success)" style={{ fontSize: pt(TYPE.bodySm) }}>Đã nộp từ khóa — chờ điều hành chốt</span>
     }
     if (disabled) {
-        return <span role="status" className="inline-flex items-center gap-[0.5cqw] font-sans font-semibold text-muted-foreground" style={{ fontSize: pt(12) }}>Từ khóa đã hết giờ — không nộp được nữa</span>
+        return <span role="status" className="inline-flex items-center gap-[0.5cqw] font-sans font-semibold text-muted-foreground" style={{ fontSize: pt(TYPE.bodySm) }}>Từ khóa đã hết giờ — không nộp được nữa</span>
     }
     const commit = () => {
         if (!draft.text.trim() || busy) return
@@ -210,7 +210,7 @@ export function KeywordBox({ busy, disabled, onSubmit }: { busy: boolean; disabl
                 }}
                 placeholder="Từ khóa của bạn — chốt một lần"
                 className={INPUT}
-                style={{ fontSize: pt(13) }}
+                style={{ fontSize: pt(TYPE.body) }}
                 aria-label="Từ khóa của bạn"
             />
             <button
@@ -219,7 +219,7 @@ export function KeywordBox({ busy, disabled, onSubmit }: { busy: boolean; disabl
                 onClick={commit}
                 title={submitTitle}
                 className={submitClass(!busy && !disabled && Boolean(draft.text.trim()))}
-                style={{ fontSize: pt(11), borderRadius: STRIP_R }}
+                style={{ fontSize: pt(TYPE.label), borderRadius: STRIP_R }}
             >
                 {submitLabel}
             </button>

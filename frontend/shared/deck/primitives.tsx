@@ -1,7 +1,7 @@
 import type { ReactNode } from "react"
 import { CheckCircle2, Hourglass, XCircle } from "lucide-react"
 import { formatRemaining } from "@shared/lib/clock"
-import { DECK_PAD, pt, toClock } from "./geometry"
+import { DECK_PAD, TYPE, pt, toClock } from "./geometry"
 
 
 export function StageLayout({ rail, children }: { rail?: ReactNode; children: ReactNode }) {
@@ -32,7 +32,7 @@ export function CardHeader({ left, mid, right }: { left?: ReactNode; mid?: React
 }
 
 
-export function Badges({ round, mode, size = 32 }: {
+export function Badges({ round, mode, size = TYPE.badge }: {
     round: string; mode?: string; size?: number
 }) {
     return (
@@ -41,7 +41,7 @@ export function Badges({ round, mode, size = 32 }: {
                 {round}
             </span>
             {mode && (
-                <span className="font-display font-medium leading-none text-muted-foreground" style={{ fontSize: pt(16), ...DECK_PAD }}>
+                <span className="font-display font-medium leading-none text-muted-foreground" style={{ fontSize: pt(TYPE.title), ...DECK_PAD }}>
                     {mode}
                 </span>
             )}
@@ -50,7 +50,7 @@ export function Badges({ round, mode, size = 32 }: {
 }
 
 
-export function Timer({ remaining, size = 40 }: {
+export function Timer({ remaining, size = TYPE.timer }: {
     remaining: number | null
     size?: number
 }) {
@@ -76,9 +76,9 @@ export function Timer({ remaining, size = 40 }: {
 
 
 export function VerdictIcon({ verdict }: { verdict: "CORRECT" | "INCORRECT" | null | undefined }) {
-    if (verdict === "CORRECT") return <CheckCircle2 className="size-[1.15em] shrink-0 text-chart-3" aria-label="Đúng" />
-    if (verdict === "INCORRECT") return <XCircle className="size-[1.15em] shrink-0 text-chart-2" aria-label="Sai" />
-    return <Hourglass className="size-[1.15em] shrink-0 text-chart-4" aria-label="Chưa chấm" />
+    if (verdict === "CORRECT") return <CheckCircle2 className="size-[1.15em] shrink-0 text-(--success)" aria-label="Đúng" />
+    if (verdict === "INCORRECT") return <XCircle className="size-[1.15em] shrink-0 text-destructive" aria-label="Sai" />
+    return <Hourglass className="size-[1.15em] shrink-0 text-(--warning)" aria-label="Chưa chấm" />
 }
 
 export function Status({ error, hint }: { error?: string | null; hint?: ReactNode }) {
@@ -87,7 +87,7 @@ export function Status({ error, hint }: { error?: string | null; hint?: ReactNod
         statusSlot = <span role="alert" className="font-semibold text-destructive">{error}</span>
     }
     return (
-        <div className="flex shrink-0 items-center justify-end pr-[1cqw] text-right font-medium leading-tight" style={{ fontSize: pt(12), ...DECK_PAD }}>
+        <div className="flex shrink-0 items-center justify-end pr-[1cqw] text-right font-medium leading-tight" style={{ fontSize: pt(TYPE.bodySm), ...DECK_PAD }}>
             {statusSlot}
         </div>
     )

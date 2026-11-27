@@ -1,10 +1,10 @@
-import { STRIP_R, pt } from "./geometry"
+import { STEP_H, STEP_MIN_W, STRIP_R, TYPE, pt } from "./geometry"
 
 export type QuestionNumberState = "done" | "active" | "pending"
 
 const NUMBER_TONE: Record<QuestionNumberState, string> = {
     done: "bg-primary/60 text-primary-foreground",
-    active: "bg-primary text-primary-foreground ring-2 ring-chart-4",
+    active: "bg-primary text-primary-foreground ring-2 ring-(--warning)",
     pending: "bg-transparent text-muted-foreground ring-1 ring-border",
 }
 
@@ -20,11 +20,11 @@ export function QuestionNumber({ index, state, onClick, current, tone, showDone 
     if (state === "done" && showDone !== false) label = "✓" + (index + 1)
     const toneClass = tone ?? NUMBER_TONE[state]
     let cursor = ""
-    if (onClick) cursor = "cursor-pointer transition hover:brightness-110"
+    if (onClick) cursor = "cursor-pointer transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     let ariaCurrent: "step" | undefined = undefined
     if (current) ariaCurrent = "step"
-    const className = "flex h-[1.95cqw] min-w-[1.95cqw] items-center justify-center px-[0.3cqw] font-display font-bold leading-none " + toneClass + " " + cursor
-    const style = { fontSize: pt(12), borderRadius: STRIP_R }
+    const className = `flex ${STEP_H} ${STEP_MIN_W} items-center justify-center px-[0.3cqw] font-display font-bold leading-none ` + toneClass + " " + cursor
+    const style = { fontSize: pt(TYPE.bodySm), borderRadius: STRIP_R }
 
     if (onClick) {
         return (

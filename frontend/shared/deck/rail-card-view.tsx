@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
 import type { LocalVideoTrack, RemoteVideoTrack } from "livekit-client"
-import { initialsOf, pt } from "./geometry"
+import { RAIL_CARD_H, TYPE, initialsOf, pt } from "./geometry"
 import { PlayerCamControls } from "./player-cam-controls"
 import { RailAnswerLine } from "./rail-answer"
 import { railCardClass, railScoreClass, railSelfRingClass, type RailCardState } from "./rail-card"
@@ -42,8 +42,8 @@ interface PlayerCardProps {
 
 const PILL_TONE: Record<NonNullable<RailCardData["badge"]>["tone"], string> = {
     primary: "bg-primary text-primary-foreground",
-    amber: "bg-chart-4/15 text-chart-4 ring-1 ring-chart-4/30",
-    emerald: "bg-chart-3/15 text-chart-3 ring-1 ring-chart-3/30",
+    amber: "bg-(--warning)/15 text-(--warning) ring-1 ring-(--warning)/30",
+    emerald: "bg-(--success)/15 text-(--success) ring-1 ring-(--success)/30",
 }
 
 function badgePill(tone: NonNullable<RailCardData["badge"]>["tone"]): string {
@@ -77,7 +77,7 @@ function ScoreVerdict({ points, scoreSize, onFlash }: { points: number; scoreSiz
 
 function Badge({ card }: { card: RailCardData }) {
     if (!card.badge) return null
-    return <span className={badgePill(card.badge.tone)} style={{ fontSize: pt(9) }}>{card.badge.text}</span>
+    return <span className={badgePill(card.badge.tone)} style={{ fontSize: pt(TYPE.micro) }}>{card.badge.text}</span>
 }
 
 function Icon({ card }: { card: RailCardData }) {
@@ -91,7 +91,7 @@ function ValueLine({ card, state }: { card: RailCardData; state: RailCardState }
     if (card.value === "") return null
     if (card.value === "—") return null
     return (
-        <span className={`font-semibold tabular-nums ${railScoreClass(state)}`} style={{ fontSize: pt(12) }}>
+        <span className={`font-semibold tabular-nums ${railScoreClass(state)}`} style={{ fontSize: pt(TYPE.bodySm) }}>
             {card.value}
         </span>
     )
@@ -115,7 +115,7 @@ function statusVisible(card: RailCardData): boolean {
 }
 
 function Score({ card, state, onScoreClick }: { card: RailCardData; state: RailCardState; onScoreClick?: (id: string) => void }) {
-    const scoreSize = 34
+    const scoreSize = TYPE.score
     if (!onScoreClick) {
         return (
             <span className={`font-display font-bold leading-none tabular-nums ${railScoreClass(state)}`} style={{ fontSize: pt(scoreSize) }}>
@@ -143,7 +143,7 @@ function Avatar({ card }: { card: RailCardData }) {
     return (
         <div
             className="relative flex w-[52%] shrink-0 items-center justify-center rounded-lg bg-primary/10 font-display font-bold text-primary/70"
-            style={{ fontSize: pt(16) }}
+            style={{ fontSize: pt(TYPE.title) }}
         >
             <span aria-hidden>{initialsOf(card.name)}</span>
             {videoNode}
@@ -181,7 +181,9 @@ export function PlayerCard({ card, onSelect, onScoreClick, selectHint, title }: 
                 tabIndex: 0,
                 onClick: () => onSelect(card.id),
                 onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
-                    if (event.key !== "Enter") return
+                    if (event.target !== event.currentTarget) return
+                    if (event.key !== "Enter" && event.key !== " ") return
+                    event.preventDefault()
                     onSelect(card.id)
                 },
                 "aria-pressed": selected,
@@ -194,9 +196,9 @@ export function PlayerCard({ card, onSelect, onScoreClick, selectHint, title }: 
                 "aria-pressed": selected,
             }
         }
-        hoverCls = "cursor-pointer hover:ring-chart-1 active:ring-chart-1"
-        if (selected) hoverCls = "cursor-pointer"
-        if (selectHint) hoverCls = "cursor-pointer hover:ring-chart-3 active:ring-chart-3"
+        hoverCls = "cursor-pointer hover:ring-chart-1 active:ring-chart-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        if (selected) hoverCls = "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        if (selectHint) hoverCls = "cursor-pointer hover:ring-(--success) active:ring-(--success) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     }
 
     let statusNode: ReactNode = null
@@ -217,19 +219,19 @@ export function PlayerCard({ card, onSelect, onScoreClick, selectHint, title }: 
         <Tag
             {...(interactiveProps ?? {})}
             title={title}
-            className={`flex h-[9.3cqw] shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl p-[0.9cqw] text-left shadow-sm ${railCardClass(state)} ${hoverCls} ${ringCls}`}
+            className={`flex ${RAIL_CARD_H} shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl p-[0.9cqw] text-left shadow-sm ${railCardClass(state)} ${hoverCls} ${ringCls}`}
         >
             <div className="flex min-h-0 flex-1 gap-[0.7cqw]">
                 <Avatar card={card} />
                 <div className="relative flex min-w-0 min-h-0 flex-1 flex-col justify-start gap-[0.3cqw] overflow-hidden pt-[0.2cqw] text-center">
                     <div className={flashing ? "contents-faded flex min-h-0 flex-1 flex-col items-center justify-start gap-[0.3cqw]" : "flex min-h-0 flex-1 flex-col items-center justify-start gap-[0.3cqw]"}>
-                        <span className="flex min-w-0 items-center justify-center gap-[0.3cqw] font-display font-semibold leading-none text-foreground" style={{ fontSize: pt(16) }}>
+                        <span className="flex min-w-0 items-center justify-center gap-[0.3cqw] font-display font-semibold leading-none text-foreground" style={{ fontSize: pt(TYPE.title) }}>
                             <span className="truncate">{card.name}</span>
                         </span>
                         <Score card={card} state={state} onScoreClick={onScoreClick} />
                         {statusNode}
                     </div>
-                    <ScoreVerdict points={card.points} scoreSize={34} onFlash={onFlash} />
+                    <ScoreVerdict points={card.points} scoreSize={TYPE.score} onFlash={onFlash} />
                 </div>
             </div>
         </Tag>

@@ -1,6 +1,8 @@
+import { CHIP_H } from "./geometry"
+
 export type CellWhere = "free" | "pending" | "open" | "taken" | "deferred"
 
-const CELL_SHAPE = "flex h-[4.43cqw] flex-col items-center justify-center rounded-lg shadow-sm"
+const CELL_SHAPE = `flex ${CHIP_H} flex-col items-center justify-center rounded-lg shadow-sm`
 
 const CELL_STATE: Record<Exclude<CellWhere, "free">, string> = {
     pending: "bg-primary/10 text-primary ring-2 ring-primary",

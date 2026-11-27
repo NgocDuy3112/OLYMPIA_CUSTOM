@@ -1,4 +1,4 @@
-import { DECK_PAD, pt } from "./geometry"
+import { CHIP_H, CHIP_W, DECK_PAD, TYPE, pt } from "./geometry"
 
 /**
  * The Về đích question chip: a rectangle showing a question's value.
@@ -15,9 +15,9 @@ export function QuestionChip({ value, tone = "gray", clickable, onClick, title, 
     live?: boolean
 }) {
     const toneClass = tone === "purple"
-        ? "bg-primary text-primary-foreground ring-2 ring-chart-4"
+        ? "bg-primary text-primary-foreground ring-2 ring-(--warning)"
         : "bg-muted text-foreground ring-1 ring-border"
-    const width = fixedWidth ? "w-[7cqw]" : "min-w-[7cqw] shrink-0"
+    const width = fixedWidth ? CHIP_W : "min-w-[7cqw] shrink-0"
     let pulse = ""
     if (live) pulse = " stage-pulse"
     return (
@@ -26,10 +26,10 @@ export function QuestionChip({ value, tone = "gray", clickable, onClick, title, 
             onClick={clickable ? onClick : undefined}
             aria-disabled={clickable ? undefined : true}
             title={title}
-            className={`flex h-[4.43cqw] ${width} items-center justify-center rounded-lg px-[1.4cqw] shadow-sm font-display leading-none ${toneClass} ${clickable ? "cursor-pointer transition hover:brightness-95" : "cursor-default"}${pulse}`}
+            className={`flex ${CHIP_H} ${width} items-center justify-center rounded-lg px-[1.4cqw] shadow-sm font-display leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${toneClass} ${clickable ? "cursor-pointer transition hover:brightness-95" : "cursor-default"}${pulse}`}
             style={DECK_PAD}
         >
-            <span style={{ fontSize: pt(34) }}>{value ?? ""}</span>
+            <span style={{ fontSize: pt(TYPE.score) }}>{value ?? ""}</span>
         </button>
     )
 }

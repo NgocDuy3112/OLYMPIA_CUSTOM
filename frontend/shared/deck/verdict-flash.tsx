@@ -1,5 +1,5 @@
 import { Check, X } from "lucide-react"
-import { pt } from "./geometry"
+import { TYPE, pt } from "./geometry"
 import { fmtDelta, type VerdictFlash } from "./score-flash"
 
 function VerdictRing() {
@@ -27,7 +27,7 @@ export function VerdictFlashLayer({ flash, points, size }: {
 }) {
     if (!flash) return null
     const correct = flash.delta > 0
-    const markSize = size ? size * 0.85 : 30
+    const markSize = size ? size * 0.85 : TYPE.mark
     let tone = "verdict-flash-bad"
     if (correct) tone = "verdict-flash-good"
     return (
@@ -39,7 +39,7 @@ export function VerdictFlashLayer({ flash, points, size }: {
             aria-label={(correct ? "Đúng" : "Sai") + ", " + fmtDelta(flash.delta) + " điểm, tổng " + points}
         >
             <VerdictMark correct={correct} size={markSize} />
-            <span className="verdict-flash-delta font-display font-bold leading-none tabular-nums" style={{ fontSize: size ? pt(size * 0.6) : pt(20) }}>
+            <span className="verdict-flash-delta font-display font-bold leading-none tabular-nums" style={{ fontSize: size ? pt(size * 0.6) : pt(TYPE.value) }}>
                 {fmtDelta(flash.delta)}
             </span>
         </span>

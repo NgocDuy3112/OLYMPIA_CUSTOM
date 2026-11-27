@@ -1,5 +1,5 @@
 import { HINT_TILES, hintTileClass } from "./cells"
-import { pt } from "./geometry"
+import { TYPE, pt } from "./geometry"
 
 export function HintBars({ tiles, openTile, pickedTiles, verdicts, answers, onPick }: {
     tiles?: Array<string | null>
@@ -24,7 +24,7 @@ export function HintBars({ tiles, openTile, pickedTiles, verdicts, answers, onPi
                         <div
                             key={index}
                             className="flex h-[75px] items-center justify-center gap-[1cqw] px-[1.2cqw] bg-muted font-display font-bold leading-none text-muted-foreground/40 ring-1 ring-border"
-                            style={{ fontSize: pt(28) }}
+                            style={{ fontSize: pt(TYPE.digit) }}
                         >
                             <span>{index + 1}</span>
                         </div>
@@ -40,7 +40,7 @@ export function HintBars({ tiles, openTile, pickedTiles, verdicts, answers, onPi
                         >
                             <span
                                 className="text-center font-sans font-semibold leading-tight break-words whitespace-pre-line text-foreground"
-                                style={{ fontSize: pt(16) }}
+                                style={{ fontSize: pt(TYPE.title) }}
                             >
                                 {answer}
                             </span>
@@ -69,8 +69,8 @@ export function HintBars({ tiles, openTile, pickedTiles, verdicts, answers, onPi
                                 }
                             }
                             : undefined}
-                        className={`flex h-[75px] items-center justify-center gap-[1cqw] px-[1.2cqw] ${hintTileClass(state as "open" | "used" | "free" | "absent", interactive)}`}
-                        style={{ fontSize: pt(28) }}
+                        className={`flex h-[75px] items-center justify-center gap-[1cqw] px-[1.2cqw] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${hintTileClass(state as "open" | "used" | "free" | "absent", interactive)}`}
+                        style={{ fontSize: pt(TYPE.digit) }}
                     >
                         <span>{index + 1}</span>
                     </div>

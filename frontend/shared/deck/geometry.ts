@@ -5,6 +5,34 @@ const CANVAS_W = 13.3333
 const PT_SCALE = 0.75
 export const pt = (v: number) => `${+(((v * PT_SCALE) / 72 / CANVAS_W) * 100).toFixed(3)}cqw`
 export const STRIP_R = `${+(((0.44 * 0.31623) / CANVAS_W) * 100).toFixed(3)}cqw`
+
+export const TYPE = {
+    micro: 9,
+    meta: 10,
+    label: 11,
+    bodySm: 12,
+    body: 13,
+    question: 15,
+    title: 16,
+    value: 20,
+    digit: 28,
+    mark: 30,
+    badge: 32,
+    timerSm: 32,
+    score: 34,
+    timer: 40,
+    hero: 48,
+} as const
+
+export const CONTROL_H = "h-[3.3cqw]"
+export const CONTROL_W = "w-[9.08cqw]"
+export const CHIP_H = "h-[4.43cqw]"
+export const CHIP_W = "w-[7cqw]"
+export const STEP_H = "h-[1.95cqw]"
+export const STEP_MIN_W = "min-w-[1.95cqw]"
+export const RAIL_CARD_H = "h-[9.3cqw]"
+export const STRIP_H = "h-[2.6cqw]"
+export const STRIP_W = "w-[7.6cqw]"
 export const DECK_PAD: CSSProperties = {
     paddingLeft: "0.75cqw",
     paddingRight: "0.75cqw",

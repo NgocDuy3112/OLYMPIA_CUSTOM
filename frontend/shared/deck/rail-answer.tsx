@@ -1,5 +1,5 @@
 import { formatDurationMs } from "@shared/lib/clock"
-import { pt } from "./geometry"
+import { TYPE, pt } from "./geometry"
 
 export function RailAnswerLine({ answer, answeredMs, buzzLabel, buzzMs }: {
     answer?: string | null
@@ -16,7 +16,7 @@ export function RailAnswerLine({ answer, answeredMs, buzzLabel, buzzMs }: {
             {hasAnswer && (
                 <span
                     className="block w-full min-h-0 shrink overflow-hidden text-center font-sans leading-tight break-words line-clamp-2 text-foreground"
-                    style={{ fontSize: pt(11) }}
+                    style={{ fontSize: pt(TYPE.label) }}
                     title={answer ?? undefined}
                 >
                     {answer}
@@ -25,7 +25,7 @@ export function RailAnswerLine({ answer, answeredMs, buzzLabel, buzzMs }: {
             {(hasTime || hasBuzz) && (
                 <span
                     className="flex w-full shrink-0 flex-wrap items-center justify-center gap-[0.3cqw] font-sans leading-none text-foreground/85"
-                    style={{ fontSize: pt(10) }}
+                    style={{ fontSize: pt(TYPE.meta) }}
                 >
                     {hasTime && (
                         <span className="tabular-nums text-muted-foreground">

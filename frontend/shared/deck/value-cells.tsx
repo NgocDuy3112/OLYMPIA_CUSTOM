@@ -1,5 +1,5 @@
 import { playerCellClass, type CellWhere } from "./cells"
-import { DECK_PAD, pt } from "./geometry"
+import { DECK_PAD, TYPE, pt } from "./geometry"
 
 export function ValueCells({ cells, onPick }: {
     cells: Array<{ value: number; remaining: number; chosen?: number }>
@@ -25,11 +25,11 @@ export function ValueCells({ cells, onPick }: {
                             disabled={!actionable}
                             onClick={actionable && onPick ? () => onPick(cell.value) : undefined}
                             title={title}
-                            className={`flex-col gap-[0.3cqw] ${playerCellClass({ where, chosen: chosen > 0, actionable })}`}
+                            className={`flex-col gap-[0.3cqw] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${playerCellClass({ where, chosen: chosen > 0, actionable })}`}
                             style={DECK_PAD}
                         >
-                            <b className="font-display leading-none" style={{ fontSize: pt(20) }}>{cell.value}</b>
-                            <span className="font-sans leading-none text-muted-foreground" style={{ fontSize: pt(11) }}>
+                            <b className="font-display leading-none" style={{ fontSize: pt(TYPE.value) }}>{cell.value}</b>
+                            <span className="font-sans leading-none text-muted-foreground" style={{ fontSize: pt(TYPE.label) }}>
                                 còn {cell.remaining}
                             </span>
                         </button>

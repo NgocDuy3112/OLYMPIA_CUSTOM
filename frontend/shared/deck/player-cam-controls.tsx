@@ -7,7 +7,7 @@ const TONE = {
 } as const
 
 const btnCls = (tone: keyof typeof TONE): string =>
-    `flex size-[1.7cqw] shrink-0 items-center justify-center rounded-[0.45cqw] ring-1 transition disabled:opacity-40 ${TONE[tone]}`
+    `flex size-[1.7cqw] shrink-0 items-center justify-center rounded-[0.45cqw] ring-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40 ${TONE[tone]}`
 
 const ICON = "size-[1.05cqw]"
 
