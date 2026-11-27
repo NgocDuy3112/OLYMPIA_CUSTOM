@@ -231,8 +231,7 @@ export function MatchQuestionSurface({
                 clearParam()
             }
         })()
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pendingAdd])
+    }, [pendingAdd, match.status, questions, insertRow])
 
     const handleReorder = (bucket: string, from: number, to: number) => {
         setDraft((current) => {
