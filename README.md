@@ -1,7 +1,7 @@
 # AOC CUSTOM
 This is a repository of the AOC's web app, use for AOC quiz gameshow based on "Đường lên đỉnh Olympia" contest, with adjustments in the gameplay mechanism.
 
-Currently, this app is currently in progress for v2.0; a completely new UI, backend stacks for easier integrations with AI agents. Also, this is the version that have minimal AI-assisted coding.
+This app is currently in progress for v2.0; a completely new UI, backend stacks for easier integrations with AI agents. Also, this is the version that have minimal AI-assisted coding.
 
 
 ## Techstacks that I used
@@ -10,10 +10,10 @@ Currently, this app is currently in progress for v2.0; a completely new UI, back
 | ASP.NET Core (.NET 10) | https://github.com/dotnet/aspnetcore |
 | Entity Framework Core + Npgsql | https://github.com/dotnet/efcore |
 | SignalR | https://github.com/dotnet/aspnetcore/tree/main/src/SignalR |
-| LiveKit server SDK | https://github.com/livekit/server-sdk-dotnet |
+| LiveKit server SDK | https://github.com/pabloFuente/livekit-server-sdk-dotnet |
 | ModelContextProtocol (official MCP SDK) | https://github.com/modelcontextprotocol/csharp-sdk |
-| Konscious Argon2 (node-argon2-compatible hashes) | https://github.com/Konscious/Security.Cryptography |
-| Otp.NET (TOTP) | https://github.com/xxkylexx/Otp.NET |
+| Konscious Argon2 (node-argon2-compatible hashes) | https://github.com/kmaragon/Konscious.Security.Cryptography |
+| Otp.NET (TOTP) | https://github.com/kspearrin/Otp.NET |
 | ClosedXML (Excel import) | https://github.com/ClosedXML/ClosedXML |
 
 The database schema is still owned by the SQL files in `backend/migrations/`
@@ -30,51 +30,66 @@ Three hostnames, one backend, every API call same-origin:
 | `gameplay.aoc.olympia-custom.io.vn` | player deck | `/gameplay/*` |
 | `aoc.olympia-custom.io.vn` | audience app ("Khán giả cùng leo núi") | `/spectate/*`, `/public/*` |
 
-Cookies stay **host-only** (`portal_session` / `gameplay_session`), so a player
-on `gameplay.*` cannot even present an admin cookie. The full shape — Caddyfile,
-the three static images, the env matrix, TLS — lives in [`deploy/`](deploy/README.md);
-run it with `podman compose -f docker-compose.prod.yaml up -d --build`.
+Cookies stay **host-only** by default (`portal_session` / `gameplay_session`; set
+`PORTAL_COOKIE_DOMAIN` / `GAMEPLAY_COOKIE_DOMAIN` only if you want to widen them), so a
+player on `gameplay.*` cannot even present an admin cookie.
+
+The images for that shape are in this repo: `frontend/deploy/` holds the four static
+builds (`portal`, `gameplay`, `audience`, `results`) and `backend/Dockerfile` holds the
+API. The reverse proxy / TLS layer is **not** in this repo — there is no `deploy/`
+directory and no `docker-compose.prod.yaml`; the compose file here is the local/dev one.
 
 Local development is unchanged (Vite servers with prefix proxies, below).
 
 ## Run with Podman
 
-The stack runs in containers — **postgres + backend** — while the frontend runs on the
-host through Vite (compose has no frontend service).
+The stack runs in containers — **postgres, redis, livekit, backend, backup** — while the
+frontend runs on the host through Vite (compose has no frontend service).
 
 ```bash
 # first run only: config
 cp configs.example/.env.example configs/.env
 #   fill in POSTGRES_PASSWORD / POSTGRES_DB / SEED_ADMIN_USERNAME / SEED_ADMIN_PASSWORD,
-#   generate the two secrets:  openssl rand -hex 32
+#   generate the three secrets:  openssl rand -hex 32
+#   (GAMEPLAY_JWT_SECRET, PORTAL_JWT_SECRET, LIVEKIT_API_SECRET)
 #   (do NOT set PORT — the container owns :3000 and compose maps it)
 
-podman compose up -d               # postgres :5432 + backend :3000 (migrations run on start)
+podman compose --env-file configs/.env up -d   # postgres :5432, redis, livekit :7880/7881/7882,
+                                               # backend :3000 (migrations run on start), backup
 
 # frontend, in host terminals:
+cd frontend && npm run dev:portal      # portal    → http://localhost:5174
 cd frontend && npm run dev:gameplay    # gameplay  → http://localhost:5175
-cd frontend && npm run dev             # portal    → http://localhost:5173
+cd frontend && npm run dev:results     # results   → http://localhost:5176
+cd frontend && npm run dev:audience    # audience  → http://localhost:5177
 ```
+
+`scripts/setup.sh` does the whole first run in one go — it creates the two **external**
+volumes (`aoc-postgresql`, `aoc-redis`, which `podman compose up` will not create for
+you), starts the stack, waits for `/health`, creates the database and seeds the admin.
 
 Day-to-day:
 
 ```bash
-podman compose build backend       # rebuild after changing backend/*.cs (no volume mount —
-podman compose up -d backend       #   the image IS the code; recreate to pick it up)
+podman compose --env-file configs/.env build backend   # rebuild after changing backend/*.cs
+podman compose --env-file configs/.env up -d backend   #   (no volume mount — the image IS
+                                                       #   the code; recreate to pick it up)
 podman compose logs -f backend     # follow the backend
-podman compose down                # stop the stack (the data volume survives)
+podman compose --env-file configs/.env down            # stop the stack (volumes survive)
 ```
 
 Notes:
 
 - Config lives in `configs/.env` (start from `configs.example`); containers read it via
-  `env_file`. The Vite dev proxy targets `http://localhost:3000` — if another process ever
-  holds that port, point it elsewhere with `API_PROXY_TARGET`.
+  `env_file`, and compose itself needs it for the `${…}` substitutions in the compose file —
+  hence the `--env-file configs/.env` on the commands above. The Vite dev proxy targets
+  `http://localhost:3000` — if another process ever holds that port, point it elsewhere with
+  `API_PROXY_TARGET`.
 - `docker compose` works identically if you prefer Docker.
 - Google sign-in activates once
   `GOOGLE_OIDC_ISSUER / _CLIENT_ID / _CLIENT_SECRET / _REDIRECT_URI` are set — the local
   redirect URI is `http://localhost:5176/auth/google/callback` (results app).
-- Seed the first admin: `cd backend && set -a && source ../configs/.env && set +a && dotnet run -- --seed-admin`.
+- Seed the first admin: `cd backend && set -a && source ../configs/.env && set +a && dotnet run --project AOC.Api -- --seed-admin` (or just run `scripts/setup.sh`).
 - Run the engine test suite: `cd backend && dotnet test`.
 
 ## Backups
@@ -88,7 +103,7 @@ s3://aoc/backups/pg_dump_14-11-2026_02-00-00.sql.gz
 Filenames are stamped **day-first in ICT** (`Asia/Ho_Chi_Minh`), the order the desk writes by hand. The container also dumps once at boot, so a fresh box is never a day behind.
 
 ```bash
-podman compose up -d backup        # build + start the cron
+podman compose --env-file configs/.env up -d backup   # build + start the cron
 podman logs -f aoc-backup          # follow the runs (boot dump, then daily)
 
 # what's in the bucket
@@ -107,11 +122,10 @@ The egress worker is **out of docker-compose**: it rendered the audience page in
 
 - Capture the **audience** tab, not the console — it is literally the same picture the venue sees.
 - Use OBS *Application Audio Capture* on that tab for the room mix and the SFX; keep the tab visible — a hidden/minimized Chrome tab freezes its video.
-- Push finished files into the bucket the show already uses:
 
 ## Sound effects (SFX)
 
-Cues live in `s3://aoc/sfx/` and the backend pushes each one to the **console** and **audience** hubs as an `sfx` frame carrying a **presigned URL** (ten-minute signature — the bucket needs no public policy at all, and a leaked link dies on its own). Player devices never receive a frame. The whole action→file table is one file: `backend/AOC.Api/Modules/Live/Sfx.cs`.
+Cues live in `s3://aoc/sfx/` and the backend pushes each one to the **console** and **audience** hubs as an `sfx` frame carrying a **presigned URL** (ten-minute signature — the bucket needs no public policy at all, and a leaked link dies on its own). Player devices never receive a frame. The whole action→file table is one file: `backend/AOC.Api/Modules/Live/Wire/Sfx.cs`.
 
 Browsers refuse audio that starts without a user gesture, so both apps attempt every cue anyway and, when one is refused, show a one-tap bar (**Trình duyệt đang chặn âm thanh — Chạm để bật**). The host's first click unlocks it too. For an unattended projector, launch it with the flag instead:
 
