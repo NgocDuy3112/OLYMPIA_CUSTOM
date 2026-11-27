@@ -36,12 +36,12 @@ export function MatchCard({ match, featured = false, onOpen }: MatchCardProps) {
             tabIndex={cardTabIndex}
             onClick={onOpen}
         >
-            <CardContent className="flex flex-col gap-1 sm:flex-row sm:gap-5">
-                <div className="flex shrink-0 flex-row items-center justify-center gap-3 self-stretch border-b border-border pb-2 sm:w-36 sm:flex-col sm:border-b-0 sm:border-r sm:gap-0 sm:pb-0">
-                    <h3 className="font-heading text-lg font-semibold">
+            <CardContent className="flex flex-col gap-3 sm:flex-row sm:gap-5">
+                <div className="flex shrink-0 flex-row items-center justify-center gap-3 self-stretch border-b border-border pb-2 sm:w-36 sm:flex-col sm:border-b-0 sm:border-r sm:gap-1 sm:pb-0 sm:pr-4">
+                    <h3 className="font-heading text-lg font-semibold leading-tight">
                         {match.round}
                     </h3>
-                    <span className="text-sm font-semibold tabular-nums">
+                    <span className="text-sm font-semibold tabular-nums text-muted-foreground">
                         {match.startTime}
                     </span>
                     <Badge variant={STATUS_VARIANT[match.status]}>
@@ -56,7 +56,7 @@ export function MatchCard({ match, featured = false, onOpen }: MatchCardProps) {
                 </div>
 
                 <div className="flex min-w-0 flex-1 flex-col gap-3">
-                    <ul className="flex flex-col gap-1.5">
+                    <ul className="flex flex-col gap-1">
                         {players.map((player) => {
                             const isWinner = player.id === winnerId
                             let scoreSlot: number | string = player.score ?? 0
@@ -66,7 +66,7 @@ export function MatchCard({ match, featured = false, onOpen }: MatchCardProps) {
                                 <li
                                     key={player.id}
                                     className={cn(
-                                        "flex items-center gap-3 rounded-md px-2 py-1.5",
+                                        "flex items-center gap-3 rounded-md px-2 py-2",
                                         isLive && player.rank === 1 && "font-medium"
                                     )}
                                 >
@@ -79,7 +79,7 @@ export function MatchCard({ match, featured = false, onOpen }: MatchCardProps) {
                                             Nhất trận đấu
                                         </Badge>
                                     )}
-                                    <span className="w-8 shrink-0 text-right tabular-nums text-muted-foreground">
+                                    <span className="w-10 shrink-0 text-right tabular-nums text-muted-foreground">
                                         {scoreSlot}
                                     </span>
                                 </li>

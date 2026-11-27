@@ -43,14 +43,13 @@ export function StandingsPanel({
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <Table className={cn("[&_th]:h-10 [&_th]:text-sm [&_td]:py-2.5 [&_td]:text-base")}>
+                <Table className={cn("[&_th]:h-10 [&_th]:px-3 [&_th]:text-xs [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:uppercase [&_td]:px-3 [&_td]:py-2.5 [&_td]:text-base")}>
                     <TableHeader>
                         <TableRow>
                             <TableHead className="w-8">#</TableHead>
                             <TableHead>Thí sinh</TableHead>
                             <TableHead>Đã tới vòng</TableHead>
-                            <TableHead className="text-center">Trận</TableHead>
-                        </TableRow>
+                            <TableHead className="text-center">Trận</TableHead>                        </TableRow>
                     </TableHeader>
                     <TableBody>
                         {rows.map((row) => {

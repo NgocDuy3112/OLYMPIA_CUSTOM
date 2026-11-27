@@ -56,43 +56,8 @@ export function RoundChart({ rounds, players }: RoundChartProps) {
     }
 
     return (
-        <div className="relative h-60 w-full">
-            <ChartContainer config={config} className="h-60 w-full">
-                <LineChart
-                    data={data}
-                    margin={{ top: 8, left: 8, right: 8 }}
-                >
-                {withRounds.map((p) => (
-                    <Line
-                        key={p.id}
-                        name={p.name}
-                        dataKey={p.id}
-                        type="monotone"
-                        stroke={`var(--color-${p.id})`}
-                        strokeWidth={2.5}
-                        dot={{ r: 3 }}
-                        activeDot={{ r: 5 }}
-                    />
-                ))}
-                <CartesianGrid vertical={false} strokeDasharray="4 4" className="stroke-border" />
-                <XAxis
-                    dataKey="round"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    tick={{ fontSize: 11 }}
-                    interval={0}
-                    padding={{ left: 20, right: 20 }}
-                />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                </LineChart>
-            </ChartContainer>
-
-
-            <div
-                className="absolute left-3 top-2 flex max-h-[calc(100%-1rem)] flex-col flex-wrap items-start gap-x-4 gap-y-1 text-xs"
-                style={{ color: "var(--foreground)" }}
-            >
+        <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-foreground">
                 {withRounds.map((p, pi) => (
                     <span key={p.id} className="inline-flex items-center gap-1.5 whitespace-nowrap">
                         <span
@@ -104,6 +69,37 @@ export function RoundChart({ rounds, players }: RoundChartProps) {
                     </span>
                 ))}
             </div>
+
+            <ChartContainer config={config} className="h-60 w-full">
+                <LineChart
+                    data={data}
+                    margin={{ top: 8, left: 8, right: 8 }}
+                >
+                    {withRounds.map((p) => (
+                        <Line
+                            key={p.id}
+                            name={p.name}
+                            dataKey={p.id}
+                            type="monotone"
+                            stroke={`var(--color-${p.id})`}
+                            strokeWidth={2.5}
+                            dot={{ r: 3 }}
+                            activeDot={{ r: 5 }}
+                        />
+                    ))}
+                    <CartesianGrid vertical={false} strokeDasharray="4 4" className="stroke-border" />
+                    <XAxis
+                        dataKey="round"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={10}
+                        tick={{ fontSize: 12 }}
+                        interval={0}
+                        padding={{ left: 8, right: 8 }}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                </LineChart>
+            </ChartContainer>
         </div>
     )
 }

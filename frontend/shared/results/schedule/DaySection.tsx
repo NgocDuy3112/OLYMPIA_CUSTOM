@@ -12,10 +12,10 @@ export function DaySection({ date, matches, onOpenMatch }: DaySectionProps) {
     let matchSuffix = "es"
     if (matches.length === 1) matchSuffix = ""
     return (
-        <section className="flex flex-col gap-3">
-            <div className="flex items-baseline justify-between">
+        <section className="flex flex-col gap-2">
+            <div className="flex items-baseline justify-between gap-3 border-b pb-2">
                 <h2 className="font-heading text-lg font-semibold">{formatDay(date)}</h2>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs tabular-nums text-muted-foreground">
                     {matches.length} match{matchSuffix}
                 </span>
             </div>

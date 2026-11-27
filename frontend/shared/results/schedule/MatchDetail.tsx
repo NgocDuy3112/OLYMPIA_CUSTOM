@@ -85,7 +85,7 @@ export function MatchDetail({ match, rounds, onBack, variant = "page" }: MatchDe
                                         </span>
                                         {isWinner && (
                                             <Badge variant="default" className="shrink-0 gap-1">
-                                                <Trophy className="size-6" aria-hidden />
+                                                <Trophy className="size-3" aria-hidden />
                                                 Nhất trận đấu
                                             </Badge>
                                         )}
@@ -116,7 +116,7 @@ export function MatchDetail({ match, rounds, onBack, variant = "page" }: MatchDe
                     </div>
                     <div className="flex flex-col gap-2">
                         <div className="rounded-xl border">
-                            <Table className={cn("[&_th]:h-10 [&_th]:text-sm [&_td]:py-2.5")}>
+                            <Table className={cn("[&_th]:h-10 [&_th]:px-3 [&_th]:text-xs [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:uppercase [&_td]:px-3 [&_td]:py-2.5")}>
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Thí sinh</TableHead>
@@ -197,7 +197,7 @@ export function MatchDetail({ match, rounds, onBack, variant = "page" }: MatchDe
                         className={buttonVariants({ variant: "ghost", size: "sm" })}
                     >
                         <ArrowLeft />
-                        Back
+                        Quay lại
                     </button>
                 </div>
             )}
@@ -212,7 +212,7 @@ function RoundStatsPanel({ row }: { row: RoundRow }) {
 
     return (
         <div className="rounded-xl border">
-            <Table className={cn("[&_th]:h-10 [&_th]:text-sm [&_td]:py-2.5")}>
+            <Table className={cn("[&_th]:h-10 [&_th]:px-3 [&_th]:text-xs [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:uppercase [&_td]:px-3 [&_td]:py-2.5")}>
                 <TableHeader>
                     <TableRow>
                         <TableHead>Thí sinh</TableHead>
@@ -236,7 +236,7 @@ function RoundStatsPanel({ row }: { row: RoundRow }) {
                                     {score.points}
                                     {won && (
                                         <Trophy
-                                            className="ml-1 inline size-3 text-amber-500"
+                                            className="ml-1 inline size-3 text-chart-4"
                                             aria-label="thắng vòng"
                                         />
                                     )}

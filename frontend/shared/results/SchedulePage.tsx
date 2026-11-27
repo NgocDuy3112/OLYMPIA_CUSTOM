@@ -164,14 +164,14 @@ function ScheduleSkeleton() {
     return (
         <div
             role="status"
-            aria-label="Loading schedule"
-            className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start"
+            aria-label="Đang tải lịch thi đấu"
+            className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start"
         >
+            <div className="hidden h-72 animate-pulse rounded-xl bg-muted lg:block" />
             <div className="flex flex-col gap-4">
                 <div className="h-44 animate-pulse rounded-xl bg-muted" />
                 <div className="h-44 animate-pulse rounded-xl bg-muted" />
             </div>
-            <div className="h-72 animate-pulse rounded-xl bg-muted" />
         </div>
     )
 }

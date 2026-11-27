@@ -1,3 +1,4 @@
+import { PageHeader } from "@shared/results/PageHeader";
 import { Button } from "@shared/ui/button";
 import { ArrowLeft, ArrowRight, Settings } from "lucide-react";
 
@@ -21,50 +22,49 @@ export function ScheduleHeader({
     onSettings,
 }: ScheduleHeaderProps) {
     return (
-        <header className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 md:px-6">
-            <h1 className="font-heading text-2xl font-bold md:text-3xl">{title}</h1>
-            <div className="flex items-center gap-2">
-                
-                <div className="flex items-center overflow-hidden rounded-lg bg-secondary">
+        <PageHeader
+            title={title}
+            actions={
+                <>
+                    <div className="flex items-center overflow-hidden rounded-lg bg-secondary">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="rounded-none"
+                            aria-label="Previous day"
+                            onClick={onPrevDay}
+                        >
+                            <ArrowLeft />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="rounded-none px-3"
+                            onClick={onToday}
+                        >
+                            {dayLabel}
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="rounded-none"
+                            aria-label="Next day"
+                            onClick={onNextDay}
+                        >
+                            <ArrowRight />
+                        </Button>
+                    </div>
+
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="rounded-none"
-                        aria-label="Previous day"
-                        onClick={onPrevDay}
+                        aria-label="Settings"
+                        onClick={onSettings}
                     >
-                        <ArrowLeft />
+                        <Settings />
                     </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="rounded-none px-3"
-                        onClick={onToday}
-                    >
-                        {dayLabel}
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="rounded-none"
-                        aria-label="Next day"
-                        onClick={onNextDay}
-                    >
-                        <ArrowRight />
-                    </Button>
-                </div>
-
-
-                
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Settings"
-                    onClick={onSettings}
-                >
-                    <Settings />
-                </Button>
-            </div>
-        </header>
+                </>
+            }
+        />
     )
 }
