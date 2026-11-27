@@ -66,7 +66,7 @@ export function TournamentDetailPage() {
 
     return (
         <Page>
-            <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm text-muted-foreground">
                 <Link
                     className="rounded-sm transition-colors outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
                     to="/"
@@ -78,8 +78,9 @@ export function TournamentDetailPage() {
             </nav>
             <PageHeader
                 title={s.name}
+                description="Matches, standings, groups and stages of this tournament."
                 actions={
-                    <>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
                         {s.current && <Badge>Current</Badge>}
                         {s.closedAt && <Badge variant="secondary">Closed</Badge>}
                         {frozen && <Badge variant="outline">Rules frozen</Badge>}
@@ -103,7 +104,7 @@ export function TournamentDetailPage() {
                         >
                             <Trash2 className="size-4" aria-hidden /> Delete
                         </Button>
-                    </>
+                    </div>
                 }
             />
 

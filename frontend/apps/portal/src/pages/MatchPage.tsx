@@ -56,7 +56,7 @@ export function MatchPage() {
 
     return (
         <Page>
-            <nav className={crumbs}>
+            <nav aria-label="Breadcrumb" className={crumbs}>
                 <Link className={crumbLink} to="/">Tournaments</Link>
                 <ChevronRight className="size-3.5" aria-hidden />
                 <Link className={crumbLink} to={back}>
@@ -68,6 +68,7 @@ export function MatchPage() {
 
             <PageHeader
                 title={match.label}
+                description="Câu hỏi và kết quả của trận này."
                 actions={<StatusBadge status={match.status} />}
             />
 

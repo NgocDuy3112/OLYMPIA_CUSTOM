@@ -263,6 +263,7 @@ export function QuestionsPage() {
         <Page>
             <PageHeader
                 title="Questions"
+                description="The question bank every round draws from."
                 actions={
                     <Button size="sm" onClick={() => setEditing({ open: true, row: null })}>
                         <Plus className="size-4" aria-hidden /> New question

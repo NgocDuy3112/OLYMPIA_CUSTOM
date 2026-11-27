@@ -214,6 +214,7 @@ export function AuditPage() {
         <Page>
             <PageHeader
                 title="Audit log"
+                description="Every action taken in the portal, newest first."
                 actions={
                     <>
                         <Badge variant={streamStatus === "live" ? "default" : "outline"}>

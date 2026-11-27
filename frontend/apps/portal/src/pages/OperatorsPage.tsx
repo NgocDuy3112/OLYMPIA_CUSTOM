@@ -250,6 +250,7 @@ export function OperatorsPage() {
         <Page>
             <PageHeader
                 title="Operators"
+                description="Staff accounts that can run a live match."
                 actions={
                     <Button size="sm" onClick={() => setInviting(true)}>
                         <UserPlus className="size-4" aria-hidden /> New operator

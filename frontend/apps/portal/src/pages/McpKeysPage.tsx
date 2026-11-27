@@ -305,6 +305,7 @@ export function McpKeysPage() {
         <Page>
             <PageHeader
                 title="MCP keys"
+                description="Tokens for the agents that read and write through MCP."
                 actions={
                     <Button size="sm" disabled={!scopes.data} onClick={() => setIssuing(true)}>
                         <Plus className="size-4" aria-hidden /> New key

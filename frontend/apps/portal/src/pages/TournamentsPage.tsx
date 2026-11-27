@@ -7,7 +7,6 @@ import {
     Card,
     CardAction,
     CardContent,
-    CardDescription,
     CardFooter,
     CardHeader,
     CardTitle,
@@ -127,6 +126,7 @@ export function TournamentsPage() {
         <Page>
             <PageHeader
                 title="Tournaments"
+                description="One run of a show — its roster, stages, matches and standings."
                 actions={
                     <Button size="sm" onClick={() => setCreating(true)}>
                         <Plus className="size-4" aria-hidden /> New tournament
@@ -137,9 +137,6 @@ export function TournamentsPage() {
             <Card>
                 <CardHeader>
                     <CardTitle className="text-base">All tournaments</CardTitle>
-                    <CardDescription>
-                        One run of a show: its roster, its stages, its matches and its standings.
-                    </CardDescription>
                     <CardAction>
                         <Input
                             className="w-full sm:w-64"
