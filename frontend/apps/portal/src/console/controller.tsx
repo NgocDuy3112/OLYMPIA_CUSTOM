@@ -16,7 +16,7 @@ function ControlBanner({ control }: { control: ConsoleControl }) {
     return (
         <div
             role="status"
-            className="absolute inset-x-0 top-0 z-40 flex flex-wrap items-center justify-center gap-3 border-b border-amber-600/40 bg-amber-500/10 px-3 py-2 text-center font-sans text-xs text-amber-800 backdrop-blur dark:text-amber-400"
+            className="absolute inset-x-0 top-0 z-40 flex flex-wrap items-center justify-center gap-3 border-b border-amber-500/40 bg-amber-500/10 px-3 py-2 text-center font-sans text-xs font-medium text-amber-800 backdrop-blur dark:text-amber-300"
         >
             <span>
                 Đang điều khiển: <b>{control.controllerName}</b> — mỗi trận chỉ có một người điều hành.
@@ -38,7 +38,9 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
     if (model.phase === "loading") {
         return (
             <StageShell fullHeight>
-                <div role="status" className="flex h-full items-center justify-center text-sm text-muted-foreground">Đang tải vòng thi…</div>
+                <div role="status" className="flex h-full items-center justify-center font-sans text-sm text-muted-foreground">
+                    Đang tải vòng thi…
+                </div>
             </StageShell>
         )
     }
@@ -46,7 +48,7 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
     if (model.phase === "error") {
         return (
             <StageShell fullHeight>
-                <div role="alert" className="flex h-full items-center justify-center p-8 text-sm text-destructive">
+                <div role="alert" className="flex h-full items-center justify-center p-8 font-sans text-sm text-destructive">
                     {model.message}
                 </div>
             </StageShell>
@@ -57,7 +59,7 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
         return (
             <StageShell fullHeight>
                 <ControlBanner control={model.control} />
-                
+
                 <Lobby
                     data={model.lobby}
                     mc={{
@@ -119,40 +121,38 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
     )
     if (roundModule) screen = roundModule.render(facts)
     return (
-
-    <ConsoleControlContext.Provider value={model.control}>
-                <StageShell fullHeight>
-                    <ControlBanner control={model.control} />
-                    {screen}
-                    <AssistantSheet surface={model.assistant} />
-                    {model.adjustFor && (
-                        <AdjustScoreDialog
-                            playerName={facts.baseCards.find((c) => c.id === model.adjustFor)?.name ?? model.adjustFor}
-                            pending={model.adjustPending}
-                            error={model.adjustError}
-                            onCancel={model.closeAdjust}
-                            onSubmit={model.submitAdjust}
-                        />
-                    )}
-                    {model.regradeFor && (
-                        <RegradeDialog
-                            playerName={facts.baseCards.find((c) => c.id === model.regradeFor)?.name ?? model.regradeFor}
-                            pending={model.regradePending}
-                            error={model.regradeError}
-                            rows={(facts.v.projection.answers ?? [])
-                                .filter((a) => a.userId === model.regradeFor)
-                                .map((a) => ({
-                                    questionId: a.questionId,
-                                    text: facts.byId(a.questionId)?.questionText ?? a.questionId,
-                                    points: a.pointsAwarded ?? 0,
-                                    roundId: facts.byId(a.questionId)?.roundId ?? "",
-                                }))}
-                            onCancel={model.closeRegrade}
-                            onSubmit={model.submitRegrade}
-                        />
-                    )}
-                </StageShell>
-            </ConsoleControlContext.Provider>
-        
+        <ConsoleControlContext.Provider value={model.control}>
+            <StageShell fullHeight>
+                <ControlBanner control={model.control} />
+                {screen}
+                <AssistantSheet surface={model.assistant} />
+                {model.adjustFor && (
+                    <AdjustScoreDialog
+                        playerName={facts.baseCards.find((c) => c.id === model.adjustFor)?.name ?? model.adjustFor}
+                        pending={model.adjustPending}
+                        error={model.adjustError}
+                        onCancel={model.closeAdjust}
+                        onSubmit={model.submitAdjust}
+                    />
+                )}
+                {model.regradeFor && (
+                    <RegradeDialog
+                        playerName={facts.baseCards.find((c) => c.id === model.regradeFor)?.name ?? model.regradeFor}
+                        pending={model.regradePending}
+                        error={model.regradeError}
+                        rows={(facts.v.projection.answers ?? [])
+                            .filter((a) => a.userId === model.regradeFor)
+                            .map((a) => ({
+                                questionId: a.questionId,
+                                text: facts.byId(a.questionId)?.questionText ?? a.questionId,
+                                points: a.pointsAwarded ?? 0,
+                                roundId: facts.byId(a.questionId)?.roundId ?? "",
+                            }))}
+                        onCancel={model.closeRegrade}
+                        onSubmit={model.submitRegrade}
+                    />
+                )}
+            </StageShell>
+        </ConsoleControlContext.Provider>
     )
 }

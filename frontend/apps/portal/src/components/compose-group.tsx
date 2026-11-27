@@ -103,8 +103,6 @@ export function ComposeDndProvider({
             }}
         >
             {children}
-            {
-}
             <DragOverlay>
                 {dragging?.label && (
                     <div className="pointer-events-none flex max-w-64 items-center gap-2 rounded-md border border-primary bg-background px-2 py-1.5 text-sm shadow-lg">
@@ -164,7 +162,7 @@ export function ComposeGroup({
     if (isOver) {
         if (editable) sectionBorder = "border-primary"
     }
-    let coverageCls = "text-amber-600"
+    let coverageCls = "text-amber-700 dark:text-amber-400"
     if (complete) coverageCls = "text-muted-foreground"
 
     return (
@@ -288,7 +286,7 @@ function SortableGroupRow({
             )}
             {row.warning && (
                 <span
-                    className="shrink-0 text-amber-600"
+                    className="shrink-0 text-amber-700 dark:text-amber-400"
                     title="Nguồn đã sửa kể từ khi sao chép"
                     aria-label="Nguồn đã sửa"
                 >
