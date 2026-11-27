@@ -146,3 +146,63 @@ describe("scope catalogue", () => {
         expect(screen.queryByRole("button", { name: /New key/ })).toBeDisabled()
     })
 })
+
+describe("keyboard and in-flight actions", () => {
+    it("Enter in the label field issues the key, once", async () => {
+        const user = userEvent.setup()
+        const { fetchMock } = renderWithProviders(<McpKeysPage />, {
+            routes: {
+                "GET /portal/mcp-keys?limit=50&offset=0": listRoute([]),
+                "GET /portal/mcp-keys/scopes": { body: catalogue },
+                "POST /portal/mcp-keys": { status: 201, body: { token: "aoc_live_secret" } },
+            },
+        })
+
+        await user.click(await screen.findByRole("button", { name: /New key/ }))
+        const dialog = await screen.findByRole("dialog")
+        await user.type(within(dialog).getByLabelText("Label"), "Analyst bot")
+        await user.keyboard("{Enter}")
+
+        if (!fetchMock) throw new Error("fetch was not stubbed")
+        await waitFor(() =>
+            expect(fetchMock.mock.calls.filter(([url]) => url === "/portal/mcp-keys")).toHaveLength(1)
+        )
+        expect(await within(dialog).findByText("aoc_live_secret")).toBeInTheDocument()
+    })
+
+    it("Escape cannot dismiss a revoke that is still in flight", async () => {
+        const user = userEvent.setup()
+        const gate = { open: () => {} }
+        const pending = new Promise<void>((resolve) => {
+            gate.open = resolve
+        })
+
+        renderWithProviders(<McpKeysPage />, {
+            routes: {
+                "GET /portal/mcp-keys?limit=50&offset=0": listRoute([key]),
+                "GET /portal/mcp-keys/scopes": { body: catalogue },
+            },
+        })
+
+        await user.click(await screen.findByRole("button", { name: /Revoke/ }))
+        const dialog = await screen.findByRole("dialog")
+
+        const realFetch = globalThis.fetch
+        vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+            if (String(input) === "/portal/mcp-keys/revoke") {
+                await pending
+                return { ok: true, status: 200, json: async () => ({ revoked: 1, ids: ["k1"] }) } as unknown as Response
+            }
+            return realFetch(input, init)
+        })
+
+        await user.click(within(dialog).getByRole("button", { name: "Revoke key" }))
+        await waitFor(() => expect(within(dialog).getByRole("button", { name: /Revoking/ })).toBeDisabled())
+
+        await user.keyboard("{Escape}")
+        expect(screen.getByRole("dialog")).toBeInTheDocument()
+
+        gate.open()
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+    })
+})

@@ -27,6 +27,12 @@ export function PortalShell() {
 
     return (
         <div className="flex min-h-dvh">
+            <a
+                href="#portal-main"
+                className="sr-only rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground focus-visible:not-sr-only focus-visible:absolute focus-visible:top-2 focus-visible:left-2 focus-visible:z-50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+                Skip to content
+            </a>
             <aside className="sticky top-0 flex h-dvh w-56 shrink-0 flex-col overflow-y-auto border-r bg-muted/30">
                 <Link
                     to="/"
@@ -78,7 +84,7 @@ export function PortalShell() {
                 </div>
             </aside>
 
-            <main className="min-w-0 flex-1">
+            <main id="portal-main" tabIndex={-1} className="min-w-0 flex-1 outline-none">
                 <Outlet />
             </main>
 
