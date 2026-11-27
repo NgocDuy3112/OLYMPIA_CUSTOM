@@ -84,7 +84,7 @@ export function ForgotPasswordPage() {
             <div className="mx-auto flex w-full max-w-96 flex-col gap-4 px-4 py-10">
                 <Card>
                     <CardContent>
-                        <form onSubmit={submitReset}>
+                        <form onSubmit={submitReset} aria-busy={reset.isPending}>
                             <FieldGroup>
                                 <div className="flex flex-col gap-1 text-center">
                                     <h1 className="font-display text-2xl font-bold uppercase leading-none text-foreground">
@@ -169,7 +169,7 @@ export function ForgotPasswordPage() {
         <div className="mx-auto flex w-full max-w-96 flex-col gap-4 px-4 py-10">
             <Card>
                 <CardContent>
-                    <form onSubmit={submitEmail}>
+                    <form onSubmit={submitEmail} aria-busy={forgot.isPending}>
                         <FieldGroup>
                             <div className="flex flex-col gap-1 text-center">
                                 <h1 className="font-display text-2xl font-bold uppercase leading-none text-foreground">

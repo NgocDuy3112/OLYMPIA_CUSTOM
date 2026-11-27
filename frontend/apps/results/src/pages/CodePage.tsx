@@ -130,7 +130,7 @@ export function CodePage() {
 
                             {codeStatus}
 
-                            <Button type="submit" disabled={claim.isPending || code.trim().length === 0}>
+                            <Button type="submit" disabled={claim.isPending || code.trim().length === 0} aria-busy={claim.isPending}>
                                 {claimLabel}
                             </Button>
                         </FieldGroup>

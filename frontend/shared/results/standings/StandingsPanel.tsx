@@ -14,9 +14,10 @@ import {
     TableHeader,
     TableRow,
 } from "@shared/ui/table"
-import { Trophy, ArrowRight } from "lucide-react"
+import { Trophy, ArrowRight, Users } from "lucide-react"
 import { cn } from "cn"
 import { SOLID_SURFACE } from "@shared/ui/solid"
+import { EmptyState } from "@shared/ui/state"
 import type { StandingRow } from "@shared/results/types"
 
 
@@ -43,13 +44,21 @@ export function StandingsPanel({
                 </CardDescription>
             </CardHeader>
             <CardContent>
+                {rows.length === 0 ? (
+                    <EmptyState
+                        icon={Users}
+                        title="Chưa có thí sinh"
+                        description="Bảng xếp hạng xuất hiện khi giải đấu bắt đầu."
+                    />
+                ) : (
                 <Table className={cn("[&_th]:h-10 [&_th]:px-3 [&_th]:text-xs [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:uppercase [&_td]:px-3 [&_td]:py-2.5 [&_td]:text-base")}>
                     <TableHeader>
                         <TableRow>
                             <TableHead className="w-8">#</TableHead>
                             <TableHead>Thí sinh</TableHead>
                             <TableHead>Đã tới vòng</TableHead>
-                            <TableHead className="text-center">Trận</TableHead>                        </TableRow>
+                            <TableHead className="text-center">Trận</TableHead>
+                        </TableRow>
                     </TableHeader>
                     <TableBody>
                         {rows.map((row) => {
@@ -59,7 +68,12 @@ export function StandingsPanel({
                                 <TableRow
                                     key={row.id}
                                     tabIndex={tabIndex}
-                                    className={cn(onSelectRow && "cursor-pointer")}
+                                    onKeyDown={onSelectRow ? (event) => {
+                                        if (event.key !== "Enter" && event.key !== " ") return
+                                        event.preventDefault()
+                                        onSelectRow(row)
+                                    } : undefined}
+                                    className={cn(onSelectRow && "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring")}
                                     onClick={() => onSelectRow?.(row)}
                                 >
                                     <TableCell className="tabular-nums text-muted-foreground">
@@ -79,6 +93,7 @@ export function StandingsPanel({
                         })}
                     </TableBody>
                 </Table>
+                )}
                 {viewAllTo && (
                     <Link
                         to={viewAllTo}

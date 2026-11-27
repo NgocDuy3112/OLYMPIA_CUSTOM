@@ -55,7 +55,13 @@ export function EnterMatchDialog({ open, onClose }: EnterMatchDialogProps) {
     }
 
     let seatsSlot: ReactNode = null
-    if (seats.length > 0) {
+    if (myMatches.isPending) {
+        seatsSlot = (
+            <p role="status" className="text-sm text-muted-foreground">
+                Đang tải ghế của bạn…
+            </p>
+        )
+    } else if (seats.length > 0) {
         seatsSlot = (
             <div className="grid gap-1.5">
                 <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -69,7 +75,7 @@ export function EnterMatchDialog({ open, onClose }: EnterMatchDialogProps) {
                             key={match.matchId}
                             type="button"
                             onClick={() => goToMatch(match)}
-                            className="flex w-full flex-col rounded-lg border px-3 py-2 text-left hover:bg-accent"
+                            className="flex w-full flex-col rounded-lg border px-3 py-2 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
                             <span className="text-sm font-medium">{match.tournamentName}</span>
                             <span className="text-xs text-muted-foreground">
@@ -86,6 +92,12 @@ export function EnterMatchDialog({ open, onClose }: EnterMatchDialogProps) {
         seatsSlot = (
             <p role="status" className="text-sm text-muted-foreground">
                 Không đọc được danh sách trận — thử lại.
+            </p>
+        )
+    } else if (!myMatches.isPending && seats.length === 0) {
+        seatsSlot = (
+            <p className="text-sm text-muted-foreground">
+                Bạn chưa có ghế nào trong giải — ban điều hành sẽ xếp bạn vào trận.
             </p>
         )
     }
@@ -115,7 +127,7 @@ export function EnterMatchDialog({ open, onClose }: EnterMatchDialogProps) {
                     <p className="text-xs text-muted-foreground">
                         Mã phòng tạm khoá — phần Khán giả tương tác đang được dựng.
                     </p>
-                    <form onSubmit={submit} className="grid gap-2">
+                    <form onSubmit={submit} className="grid gap-2" aria-busy={claim.isPending}>
                         <label htmlFor="room-code" className="text-sm font-medium">
                             Mã phòng
                         </label>
@@ -139,7 +151,7 @@ export function EnterMatchDialog({ open, onClose }: EnterMatchDialogProps) {
                         {routeError && (
                             <p role="alert" className="text-sm text-destructive">{routeError}</p>
                         )}
-                        <Button type="submit" disabled={codeDisabled || claim.isPending || code.trim().length === 0}>
+                        <Button type="submit" disabled={codeDisabled || claim.isPending || code.trim().length === 0} aria-busy={claim.isPending}>
                             {claimLabel}
                         </Button>
                     </form>

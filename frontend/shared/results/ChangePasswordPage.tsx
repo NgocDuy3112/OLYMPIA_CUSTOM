@@ -90,7 +90,7 @@ export function ChangePasswordPage() {
         <div className="mx-auto flex w-full max-w-96 flex-col gap-4 px-4 py-10">
             <Card>
                 <CardContent>
-                    <form onSubmit={submit}>
+                    <form onSubmit={submit} aria-busy={change.isPending}>
                         <FieldGroup>
                             <div className="flex flex-col gap-1 text-center">
                                 <h1 className="font-display text-2xl font-bold uppercase leading-none text-foreground">

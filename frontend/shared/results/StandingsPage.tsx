@@ -18,7 +18,7 @@ export function StandingsPage({ rows, matches, loading = false }: StandingsPageP
             <div
                 role="status"
                 aria-label="Đang tải bảng xếp hạng"
-                className="mx-auto w-full px-4 py-6 md:py-10"
+                className="mx-auto w-full max-w-360 px-4 py-6 md:py-10"
             >
                 <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
                     <div className="h-96 animate-pulse rounded-xl bg-muted" />

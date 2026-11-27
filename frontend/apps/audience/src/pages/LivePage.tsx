@@ -10,11 +10,11 @@ export function LivePage() {
     const led = search.get("mode") === "led"
 
     if (!tournamentId || !matchId) {
-        return <Notice title="Thiếu đường dẫn" body="" />
+        return <Notice role="alert" title="Thiếu đường dẫn" body="" />
     }
-    if (live.isPending) return <Notice title="Đang kết nối" body="Chờ màn hình của sân khấu…" />
+    if (live.isPending) return <Notice role="status" title="Đang kết nối" body="Chờ màn hình của sân khấu…" />
     if (live.isError) {
-        return <Notice title="Chưa có màn hình" body="Trận chưa diễn ra, hoặc đường dẫn không còn hiệu lực." />
+        return <Notice role="alert" title="Chưa có màn hình" body="Trận chưa diễn ra, hoặc đường dẫn không còn hiệu lực." />
     }
 
     let shellCls = "min-h-dvh"
@@ -26,12 +26,12 @@ export function LivePage() {
     )
 }
 
-function Notice({ title, body }: { title: string; body: string }) {
+function Notice({ title, body, role }: { title: string; body: string; role: "status" | "alert" }) {
     return (
-        <div className="flex min-h-dvh items-center justify-center px-6 text-center">
-            <div className="flex max-w-md flex-col gap-2">
-                <h1 className="font-display text-2xl font-bold uppercase">{title}</h1>
-                <p className="font-sans text-sm text-muted-foreground">{body}</p>
+        <div role={role} className="flex min-h-dvh items-center justify-center px-5 py-10 text-center sm:px-6">
+            <div className="flex max-w-md flex-col gap-3">
+                <h1 className="font-display text-2xl font-bold uppercase leading-tight sm:text-3xl">{title}</h1>
+                <p className="font-sans text-sm leading-relaxed text-muted-foreground sm:text-base">{body}</p>
             </div>
         </div>
     )

@@ -162,7 +162,7 @@ export function LoginPage() {
                         </button>
                     </div>
 
-                    <form className="flex flex-col gap-2" onSubmit={submit}>
+                    <form className="flex flex-col gap-2" onSubmit={submit} aria-busy={busy}>
                         {mode === "register" && (
                             <input
                                 type="text"
@@ -213,6 +213,7 @@ export function LoginPage() {
                         <button
                             type="submit"
                             disabled={busy}
+                            aria-busy={busy}
                             className={cn(buttonVariants({ size: "lg" }), "h-10 w-full disabled:opacity-60")}
                         >
                             {busy ? "…" : mode === "login" ? "Vào trận" : "Tạo tài khoản"}

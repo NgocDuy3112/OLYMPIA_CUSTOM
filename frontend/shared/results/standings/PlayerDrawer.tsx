@@ -1,9 +1,10 @@
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import type { ReactNode } from "react"
-import { X } from "lucide-react"
+import { CalendarX2, X } from "lucide-react"
 import { cn } from "cn"
 import { SOLID_SURFACE } from "@shared/ui/solid"
 import { Badge } from "@shared/ui/badge"
+import { EmptyState } from "@shared/ui/state"
 import { DialogOverlay } from "@shared/ui/dialog"
 import { formatDay } from "@shared/results/format"
 import { STATUS_LABEL, STATUS_VARIANT } from "@shared/results/schedule/status"
@@ -70,9 +71,11 @@ export function PlayerDrawer({
     )
     if (history.length === 0) {
         historySlot = (
-            <p className="text-sm text-muted-foreground">
-                Chưa có trận nào.
-            </p>
+            <EmptyState
+                icon={CalendarX2}
+                title="Chưa có trận nào"
+                description="Lịch sử thi đấu của thí sinh sẽ hiện ở đây sau trận đầu tiên."
+            />
         )
     }
 
