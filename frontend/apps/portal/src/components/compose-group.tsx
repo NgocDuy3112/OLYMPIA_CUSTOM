@@ -338,23 +338,33 @@ export function BankPickerItem({
     return (
         <li
             ref={setNodeRef}
-            {...listeners}
+            onPointerDown={(event) => listeners?.onPointerDown?.(event)}
             {...attributes}
-            onClick={onClick}
+            // The add button is the row's tab stop and owns Enter: dnd-kit's
+            // keyboard activator would swallow it on the way up.
+            tabIndex={-1}
             className={
-                "flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-sm " + itemCls
+                "rounded-md border border-border bg-background text-sm " + itemCls
             }
         >
-            <GripVertical className="size-4 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 flex-1 truncate">{primary}</span>
-            {secondary && (
-                <span className="shrink-0 text-xs text-muted-foreground">{secondary}</span>
-            )}
-            {typeBadge && (
-                <Badge variant="outline" className="shrink-0">
-                    {typeBadge}
-                </Badge>
-            )}
+            <button
+                type="button"
+                onClick={onClick}
+                disabled={disabled}
+                aria-label={`Thêm vào nhóm: ${primary}`}
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed"
+            >
+                <GripVertical className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <span className="min-w-0 flex-1 truncate">{primary}</span>
+                {secondary && (
+                    <span className="shrink-0 text-xs text-muted-foreground">{secondary}</span>
+                )}
+                {typeBadge && (
+                    <Badge variant="outline" className="shrink-0">
+                        {typeBadge}
+                    </Badge>
+                )}
+            </button>
         </li>
     )
 }

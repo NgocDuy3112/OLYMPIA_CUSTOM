@@ -101,6 +101,10 @@ export function RegradeDialog({ playerName, rows, pending, error, onCancel, onSu
                         type="search"
                         value={search}
                         onChange={(event) => setSearch(event.target.value)}
+                        // Enter belongs to the search here, not to the delta submit.
+                        onKeyDown={(event) => {
+                            if (event.key === "Enter") event.preventDefault()
+                        }}
                         placeholder="Tìm câu hỏi…"
                         aria-label="Tìm câu hỏi"
                     />
