@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Link2, Plus, Save, X } from "lucide-react"
+import { Link2, Save, X } from "lucide-react"
 import { api } from "@shared/lib/api"
 import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
@@ -19,7 +19,6 @@ import {
     buildPayload,
     draftFrom,
     kindFor,
-    nextOptionId,
     payloadShapeOf,
     reasonFor,
     stripBridge,
@@ -29,6 +28,7 @@ import {
 } from "./question-author/payload-shape"
 import { AudiencePreview } from "./question-author/AudiencePreview"
 import { MediaField } from "./question-author/MediaField"
+import { OptionsField } from "./question-author/OptionsField"
 
 export type {
     AuthorDraft,
@@ -104,40 +104,6 @@ export function QuestionAuthorDialog({
         }
     }
 
-    const setOptionText = (id: string, text: string) =>
-        patch({
-            options: draft.options.map((o) => {
-                if (o.id === id) return { ...o, text }
-                return o
-            }),
-        })
-
-    const addOption = () =>
-        patch({ options: [...draft.options, { id: nextOptionId(draft.options.map((o) => o.id)), text: "" }] })
-
-    const removeOption = (id: string) =>
-        patch({
-            options: draft.options.filter((o) => o.id !== id),
-            correct: draft.correct.filter((cid) => cid !== id),
-        })
-
-    const toggleCorrect = (id: string) => {
-        const included = draft.correct.includes(id)
-        if (shape === "choice") {
-            if (included) {
-                patch({ correct: [] })
-            } else {
-                patch({ correct: [id] })
-            }
-            return
-        }
-        if (included) {
-            patch({ correct: draft.correct.filter((cid) => cid !== id) })
-        } else {
-            patch({ correct: [...draft.correct, id] })
-        }
-    }
-
     const builtPayload = buildPayload(shape, draft)
 
     const problem: string | null = (() => {
@@ -184,8 +150,6 @@ export function QuestionAuthorDialog({
     if (shape === "choice") shapeHint = " — thí sinh trả lời miệng, khán giả chọn ô trả lời"
     let acceptedLabel = "Accepted answers (one per line)"
     if (shape === "choice") acceptedLabel = "Accepted answers — the judge's reference (one per line)"
-    let optionsLabel = "Options · tick the correct one(s)"
-    if (shape === "choice") optionsLabel = "Options — the audience face, pick exactly one correct"
     let hintCapCls = "text-muted-foreground"
     if (hintCapFull) hintCapCls = "text-destructive"
     let capNote = ""
@@ -255,54 +219,12 @@ export function QuestionAuthorDialog({
                         </div>
                     )}
 
-                    {shape === "choice" && (
-                        <div className="grid gap-2">
-                            <span className="text-sm font-medium">
-                                {optionsLabel}
-                            </span>
-                            {draft.options.map((option, index) => {
-                                return (
-                                    <div key={option.id} className="flex items-center gap-2">
-                                        <input
-                                            type="radio"
-                                            name="oral-correct"
-                                            checked={draft.correct.includes(option.id)}
-                                            onChange={() => toggleCorrect(option.id)}
-                                            aria-label={`Option ${String.fromCharCode(65 + index)} correct`}
-                                            className="size-4 shrink-0"
-                                        />
-                                        <span className="w-4 shrink-0 text-sm font-semibold text-muted-foreground">
-                                            {String.fromCharCode(65 + index)}
-                                        </span>
-                                        <Input
-                                            value={option.text}
-                                            onChange={(event) => setOptionText(option.id, event.target.value)}
-                                            placeholder={`Option ${String.fromCharCode(65 + index)}`}
-                                        />
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            disabled={draft.options.length <= 2}
-                                            aria-label={`Remove option ${String.fromCharCode(65 + index)}`}
-                                            onClick={() => removeOption(option.id)}
-                                        >
-                                            <X className="size-4" />
-                                        </Button>
-                                    </div>
-                                )
-                            })}
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="justify-start"
-                                aria-label="Thêm lựa chọn"
-                                title="Thêm lựa chọn"
-                                onClick={addOption}
-                            >
-                                <Plus className="size-4" />
-                            </Button>
-                        </div>
-                    )}
+                    <OptionsField
+                        shape={shape}
+                        options={draft.options}
+                        correct={draft.correct}
+                        patch={patch}
+                    />
 
                     {shape === "keyword" && (
                         <div className="grid gap-2">
