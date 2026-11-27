@@ -1,13 +1,15 @@
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   postgres:
     container_name: aoc-postgresql
     image: docker.io/library/postgres:18-trixie
     restart: unless-stopped
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+    logging: *logging
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -26,11 +28,7 @@ services:
     container_name: aoc-redis
     image: docker.io/library/redis:7-alpine
     restart: unless-stopped
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+    logging: *logging
     volumes:
       - aoc-redis:/data
     healthcheck:
@@ -45,11 +43,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+    logging: *logging
     env_file:
       - ./configs/.env
     environment:
@@ -72,11 +66,7 @@ services:
     container_name: aoc-livekit
     image: docker.io/livekit/livekit-server:v1.13.11
     restart: unless-stopped
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+    logging: *logging
     env_file:
       - ./configs/.env
     depends_on:
@@ -101,11 +91,7 @@ services:
       context: ./scripts/backup
       dockerfile: Dockerfile
     restart: unless-stopped
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+    logging: *logging
     env_file:
       - ./configs/.env
     environment:
