@@ -1,4 +1,5 @@
 import type { ReactNode } from "react"
+import { useServerClock } from "@shared/lib/clock"
 import { useLiveHub } from "@/lib/live"
 import { LiveHubContext } from "@/lib/live-hub-context"
 
@@ -11,6 +12,7 @@ export function LiveHubProvider({
     enabled: boolean
     children: ReactNode
 }) {
-    const hub = useLiveHub(matchId, enabled && Boolean(matchId))
-    return <LiveHubContext.Provider value={hub}>{children}</LiveHubContext.Provider>
+    const clock = useServerClock()
+    const hub = useLiveHub(matchId, enabled && Boolean(matchId), clock.sync)
+    return <LiveHubContext.Provider value={{ hub, clock }}>{children}</LiveHubContext.Provider>
 }

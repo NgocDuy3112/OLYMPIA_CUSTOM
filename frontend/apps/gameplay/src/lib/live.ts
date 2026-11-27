@@ -1,12 +1,12 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api, ApiError } from "@shared/lib/api"
-import { useServerClock, type ServerClock } from "@shared/lib/clock"
+import type { ServerClock } from "@shared/lib/clock"
 import type { LobbyData } from "@shared/deck/types"
 import { useHubInvoker, type HubInvoker, type StreamStatus } from "@shared/lib/ws"
 import { logError } from "@shared/lib/log"
 import { isOlderView, keepNewestRead } from "@shared/lib/view-version"
-import { LiveHubContext } from "@/lib/live-hub-context"
+import { LiveHubContext, type MatchStream } from "@/lib/live-hub-context"
 
 interface ViewFailure {
     status: number
@@ -57,9 +57,12 @@ interface UseLiveMatch {
     refetch: () => void
 }
 
-export function useLiveHub(matchId: string, enabled: boolean): HubInvoker {
+export function useLiveHub(
+    matchId: string,
+    enabled: boolean,
+    onFrame?: (at: string) => void
+): HubInvoker {
     const queryClient = useQueryClient()
-    const clock = useServerClock()
     const path = matchId ? streamPathOf(matchId) : null
 
     const onMessage = useMemo(
@@ -68,7 +71,7 @@ export function useLiveHub(matchId: string, enabled: boolean): HubInvoker {
             if (!frame || typeof frame !== "object") return
 
             if (frame.type === "view" && frame.data?.view) {
-                if (frame.at) clock.sync(frame.at)
+                if (frame.at) onFrame?.(frame.at)
                 const next = frame.data.view
                 if (!isOlderView(next, queryClient.getQueryData<LiveView>(liveKey(matchId)))) {
                     queryClient.setQueryData(liveKey(matchId), next)
@@ -81,16 +84,16 @@ export function useLiveHub(matchId: string, enabled: boolean): HubInvoker {
                 void queryClient.invalidateQueries({ queryKey: liveKey(matchId) })
             }
         },
-        [clock, matchId, queryClient]
+        [onFrame, matchId, queryClient]
     )
 
     return useHubInvoker(path, enabled, { onMessage })
 }
 
-function useMatchHub(): HubInvoker {
-    const hub = useContext(LiveHubContext)
-    if (hub === null) throw new Error("PlayerShell must own the match hub")
-    return hub
+function useMatchStream(): MatchStream {
+    const stream = useContext(LiveHubContext)
+    if (stream === null) throw new Error("PlayerShell must own the match hub")
+    return stream
 }
 
 export function liveRefetchInterval(streamStatus: StreamStatus): 3_000 | false {
@@ -99,8 +102,7 @@ export function liveRefetchInterval(streamStatus: StreamStatus): 3_000 | false {
 
 export function useLiveMatch(matchId: string, enabled: boolean): UseLiveMatch {
     const queryClient = useQueryClient()
-    const clock = useServerClock()
-    const hub = useMatchHub()
+    const { hub, clock } = useMatchStream()
 
     const query = useQuery({
         queryKey: liveKey(matchId),
@@ -202,7 +204,8 @@ const tieBreakKey = (matchId: string) => ["tiebreak", matchId] as const
 
 export function useTieBreakMatch(matchId: string, enabled: boolean) {
     const queryClient = useQueryClient()
-    const { ready, invoke } = useMatchHub()
+    const { hub } = useMatchStream()
+    const { ready, invoke } = hub
 
     const query = useQuery({
         queryKey: tieBreakKey(matchId),
