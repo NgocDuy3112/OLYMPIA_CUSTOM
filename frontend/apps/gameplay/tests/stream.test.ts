@@ -48,6 +48,27 @@ function last(): FakeSocket {
     return socket
 }
 
+/** The socket failed without ever reaching live — exactly what a pre-upgrade 401 looks like. */
+function dropCurrent() {
+    act(() => {
+        const socket = last()
+        socket.readyState = 3
+        socket.onclose?.({ code: 1006 } as CloseEvent)
+    })
+}
+
+/** Five straight misses escalate 2 · 4 · 8 · 16 · 30 s before the slow probe takes over. */
+const FAST_BACKOFF = [2_000, 4_000, 8_000, 16_000, 30_000]
+
+function failIntoSlowProbe() {
+    for (const delay of FAST_BACKOFF) {
+        dropCurrent()
+        act(() => {
+            vi.advanceTimersByTime(delay)
+        })
+    }
+}
+
 beforeEach(() => {
     FakeSocket.all = []
     vi.useFakeTimers()
@@ -198,6 +219,46 @@ describe("useSocketStream — connection state and resync signal", () => {
             vi.advanceTimersByTime(2_000)
         })
         expect(FakeSocket.all).toHaveLength(2)
+    })
+
+    it("settles into a 60s slow probe after five straight misses that never go live", () => {
+        const { result } = renderHook(() => useSocketStream("/live/stream", true, () => {}))
+
+        // The escalating backoff covers the first five misses: 2 + 4 + 8 + 16 + 30 s.
+        failIntoSlowProbe()
+        expect(FakeSocket.all).toHaveLength(6)
+
+        // The sixth miss probes once a minute instead of hammering every 30 s.
+        dropCurrent()
+        act(() => {
+            vi.advanceTimersByTime(59_000)
+        })
+        expect(FakeSocket.all).toHaveLength(6)
+        act(() => {
+            vi.advanceTimersByTime(1_000)
+        })
+        expect(FakeSocket.all).toHaveLength(7)
+
+        // A slow probe is still a retry: the stream never lies about being stopped.
+        expect(result.current.status).toBe("reconnecting")
+    })
+
+    it("lets a manual reconnect restart the fast backoff from the slow probe", () => {
+        const { result } = renderHook(() => useSocketStream("/live/stream", true, () => {}))
+        failIntoSlowProbe()
+        dropCurrent() // slow probe armed
+
+        act(() => {
+            result.current.reconnect()
+        })
+        expect(FakeSocket.all).toHaveLength(7)
+
+        // attempt reset by the kick, so the next miss waits 2 s again — not 60 s.
+        dropCurrent()
+        act(() => {
+            vi.advanceTimersByTime(2_000)
+        })
+        expect(FakeSocket.all).toHaveLength(8)
     })
 
     it("exposes a manual reconnect that skips the backoff", () => {

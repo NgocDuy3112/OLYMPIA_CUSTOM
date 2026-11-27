@@ -5,6 +5,16 @@ import { logError } from "./log"
 const BASE_BACKOFF_MS = 2_000
 const MAX_BACKOFF_MS = 30_000
 
+/**
+ * A pre-upgrade 401 never reaches the socket: the browser reports 1006,
+ * indistinguishable from a network outage, so stopping would blame the server
+ * for a network blip. After `SLOW_PROBE_ATTEMPTS` straight misses the stream
+ * settles into one probe per `SLOW_PROBE_MS` — cheap enough to run indefinitely,
+ * and it heals on its own once network, server, or session recover.
+ */
+const SLOW_PROBE_ATTEMPTS = 5
+const SLOW_PROBE_MS = 60_000
+
 /** Drop the stream silently when an idle socket stops answering pings. */
 const WATCHDOG_MS = 45_000
 
@@ -333,7 +343,10 @@ export function useHubInvoker(
                     report("stopped")
                     return
                 }
-                const delay = Math.min(BASE_BACKOFF_MS * 2 ** attempt, MAX_BACKOFF_MS)
+                const delay =
+                    attempt < SLOW_PROBE_ATTEMPTS
+                        ? Math.min(BASE_BACKOFF_MS * 2 ** attempt, MAX_BACKOFF_MS)
+                        : SLOW_PROBE_MS
                 attempt += 1
                 report("reconnecting")
                 timer = setTimeout(connect, delay)
