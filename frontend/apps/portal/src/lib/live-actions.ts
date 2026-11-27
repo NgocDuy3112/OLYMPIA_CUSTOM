@@ -65,63 +65,161 @@ export type LiveAction =
     | { kind: "answer.regrade"; questionId: string; playerId: string; delta: number }
     | { kind: "reveal.answer"; questionId: string }
 
-const LIVE_ACTION_KINDS: Record<LiveAction["kind"], true> = {
-    "giai-ma.start": true,
-    "giai-ma.openHint": true,
-    "giai-ma.startWindow": true,
-    "giai-ma.closeHintWindow": true,
-    "giai-ma.resolveHint": true,
-    "giai-ma.submitKeyword": true,
-    "giai-ma.judgeKeyword": true,
-    "giai-ma.judgeKeywords": true,
-    "giai-ma.endRound": true,
-    "giai-ma.lockHints": true,
-    "giai-ma.startKeywordWindow": true,
-    "but-pha.start": true,
-    "but-pha.openQuestion": true,
-    "but-pha.closeQuestion": true,
-    "but-pha.startClock": true,
-    "but-pha.endRound": true,
-    "but-pha.finalize": true,
-    "khoi-dong.start": true,
-    "khoi-dong.recordOral": true,
-    "khoi-dong.setTurn": true,
-    "khoi-dong.startClock": true,
-    "khoi-dong.timeOutRun": true,
-    "khoi-dong.startWindow": true,
-    "khoi-dong.judge": true,
-    "khoi-dong.nextQuestion": true,
-    "khoi-dong.endRound": true,
-    "ve-dich.start": true,
-    "ve-dich.openQuestion": true,
-    "ve-dich.reveal": true,
-    "ve-dich.startClock": true,
-    "ve-dich.closeCurrentAnswer": true,
-    "ve-dich.lockBuzz": true,
-    "ve-dich.resolve": true,
-    "ve-dich.advanceTurn": true,
-    "ve-dich.setTurn": true,
-    "ve-dich.endRound": true,
-    "ve-dich.declarePower": true,
-    "ve-dich.pick": true,
-    "ve-dich.pickBatch": true,
-    "ve-dich.pickRound": true,
-    "ve-dich.confirmPicks": true,
-    "ve-dich.openPending": true,
-    "ve-dich.switchQuestion": true,
-    "ve-dich.closeQuestion": true,
-    "ve-dich.nextQuestion": true,
-    "ve-dich.clearPicks": true,
-    "ve-dich.judge": true,
-    "round.goTo": true,
-    "round.waiting": true,
-    "score.adjust": true,
-    "answer.regrade": true,
-    "reveal.answer": true,
+/**
+ * Field types a tool-call payload may carry, by name. The exhaustive
+ * `REQUIRED_FIELDS` table below doubles as the kind registry: a new union
+ * variant cannot compile until its payload (or `{}`) is declared here.
+ */
+type FieldSpec =
+    | "string"
+    | "boolean"
+    | "number"
+    | "string[]"
+    | "phase"
+    | "suggestion"
+    | "power"
+    | "verdicts"
+    | "keywordVerdicts"
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === "object" && value !== null
+
+const fieldOk = (spec: FieldSpec, value: unknown): boolean => {
+    switch (spec) {
+        case "string":
+            return typeof value === "string"
+        case "boolean":
+            return typeof value === "boolean"
+        case "number":
+            return typeof value === "number"
+        case "string[]":
+            return Array.isArray(value) && value.every((item) => typeof item === "string")
+        case "phase":
+            return value === 1 || value === 2
+        case "suggestion":
+            return value === "CORRECT" || value === "INCORRECT"
+        case "power":
+            return value === "STAR" || value === "ASSIGN" || value === null
+        case "verdicts":
+            return (
+                Array.isArray(value) &&
+                value.every(
+                    (entry) =>
+                        isRecord(entry) &&
+                        typeof entry.playerId === "string" &&
+                        typeof entry.correct === "boolean"
+                )
+            )
+        case "keywordVerdicts":
+            return (
+                Array.isArray(value) &&
+                value.every(
+                    (entry) =>
+                        isRecord(entry) &&
+                        typeof entry.playerId === "string" &&
+                        typeof entry.questionId === "string" &&
+                        typeof entry.correct === "boolean"
+                )
+            )
+    }
 }
 
-export function isLiveActionKind(kind: string): kind is LiveAction["kind"] {
-    return Object.hasOwn(LIVE_ACTION_KINDS, kind)
+const REQUIRED_FIELDS: Record<LiveAction["kind"], Record<string, FieldSpec>> = {
+    "giai-ma.start": { playerIds: "string[]", hintIds: "string[]" },
+    "giai-ma.openHint": { hintId: "string" },
+    "giai-ma.startWindow": {},
+    "giai-ma.closeHintWindow": {},
+    "giai-ma.resolveHint": { verdicts: "verdicts" },
+    "giai-ma.submitKeyword": {
+        playerId: "string",
+        questionId: "string",
+        text: "string",
+        suggestion: "suggestion",
+    },
+    "giai-ma.judgeKeyword": { playerId: "string", questionId: "string", correct: "boolean" },
+    "giai-ma.judgeKeywords": { verdicts: "keywordVerdicts" },
+    "giai-ma.endRound": {},
+    "giai-ma.lockHints": {},
+    "giai-ma.startKeywordWindow": {},
+    "but-pha.start": {},
+    "but-pha.openQuestion": {},
+    "but-pha.closeQuestion": {},
+    "but-pha.startClock": {},
+    "but-pha.endRound": {},
+    "but-pha.finalize": { questionId: "string", verdicts: "verdicts" },
+    "khoi-dong.start": {},
+    "khoi-dong.recordOral": { correct: "boolean", spentS: "number" },
+    "khoi-dong.setTurn": { playerId: "string" },
+    "khoi-dong.startClock": {},
+    "khoi-dong.timeOutRun": {},
+    "khoi-dong.startWindow": {},
+    "khoi-dong.judge": { playerId: "string", correct: "boolean" },
+    "khoi-dong.nextQuestion": {},
+    "khoi-dong.endRound": {},
+    "ve-dich.start": {},
+    "ve-dich.openQuestion": { questionId: "string" },
+    "ve-dich.reveal": {},
+    "ve-dich.startClock": {},
+    "ve-dich.closeCurrentAnswer": {},
+    "ve-dich.lockBuzz": {},
+    "ve-dich.resolve": { answerer: "boolean" },
+    "ve-dich.advanceTurn": {},
+    "ve-dich.setTurn": { playerId: "string" },
+    "ve-dich.endRound": {},
+    "ve-dich.declarePower": { playerId: "string", power: "power" },
+    "ve-dich.pick": { playerId: "string", questionId: "string" },
+    "ve-dich.pickBatch": { playerId: "string", questionIds: "string[]" },
+    "ve-dich.pickRound": { questionIds: "string[]" },
+    "ve-dich.confirmPicks": {},
+    "ve-dich.openPending": { questionId: "string" },
+    "ve-dich.switchQuestion": { questionId: "string" },
+    "ve-dich.closeQuestion": {},
+    "ve-dich.nextQuestion": {},
+    "ve-dich.clearPicks": {},
+    "ve-dich.judge": { playerId: "string", correct: "boolean" },
+    "round.goTo": { roundId: "string" },
+    "round.waiting": {},
+    "score.adjust": { userId: "string", delta: "number", reason: "string" },
+    "answer.regrade": { questionId: "string", playerId: "string", delta: "number" },
+    "reveal.answer": { questionId: "string" },
+}
+
+const OPTIONAL_FIELDS: Partial<Record<LiveAction["kind"], Record<string, FieldSpec>>> = {
+    "khoi-dong.start": { phase: "phase" },
+    "khoi-dong.recordOral": { playerId: "string" },
+    "ve-dich.start": { phase: "phase" },
+    "ve-dich.resolve": { buzzer: "boolean" },
+    "ve-dich.declarePower": { targetId: "string" },
+}
+
+function isLiveActionKind(kind: string): kind is LiveAction["kind"] {
+    return Object.hasOwn(REQUIRED_FIELDS, kind)
+}
+
+/**
+ * The whole payload, not just the name: a known kind with a misshapen body
+ * would otherwise ride the cast straight to the wire.
+ */
+export function isLiveAction(value: unknown): value is LiveAction {
+    if (!isRecord(value)) return false
+    if (typeof value.kind !== "string" || !isLiveActionKind(value.kind)) return false
+    for (const [field, spec] of Object.entries(REQUIRED_FIELDS[value.kind])) {
+        if (!fieldOk(spec, value[field])) return false
+    }
+    const optional = OPTIONAL_FIELDS[value.kind]
+    if (optional) {
+        for (const [field, spec] of Object.entries(optional)) {
+            if (value[field] === undefined) continue
+            if (!fieldOk(spec, value[field])) return false
+        }
+    }
+    return true
+}
+
+/** The kind an untrusted payload claims, for error copy only. */
+export function actionKindOf(value: unknown): string | null {
+    if (!isRecord(value)) return null
+    return typeof value.kind === "string" ? value.kind : null
 }
 
 export function collapseKeywordVerdicts(actions: LiveAction[]): LiveAction[] {
