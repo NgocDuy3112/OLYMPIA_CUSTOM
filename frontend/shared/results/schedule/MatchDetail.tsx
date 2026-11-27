@@ -236,7 +236,7 @@ function RoundStatsPanel({ row }: { row: RoundRow }) {
                                     {score.points}
                                     {won && (
                                         <Trophy
-                                            className="ml-1 inline size-3 text-chart-4"
+                                            className="ml-1 inline size-3 text-(--warning)"
                                             aria-label="thắng vòng"
                                         />
                                     )}

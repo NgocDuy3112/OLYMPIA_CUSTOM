@@ -24,6 +24,7 @@
     --chart-5: oklch(0.269 0 0);
     --success: oklch(0.627 0.194 149.214);
     --warning: oklch(0.666 0.157 58.318);
+    --info: oklch(0.546 0.245 262.881);
     --surface-solid: oklch(0.97 0 0);
     --primary-border: oklch(0.3 0.015 255);
     --primary-border-hover: oklch(0.24 0.015 255);
@@ -66,6 +67,7 @@
     --chart-5: oklch(0.269 0 0);
     --success: oklch(0.72 0.17 149.214);
     --warning: oklch(0.78 0.15 58.318);
+    --info: oklch(0.62 0.19 262.881);
     --surface-solid: #16181e;
     --primary-border: #3f4652;
     --primary-border-hover: #4b5361;

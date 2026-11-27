@@ -196,7 +196,7 @@ export function PlayerCard({ card, onSelect, onScoreClick, selectHint, title }: 
                 "aria-pressed": selected,
             }
         }
-        hoverCls = "cursor-pointer hover:ring-chart-1 active:ring-chart-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        hoverCls = "cursor-pointer hover:ring-(--info) active:ring-(--info) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         if (selected) hoverCls = "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         if (selectHint) hoverCls = "cursor-pointer hover:ring-(--success) active:ring-(--success) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     }
