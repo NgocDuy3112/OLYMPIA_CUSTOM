@@ -49,6 +49,7 @@ public sealed class AppConfig
             Optional("SMTP_FROM"));
         SeedAdminPassword = Optional("SEED_ADMIN_PASSWORD");
         SeedAdminUsername = Optional("SEED_ADMIN_USERNAME");
+        AuditRetentionDays = ParseRetentionDays(Optional("AUDIT_RETENTION_DAYS") ?? "180");
         CorsOrigins = (Environment.GetEnvironmentVariable("CORS_ORIGINS") ?? "")
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
@@ -67,6 +68,7 @@ public sealed class AppConfig
     public string? SeedAdminPassword { get; }
     public string? SeedAdminUsername { get; }
     public string[] CorsOrigins { get; }
+    public int AuditRetentionDays { get; }
 
     public SurfaceSecrets For(Surface surface) => surface == Surface.GAMEPLAY ? Gameplay : Portal;
 
@@ -95,6 +97,13 @@ public sealed class AppConfig
             throw new InvalidOperationException($"Invalid SMTP_PORT: {raw}");
         if (value > 65535)
             throw new InvalidOperationException($"Invalid SMTP_PORT: {raw}");
+        return value;
+    }
+
+    private static int ParseRetentionDays(string raw)
+    {
+        if (!int.TryParse(raw, out var value))
+            throw new InvalidOperationException($"Invalid AUDIT_RETENTION_DAYS: {raw}");
         return value;
     }
 

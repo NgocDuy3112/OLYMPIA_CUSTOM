@@ -102,7 +102,7 @@ builder.Services.AddScoped<GameplayReadService>();
 builder.Services.AddScoped<McpKeysService>();
 builder.Services.AddScoped<AOC.Api.Modules.Audit.AuditEventStore>();
 builder.Services.AddSingleton(AOC.Api.Modules.Audit.AuditExportOptions.Default);
-builder.Services.AddSingleton(AOC.Api.Modules.Audit.AuditRetentionOptions.Default);
+builder.Services.AddSingleton(new AOC.Api.Modules.Audit.AuditRetentionOptions(config.AuditRetentionDays));
 builder.Services.AddHostedService<AOC.Api.Modules.Audit.AuditRetentionService>();
 builder.Services.AddScoped<AOC.Api.Modules.Audit.AuditEventsService>();
 
