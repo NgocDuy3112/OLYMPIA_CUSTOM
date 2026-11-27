@@ -116,7 +116,7 @@ export function MatchDetail({ match, rounds, onBack, variant = "page" }: MatchDe
                     </div>
                     <div className="flex flex-col gap-2">
                         <div className="rounded-xl border">
-                            <Table className={cn("[&_th]:h-10 [&_th]:px-3 [&_th]:text-xs [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:uppercase [&_td]:px-3 [&_td]:py-2.5")}>
+                            <Table className={cn("min-w-[32rem] [&_th]:h-10 [&_th]:px-3 [&_th]:text-xs [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:uppercase [&_td]:px-3 [&_td]:py-2.5")}>
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Thí sinh</TableHead>
@@ -212,7 +212,7 @@ function RoundStatsPanel({ row }: { row: RoundRow }) {
 
     return (
         <div className="rounded-xl border">
-            <Table className={cn("[&_th]:h-10 [&_th]:px-3 [&_th]:text-xs [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:uppercase [&_td]:px-3 [&_td]:py-2.5")}>
+            <Table className={cn("min-w-[18rem] [&_th]:h-10 [&_th]:px-3 [&_th]:text-xs [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:uppercase [&_td]:px-3 [&_td]:py-2.5")}>
                 <TableHeader>
                     <TableRow>
                         <TableHead>Thí sinh</TableHead>

@@ -51,7 +51,7 @@ export function StandingsPanel({
                         description="Bảng xếp hạng xuất hiện khi giải đấu bắt đầu."
                     />
                 ) : (
-                <Table className={cn("[&_th]:h-10 [&_th]:px-3 [&_th]:text-xs [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:uppercase [&_td]:px-3 [&_td]:py-2.5 [&_td]:text-base")}>
+                <Table className={cn("min-w-[28rem] [&_th]:h-10 [&_th]:px-3 [&_th]:text-xs [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:uppercase [&_td]:px-3 [&_td]:py-2.5 [&_td]:text-base")}>
                     <TableHeader>
                         <TableRow>
                             <TableHead className="w-8">#</TableHead>

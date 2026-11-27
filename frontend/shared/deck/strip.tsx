@@ -21,9 +21,9 @@ export function Strip({ items }: { items: StripItem[] }) {
         rows.push(visible.slice(index, index + 8))
     }
     return (
-        <div className="flex shrink-0 flex-col items-start gap-[1cqw]">
+        <div className="flex min-w-0 max-w-full flex-col items-start gap-[1cqw] overflow-x-auto">
             {rows.map((row, rowIndex) => (
-                <div key={rowIndex} className="flex items-center gap-[1cqw]">
+                <div key={rowIndex} className="flex w-max items-center gap-[1cqw]">
                     {row.map((item) => {
                         if (item.onClick) {
                             return (
