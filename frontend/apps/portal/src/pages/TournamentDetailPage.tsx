@@ -33,8 +33,20 @@ export function TournamentDetailPage() {
     const [confirming, setConfirming] = useState(false)
     const [closing, setClosing] = useState(false)
 
-    if (tournament.isPending) return <ListSkeleton rows={3} />
-    if (tournament.isError) return <ErrorPanel message={errorMessage(tournament.error)} />
+    if (tournament.isPending) {
+        return (
+            <Page>
+                <ListSkeleton rows={3} />
+            </Page>
+        )
+    }
+    if (tournament.isError) {
+        return (
+            <Page>
+                <ErrorPanel message={errorMessage(tournament.error)} />
+            </Page>
+        )
+    }
 
     const s = tournament.data
     const assembled = matches.isPending || (matches.data?.items ?? []).some((match) => match.questions.length > 0)
@@ -55,14 +67,19 @@ export function TournamentDetailPage() {
     return (
         <Page>
             <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <Link className="transition-colors hover:text-foreground" to="/">Tournaments</Link>
-                <ChevronRight className="size-3.5" />
+                <Link
+                    className="rounded-sm transition-colors outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+                    to="/"
+                >
+                    Tournaments
+                </Link>
+                <ChevronRight className="size-3.5" aria-hidden />
                 <span className="text-foreground">{s.name}</span>
             </nav>
             <PageHeader
                 title={s.name}
                 actions={
-                    <div className="flex items-center gap-2">
+                    <>
                         {s.current && <Badge>Current</Badge>}
                         {s.closedAt && <Badge variant="secondary">Closed</Badge>}
                         {frozen && <Badge variant="outline">Rules frozen</Badge>}
@@ -86,7 +103,7 @@ export function TournamentDetailPage() {
                         >
                             <Trash2 className="size-4" aria-hidden /> Delete
                         </Button>
-                    </div>
+                    </>
                 }
             />
 

@@ -1,5 +1,7 @@
 import { Link, useParams } from "react-router-dom"
 import { ChevronRight, SearchX } from "lucide-react"
+import { buttonVariants } from "@shared/ui/button"
+import { LoadingState } from "@shared/ui/state"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/ui/tabs"
 import { Page, PageHeader, EmptyState, ErrorPanel } from "@/components/page"
 import { useMatches, useTournament } from "@/lib/tournament"
@@ -7,19 +9,17 @@ import { StandardMatchControl, StatusBadge } from "@/components/standard-match-c
 import { MatchQuestionSurface } from "@/components/match-question-surface"
 
 
+const crumbs = "flex items-center gap-1.5 text-sm text-muted-foreground"
+const crumbLink =
+    "rounded-sm transition-colors outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+
 export function MatchPage() {
     const { tournamentId, matchId } = useParams()
     const matches = useMatches(tournamentId ?? "")
     const tournament = useTournament(tournamentId ?? "")
     const back = `/tournaments/${tournamentId}`
 
-    if (matches.isPending) {
-        return (
-            <Page>
-                <div role="status" aria-label="Đang tải trận" className="h-64 animate-pulse rounded-xl bg-muted" />
-            </Page>
-        )
-    }
+    if (matches.isPending) return <LoadingState label="Đang tải trận" />
 
     const match = matches.data?.items.find((row) => row.id === matchId)
 
@@ -42,7 +42,7 @@ export function MatchPage() {
                     title="Trận đấu không tồn tại"
                     description="Nó có thể đã bị xóa — quay lại danh sách trận của giải."
                     action={
-                        <Link to={back} className="text-sm text-primary underline-offset-4 hover:underline">
+                        <Link to={back} className={buttonVariants({ variant: "link", size: "sm" })}>
                             Quay lại Matches
                         </Link>
                     }
@@ -56,13 +56,13 @@ export function MatchPage() {
 
     return (
         <Page>
-            <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <Link className="transition-colors hover:text-foreground" to="/">Tournaments</Link>
-                <ChevronRight className="size-3.5" />
-                <Link className="transition-colors hover:text-foreground" to={back}>
+            <nav className={crumbs}>
+                <Link className={crumbLink} to="/">Tournaments</Link>
+                <ChevronRight className="size-3.5" aria-hidden />
+                <Link className={crumbLink} to={back}>
                     {tournament.data?.name ?? "…"}
                 </Link>
-                <ChevronRight className="size-3.5" />
+                <ChevronRight className="size-3.5" aria-hidden />
                 <span className="text-foreground">{match.label}</span>
             </nav>
 

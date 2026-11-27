@@ -1,7 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
 import { RequireAuth, RedirectIfSignedIn } from "@/components/require-auth"
 import { LoginPage } from "@/pages/LoginPage"
-import { TournamentsPage } from "./pages/TournamentsPage"
+import { TournamentsPage } from "@/pages/TournamentsPage"
 import { TournamentDetailPage } from "@/pages/TournamentDetailPage"
 import { PlayersPage } from "@/pages/PlayersPage"
 import { MatchPage } from "@/pages/MatchPage"
@@ -23,49 +23,48 @@ export default function App() {
       <IconField />
       <GlowWash />
       <div className="relative z-10">
-      <BrowserRouter>
-      <Routes>
-        <Route
-          element={
-            <RequireAuth>
-              <PortalShell />
-            </RequireAuth>
-          }
-        >
-          <Route path="/" element={<TournamentsPage />} />
-          <Route path="/players" element={<PlayersPage />} />
-          <Route path="/tournaments/:tournamentId" element={<TournamentDetailPage />} />
-          
-          <Route path="/tournaments/:tournamentId/matches/:matchId" element={<MatchPage />} />
-          <Route path="/questions" element={<QuestionsPage />} />
-          <Route path="/mcp-keys" element={<McpKeysPage />} />
-          <Route path="/operators" element={<OperatorsPage />} />
-          <Route path="/audit" element={<AuditPage />} />
-        </Route>
+        <BrowserRouter>
+          <Routes>
+            <Route
+              element={
+                <RequireAuth>
+                  <PortalShell />
+                </RequireAuth>
+              }
+            >
+              <Route path="/" element={<TournamentsPage />} />
+              <Route path="/players" element={<PlayersPage />} />
+              <Route path="/tournaments/:tournamentId" element={<TournamentDetailPage />} />
+              <Route path="/tournaments/:tournamentId/matches/:matchId" element={<MatchPage />} />
+              <Route path="/questions" element={<QuestionsPage />} />
+              <Route path="/mcp-keys" element={<McpKeysPage />} />
+              <Route path="/operators" element={<OperatorsPage />} />
+              <Route path="/audit" element={<AuditPage />} />
+            </Route>
 
-        
-        <Route
-          path="/tournaments/:tournamentId/matches/:matchId/control"
-          element={
-            <RequireAuth>
-              <ErrorBoundary scope="portal:control">
-                <StagePage />
-              </ErrorBoundary>
-            </RequireAuth>
-          }
-        />
+            <Route
+              path="/tournaments/:tournamentId/matches/:matchId/control"
+              element={
+                <RequireAuth>
+                  <ErrorBoundary scope="portal:control">
+                    <StagePage />
+                  </ErrorBoundary>
+                </RequireAuth>
+              }
+            />
 
-        <Route path="/login"
-          element={
-            <RedirectIfSignedIn>
-              <LoginPage />
-            </RedirectIfSignedIn>
-          }
-        />
-        <Route path="/password" element={<ChangePasswordPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-      </BrowserRouter>
+            <Route
+              path="/login"
+              element={
+                <RedirectIfSignedIn>
+                  <LoginPage />
+                </RedirectIfSignedIn>
+              }
+            />
+            <Route path="/password" element={<ChangePasswordPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
       </div>
     </ErrorBoundary>
   )

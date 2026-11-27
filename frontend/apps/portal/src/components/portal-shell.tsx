@@ -30,7 +30,7 @@ export function PortalShell() {
             <aside className="sticky top-0 flex h-dvh w-56 shrink-0 flex-col overflow-y-auto border-r bg-muted/30">
                 <Link
                     to="/"
-                    className="flex items-center gap-2 border-b px-4 py-4 font-medium transition-colors hover:text-primary"
+                    className="flex items-center gap-2 border-b px-4 py-4 font-medium transition-colors outline-none hover:text-primary focus-visible:ring-3 focus-visible:ring-ring/50"
                 >
                     <span
                         className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground"
@@ -55,7 +55,7 @@ export function PortalShell() {
                                 key={item.to}
                                 to={item.to}
                                 aria-current={ariaCurrent}
-                                className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${navCls}`}
+                                className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 ${navCls}`}
                             >
                                 <Icon className="size-4 shrink-0" aria-hidden />
                                 {item.label}

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react"
 import { Link } from "react-router-dom"
-import { CalendarDays, SearchX } from "lucide-react"
+import { CalendarDays, Plus, SearchX } from "lucide-react"
 import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
 import {
@@ -128,7 +128,7 @@ export function TournamentsPage() {
                 title="Tournaments"
                 actions={
                     <Button size="sm" onClick={() => setCreating(true)}>
-                        New tournament
+                        <Plus className="size-4" aria-hidden /> New tournament
                     </Button>
                 }
             />
