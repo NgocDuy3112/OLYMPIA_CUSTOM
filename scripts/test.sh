@@ -17,7 +17,7 @@ if ! podman volume exists aoc-redis >/dev/null 2>&1; then
     podman volume create aoc-redis >/dev/null
 fi
 
-if ! podman volume exists aoc-postgresql-test >/dev/null 2>&1; then
+if ! podman volume exists aoc-postgresql >/dev/null 2>&1; then
     echo "==> Creating volume aoc-postgresql"
     podman volume create aoc-postgresql >/dev/null
 fi
