@@ -15,7 +15,7 @@ export function SelectBox({
             checked={selected.has(row.id)}
             onChange={() => onToggle(row)}
             aria-label={`Chọn: ${row.questionText}`}
-            className="size-4 shrink-0 accent-primary"
+            className="size-4 shrink-0 rounded-sm accent-primary outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         />
     )
 }
@@ -48,7 +48,7 @@ export function SelectAllBox({
                 }
             }}
             aria-label="Chọn tất cả câu trong nhóm"
-            className="size-4 shrink-0 accent-primary"
+            className="size-4 shrink-0 rounded-sm accent-primary outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         />
     )
 }

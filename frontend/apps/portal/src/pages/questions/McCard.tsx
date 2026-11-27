@@ -1,4 +1,5 @@
 import { cn } from "cn"
+import { Card, CardContent } from "@shared/ui/card"
 import { dateFormat } from "./model"
 import type { BankQuestion, Status } from "./model"
 import { PreviewText } from "./PreviewText"
@@ -36,7 +37,8 @@ export function McCard({
     const unanswerable = correct.size === 0
 
     return (
-        <div className="rounded-xl border bg-card p-4">
+        <Card>
+            <CardContent className="p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex min-w-0 flex-1 items-start gap-2">
                     <div className="pt-1">
@@ -85,6 +87,7 @@ export function McCard({
             <div className="mt-3 flex justify-end">
                 <RowActions row={row} isAdmin={isAdmin} busy={busy} onEdit={onEdit} onTransition={onTransition} />
             </div>
-        </div>
+            </CardContent>
+        </Card>
     )
 }

@@ -15,7 +15,10 @@ export function PreviewText({
             type="button"
             onClick={() => onPreview(row)}
             title={`Preview: ${row.questionText}`}
-            className={cn("block max-w-full truncate text-left hover:underline", className)}
+            className={cn(
+                "block max-w-full truncate rounded-sm text-left outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50",
+                className
+            )}
         >
             {row.questionText}
         </button>

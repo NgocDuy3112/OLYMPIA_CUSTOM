@@ -78,7 +78,7 @@ export function TournamentsPage() {
                     <TableRow key={tournament.id}>
                         <TableCell className="font-medium">
                             <Link
-                                className="underline-offset-2 hover:underline"
+                                className="rounded-sm underline-offset-2 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
                                 to={`/tournaments/${tournament.id}`}
                             >
                                 {tournament.name}

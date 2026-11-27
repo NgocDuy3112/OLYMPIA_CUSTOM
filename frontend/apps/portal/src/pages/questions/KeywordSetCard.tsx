@@ -3,6 +3,7 @@ import { Lightbulb } from "lucide-react"
 import { cn } from "cn"
 import { api } from "@shared/lib/api"
 import { Button } from "@shared/ui/button"
+import { Card } from "@shared/ui/card"
 import { HINT_MAX, answerSummary, dateFormat } from "./model"
 import { errorMessage } from "@shared/lib/error-text"
 import type { BankQuestion, Paged, Status } from "./model"
@@ -56,7 +57,7 @@ export function KeywordSetCard({
     const published = hintRows.filter((hint) => hint.status === "PUBLISHED").length
 
     return (
-        <div className="overflow-hidden rounded-xl border bg-card">
+        <Card>
             {
 }
             <div className="flex items-center gap-3 px-5 py-4">
@@ -65,7 +66,7 @@ export function KeywordSetCard({
                     type="button"
                     onClick={() => onPreview(row)}
                     title="Preview this question"
-                    className="min-w-0 break-all text-left text-base font-semibold hover:opacity-80"
+                    className="min-w-0 rounded-sm break-all text-left text-base font-semibold outline-none hover:opacity-80 focus-visible:ring-3 focus-visible:ring-ring/50"
                 >
                     {payload.code || "(no keyword set)"}
                 </button>
@@ -176,6 +177,6 @@ export function KeywordSetCard({
                     </Button>
                 </div>
             </div>
-        </div>
+        </Card>
     )
 }

@@ -44,6 +44,9 @@ const bulkLabelOf = (input: BulkInput): string => {
     return `Gắn nhóm ${input.bucket}`
 }
 
+const SELECT_CLASS =
+    "h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+
 const isBulkReport = (value: unknown): value is BulkReport =>
     typeof value === "object" &&
     value !== null &&
@@ -261,11 +264,9 @@ export function QuestionsPage() {
             <PageHeader
                 title="Questions"
                 actions={
-                    <div className="flex items-center gap-2">
-                        <Button aria-label="New question" title="New question" onClick={() => setEditing({ open: true, row: null })}>
-                            <Plus className="size-4" aria-hidden />
-                        </Button>
-                    </div>
+                    <Button size="sm" onClick={() => setEditing({ open: true, row: null })}>
+                        <Plus className="size-4" aria-hidden /> New question
+                    </Button>
                 }
             />
 
@@ -273,7 +274,7 @@ export function QuestionsPage() {
             {
 }
             {selected.size > 0 && (
-                <div className="sticky top-0 z-40 border-b bg-card/95 py-3 shadow-[0_4px_16px_rgba(0,0,0,0.08)] backdrop-blur">
+                <div className="sticky top-0 z-40 border-b bg-card/95 py-3 shadow-md backdrop-blur">
                     <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 text-sm">
                         <span className="font-semibold">{selected.size} đã chọn</span>
                         <span className="text-xs text-muted-foreground">
@@ -312,7 +313,7 @@ export function QuestionsPage() {
                             onChange={(event) => {
                                 if (event.target.value) bulkBucket(event.target.value)
                             }}
-                            className="h-8 rounded-lg border border-input bg-transparent px-2 text-sm"
+                            className={SELECT_CLASS}
                         >
                             <option value="">Gắn nhóm…</option>
                             {TABS.flatMap((tabDef) =>
@@ -365,7 +366,7 @@ export function QuestionsPage() {
                     <select
                         value={state.status}
                         onChange={(event) => update({ status: event.target.value as Status | "ALL" })}
-                        className="h-8 rounded-lg border border-input bg-transparent px-2 text-sm"
+                        className={SELECT_CLASS}
                     >
                         <option value="ALL">All</option>
                         <option value="DRAFT">Draft</option>
@@ -388,10 +389,10 @@ export function QuestionsPage() {
                             value={searchInput}
                             onChange={(event) => setSearchInput(event.target.value)}
                             placeholder="question text…"
-                            className="h-8 w-56"
+                            className="w-64"
                         />
                     </label>
-                    <Button type="submit" variant="outline" size="sm" className="h-8" aria-label="Search" title="Search">
+                    <Button type="submit" variant="outline" aria-label="Search" title="Search">
                         <Search className="size-4" aria-hidden />
                     </Button>
                 </form>
@@ -411,7 +412,7 @@ export function QuestionsPage() {
                             aria-pressed={active}
                             onClick={() => update({ tab: tab.id })}
                             className={cn(
-                                "rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors",
+                                "rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
                                 tabCls
                             )}
                         >
