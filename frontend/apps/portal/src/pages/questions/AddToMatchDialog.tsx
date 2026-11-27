@@ -135,7 +135,14 @@ export function AddToMatchDialog({ rows, onClose }: { rows: BankQuestion[] | nul
     }
 
     return (
-        <Dialog open onOpenChange={(next) => { if (!next) onClose() }}>
+        <Dialog
+            open
+            onOpenChange={(next) => {
+                if (next) return
+                if (save.isPending) return
+                onClose()
+            }}
+        >
             <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>Thêm vào trận</DialogTitle>
@@ -214,7 +221,7 @@ export function AddToMatchDialog({ rows, onClose }: { rows: BankQuestion[] | nul
                         onClick={submit}
                         disabled={!ready || save.isPending}
                     >
-                        Thêm vào trận
+                        {save.isPending ? "Đang thêm…" : "Thêm vào trận"}
                     </Button>
                 </DialogFooter>
             </DialogContent>

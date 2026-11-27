@@ -16,6 +16,7 @@ import {
 import { Input } from "@shared/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
 import { EmptyState, ErrorPanel, ListSkeleton, Page, PageHeader } from "@/components/page"
+import { useCopyFeedback } from "./copy-feedback"
 import { cardTable } from "./table-frame"
 
 
@@ -37,7 +38,7 @@ function InviteOperatorDialog({ open, onClose }: { open: boolean; onClose: () =>
     const [username, setUsername] = useState("")
     const [displayName, setDisplayName] = useState("")
     const [inviteToken, setInviteToken] = useState<string | null>(null)
-    const [copied, setCopied] = useState(false)
+    const { copied, copy } = useCopyFeedback()
     const [password, setPassword] = useState("")
     const [confirmPassword, setConfirmPassword] = useState("")
     const [accepted, setAccepted] = useState(false)
@@ -47,7 +48,6 @@ function InviteOperatorDialog({ open, onClose }: { open: boolean; onClose: () =>
         setUsername("")
         setDisplayName("")
         setInviteToken(null)
-        setCopied(false)
         setPassword("")
         setConfirmPassword("")
         setAccepted(false)
@@ -90,8 +90,6 @@ function InviteOperatorDialog({ open, onClose }: { open: boolean; onClose: () =>
     if (!usernameOk) reason = "3–50 chars: letters, digits, dot, dash, underscore"
     if (!username.trim()) reason = "A username is required"
 
-    let copyLabel = "Copy"
-    if (copied) copyLabel = "Copied"
     let createLabel = "Create operator"
     if (create.isPending) createLabel = "Creating…"
     let acceptReason: string | null = null
@@ -104,6 +102,7 @@ function InviteOperatorDialog({ open, onClose }: { open: boolean; onClose: () =>
                 open={open}
                 onOpenChange={(next) => {
                     if (!next) {
+                        if (create.isPending || accept.isPending) return
                         reset()
                         onClose()
                     }
@@ -116,16 +115,9 @@ function InviteOperatorDialog({ open, onClose }: { open: boolean; onClose: () =>
                         <div className="grid gap-2">
                             <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3">
                                 <code className="min-w-0 flex-1 break-all font-mono text-xs">{inviteToken}</code>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                        void navigator.clipboard.writeText(inviteToken)
-                                        setCopied(true)
-                                    }}
-                                >
+                                <Button type="button" variant="outline" size="sm" onClick={() => copy(inviteToken)}>
                                     <Copy className="size-3.5" aria-hidden />
-                                    {copyLabel}
+                                    <span aria-live="polite">{copied ? "Copied" : "Copy"}</span>
                                 </Button>
                             </div>
                             {accepted ? (
@@ -189,13 +181,20 @@ function InviteOperatorDialog({ open, onClose }: { open: boolean; onClose: () =>
             open={open}
             onOpenChange={(next) => {
                 if (!next) {
+                    if (create.isPending || accept.isPending) return
                     reset()
                     onClose()
                 }
             }}
         >
             <DialogContent className="sm:max-w-lg">
-                    <>
+                    <form
+                        className="grid gap-4"
+                        onSubmit={(event) => {
+                            event.preventDefault()
+                            if (reason === null && !create.isPending) create.mutate()
+                        }}
+                    >
                         <DialogHeader>
                             <DialogTitle>New operator</DialogTitle>
                         </DialogHeader>
@@ -226,12 +225,14 @@ function InviteOperatorDialog({ open, onClose }: { open: boolean; onClose: () =>
 
                         <DialogFooter className="items-center gap-2">
                             <span className="mr-auto text-xs text-muted-foreground">{reason}</span>
-                            <Button variant="outline" onClick={() => { reset(); onClose() }}>Cancel</Button>
-                            <Button disabled={reason !== null || create.isPending} onClick={() => create.mutate()}>
+                            <Button type="button" variant="outline" onClick={() => { reset(); onClose() }}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={reason !== null || create.isPending}>
                                 {createLabel}
                             </Button>
                         </DialogFooter>
-                    </>
+                    </form>
             </DialogContent>
         </Dialog>
     )

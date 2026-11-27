@@ -24,7 +24,14 @@ export function ArchiveConfirmDialog({
 }) {
     if (!row) return null
     return (
-        <Dialog open onOpenChange={(next) => { if (!next) onCancel() }}>
+        <Dialog
+            open
+            onOpenChange={(next) => {
+                if (next) return
+                if (pending) return
+                onCancel()
+            }}
+        >
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle>Archive this question?</DialogTitle>

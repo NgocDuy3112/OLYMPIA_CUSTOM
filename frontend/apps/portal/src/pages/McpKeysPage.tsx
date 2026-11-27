@@ -16,6 +16,7 @@ import { Input } from "@shared/ui/input"
 import { Card, CardContent } from "@shared/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
 import { EmptyState, ErrorPanel, ListSkeleton, Page, PageHeader } from "@/components/page"
+import { useCopyFeedback } from "./copy-feedback"
 import { cardTable } from "./table-frame"
 
 
@@ -81,7 +82,7 @@ function IssueKeyDialog({
     const [selected, setSelected] = useState<string[]>(defaults)
     const [expiresOn, setExpiresOn] = useState("")
     const [issued, setIssued] = useState<string | null>(null)
-    const [copied, setCopied] = useState(false)
+    const { copied, copy } = useCopyFeedback()
     const [error, setError] = useState<string | null>(null)
 
     const reset = () => {
@@ -89,7 +90,6 @@ function IssueKeyDialog({
         setSelected(defaults)
         setExpiresOn("")
         setIssued(null)
-        setCopied(false)
         setError(null)
     }
 
@@ -115,8 +115,6 @@ function IssueKeyDialog({
     let reason: string | null = null
     if (selected.length === 0) reason = "Pick at least one scope"
     if (!label.trim()) reason = "A label says what this key is for"
-    let copyLabel = "Copy"
-    if (copied) copyLabel = "Copied"
     let issueLabel = "Issue key"
     if (issue.isPending) issueLabel = "Issuing…"
 
@@ -137,16 +135,9 @@ function IssueKeyDialog({
                     </DialogHeader>
                     <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3">
                         <code className="min-w-0 flex-1 break-all font-mono text-xs">{issued}</code>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                                void navigator.clipboard.writeText(issued)
-                                setCopied(true)
-                            }}
-                        >
+                        <Button type="button" variant="outline" size="sm" onClick={() => copy(issued)}>
                             <Copy className="size-3.5" aria-hidden />
-                            {copyLabel}
+                            <span aria-live="polite">{copied ? "Copied" : "Copy"}</span>
                         </Button>
                     </div>
                     <DialogFooter>
@@ -169,13 +160,20 @@ function IssueKeyDialog({
             open={open}
             onOpenChange={(next) => {
                 if (!next) {
+                    if (issue.isPending) return
                     reset()
                     onClose()
                 }
             }}
         >
             <DialogContent className="sm:max-w-lg">
-                    <>
+                    <form
+                        className="grid gap-4"
+                        onSubmit={(event) => {
+                            event.preventDefault()
+                            if (reason === null && !issue.isPending) issue.mutate()
+                        }}
+                    >
                         <DialogHeader>
                             <DialogTitle>New MCP key</DialogTitle>
                         </DialogHeader>
@@ -225,12 +223,14 @@ function IssueKeyDialog({
 
                         <DialogFooter className="items-center gap-2">
                             <span className="mr-auto text-xs text-muted-foreground">{reason}</span>
-                            <Button variant="outline" onClick={() => { reset(); onClose() }}>Cancel</Button>
-                            <Button disabled={reason !== null || issue.isPending} onClick={() => issue.mutate()}>
+                            <Button type="button" variant="outline" onClick={() => { reset(); onClose() }}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={reason !== null || issue.isPending}>
                                 {issueLabel}
                             </Button>
                         </DialogFooter>
-                    </>
+                    </form>
             </DialogContent>
         </Dialog>
     )
@@ -261,7 +261,10 @@ function RevokeDialog({ keyRow, onClose }: { keyRow: McpKey | null; onClose: () 
         <Dialog
             open={keyRow !== null}
             onOpenChange={(next) => {
-                if (!next) onClose()
+                if (!next) {
+                    if (revoke.isPending) return
+                    onClose()
+                }
             }}
         >
             <DialogContent className="sm:max-w-md">
