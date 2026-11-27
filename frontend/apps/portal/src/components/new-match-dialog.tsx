@@ -7,8 +7,6 @@ import { Input } from "@shared/ui/input"
 import { useCreateMatch, useEnrolled } from "@/lib/tournament"
 import type { TournamentDetail } from "@/lib/tournament"
 
-
-
 const inOneHour = () => new Date(Date.now() + 60 * 60 * 1000).toISOString()
 
 export function NewMatchDialog({
@@ -36,8 +34,6 @@ export function NewMatchDialog({
     const [seatCount, setSeatCount] = useState(seats)
     const [picked, setPicked] = useState<string[]>(Array.from({ length: seats }, () => ""))
 
-
-
     const players = enrolled.data?.items ?? []
     const chosenPlayers = picked.filter(Boolean)
 
@@ -59,8 +55,6 @@ export function NewMatchDialog({
         setPicked(Array.from({ length: seats }, () => ""))
     }
 
-
-
     const submit = () => {
         const scheduledAt = inOneHour()
         create.mutate(
@@ -77,7 +71,7 @@ export function NewMatchDialog({
 
     let stageSlot: ReactNode = (
         <select
-            className="h-9 rounded-lg border border-input bg-transparent px-2.5 text-sm"
+            className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
             value={stageId}
             onChange={(event) => setStageId(event.target.value)}
         >
@@ -100,11 +94,11 @@ export function NewMatchDialog({
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-h-[85vh] overflow-y-auto">
-                <div className="flex flex-col gap-6">
-                    <DialogHeader>
-                        <DialogTitle>New match</DialogTitle>
-                    </DialogHeader>
+                <DialogHeader>
+                    <DialogTitle>New match</DialogTitle>
+                </DialogHeader>
 
+                <div className="grid gap-4">
                     <label className="flex flex-col gap-2 text-sm">
                         Label
                         <Input
@@ -114,80 +108,78 @@ export function NewMatchDialog({
                         />
                     </label>
 
-                            <label className="flex flex-col gap-2 text-sm">
-                                Stage
-                                {stageSlot}
-                            </label>
+                    <label className="flex flex-col gap-2 text-sm">
+                        Stage
+                        {stageSlot}
+                    </label>
 
-                            
-                            {allowedSeats.length > 1 && (
-                                <div className="flex items-center gap-2 text-sm">
-                                    <span className="text-muted-foreground">Seats</span>
-                                    {allowedSeats.map((count) => {
-                                        let variant: "default" | "outline" = "outline"
-                                        if (seatCount === count) variant = "default"
-                                        return (
-                                            <Button
-                                                key={count}
-                                                type="button"
-                                                size="sm"
-                                                variant={variant}
-                                                onClick={() => reseat(count)}
-                                            >
-                                                {count}
-                                            </Button>
-                                        )
-                                    })}
-                                </div>
-                            )}
-
-                            <div className="flex flex-col gap-2">
-                                {picked.map((value, seat) => (
-                                    <select
-                                        key={seat}
-                                        className="h-9 rounded-lg border border-input bg-transparent px-2.5 text-sm"
-                                        value={value}
-                                        onChange={(event) =>
-                                            setPicked((current) =>
-                                                current.map((item, index) => {
-                                                    if (index === seat) return event.target.value
-                                                    return item
-                                                })
-                                            )
-                                        }
+                    {allowedSeats.length > 1 && (
+                        <div className="flex items-center gap-2 text-sm">
+                            <span className="text-muted-foreground">Seats</span>
+                            {allowedSeats.map((count) => {
+                                let variant: "default" | "outline" = "outline"
+                                if (seatCount === count) variant = "default"
+                                return (
+                                    <Button
+                                        key={count}
+                                        type="button"
+                                        size="sm"
+                                        variant={variant}
+                                        onClick={() => reseat(count)}
                                     >
-                                        <option value="">Seat {seat + 1} — choose a player…</option>
-                                        {players.map((player) => {
-                                            let groupText = " · chưa xếp nhóm"
-                                            if (player.group) groupText = ` · Nhóm ${player.group}`
-                                            return (
-                                                <option
-                                                    key={player.userId}
-                                                    value={player.userId}
-                                                    disabled={picked.includes(player.userId) && picked[seat] !== player.userId}
-                                                >
-                                                    
-                                                    {player.displayName}
-                                                    {groupText}
-                                                </option>
-                                            )
-                                        })}
-                                    </select>
-                                ))}
-                            </div>
+                                        {count}
+                                    </Button>
+                                )
+                            })}
+                        </div>
+                    )}
 
-                    {error && <p className="text-sm text-destructive">{error.message}</p>}
+                    <div className="grid gap-2">
+                        {picked.map((value, seat) => (
+                            <select
+                                key={seat}
+                                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
+                                value={value}
+                                onChange={(event) =>
+                                    setPicked((current) =>
+                                        current.map((item, index) => {
+                                            if (index === seat) return event.target.value
+                                            return item
+                                        })
+                                    )
+                                }
+                            >
+                                <option value="">Seat {seat + 1} — choose a player…</option>
+                                {players.map((player) => {
+                                    let groupText = " · chưa xếp nhóm"
+                                    if (player.group) groupText = ` · Nhóm ${player.group}`
+                                    return (
+                                        <option
+                                            key={player.userId}
+                                            value={player.userId}
+                                            disabled={picked.includes(player.userId) && picked[seat] !== player.userId}
+                                        >
+                                            {player.displayName}
+                                            {groupText}
+                                        </option>
+                                    )
+                                })}
+                            </select>
+                        ))}
+                    </div>
 
-                    <DialogFooter className="items-center gap-2">
-                        {reason && (
-                            <span className="mr-auto text-xs text-muted-foreground">{reason}</span>
-                        )}
-                        <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                        <Button onClick={submit} disabled={!valid || pending}>
-                            {createLabel}
-                        </Button>
-                    </DialogFooter>
+                    {error && <p role="alert" className="text-sm text-destructive">{error.message}</p>}
                 </div>
+
+                <DialogFooter>
+                    {reason && (
+                        <span className="mr-auto text-xs text-muted-foreground">{reason}</span>
+                    )}
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <Button onClick={submit} disabled={!valid || pending}>
+                        {createLabel}
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     )

@@ -5,14 +5,18 @@ import { errorMessage } from "@shared/lib/error-text"
 import type { StreamStatus } from "@shared/lib/ws"
 import { Badge } from "@shared/ui/badge"
 import { Button, buttonVariants } from "@shared/ui/button"
+import { Card, CardContent, CardFooter } from "@shared/ui/card"
 import { Input } from "@shared/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
 import type { AuditEventRow, AuditFilterParams } from "@shared/wire/audit"
 import { EmptyState, ErrorPanel, ListSkeleton, Page, PageHeader } from "@/components/page"
+import { cardTable } from "./table-frame"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 
 const PAGE_SIZE = 50
 const DETAILS_PRE_CLASS = "max-h-64 overflow-auto rounded-md bg-muted/50 p-3 font-mono text-xs"
+const SELECT_CLASS =
+    "h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
 
 const dateTimeFormat = new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
@@ -68,7 +72,8 @@ export function AuditPage() {
 
     let first = offset + 1
     if (total === 0) first = 0
-    const rangeText = `${first}–${Math.min(offset + PAGE_SIZE, total)} of ${total}`
+    let rangeText = `${first}–${Math.min(offset + PAGE_SIZE, total)} of ${total}`
+    if (total === 0) rangeText = "Nothing yet"
 
     const toggleRow = (id: string) => {
         setExpandedIds((current) => {
@@ -215,7 +220,7 @@ export function AuditPage() {
                             {streamLabel(streamStatus)}
                         </Badge>
                         <a
-                            className={buttonVariants({ variant: "outline" })}
+                            className={buttonVariants({ variant: "outline", size: "sm" })}
                             href={auditExportUrl(filters)}
                             download
                         >
@@ -225,7 +230,7 @@ export function AuditPage() {
                 }
             />
 
-            <div className="flex flex-wrap items-end gap-2">
+            <div className="flex flex-wrap items-end gap-3">
                 <Input
                     className="w-full sm:w-64"
                     placeholder="Search…"
@@ -239,7 +244,7 @@ export function AuditPage() {
                 />
                 <select
                     aria-label="Action"
-                    className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm"
+                    className={SELECT_CLASS}
                     value={action}
                     onChange={(event) => {
                         setAction(event.target.value)
@@ -289,9 +294,9 @@ export function AuditPage() {
                 <span className="ml-auto text-sm text-muted-foreground">{rangeText}</span>
             </div>
 
-            <div className="rounded-xl border bg-card">
-                {listSlot}
-                <div className="flex justify-end gap-2 border-t p-3">
+            <Card>
+                <CardContent className={cardTable}>{listSlot}</CardContent>
+                <CardFooter className="justify-end gap-2">
                     <Button
                         size="sm"
                         variant="outline"
@@ -308,8 +313,8 @@ export function AuditPage() {
                     >
                         Next
                     </Button>
-                </div>
-            </div>
+                </CardFooter>
+            </Card>
         </Page>
     )
 }

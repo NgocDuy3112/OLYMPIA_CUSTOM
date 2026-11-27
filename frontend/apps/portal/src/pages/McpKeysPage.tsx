@@ -13,8 +13,10 @@ import {
     DialogTitle,
 } from "@shared/ui/dialog"
 import { Input } from "@shared/ui/input"
+import { Card, CardContent } from "@shared/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
 import { EmptyState, ErrorPanel, ListSkeleton, Page, PageHeader } from "@/components/page"
+import { cardTable } from "./table-frame"
 
 
 interface ScopeInfo {
@@ -56,12 +58,12 @@ function toolsOfScopeIds(catalogue: ScopeInfo[], scopeIds: string[]): string[] {
     return [...tools]
 }
 
-function statusOf(key: McpKey): { label: string; className: string } {
-    if (key.revokedAt) return { label: "Revoked", className: "line-through opacity-60" }
+function statusOf(key: McpKey): { label: string; variant: "default" | "secondary" | "outline"; className?: string } {
+    if (key.revokedAt) return { label: "Revoked", variant: "outline", className: "line-through opacity-60" }
     if (key.expiresAt && new Date(key.expiresAt).getTime() < Date.now()) {
-        return { label: "Expired", className: "opacity-60" }
+        return { label: "Expired", variant: "outline", className: "opacity-60" }
     }
-    return { label: "Active", className: "text-emerald-600" }
+    return { label: "Active", variant: "default" }
 }
 
 function IssueKeyDialog({
@@ -304,7 +306,7 @@ export function McpKeysPage() {
             <PageHeader
                 title="MCP keys"
                 actions={
-                    <Button disabled={!scopes.data} onClick={() => setIssuing(true)}>
+                    <Button size="sm" disabled={!scopes.data} onClick={() => setIssuing(true)}>
                         <Plus className="size-4" aria-hidden /> New key
                     </Button>
                 }
@@ -323,75 +325,79 @@ export function McpKeysPage() {
             )}
 
             {list.data && scopes.data && list.data.items.length > 0 && (
-                <div className="rounded-xl border bg-card">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-40">Prefix</TableHead>
-                                <TableHead>Label</TableHead>
-                                <TableHead className="w-44">Scopes</TableHead>
-                                <TableHead>Tools</TableHead>
-                                <TableHead className="w-28">Status</TableHead>
-                                <TableHead className="w-32">Last used</TableHead>
-                                <TableHead className="w-32">Expires</TableHead>
-                                <TableHead className="w-28 text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {list.data.items.map((key) => {
-                                const status = statusOf(key)
-                                let lastUsed = "never"
-                                if (key.lastUsedAt) lastUsed = dateFormat.format(new Date(key.lastUsedAt))
-                                let expires = "never"
-                                if (key.expiresAt) expires = dateFormat.format(new Date(key.expiresAt))
-                                let revokeTitle = "Stop this key from working"
-                                if (key.revokedAt) revokeTitle = "Already revoked"
-                                return (
-                                    <TableRow key={key.id}>
-                                        <TableCell className="font-mono text-sm">{key.prefix}…</TableCell>
-                                        <TableCell className="font-medium">{key.label}</TableCell>
-                                        <TableCell>
-                                            <span className="flex flex-wrap gap-1">
-                                                {key.scopes.map((scope) => (
-                                                    <Badge key={scope} variant="outline">{scope}</Badge>
-                                                ))}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell>
-                                            <span className="flex flex-wrap gap-1">
-                                                {toolsOfScopeIds(scopes.data.scopes, key.scopes).map((tool) => (
-                                                    <Badge key={tool} variant="secondary" className="font-mono">
-                                                        {tool}
-                                                    </Badge>
-                                                ))}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell>
-                                            <span className={`text-sm font-medium ${status.className}`}>{status.label}</span>
-                                        </TableCell>
-                                        <TableCell className="text-sm text-muted-foreground">
-                                            {lastUsed}
-                                        </TableCell>
-                                        <TableCell className="text-sm text-muted-foreground">
-                                            {expires}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                disabled={key.revokedAt !== null}
-                                                title={revokeTitle}
-                                                onClick={() => setRevoking(key)}
-                                            >
-                                                <Trash2 className="size-3.5" aria-hidden /> Revoke
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                )
-                            })}
-                        </TableBody>
-                    </Table>
-                </div>
+                <Card>
+                    <CardContent className={cardTable}>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-40">Prefix</TableHead>
+                                    <TableHead>Label</TableHead>
+                                    <TableHead className="w-44">Scopes</TableHead>
+                                    <TableHead>Tools</TableHead>
+                                    <TableHead className="w-28">Status</TableHead>
+                                    <TableHead className="w-32">Last used</TableHead>
+                                    <TableHead className="w-32">Expires</TableHead>
+                                    <TableHead className="w-28 text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {list.data.items.map((key) => {
+                                    const status = statusOf(key)
+                                    let lastUsed = "never"
+                                    if (key.lastUsedAt) lastUsed = dateFormat.format(new Date(key.lastUsedAt))
+                                    let expires = "never"
+                                    if (key.expiresAt) expires = dateFormat.format(new Date(key.expiresAt))
+                                    let revokeTitle = "Stop this key from working"
+                                    if (key.revokedAt) revokeTitle = "Already revoked"
+                                    return (
+                                        <TableRow key={key.id}>
+                                            <TableCell className="font-mono text-sm">{key.prefix}…</TableCell>
+                                            <TableCell className="font-medium">{key.label}</TableCell>
+                                            <TableCell>
+                                                <span className="flex flex-wrap gap-1">
+                                                    {key.scopes.map((scope) => (
+                                                        <Badge key={scope} variant="outline">{scope}</Badge>
+                                                    ))}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell>
+                                                <span className="flex flex-wrap gap-1">
+                                                    {toolsOfScopeIds(scopes.data.scopes, key.scopes).map((tool) => (
+                                                        <Badge key={tool} variant="secondary" className="font-mono">
+                                                            {tool}
+                                                        </Badge>
+                                                    ))}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant={status.variant} className={status.className}>
+                                                    {status.label}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-sm text-muted-foreground">
+                                                {lastUsed}
+                                            </TableCell>
+                                            <TableCell className="text-sm text-muted-foreground">
+                                                {expires}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    disabled={key.revokedAt !== null}
+                                                    title={revokeTitle}
+                                                    onClick={() => setRevoking(key)}
+                                                >
+                                                    <Trash2 className="size-3.5" aria-hidden /> Revoke
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                })}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
             )}
 
             {issuing && scopes.data && (

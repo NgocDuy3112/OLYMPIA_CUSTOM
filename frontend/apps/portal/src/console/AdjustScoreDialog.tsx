@@ -1,5 +1,15 @@
-import { useState } from "react"
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@shared/ui/dialog"
+import { useId, useState } from "react"
+import { Button } from "@shared/ui/button"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@shared/ui/dialog"
+import { Input } from "@shared/ui/input"
+import { Label } from "@shared/ui/label"
 
 export function AdjustScoreDialog({ playerName, pending, error, onCancel, onSubmit }: {
     playerName: string
@@ -8,6 +18,7 @@ export function AdjustScoreDialog({ playerName, pending, error, onCancel, onSubm
     onCancel: () => void
     onSubmit: (delta: number, reason: string) => void
 }) {
+    const formId = useId()
     const [delta, setDelta] = useState("")
     const [reason, setReason] = useState("")
 
@@ -16,62 +27,59 @@ export function AdjustScoreDialog({ playerName, pending, error, onCancel, onSubm
 
     return (
         <Dialog open onOpenChange={(next) => { if (!next && !pending) onCancel() }}>
-            <DialogContent showCloseButton={false} className="w-full max-w-sm gap-0 p-5 sm:max-w-sm">
+            <DialogContent className="sm:max-w-sm">
+                <DialogHeader>
+                    <DialogTitle>Điều chỉnh điểm</DialogTitle>
+                    <DialogDescription>
+                        Thí sinh: <span className="font-medium text-foreground">{playerName}</span> — cộng/trừ điểm cả trận (lý do được lưu).
+                    </DialogDescription>
+                </DialogHeader>
+
                 <form
+                    id={formId}
+                    className="grid gap-3"
                     onSubmit={(event) => {
                         event.preventDefault()
                         if (valid) onSubmit(parsed, reason.trim())
                     }}
                 >
-                    <DialogTitle className="font-display text-lg font-bold uppercase">Điều chỉnh điểm</DialogTitle>
-                    <DialogDescription className="mt-1 text-sm text-muted-foreground">
-                        Thí sinh: <span className="font-medium text-foreground">{playerName}</span> — cộng/trừ điểm cả trận (lý do được lưu).
-                    </DialogDescription>
-
-                    <label className="mt-4 block text-sm font-medium">
-                        Điểm (+/-)
-                        <input
+                    <div className="grid gap-1.5">
+                        <Label htmlFor={`${formId}-delta`}>Điểm (+/-)</Label>
+                        <Input
+                            id={`${formId}-delta`}
                             type="number"
                             inputMode="numeric"
                             value={delta}
                             onChange={(event) => setDelta(event.target.value)}
                             placeholder="vd: 10 hoặc -5"
                             autoFocus
-                            className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 font-sans tabular-nums outline-none focus:ring-2 focus:ring-ring"
+                            className="tabular-nums"
                         />
-                    </label>
+                    </div>
 
-                    <label className="mt-3 block text-sm font-medium">
-                        Lý do
-                        <input
+                    <div className="grid gap-1.5">
+                        <Label htmlFor={`${formId}-reason`}>Lý do</Label>
+                        <Input
+                            id={`${formId}-reason`}
                             type="text"
                             value={reason}
                             onChange={(event) => setReason(event.target.value)}
                             placeholder="vd: chấm lại câu Về đích"
                             maxLength={200}
-                            className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 font-sans outline-none focus:ring-2 focus:ring-ring"
                         />
-                    </label>
-
-                    {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
-                    <div className="mt-5 flex justify-end gap-2">
-                        <button
-                            type="button"
-                            onClick={onCancel}
-                            disabled={pending}
-                            className="rounded-lg border px-4 py-2 text-sm font-semibold text-muted-foreground transition hover:bg-muted disabled:opacity-50"
-                        >
-                            Hủy
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={!valid || pending}
-                            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-50"
-                        >
-                            {pending ? "Đang lưu…" : "Lưu"}
-                        </button>
                     </div>
+
+                    {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
                 </form>
+
+                <DialogFooter>
+                    <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>
+                        Hủy
+                    </Button>
+                    <Button type="submit" form={formId} disabled={!valid || pending}>
+                        {pending ? "Đang lưu…" : "Lưu"}
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     )

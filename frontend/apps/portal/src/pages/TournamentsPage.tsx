@@ -23,6 +23,7 @@ import {
 } from "@shared/ui/table"
 
 import { EmptyState, ErrorPanel, ListSkeleton, Page, PageHeader } from "@/components/page"
+import { cardTable } from "./table-frame"
 import { SEASONS_PAGE_SIZE, useTournaments } from "@/lib/tournaments"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { NewTournamentDialog } from "@/components/new-tournament-dialog"
@@ -152,7 +153,7 @@ export function TournamentsPage() {
                     </CardAction>
                 </CardHeader>
 
-                <CardContent className="p-0 [&_th:first-child]:pl-(--card-spacing) [&_td:first-child]:pl-(--card-spacing) [&_th:last-child]:pr-(--card-spacing) [&_td:last-child]:pr-(--card-spacing)]">
+                <CardContent className={cardTable}>
                     {listSlot}
                 </CardContent>
 

@@ -171,7 +171,7 @@ export function MatchDirectImportDialog({
                     {report}
                 </div>
 
-                <DialogFooter className="items-center gap-2">
+                <DialogFooter>
                     <Button variant="outline" aria-label="Đóng" title="Đóng" onClick={close} disabled={busy}>
                         <X className="size-4" aria-hidden />
                     </Button>

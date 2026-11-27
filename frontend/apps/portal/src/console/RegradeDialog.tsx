@@ -1,6 +1,16 @@
-import { useMemo, useState } from "react"
+import { useId, useMemo, useState } from "react"
 import { ROUND_LABEL } from "@shared/deck/geometry"
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@shared/ui/dialog"
+import { Button } from "@shared/ui/button"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@shared/ui/dialog"
+import { Input } from "@shared/ui/input"
+import { Label } from "@shared/ui/label"
 
 export function RegradeDialog({ playerName, rows, pending, error, onCancel, onSubmit }: {
     playerName: string
@@ -10,6 +20,7 @@ export function RegradeDialog({ playerName, rows, pending, error, onCancel, onSu
     onCancel: () => void
     onSubmit: (questionId: string, delta: number) => void
 }) {
+    const formId = useId()
     const [questionId, setQuestionId] = useState<string | null>(null)
     const [delta, setDelta] = useState("")
     const [activeRound, setActiveRound] = useState<string | null>(null)
@@ -49,45 +60,52 @@ export function RegradeDialog({ playerName, rows, pending, error, onCancel, onSu
             <DialogContent
                 showCloseButton={false}
                 initialFocus={false}
-                className="flex max-h-[80vh] w-full max-w-lg flex-col gap-0 p-5 sm:max-w-lg"
+                className="flex max-h-[80vh] w-full flex-col sm:max-w-lg"
             >
+                <DialogHeader>
+                    <DialogTitle>Sửa điểm câu trả lời</DialogTitle>
+                    <DialogDescription>
+                        Thí sinh: <span className="font-medium text-foreground">{playerName}</span> — chọn câu rồi cộng/trừ điểm.
+                    </DialogDescription>
+                </DialogHeader>
+
                 <form
-                    className="flex min-h-0 flex-1 flex-col"
+                    id={formId}
+                    className="flex min-h-0 flex-1 flex-col gap-3"
                     onSubmit={(event) => {
                         event.preventDefault()
                         if (valid && questionId !== null) onSubmit(questionId, parsed)
                     }}
                 >
-                    <DialogTitle className="font-display text-lg font-bold uppercase">Sửa điểm câu trả lời</DialogTitle>
-                    <DialogDescription className="mt-1 text-sm text-muted-foreground">
-                        Thí sinh: <span className="font-medium text-foreground">{playerName}</span> — chọn câu rồi cộng/trừ điểm.
-                    </DialogDescription>
-
                     {roundIds.length > 1 && (
-                        <div className="mt-3 flex flex-wrap gap-1.5">
-                            {roundIds.map((roundId) => (
-                                <button
-                                    key={roundId}
-                                    type="button"
-                                    onClick={() => setActiveRound(roundId)}
-                                    className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide transition ${roundId === currentRound ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/70"}`}
-                                >
-                                    {ROUND_LABEL[roundId] ?? roundId}
-                                </button>
-                            ))}
+                        <div className="flex flex-wrap gap-1.5">
+                            {roundIds.map((roundId) => {
+                                const active = roundId === currentRound
+                                return (
+                                    <Button
+                                        key={roundId}
+                                        type="button"
+                                        size="xs"
+                                        variant={active ? "default" : "outline"}
+                                        aria-pressed={active}
+                                        onClick={() => setActiveRound(roundId)}
+                                    >
+                                        {ROUND_LABEL[roundId] ?? roundId}
+                                    </Button>
+                                )
+                            })}
                         </div>
                     )}
 
-                    <input
+                    <Input
                         type="search"
                         value={search}
                         onChange={(event) => setSearch(event.target.value)}
                         placeholder="Tìm câu hỏi…"
                         aria-label="Tìm câu hỏi"
-                        className="mt-3 w-full rounded-lg border border-input bg-background px-3 py-2 font-sans text-sm outline-none focus:ring-2 focus:ring-ring"
                     />
 
-                    <div className="mt-3 min-h-0 flex-1 overflow-y-auto">
+                    <div className="min-h-0 flex-1 overflow-y-auto">
                         {rows.length === 0 && (
                             <p className="py-6 text-center text-sm text-muted-foreground">Thí sinh chưa trả lời câu nào.</p>
                         )}
@@ -104,7 +122,7 @@ export function RegradeDialog({ playerName, rows, pending, error, onCancel, onSu
                                         >
                                             <input
                                                 type="radio"
-                                                name="regrade-question"
+                                                name={`${formId}-question`}
                                                 checked={selected}
                                                 onChange={() => setQuestionId(row.questionId)}
                                                 className="accent-primary"
@@ -120,37 +138,30 @@ export function RegradeDialog({ playerName, rows, pending, error, onCancel, onSu
                         </ul>
                     </div>
 
-                    <label className="mt-4 block text-sm font-medium">
-                        Điểm (+/-)
-                        <input
+                    <div className="grid gap-1.5">
+                        <Label htmlFor={`${formId}-delta`}>Điểm (+/-)</Label>
+                        <Input
+                            id={`${formId}-delta`}
                             type="number"
                             inputMode="numeric"
                             value={delta}
                             onChange={(event) => setDelta(event.target.value)}
                             placeholder="vd: 10 hoặc -5"
-                            className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 font-sans tabular-nums outline-none focus:ring-2 focus:ring-ring"
+                            className="tabular-nums"
                         />
-                    </label>
-
-                    {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
-                    <div className="mt-5 flex justify-end gap-2">
-                        <button
-                            type="button"
-                            onClick={onCancel}
-                            disabled={pending}
-                            className="rounded-lg border px-4 py-2 text-sm font-semibold text-muted-foreground transition hover:bg-muted disabled:opacity-50"
-                        >
-                            Hủy
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={!valid || pending}
-                            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-50"
-                        >
-                            {pending ? "Đang lưu…" : "Lưu"}
-                        </button>
                     </div>
+
+                    {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
                 </form>
+
+                <DialogFooter>
+                    <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>
+                        Hủy
+                    </Button>
+                    <Button type="submit" form={formId} disabled={!valid || pending}>
+                        {pending ? "Đang lưu…" : "Lưu"}
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     )

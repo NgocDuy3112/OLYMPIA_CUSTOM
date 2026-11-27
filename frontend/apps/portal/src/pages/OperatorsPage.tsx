@@ -5,6 +5,7 @@ import { api } from "@shared/lib/api"
 import { errorMessage } from "@shared/lib/error-text"
 import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
+import { Card, CardContent } from "@shared/ui/card"
 import {
     Dialog,
     DialogContent,
@@ -15,6 +16,7 @@ import {
 import { Input } from "@shared/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
 import { EmptyState, ErrorPanel, ListSkeleton, Page, PageHeader } from "@/components/page"
+import { cardTable } from "./table-frame"
 
 
 
@@ -249,7 +251,7 @@ export function OperatorsPage() {
             <PageHeader
                 title="Operators"
                 actions={
-                    <Button onClick={() => setInviting(true)}>
+                    <Button size="sm" onClick={() => setInviting(true)}>
                         <UserPlus className="size-4" aria-hidden /> New operator
                     </Button>
                 }
@@ -267,48 +269,50 @@ export function OperatorsPage() {
             )}
 
             {list.data && list.data.items.length > 0 && (
-                <div className="rounded-xl border bg-card">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Username</TableHead>
-                                <TableHead>Name</TableHead>
-                                <TableHead className="w-28">Role</TableHead>
-                                <TableHead className="w-32">Created</TableHead>
-                                <TableHead className="w-28">State</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {list.data.items.map((operator) => {
-                                let roleVariant: "default" | "outline" = "outline"
-                                if (operator.role === "ADMIN") roleVariant = "default"
-                                let statusText = "Active"
-                                let statusCls = "text-sm text-muted-foreground"
-                                if (operator.disabledAt) {
-                                    statusText = "Disabled"
-                                    statusCls = "text-sm font-medium text-destructive"
-                                }
-                                return (
-                                    <TableRow key={operator.id}>
-                                        <TableCell className="font-mono text-sm">{operator.username}</TableCell>
-                                        <TableCell className="font-medium">{operator.displayName}</TableCell>
-                                        <TableCell>
-                                            <Badge variant={roleVariant}>
-                                                {operator.role}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-sm text-muted-foreground">
-                                            {dateFormat.format(new Date(operator.createdAt))}
-                                        </TableCell>
-                                        <TableCell>
-                                            <span className={statusCls}>{statusText}</span>
-                                        </TableCell>
-                                    </TableRow>
-                                )
-                            })}
-                        </TableBody>
-                    </Table>
-                </div>
+                <Card>
+                    <CardContent className={cardTable}>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Username</TableHead>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead className="w-28">Role</TableHead>
+                                    <TableHead className="w-32">Created</TableHead>
+                                    <TableHead className="w-28">State</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {list.data.items.map((operator) => {
+                                    let roleVariant: "default" | "outline" = "outline"
+                                    if (operator.role === "ADMIN") roleVariant = "default"
+                                    let statusText = "Active"
+                                    let statusVariant: "default" | "secondary" | "outline" = "outline"
+                                    if (operator.disabledAt) {
+                                        statusText = "Disabled"
+                                        statusVariant = "secondary"
+                                    }
+                                    return (
+                                        <TableRow key={operator.id}>
+                                            <TableCell className="font-mono text-sm">{operator.username}</TableCell>
+                                            <TableCell className="font-medium">{operator.displayName}</TableCell>
+                                            <TableCell>
+                                                <Badge variant={roleVariant}>
+                                                    {operator.role}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-sm text-muted-foreground">
+                                                {dateFormat.format(new Date(operator.createdAt))}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant={statusVariant}>{statusText}</Badge>
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                })}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
             )}
 
             {inviting && <InviteOperatorDialog open={inviting} onClose={() => setInviting(false)} />}
