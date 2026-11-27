@@ -6,10 +6,12 @@ COPY AOC.Domain.Gameplay/AOC.Domain.Gameplay.csproj AOC.Domain.Gameplay/
 COPY AOC.Domain.Tournament/AOC.Domain.Tournament.csproj AOC.Domain.Tournament/
 COPY AOC.Infrastructure/AOC.Infrastructure.csproj AOC.Infrastructure/
 COPY AOC.Api/AOC.Api.csproj AOC.Api/
-RUN dotnet restore AOC.Api/AOC.Api.csproj
+RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
+    dotnet restore AOC.Api/AOC.Api.csproj
 
 COPY . .
-RUN dotnet publish AOC.Api/AOC.Api.csproj -c Release -o /app/publish /p:UseAppHost=false
+RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
+    dotnet publish AOC.Api/AOC.Api.csproj -c Release -o /app/publish /p:UseAppHost=false --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
@@ -23,7 +25,7 @@ COPY --from=build /app/publish .
 # Schema stays owned by the SQL migrations (applied on start, like drizzle-kit migrate).
 COPY migrations ./migrations
 
-ENV NODE_ENV=production
+ENV ASPNETCORE_ENVIRONMENT=production
 EXPOSE 3000
 
 CMD ["sh", "-c", "ASPNETCORE_URLS=http://+:${PORT:-3000} exec dotnet AOC.Api.dll"]
