@@ -50,6 +50,13 @@ describe("PortalShell", () => {
         }
     })
 
+    it("names the nav landmark, so the shell has no anonymous navigation region", async () => {
+        renderShell()
+
+        const nav = await screen.findByRole("navigation", { name: "Main navigation" })
+        expect(nav).toBeInTheDocument()
+    })
+
     it("marks the current section for assistive tech", async () => {
         renderShell()
 

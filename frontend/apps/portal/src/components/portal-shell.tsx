@@ -48,7 +48,7 @@ export function PortalShell() {
                     <span className="hidden lg:inline">AOC</span>
                 </Link>
 
-                <nav className="flex flex-col gap-1 p-2">
+                <nav aria-label="Main navigation" className="flex flex-col gap-1 p-2">
                     {NAV.map((item) => {
                         if ("adminOnly" in item && item.adminOnly && me?.role !== "ADMIN") return null
                         const active = item.match(pathname)
