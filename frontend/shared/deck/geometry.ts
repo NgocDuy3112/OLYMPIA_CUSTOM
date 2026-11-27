@@ -3,7 +3,7 @@ import { type CSSProperties } from "react"
 
 const CANVAS_W = 13.3333
 const PT_SCALE = 0.75
-export const pt = (v: number) => `${+(((v * PT_SCALE) / 72 / CANVAS_W) * 100).toFixed(3)}cqw`
+export const pt = (v: number) => `calc(${+(((v * PT_SCALE) / 72 / CANVAS_W) * 100).toFixed(3)}cqw * var(--deck-type-scale))`
 export const STRIP_R = `${+(((0.44 * 0.31623) / CANVAS_W) * 100).toFixed(3)}cqw`
 
 export const TYPE = {
