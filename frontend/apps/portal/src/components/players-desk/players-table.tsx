@@ -59,7 +59,7 @@ export function PlayersTable({
     }
 
     return (
-        <Table>
+        <Table className="min-w-[52rem]">
             <TableHeader>
                 <TableRow>
                     <TableHead className="pl-6">Contestant</TableHead>

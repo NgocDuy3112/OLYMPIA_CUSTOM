@@ -12,7 +12,7 @@ export function AssistantSheet({ surface }: { surface: AssistantSurface }) {
     return (
         <aside
             aria-label="Trợ lý điều hành"
-            className="absolute inset-y-[3cqw] right-[3cqw] z-30 flex w-[27cqw] flex-col gap-[1cqw] overflow-y-auto rounded-2xl bg-card p-[1.2cqw] text-card-foreground shadow-md ring-1 ring-border"
+            className="absolute inset-y-[3cqw] right-[3cqw] z-30 flex w-[min(27cqw,22rem)] flex-col gap-[1cqw] overflow-y-auto rounded-2xl bg-card p-[1.2cqw] text-card-foreground shadow-md ring-1 ring-border"
             style={{ fontSize: pt(12) }}
         >
             <p className="font-sans font-semibold uppercase tracking-wide text-muted-foreground">

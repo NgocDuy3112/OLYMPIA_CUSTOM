@@ -76,7 +76,7 @@ export function MatchesTab({
     if (remove.isError) deleteError = remove.error.message
 
     let matchesSlot: ReactNode = (
-        <Table>
+        <Table className="min-w-[44rem]">
             <TableHeader>
                 <TableRow>
                     <TableHead className="pl-6">Match</TableHead>

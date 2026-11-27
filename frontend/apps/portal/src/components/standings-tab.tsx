@@ -24,7 +24,7 @@ export function StandingsTab({ tournamentId }: { tournamentId: string }) {
     if (recompute.isPending) recomputeLabel = "Recomputing…"
 
     let standingsSlot: ReactNode = (
-        <Table>
+        <Table className="min-w-[38rem]">
             <TableHeader>
                 <TableRow>
                     <TableHead className="w-16 pl-6">Place</TableHead>

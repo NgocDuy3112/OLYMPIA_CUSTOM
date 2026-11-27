@@ -17,7 +17,7 @@ export function ConsoleStage({ rail, actions, flash, children }: {
     return (
         <StageLayout rail={rail}>
             {children}
-            <div className="flex flex-wrap items-center gap-[1cqw]">
+            <div className="flex min-w-0 flex-wrap items-center gap-[1cqw] overflow-x-auto">
                 <Strip items={items} />
             </div>
             <Status error={flash} />
