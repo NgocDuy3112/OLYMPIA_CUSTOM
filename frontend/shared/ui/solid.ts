@@ -1,1 +1,1 @@
-export const SOLID_SURFACE = "bg-[#16181e] ring-1 ring-white/10"
+export const SOLID_SURFACE = "bg-(--surface-solid) ring-1 ring-border"

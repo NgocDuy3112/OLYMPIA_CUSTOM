@@ -124,6 +124,12 @@
   --chart-2: oklch(0.577 0.245 27.325);
   --chart-3: oklch(0.627 0.194 149.214);
   --chart-4: oklch(0.666 0.157 58.318);
+  --success: oklch(0.627 0.194 149.214);
+  --warning: oklch(0.666 0.157 58.318);
+  --surface-solid: oklch(0.97 0 0);
+  --primary-border: oklch(0.3 0.015 255);
+  --primary-border-hover: oklch(0.24 0.015 255);
+  --table-cell-x: 0.5rem;
   --glow-1: rgb(255 255 255 / 0.16);
   --glow-2: rgb(255 255 255 / 0.12);
   --glow-3: rgb(255 255 255 / 0.10);
@@ -170,6 +176,11 @@
   --chart-2: oklch(0.7 0.19 27.325);
   --chart-3: oklch(0.72 0.17 149.214);
   --chart-4: oklch(0.78 0.15 58.318);
+  --success: oklch(0.72 0.17 149.214);
+  --warning: oklch(0.78 0.15 58.318);
+  --surface-solid: #16181e;
+  --primary-border: #3f4652;
+  --primary-border-hover: #4b5361;
 }
 
 [data-glow="white"] {
@@ -233,5 +244,10 @@
 
   html {
     @apply font-sans;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse {
+    animation: none;
   }
 }

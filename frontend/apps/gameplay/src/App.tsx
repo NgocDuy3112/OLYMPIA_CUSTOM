@@ -20,11 +20,19 @@ function isNotFound(error: unknown): boolean {
     return error instanceof ApiError && error.status === 404
 }
 
+function PageLoading() {
+    return (
+        <div className="mx-auto w-full max-w-360 px-4 py-6 md:py-10">
+            <LoadingState />
+        </div>
+    )
+}
+
 function TournamentLayout() {
     const { tournamentId } = useParams()
     const query = useTournament(tournamentId ?? "")
 
-    if (query.isPending) return <LoadingState />
+    if (query.isPending) return <PageLoading />
     if (query.error) {
         if (isNotFound(query.error)) return <NotFoundPage />
         return <ErrorPanel
@@ -43,7 +51,7 @@ function MatchRoute() {
     const schedule = useSchedule(tournament.id)
     const selfCam = useSelfBroadcast(id ?? "")
 
-    if (schedule.isPending) return <LoadingState />
+    if (schedule.isPending) return <PageLoading />
     if (schedule.error) return <ErrorPanel
                 title="Không tải được dữ liệu giải đấu"
                 message="Kết nối tới máy chủ thất bại. Vui lòng thử lại."

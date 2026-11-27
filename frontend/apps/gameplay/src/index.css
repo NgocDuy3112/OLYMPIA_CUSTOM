@@ -62,11 +62,3 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 }
-
-/* Player controls breathe while they can be used. */
-.control-breathe {
-  animation: stage-pulse 2s ease-in-out infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  .control-breathe { animation: none; }
-}

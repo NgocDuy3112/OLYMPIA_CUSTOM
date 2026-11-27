@@ -106,6 +106,14 @@ function AccountSlot({ onEnterMatch }: { onEnterMatch: () => void }) {
     )
 }
 
+function PageLoading() {
+    return (
+        <div className="mx-auto w-full max-w-360 px-4 py-6 md:py-10">
+            <LoadingState />
+        </div>
+    )
+}
+
 function AppShell() {
     return (
         <div className="flex h-dvh flex-col">
@@ -124,7 +132,7 @@ function TournamentLayout() {
     const { tournamentId } = useParams()
     const query = useTournament(tournamentId ?? "")
 
-    if (query.isPending) return <LoadingState />
+    if (query.isPending) return <PageLoading />
     if (query.error) return (
         <ErrorPanel
             title="Không tải được dữ liệu giải đấu"
@@ -163,7 +171,7 @@ function StandingsRoute() {
     )
     const rows = useMemo(() => toStandings(standings.data?.rows ?? []), [standings.data])
 
-    if (standings.isPending || schedule.isPending) return <LoadingState />
+    if (standings.isPending || schedule.isPending) return <PageLoading />
     return <StandingsPage rows={rows} matches={matches} loading={standings.isPending} />
 }
 
@@ -179,7 +187,7 @@ function PlainLayout() {
 function RootRedirect() {
     const list = useTournamentList()
 
-    if (list.isPending || !list.data) return <LoadingState />
+    if (list.isPending || !list.data) return <PageLoading />
     if (list.error) return (
         <ErrorPanel
             title="Không tải được dữ liệu giải đấu"

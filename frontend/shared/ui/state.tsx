@@ -6,7 +6,7 @@ export function LoadingState({ label = "Đang tải" }: { label?: string }) {
         <div
             role="status"
             aria-label={label}
-            className="mx-auto w-full max-w-360 px-4 py-6 md:py-10"
+            className="w-full"
         >
             <div className="h-96 animate-pulse rounded-xl bg-muted" />
         </div>
