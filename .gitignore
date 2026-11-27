@@ -1,6 +1,8 @@
 configs/
 database/
 docs/
+todos/
+plans/
 logs/
 temp/
 *.log
@@ -23,6 +25,7 @@ credentials.json
 .DS_Store
 .turbo/
 .venv/
+.codegraph/
 
 # gitignore template for LangChain products, e.g., LangGraph, LangSmith
 # website: https://www.langchain.com/
