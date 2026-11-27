@@ -168,8 +168,6 @@ public sealed class SubmitService(
         AssertWindow(state.HintWindow, ctx.UserId.ToString(), loaded.Now,
             "WINDOW_CLOSED", "the answer window has closed",
             "the answer window has closed");
-        if (GiaiMaTurn.KeywordWindowRunning(state, loaded.Now))
-            throw new SubmitError(409, "WINDOW_CLOSED", "the answer window has closed");
         if (!GiaiMaTurn.CanPlayerAnswer(state, ctx.UserId.ToString(), loaded.Now))
             throw new SubmitError(409, "LOCKED", "you can no longer answer this round");
 

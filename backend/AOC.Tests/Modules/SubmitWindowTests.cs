@@ -191,6 +191,31 @@ public class SubmitWindowTests
     }
 
     [DbFact]
+    public async Task GiaiMa_Answer_lands_while_the_countdown_started_by_the_window_is_running()
+    {
+        var fixture = (await SeedAsync(["giai-ma"]))["giai-ma"];
+        using var db = AuthTestDb.OpenDb();
+
+        var playerId = fixture.UserId.ToString();
+        var questionId = fixture.QuestionId.ToString();
+        var state = GiaiMaTurn.StartWindow(
+            GiaiMaTurn.PickHint(GiaiMaTurn.StartGiaiMa([playerId], [questionId]), questionId),
+            Iso(DateTime.UtcNow.AddSeconds(-2)));
+
+        var live = db.MatchLive.Single(l => l.MatchId == fixture.MatchId);
+        live.State = JsonSerializer.SerializeToElement(state, JsonApi.Options);
+        await db.SaveChangesAsync();
+
+        await fixture.Submit.SubmitAnswerAsync(new SubmitService.SubmitContext(
+            fixture.MatchId, fixture.UserId, fixture.QuestionId,
+            JsonSerializer.SerializeToElement(
+                new SubmittedAnswerValue.Text("Hà Nội"), JsonApi.Options)));
+
+        var stored = db.Answers.Single(a => a.MatchId == fixture.MatchId && a.UserId == fixture.UserId);
+        Assert.Equal("Hà Nội", Assert.IsType<AnswerValue.Text>(stored.ValueObject).Value);
+    }
+
+    [DbFact]
     public async Task PressedAt_drives_the_recorded_elapsed_time_not_the_server_clock()
     {
         var fixture = (await SeedAsync(["but-pha"]))["but-pha"];
