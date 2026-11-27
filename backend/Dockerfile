@@ -28,4 +28,5 @@ COPY migrations ./migrations
 ENV ASPNETCORE_ENVIRONMENT=production
 EXPOSE 3000
 
+USER $APP_UID
 CMD ["sh", "-c", "ASPNETCORE_URLS=http://+:${PORT:-3000} exec dotnet AOC.Api.dll"]
