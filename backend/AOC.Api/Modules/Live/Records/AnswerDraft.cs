@@ -4,6 +4,5 @@ namespace AOC.Api.Modules.Live;
 
 public sealed record AnswerDraft(
     string UserId,
-    Verdict? Suggestion,
     int? AnsweredMs,
     Verdict? Verdict = null);

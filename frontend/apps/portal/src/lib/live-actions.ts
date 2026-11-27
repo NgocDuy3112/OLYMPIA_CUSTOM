@@ -17,7 +17,7 @@ export type LiveAction =
     | { kind: "giai-ma.startWindow" }
     | { kind: "giai-ma.closeHintWindow" }
     | { kind: "giai-ma.resolveHint"; verdicts: Verdict[] }
-    | { kind: "giai-ma.submitKeyword"; playerId: string; questionId: string; text: string; suggestion: "CORRECT" | "INCORRECT" }
+    | { kind: "giai-ma.submitKeyword"; playerId: string; questionId: string; text: string }
     | { kind: "giai-ma.judgeKeyword"; playerId: string; questionId: string; correct: boolean }
     | { kind: "giai-ma.judgeKeywords"; verdicts: KeywordVerdict[] }
     | { kind: "giai-ma.endRound" }
@@ -76,7 +76,6 @@ type FieldSpec =
     | "number"
     | "string[]"
     | "phase"
-    | "suggestion"
     | "power"
     | "verdicts"
     | "keywordVerdicts"
@@ -96,8 +95,6 @@ const fieldOk = (spec: FieldSpec, value: unknown): boolean => {
             return Array.isArray(value) && value.every((item) => typeof item === "string")
         case "phase":
             return value === 1 || value === 2
-        case "suggestion":
-            return value === "CORRECT" || value === "INCORRECT"
         case "power":
             return value === "STAR" || value === "ASSIGN" || value === null
         case "verdicts":
@@ -134,7 +131,6 @@ const REQUIRED_FIELDS: Record<LiveAction["kind"], Record<string, FieldSpec>> = {
         playerId: "string",
         questionId: "string",
         text: "string",
-        suggestion: "suggestion",
     },
     "giai-ma.judgeKeyword": { playerId: "string", questionId: "string", correct: "boolean" },
     "giai-ma.judgeKeywords": { verdicts: "keywordVerdicts" },

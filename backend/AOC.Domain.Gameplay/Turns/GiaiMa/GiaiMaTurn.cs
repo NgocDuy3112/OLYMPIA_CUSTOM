@@ -38,10 +38,10 @@ public static class GiaiMaTurn
         return GiaiMaScoring.KeywordValue(player.HintsRevealed, KeywordRulesOf(state));
     }
 
-    public static GiaiMaState LockOpenHint(GiaiMaState state, IReadOnlyDictionary<string, bool> answers)
+    public static GiaiMaState LockOpenHint(GiaiMaState state)
     {
         if (state.OpenHint is null) throw Err("NO_OPEN_HINT", "no hint is open to lock");
-        return ResolveOpenHint(state, answers);
+        return ResolveOpenHint(state, new Dictionary<string, bool>());
     }
 
     public static GiaiMaState PickHint(GiaiMaState state, string hintId)

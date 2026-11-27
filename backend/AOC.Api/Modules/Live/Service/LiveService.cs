@@ -87,7 +87,6 @@ public sealed partial class LiveService
                     questionId = row.QuestionId,
                     userId = row.UserId,
                     value = row.Value,
-                    drafts = row.Drafts,
                     verdict = row.Verdict,
                     pointsAwarded = row.PointsAwarded,
                     submittedAt = row.SubmittedAt,
@@ -434,7 +433,7 @@ public sealed partial class LiveService
             state,
             (await reader.ReadPlayerAnswersAsync(matchId, userId))
                 .Select(a => new SubmittedAnswerRow(
-                    a.QuestionId, a.Verdict, a.AnsweredMs, a.Suggestion, AnswerValueOf(a.Value))).ToList(),
+                    a.QuestionId, a.Verdict, a.AnsweredMs, AnswerValueOf(a.Value))).ToList(),
             (await reader.ReadJudgedAnswersAsync(matchId))
                 .Select(a => new JudgedRow(a.QuestionId, a.UserId, a.Verdict, a.AnsweredMs)).ToList(),
             match.QuestionsList,

@@ -27,17 +27,7 @@ public static class GiaiMaApplier
                 return (GiaiMaTurn.StartKeywordCountdown(state, ctx.Now), []);
 
             case LiveAction.GiaiMaLockHints:
-            {
-                if (state.OpenHint is null) throw new RuleError("NO_OPEN_HINT", "no hint is open to lock");
-                var answers = ctx.AnswerDrafts.ToDictionary(
-                    d => d.UserId, d => d.Suggestion == Verdict.CORRECT);
-                var next = GiaiMaTurn.LockOpenHint(state, answers);
-                var facts = ctx.AnswerDrafts.Select(d => (LiveFact)new JudgeFact(
-                    state.OpenHint!, d.UserId,
-                    d.Suggestion == Verdict.CORRECT ? Verdict.CORRECT : Verdict.INCORRECT,
-                    0)).ToList();
-                return (next, facts);
-            }
+                return (GiaiMaTurn.LockOpenHint(state), []);
 
             case LiveAction.GiaiMaStartWindow:
                 return (GiaiMaTurn.StartWindow(state, ctx.Now), []);
@@ -64,8 +54,7 @@ public static class GiaiMaApplier
                 var next = GiaiMaTurn.LockKeyword(state, submit.PlayerId);
                 var facts = new List<LiveFact>
                 {
-                    Facts.Draft(submit.QuestionId, submit.PlayerId, submit.Text,
-                        submit.Suggestion == VerdictSuggestion.CORRECT ? Verdict.CORRECT : Verdict.INCORRECT)
+                    Facts.Draft(submit.QuestionId, submit.PlayerId, submit.Text)
                 };
                 return (next, facts);
             }

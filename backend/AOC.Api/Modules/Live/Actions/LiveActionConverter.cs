@@ -120,11 +120,6 @@ public sealed class LiveActionConverter : JsonConverter<LiveAction>
             )).ToList();
         }
 
-        T EnumOf<T>(string name) where T : struct, Enum =>
-            Enum.TryParse<T>(Str(name), out var parsed)
-                ? parsed
-                : throw new JsonException($"invalid value for '{name}'");
-
         T? OptEnumOf<T>(string name) where T : struct, Enum
         {
             if (!root.TryGetProperty(name, out var v) || v.ValueKind != JsonValueKind.String)
@@ -144,8 +139,7 @@ public sealed class LiveActionConverter : JsonConverter<LiveAction>
             "giai-ma.closeHintWindow" => new LiveAction.GiaiMaCloseHintWindow(),
             "giai-ma.resolveHint" => new LiveAction.GiaiMaResolveHint(VerdictList("verdicts")),
             "giai-ma.submitKeyword" => new LiveAction.GiaiMaSubmitKeyword(
-                Str("playerId"), Str("questionId"), Str("text"),
-                EnumOf<VerdictSuggestion>("suggestion")),
+                Str("playerId"), Str("questionId"), Str("text")),
             "giai-ma.judgeKeyword" => new LiveAction.GiaiMaJudgeKeyword(
                 Str("playerId"), Str("questionId"), Bool("correct")),
             "giai-ma.judgeKeywords" => new LiveAction.GiaiMaJudgeKeywords(KeywordVerdictList("verdicts")),

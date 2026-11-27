@@ -85,9 +85,9 @@ public class DraftWriteTests
 
         var write = Task.WhenAll(
             firstWriter.WriteDraftAsync(seeded.MatchId, seeded.QuestionId, seeded.UserId,
-                Answer("Hà Nội"), Verdict.CORRECT, answeredMs: 1200),
+                Answer("Hà Nội"), 1200),
             secondWriter.WriteDraftAsync(seeded.MatchId, seeded.QuestionId, seeded.UserId,
-                Answer("Hà Nội"), Verdict.CORRECT, answeredMs: 1300));
+                Answer("Hà Nội"), 1300));
 
         await write;
 
@@ -106,9 +106,9 @@ public class DraftWriteTests
         using var db = AuthTestDb.OpenDb();
         var writer = new DraftWriter(db);
         var first = await writer.WriteDraftAsync(seeded.MatchId, seeded.QuestionId, seeded.UserId,
-            Answer("Hà Nội"), Verdict.CORRECT, answeredMs: 900);
+            Answer("Hà Nội"), 900);
         var second = await writer.WriteDraftAsync(seeded.MatchId, seeded.QuestionId, seeded.UserId,
-            Answer("Hà Nội"), Verdict.CORRECT, answeredMs: 1500);
+            Answer("Hà Nội"), 1500);
 
         Assert.True(first);
         Assert.False(second);
@@ -140,7 +140,7 @@ public class DraftWriteTests
         var writer = new DraftWriter(db);
         var error = await Assert.ThrowsAsync<RuleError>(() =>
             writer.WriteDraftAsync(seeded.MatchId, seeded.QuestionId, seeded.UserId,
-                Answer("Sài Gòn"), Verdict.INCORRECT));
+                Answer("Sài Gòn")));
 
         Assert.Equal("ALREADY_JUDGED", error.Code);
 
@@ -158,11 +158,11 @@ public class DraftWriteTests
         using var db = AuthTestDb.OpenDb();
         var writer = new DraftWriter(db);
         await writer.WriteDraftAsync(seeded.MatchId, seeded.QuestionId, seeded.UserId,
-            Answer("Hà Nội"), Verdict.CORRECT, answeredMs: 900);
+            Answer("Hà Nội"), 900);
 
         var error = await Assert.ThrowsAsync<RuleError>(() =>
             writer.WriteDraftAsync(seeded.MatchId, seeded.QuestionId, seeded.UserId,
-                Answer("Sài Gòn"), Verdict.INCORRECT, revise: false));
+                Answer("Sài Gòn"), revise: false));
 
         Assert.Equal("ALREADY_ANSWERED", error.Code);
 
@@ -172,21 +172,23 @@ public class DraftWriteTests
     }
 
     [DbFact]
-    public async Task Drafts_from_two_drafters_merge_on_the_same_answer()
+    public async Task A_different_revise_reports_a_change_and_replaces_the_stored_value()
     {
         var seeded = await SeedAsync();
 
         using var db = AuthTestDb.OpenDb();
         var writer = new DraftWriter(db);
-        await writer.WriteDraftAsync(seeded.MatchId, seeded.QuestionId, seeded.UserId,
-            Answer("Hà Nội"), Verdict.CORRECT);
-        await writer.WriteDraftAsync(seeded.MatchId, seeded.QuestionId, seeded.UserId,
-            Answer("Hà Nội"), Verdict.INCORRECT, draftedBy: "mcp");
+        var first = await writer.WriteDraftAsync(seeded.MatchId, seeded.QuestionId, seeded.UserId,
+            Answer("Hà Nội"), 900);
+        var second = await writer.WriteDraftAsync(seeded.MatchId, seeded.QuestionId, seeded.UserId,
+            Answer("Sài Gòn"), 1500);
+
+        Assert.True(first);
+        Assert.True(second);
 
         db.ChangeTracker.Clear();
         var row = await db.Answers.AsNoTracking().FirstAsync(a => a.MatchId == seeded.MatchId);
-        var drafts = row.Drafts!.Value.Deserialize<Dictionary<string, Verdict>>(JsonApi.Options)!;
-        Assert.Equal(Verdict.CORRECT, drafts[DraftWriter.AutoDrafter]);
-        Assert.Equal(Verdict.INCORRECT, drafts["mcp"]);
+        Assert.Equal("Sài Gòn", Assert.IsType<AnswerValue.Text>(row.ValueObject).Value);
+        Assert.Equal(1500, row.AnsweredMs);
     }
 }

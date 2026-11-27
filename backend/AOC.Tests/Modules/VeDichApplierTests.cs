@@ -62,7 +62,7 @@ public class VeDichApplierTests
     public void Judge_AcceptsTheAnswererAndEmitsAJudgeFact()
     {
         // Any submitted answer counts — no draft/final distinction any more.
-        var answered = new List<AnswerDraft> { new("a", null, 1200) };
+        var answered = new List<AnswerDraft> { new("a", 1200) };
 
         var (_, facts) = VeDichApplier.Apply(
             Phase1Open(), new LiveAction.VeDichJudge("a", true), Ctx(answered));
@@ -77,7 +77,7 @@ public class VeDichApplierTests
     [Fact]
     public void Judge_KnowsWhoAnsweredFromTheDraftList()
     {
-        var answered = new List<AnswerDraft> { new("a", null, 1200) };
+        var answered = new List<AnswerDraft> { new("a", 1200) };
 
         var (_, facts) = VeDichApplier.Apply(
             Phase1Open(), new LiveAction.VeDichResolve(true, null), Ctx(answered));
@@ -159,7 +159,7 @@ public class VeDichApplierTests
         // The judge action records points as facts (the answers table is the
         // source of truth), so phase 2 gets those totals through the context.
         var (_, facts) = VeDichApplier.Apply(
-            opened, new LiveAction.VeDichJudge("a", true), Ctx([new("a", null, 1200)]));
+            opened, new LiveAction.VeDichJudge("a", true), Ctx([new("a", 1200)]));
         var sums = facts.OfType<JudgeFact>()
             .GroupBy(f => f.UserId)
             .ToDictionary(g => g.Key, g => g.Sum(f => f.PointsAwarded));

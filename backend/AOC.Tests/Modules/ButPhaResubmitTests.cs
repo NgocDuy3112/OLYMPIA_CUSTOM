@@ -161,19 +161,6 @@ public class ButPhaResubmitTests
     }
 
     [DbFact]
-    public async Task SecondSubmit_GetsTheFreshAutoSuggestion()
-    {
-        var f = await SeedAsync(DateTime.UtcNow.AddSeconds(-3));
-
-        await f.Submit.SubmitAnswerAsync(Ctx(f, "sai hoàn toàn"));
-        await f.Submit.SubmitAnswerAsync(Ctx(f, "Hà Nội"));
-
-        var row = Assert.Single(f.Db.Answers.AsNoTracking().Where(a => a.MatchId == f.MatchId));
-        var drafts = row.Drafts!.Value.Deserialize<Dictionary<string, Verdict>>(JsonApi.Options)!;
-        Assert.Equal(Verdict.CORRECT, drafts[DraftWriter.AutoDrafter]);
-    }
-
-    [DbFact]
     public async Task Submit_AfterTheClockRanOut_IsStillRefused()
     {
         var f = await SeedAsync(DateTime.UtcNow.AddSeconds(-45));

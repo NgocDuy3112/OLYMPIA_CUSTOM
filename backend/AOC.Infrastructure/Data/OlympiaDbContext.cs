@@ -176,8 +176,6 @@ public class AOCDbContext(DbContextOptions<AOCDbContext> options) : DbContext(op
             e.HasIndex(x => new { x.MatchId, x.QuestionId, x.UserId }).IsUnique();
             e.HasIndex(x => x.MatchId);
             e.Property(x => x.Value).HasColumnType("jsonb").IsRequired();
-            e.Property(x => x.Drafts).HasColumnType("jsonb");
-            e.Property(x => x.AutoMatched).HasDefaultValue(false);
             e.Property(x => x.SubmittedAt).HasDefaultValueSql("now()");
             e.ToTable(t => t.HasCheckConstraint(
                 "answers_value_object_check",

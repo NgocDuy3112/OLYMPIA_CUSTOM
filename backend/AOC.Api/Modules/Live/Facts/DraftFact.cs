@@ -6,8 +6,7 @@ namespace AOC.Api.Modules.Live;
 public sealed record DraftFact(
     string QuestionId,
     string UserId,
-    JsonElement Value,
-    Verdict Suggestion) : LiveFact
+    JsonElement Value) : LiveFact
 {
     public const string TypeName = "draft";
 }

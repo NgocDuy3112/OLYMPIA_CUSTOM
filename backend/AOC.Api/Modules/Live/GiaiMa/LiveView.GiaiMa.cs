@@ -18,7 +18,7 @@ public static partial class LiveView
         if (hintsLocked && !string.IsNullOrEmpty(input.UserId))
         {
             var row = input.Submitted.FirstOrDefault(s => s.QuestionId == state.OpenHint);
-            var hintVerdict = row is null ? null : row.Verdict ?? row.Suggestion;
+            var hintVerdict = row?.Verdict;
             if (hintVerdict != Verdict.CORRECT) openHintContent = null;
         }
 
@@ -121,7 +121,7 @@ public static partial class LiveView
             var row = consoleView || !isPicked
                 ? null
                 : input.Submitted.FirstOrDefault(s => s.QuestionId == pair.Key);
-            var verdict = row is null ? null : row.Verdict ?? row.Suggestion;
+            var verdict = row?.Verdict;
             if (isPicked) hintVerdicts[$"{pair.Value}"] = verdict?.ToString();
 
             // opened hints: console always, the answering player when correct.

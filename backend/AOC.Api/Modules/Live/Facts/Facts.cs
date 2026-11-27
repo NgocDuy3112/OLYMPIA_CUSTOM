@@ -7,12 +7,12 @@ public static class Facts
 {
     public static AnswerFact Oral(string questionId, string userId, Verdict verdict, int points) =>
         new(questionId, userId, JsonSerializer.SerializeToElement(new { oral = true }, JsonApiOptions.Options),
-            verdict, points, false);
+            verdict, points);
 
-    public static DraftFact Draft(string questionId, string userId, string text, Verdict suggestion)
+    public static DraftFact Draft(string questionId, string userId, string text)
     {
         var value = JsonSerializer.SerializeToElement(new { text }, JsonApiOptions.Options);
-        return new DraftFact(questionId, userId, value, suggestion);
+        return new DraftFact(questionId, userId, value);
     }
 
     public static EventFact Pick(string questionId, string userId, string roundId, string turnId, int pickOrder)

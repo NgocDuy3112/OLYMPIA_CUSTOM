@@ -230,11 +230,8 @@ public class AnswerEntity
 
     public JsonElement Value { get; set; }
 
-    public JsonElement? Drafts { get; set; }
-
     public int? FirstAnsweredMs { get; set; }
     public int? AnsweredMs { get; set; }
-    public bool AutoMatched { get; set; }
     public Verdict? Verdict { get; set; }
     public int? PointsAwarded { get; set; }
     public DateTime SubmittedAt { get; set; }

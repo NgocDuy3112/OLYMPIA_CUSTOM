@@ -79,23 +79,17 @@ public sealed class SubmitService(
         return new Loaded(match, live, DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"));
     }
 
-    private static SubmittedAnswerValue TextOfChoice(Loaded loaded, SubmitContext ctx, SubmittedAnswerValue value, string message)
+    private static void AssertChoice(Loaded loaded, SubmitContext ctx, SubmittedAnswerValue value, string message)
     {
-        if (value is not SubmittedAnswerValue.Picked picked) return value;
+        if (value is not SubmittedAnswerValue.Picked picked) return;
         var question = loaded.Match.QuestionsList.FirstOrDefault(q => q.Id == ctx.QuestionId.ToString())
             ?? throw new SubmitError(400, "NOT_IN_MATCH", "question is not part of this match");
         var optionId = picked.Items.FirstOrDefault();
         var choice = question.Payload as QuestionPayload.Choice
             ?? throw new SubmitError(400, "BAD_VALUE", message);
-        var option = choice.Options.FirstOrDefault(o => o.Id == optionId)
-            ?? throw new SubmitError(400, "BAD_VALUE", "unknown option");
-        return new SubmittedAnswerValue.Text(option.Text);
+        if (choice.Options.FirstOrDefault(o => o.Id == optionId) is null)
+            throw new SubmitError(400, "BAD_VALUE", "unknown option");
     }
-
-    private static Verdict Suggestion(MatchQuestion question, SubmittedAnswerValue value)
-        => Matching.AutoMatch(question.Kind, question.Payload, value)
-            ? Verdict.CORRECT
-            : Verdict.INCORRECT;
 
     private static void AssertWindow(AnswerWindow window, string playerId, string nowIso,
         string notStartedCode, string notStartedMessage, string closedMessage)
@@ -113,24 +107,23 @@ public sealed class SubmitService(
     }
 
     private async Task<AnswerResult> DraftAsync(
-        Loaded loaded, SubmitContext ctx, SubmittedAnswerValue value, int answeredMs)
+        Loaded loaded, SubmitContext ctx, int answeredMs)
     {
-        var question = loaded.Match.QuestionsList.FirstOrDefault(q => q.Id == ctx.QuestionId.ToString())
-            ?? throw new SubmitError(400, "NOT_IN_MATCH", "question is not part of this match");
-        var suggestion = Suggestion(question, value);
+        if (loaded.Match.QuestionsList.All(q => q.Id != ctx.QuestionId.ToString()))
+            throw new SubmitError(400, "NOT_IN_MATCH", "question is not part of this match");
         var changed = await drafts.WriteDraftAsync(ctx.MatchId, ctx.QuestionId, ctx.UserId,
-            ctx.Value, suggestion, answeredMs: answeredMs);
+            ctx.Value, answeredMs: answeredMs);
         if (!changed) return new AnswerResult();
 
-        await DraftAuditAsync(ctx, loaded.Live.RoundId, suggestion);
+        await DraftAuditAsync(ctx, loaded.Live.RoundId);
 
         await hub.PublishAsync(ctx.MatchId.ToString());
         return new AnswerResult();
     }
 
-    private async Task DraftAuditAsync(SubmitContext ctx, string roundId, Verdict suggestion)
+    private async Task DraftAuditAsync(SubmitContext ctx, string roundId)
     {
-        await audit.RecordReviseAsync(ctx.MatchId, roundId, ctx.QuestionId, ctx.UserId, suggestion,
+        await audit.RecordReviseAsync(ctx.MatchId, roundId, ctx.QuestionId, ctx.UserId,
             ctx.Ip, ctx.UserAgent);
     }
 
@@ -180,7 +173,7 @@ public sealed class SubmitService(
         if (!GiaiMaTurn.CanPlayerAnswer(state, ctx.UserId.ToString(), loaded.Now))
             throw new SubmitError(409, "LOCKED", "you can no longer answer this round");
 
-        return await DraftAsync(loaded, ctx, value, PressedMs(state.HintWindow, ctx, loaded.Now));
+        return await DraftAsync(loaded, ctx, PressedMs(state.HintWindow, ctx, loaded.Now));
     }
 
     private async Task<AnswerResult> SubmitButPhaAsync(Loaded loaded, SubmitContext ctx, SubmittedAnswerValue value)
@@ -196,12 +189,12 @@ public sealed class SubmitService(
             "NO_CLOCK", "the question's clock has not started",
             "the answer window has closed");
 
-        return await DraftAsync(loaded, ctx, value, PressedMs(state.Window, ctx, loaded.Now));
+        return await DraftAsync(loaded, ctx, PressedMs(state.Window, ctx, loaded.Now));
     }
 
     private async Task<AnswerResult> SubmitKhoiDongAsync(Loaded loaded, SubmitContext ctx, SubmittedAnswerValue value)
     {
-        value = TextOfChoice(loaded, ctx, value, "a chung answer must be text");
+        AssertChoice(loaded, ctx, value, "a chung answer must be text");
         var state = LiveState.ParseKhoiDong(loaded.Live.State);
         if (state.Flow != Flow.chung || state.Phase2 is null)
             throw new SubmitError(409, "NO_WINDOW",
@@ -218,7 +211,7 @@ public sealed class SubmitService(
             throw new SubmitError(409, "WINDOW_CLOSED",
                 "the clock has run out — the answer window is closed");
 
-        return await DraftAsync(loaded, ctx, value, PressedMs(state.Phase2.Window, ctx, loaded.Now));
+        return await DraftAsync(loaded, ctx, PressedMs(state.Phase2.Window, ctx, loaded.Now));
     }
 
     private async Task<AnswerResult> SubmitVeDichAsync(Loaded loaded, SubmitContext ctx, SubmittedAnswerValue value)
@@ -236,7 +229,7 @@ public sealed class SubmitService(
             "NO_CLOCK", "the clock has not started yet",
             "the answer window for this question has closed");
 
-        return await DraftAsync(loaded, ctx, value, PressedMs(open.Window, ctx, loaded.Now));
+        return await DraftAsync(loaded, ctx, PressedMs(open.Window, ctx, loaded.Now));
     }
 
     public async Task<AnswerResult> SubmitKeywordAsync(SubmitContext ctx)
@@ -256,9 +249,6 @@ public sealed class SubmitService(
         if (keywordQuestion.Id != ctx.QuestionId.ToString())
             throw new SubmitError(400, "NOT_KEYWORD", "question is not this round's keyword");
 
-        var suggestion = Matching.AutoMatch(QuestionKind.KEYWORD,
-            keywordQuestion.Payload, value) ? Verdict.CORRECT : Verdict.INCORRECT;
-
         var store = new PgLiveStore(db, ctx.MatchId);
         await Apply.MutateLive(store, async tx =>
         {
@@ -272,8 +262,7 @@ public sealed class SubmitService(
 
             var (nextState, facts) = GiaiMaApplier.Apply(state,
                 new LiveAction.GiaiMaSubmitKeyword(
-                    ctx.UserId.ToString(), keywordQuestion.Id, textValue.Value,
-                    suggestion == Verdict.CORRECT ? VerdictSuggestion.CORRECT : VerdictSuggestion.INCORRECT),
+                    ctx.UserId.ToString(), keywordQuestion.Id, textValue.Value),
                 new GiaiMaContext(ctx.UserId.ToString(), current.RoundId,
                     DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
                     RoundRules.ResolveGiaiMa(loaded.Match.RoundConfigsMap.GetValueOrDefault(current.RoundId)),

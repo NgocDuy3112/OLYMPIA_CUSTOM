@@ -67,7 +67,7 @@ public abstract record LiveAction
         public override string Kind => "giai-ma.resolveHint";
     }
 
-    public sealed record GiaiMaSubmitKeyword(string PlayerId, string QuestionId, string Text, VerdictSuggestion Suggestion) : LiveAction
+    public sealed record GiaiMaSubmitKeyword(string PlayerId, string QuestionId, string Text) : LiveAction
     {
         public override string Kind => "giai-ma.submitKeyword";
     }

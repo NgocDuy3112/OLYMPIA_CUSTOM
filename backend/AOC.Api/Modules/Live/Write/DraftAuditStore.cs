@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using AOC.Domain.Contracts;
 using AOC.Infrastructure.Data;
 using AOC.Infrastructure.Data.Entities;
 
@@ -12,7 +11,7 @@ public sealed class DraftAuditStore(AOCDbContext db, ILogger<DraftAuditStore> lo
     public const string Action = "answer_drafted";
 
     public async Task RecordReviseAsync(
-        Guid matchId, string roundId, Guid questionId, Guid userId, Verdict suggestion,
+        Guid matchId, string roundId, Guid questionId, Guid userId,
         string? ip, string? userAgent)
     {
         try
@@ -22,7 +21,6 @@ public sealed class DraftAuditStore(AOCDbContext db, ILogger<DraftAuditStore> lo
                 UPDATE audit_events
                    SET details = jsonb_set(coalesce(details, '{{}}'::jsonb), '{{attempts}}',
                                    to_jsonb(coalesce((details->>'attempts')::int, 0) + 1))
-                              || jsonb_build_object('suggestion', {4}::text)
                  WHERE id = (
                      SELECT id FROM audit_events
                       WHERE action = {3}
@@ -33,8 +31,7 @@ public sealed class DraftAuditStore(AOCDbContext db, ILogger<DraftAuditStore> lo
                       LIMIT 1)
                 RETURNING 1 AS "Value"
                 """,
-                matchId, questionId.ToString(), userId.ToString(), Action,
-                suggestion.ToString()).ToListAsync();
+                matchId, questionId.ToString(), userId.ToString(), Action).ToListAsync();
             if (bumped.Count > 0) return;
 
             db.AuditEvents.Add(new AuditEventEntity
@@ -46,7 +43,6 @@ public sealed class DraftAuditStore(AOCDbContext db, ILogger<DraftAuditStore> lo
                     roundId,
                     questionId,
                     userId,
-                    suggestion = suggestion.ToString(),
                     attempts = 1
                 }),
                 Ip = ip,

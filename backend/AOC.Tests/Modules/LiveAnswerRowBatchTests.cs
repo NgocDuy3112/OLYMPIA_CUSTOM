@@ -47,7 +47,7 @@ public class LiveAnswerRowBatchTests
 
         private void Record(DbCommand command)
         {
-            if (!command.CommandText.Contains("drafts")) return;
+            if (!command.CommandText.Contains("AS \"PointsAwarded\"")) return;
             if (!command.CommandText.Contains("AS \"QuestionId\"")) return;
             lock (commands) commands.Add(command.CommandText);
         }
@@ -226,7 +226,6 @@ public class LiveAnswerRowBatchTests
                 questionId = a.QuestionId,
                 userId = a.UserId,
                 value = a.Value,
-                drafts = a.Drafts,
                 verdict = a.Verdict,
                 pointsAwarded = a.PointsAwarded,
                 submittedAt = a.SubmittedAt,

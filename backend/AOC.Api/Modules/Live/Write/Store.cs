@@ -69,9 +69,7 @@ internal sealed class PgLiveTx(
                     MatchId = matchId,
                     QuestionId = Guid.Parse(draft.QuestionId),
                     UserId = Guid.Parse(draft.UserId),
-                    Value = draft.Value,
-                    Drafts = JsonSerializer.SerializeToElement(
-                        new Dictionary<string, Verdict> { ["auto"] = draft.Suggestion }, JsonApi.Options)
+                    Value = draft.Value
                 });
             }
         }
@@ -98,7 +96,6 @@ internal sealed class PgLiveTx(
                     QuestionId = Guid.Parse(answer.QuestionId),
                     UserId = Guid.Parse(answer.UserId),
                     Value = answer.Value,
-                    AutoMatched = answer.AutoMatched,
                     Verdict = answer.Verdict,
                     PointsAwarded = answer.PointsAwarded
                 });
@@ -225,19 +222,10 @@ internal sealed class PgLiveTx(
     {
         var rows = await db.Answers.AsNoTracking()
             .Where(a => a.MatchId == matchId && a.QuestionId == questionId)
-            .Select(a => new { a.UserId, a.Drafts, a.AnsweredMs, a.Verdict })
+            .Select(a => new { a.UserId, a.AnsweredMs, a.Verdict })
             .ToListAsync();
 
-        return rows.Select(r =>
-        {
-            Verdict? suggestion = null;
-            if (r.Drafts is { } draftsEl && draftsEl.ValueKind == JsonValueKind.Object
-                && draftsEl.TryGetProperty("auto", out var auto)
-                && auto.ValueKind == JsonValueKind.String
-                && Enum.TryParse<Verdict>(auto.GetString(), out var parsed))
-                suggestion = parsed;
-            return new AnswerDraft(r.UserId.ToString(), suggestion, r.AnsweredMs, r.Verdict);
-        }).ToList();
+        return rows.Select(r => new AnswerDraft(r.UserId.ToString(), r.AnsweredMs, r.Verdict)).ToList();
     }
 }
 
@@ -304,27 +292,17 @@ public sealed class LiveReader(AOCDbContext db)
     {
         var rows = await db.Answers.AsNoTracking()
             .Where(a => a.MatchId == matchId && a.UserId == userId)
-            .Select(a => new { QuestionId = a.QuestionId, a.Verdict, a.AnsweredMs, a.Drafts, a.Value })
+            .Select(a => new { QuestionId = a.QuestionId, a.Verdict, a.AnsweredMs, a.Value })
             .ToListAsync();
-        return rows.Select(r =>
-        {
-            Verdict? suggestion = null;
-            if (r.Drafts is { } drafts && drafts.ValueKind == JsonValueKind.Object
-                && drafts.TryGetProperty("auto", out var auto)
-                && auto.ValueKind == JsonValueKind.String
-                && Enum.TryParse<Verdict>(auto.GetString(), out var parsed))
-                suggestion = parsed;
-            return new SubmittedAnswer(
-                r.QuestionId.ToString(), r.Verdict, r.AnsweredMs, suggestion, r.Value);
-        }).ToList();
+        return rows.Select(r => new SubmittedAnswer(
+            r.QuestionId.ToString(), r.Verdict, r.AnsweredMs, r.Value)).ToList();
     }
 
     public sealed record SubmittedAnswer(
-        string QuestionId, Verdict? Verdict, int? AnsweredMs,
-        Verdict? Suggestion = null, JsonElement Value = default);
+        string QuestionId, Verdict? Verdict, int? AnsweredMs, JsonElement Value = default);
 
     public sealed record QuestionAnswerRow(
-        Guid QuestionId, Guid UserId, JsonElement Value, JsonElement? Drafts,
+        Guid QuestionId, Guid UserId, JsonElement Value,
         Verdict? Verdict, int? PointsAwarded, DateTime SubmittedAt, int? AnsweredMs);
 
     public async Task<List<QuestionAnswerRow>> ReadQuestionAnswersAsync(Guid matchId, Guid[] questionIds)
@@ -340,7 +318,6 @@ public sealed class LiveReader(AOCDbContext db)
                 a.QuestionId,
                 a.UserId,
                 a.Value,
-                a.Drafts,
                 a.Verdict,
                 a.PointsAwarded,
                 a.SubmittedAt,
@@ -349,7 +326,7 @@ public sealed class LiveReader(AOCDbContext db)
             .ToListAsync();
 
         return rows.Select(r => new QuestionAnswerRow(
-            r.QuestionId, r.UserId, r.Value, r.Drafts, r.Verdict, r.PointsAwarded,
+            r.QuestionId, r.UserId, r.Value, r.Verdict, r.PointsAwarded,
             r.SubmittedAt, r.AnsweredMs)).ToList();
     }
 
@@ -378,41 +355,32 @@ public sealed class LiveReader(AOCDbContext db)
 
 public sealed class DraftWriter(AOCDbContext db)
 {
-    public const string AutoDrafter = "auto";
-
     public async Task<bool> WriteDraftAsync(
         Guid matchId, Guid questionId, Guid userId,
-        JsonElement value, Verdict suggestion,
-        string? draftedBy = null, int? answeredMs = null, bool revise = true)
+        JsonElement value, int? answeredMs = null, bool revise = true)
     {
-        draftedBy ??= AutoDrafter;
-        var drafts = JsonSerializer.Serialize(
-            new Dictionary<string, Verdict> { [draftedBy] = suggestion }, JsonApi.Options);
-
         var written = revise
             ? await db.Database.SqlQueryRaw<int>(
                 """
-                INSERT INTO answers (match_id, question_id, user_id, value, drafts, first_answered_ms, answered_ms)
-                VALUES ({0}::uuid, {1}::uuid, {2}::uuid, {3}::jsonb, {4}::jsonb, {5}, {6})
+                INSERT INTO answers (match_id, question_id, user_id, value, first_answered_ms, answered_ms)
+                VALUES ({0}::uuid, {1}::uuid, {2}::uuid, {3}::jsonb, {4}, {5})
                 ON CONFLICT (match_id, question_id, user_id) DO UPDATE
                    SET value = EXCLUDED.value,
-                       drafts = coalesce(answers.drafts, jsonb_build_object()) || EXCLUDED.drafts,
                        answered_ms = coalesce(EXCLUDED.answered_ms, answers.answered_ms)
                  WHERE answers.verdict IS NULL
-                   AND (answers.value IS DISTINCT FROM EXCLUDED.value
-                        OR answers.drafts -> {7}::text IS DISTINCT FROM EXCLUDED.drafts -> {7}::text)
+                   AND answers.value IS DISTINCT FROM EXCLUDED.value
                 RETURNING 1 AS "Value"
                 """,
-                matchId, questionId, userId, JsonSerializer.Serialize(value, JsonApi.Options), drafts,
-                answeredMs!, answeredMs!, draftedBy).ToListAsync()
+                matchId, questionId, userId, JsonSerializer.Serialize(value, JsonApi.Options),
+                answeredMs!, answeredMs!).ToListAsync()
             : await db.Database.SqlQueryRaw<int>(
                 """
-                INSERT INTO answers (match_id, question_id, user_id, value, drafts, first_answered_ms, answered_ms)
-                VALUES ({0}::uuid, {1}::uuid, {2}::uuid, {3}::jsonb, {4}::jsonb, {5}, {6})
+                INSERT INTO answers (match_id, question_id, user_id, value, first_answered_ms, answered_ms)
+                VALUES ({0}::uuid, {1}::uuid, {2}::uuid, {3}::jsonb, {4}, {5})
                 ON CONFLICT (match_id, question_id, user_id) DO NOTHING
                 RETURNING 1 AS "Value"
                 """,
-                matchId, questionId, userId, JsonSerializer.Serialize(value, JsonApi.Options), drafts,
+                matchId, questionId, userId, JsonSerializer.Serialize(value, JsonApi.Options),
                 answeredMs!, answeredMs!).ToListAsync();
 
         if (written.Count > 0) return true;

@@ -8,8 +8,7 @@ public sealed record AnswerFact(
     string UserId,
     JsonElement Value,
     Verdict Verdict,
-    int PointsAwarded,
-    bool AutoMatched) : LiveFact
+    int PointsAwarded) : LiveFact
 {
     public const string TypeName = "answer";
 }
