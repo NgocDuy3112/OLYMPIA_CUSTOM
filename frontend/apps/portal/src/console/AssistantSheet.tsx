@@ -49,7 +49,11 @@ export function AssistantSheet({ surface }: { surface: AssistantSurface }) {
                 </div>
             ))}
             {surface.decisions.length > 0 && (
-                <div className="flex flex-col gap-[0.4cqw] border-t border-border pt-[0.6cqw]">
+                <div
+                    role="status"
+                    aria-live="polite"
+                    className="flex flex-col gap-[0.4cqw] border-t border-border pt-[0.6cqw]"
+                >
                     {surface.decisions.map((decision) => (
                         <p key={decision.proposalId} className="text-muted-foreground">
                             {decision.outcome === "applied" ? "Đã áp dụng" : "Đã bỏ qua"} · {decision.action.kind}

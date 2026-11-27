@@ -1,4 +1,4 @@
-import type { FormEvent } from "react"
+import { useId, type FormEvent } from "react"
 import { Button } from "@shared/ui/button"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@shared/ui/dialog"
 import { Field, FieldGroup, FieldLabel } from "@shared/ui/field"
@@ -30,14 +30,16 @@ export function EditPlayerDialog({
     onClose: () => void
     onSubmit: (event: FormEvent) => void
 }) {
+    const formId = useId()
     return (
         <Dialog open onOpenChange={(next) => { if (!next) onClose() }}>
             <DialogContent>
-                <form onSubmit={onSubmit}>
+                <DialogHeader>
+                    <DialogTitle>Sửa thí sinh</DialogTitle>
+                </DialogHeader>
+
+                <form id={formId} onSubmit={onSubmit}>
                     <FieldGroup>
-                        <DialogHeader>
-                            <DialogTitle>Sửa thí sinh</DialogTitle>
-                        </DialogHeader>
 
                         <Field>
                             <FieldLabel htmlFor="edit-player-name">Tên (trên bảng đấu)</FieldLabel>
@@ -90,30 +92,31 @@ export function EditPlayerDialog({
                                 {updateError}
                             </p>
                         )}
-
-                        <DialogFooter>
-                            <Button
-                                type="submit"
-                                disabled={
-                                    updatePending ||
-                                    editName.trim().length === 0 ||
-                                    (editDiscord.trim() !== "" &&
-                                        !/^[0-9]{15,30}$/.test(discordValue(editDiscord)))
-                                }
-                            >
-                                {saveLabel}
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={onClose}
-                                disabled={updatePending}
-                            >
-                                Huỷ
-                            </Button>
-                        </DialogFooter>
                     </FieldGroup>
                 </form>
+
+                <DialogFooter>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={onClose}
+                        disabled={updatePending}
+                    >
+                        Huỷ
+                    </Button>
+                    <Button
+                        type="submit"
+                        form={formId}
+                        disabled={
+                            updatePending ||
+                            editName.trim().length === 0 ||
+                            (editDiscord.trim() !== "" &&
+                                !/^[0-9]{15,30}$/.test(discordValue(editDiscord)))
+                        }
+                    >
+                        {saveLabel}
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     )

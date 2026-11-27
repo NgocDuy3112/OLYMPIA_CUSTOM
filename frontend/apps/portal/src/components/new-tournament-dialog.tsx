@@ -1,4 +1,4 @@
-import { useState, type SubmitEvent } from "react"
+import { useId, useState, type SubmitEvent } from "react"
 import { Button } from "@shared/ui/button"
 import {
     Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
@@ -15,12 +15,14 @@ export function NewTournamentDialog({
     onOpenChange: (open: boolean) => void
 }) {
     const create = useCreateTournament()
+    const formId = useId()
 
     const [name, setName] = useState("")
     const [visibility, setVisibility] = useState<"PUBLIC" | "PRIVATE">("PUBLIC")
 
     const submit = (event: SubmitEvent<HTMLFormElement>) => {
         event.preventDefault()
+        if (create.isPending) return
 
         create.mutate(
             {
@@ -42,12 +44,12 @@ export function NewTournamentDialog({
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
-                <form onSubmit={submit}>
-                    <FieldGroup>
-                        <DialogHeader>
-                            <DialogTitle>New tournament</DialogTitle>
-                        </DialogHeader>
+                <DialogHeader>
+                    <DialogTitle>New tournament</DialogTitle>
+                </DialogHeader>
 
+                <form id={formId} onSubmit={submit}>
+                    <FieldGroup>
                         <Field>
                             <FieldLabel htmlFor="tournament-name">Name</FieldLabel>
                             <Input
@@ -78,24 +80,26 @@ export function NewTournamentDialog({
                         </Field>
 
                         {create.isError && (
-                            <p className="text-sm text-destructive">{create.error.message}</p>
+                            <p role="alert" className="text-sm text-destructive">
+                                {create.error.message}
+                            </p>
                         )}
-
-                        <DialogFooter>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => onOpenChange(false)}
-                                disabled={create.isPending}
-                            >
-                                Cancel
-                            </Button>
-                            <Button type="submit" disabled={create.isPending}>
-                                {createLabel}
-                            </Button>
-                        </DialogFooter>
                     </FieldGroup>
                 </form>
+
+                <DialogFooter>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => onOpenChange(false)}
+                        disabled={create.isPending}
+                    >
+                        Cancel
+                    </Button>
+                    <Button type="submit" form={formId} disabled={create.isPending}>
+                        {createLabel}
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     )

@@ -36,8 +36,16 @@ export function StatusBanners({
                     {saveError}
                 </p>
             )}
-            {flash && <p className={WARN}>{flash}</p>}
-            {notice && <p className={OK}>✓ {notice}</p>}
+            {flash && (
+                <p role="status" aria-live="polite" className={WARN}>
+                    {flash}
+                </p>
+            )}
+            {notice && (
+                <p role="status" aria-live="polite" className={OK}>
+                    ✓ {notice}
+                </p>
+            )}
         </>
     )
 }

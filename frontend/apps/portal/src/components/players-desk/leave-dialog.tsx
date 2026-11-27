@@ -1,4 +1,4 @@
-import type { FormEvent } from "react"
+import { useId, type FormEvent } from "react"
 import { Button } from "@shared/ui/button"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@shared/ui/dialog"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@shared/ui/field"
@@ -23,14 +23,16 @@ export function LeaveDialog({
     onClose: () => void
     onSubmit: (event: FormEvent) => void
 }) {
+    const formId = useId()
     return (
         <Dialog open onOpenChange={(next) => { if (!next) onClose() }}>
             <DialogContent>
-                <form onSubmit={onSubmit}>
+                <DialogHeader>
+                    <DialogTitle>Bỏ {player.displayName} khỏi giải</DialogTitle>
+                </DialogHeader>
+
+                <form id={formId} onSubmit={onSubmit}>
                     <FieldGroup>
-                        <DialogHeader>
-                            <DialogTitle>Bỏ {player.displayName} khỏi giải</DialogTitle>
-                        </DialogHeader>
 
                         <Field>
                             <FieldLabel htmlFor="leave-tournament">Giải</FieldLabel>
@@ -56,26 +58,27 @@ export function LeaveDialog({
                                 {leaveError}
                             </p>
                         )}
-
-                        <DialogFooter>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={onClose}
-                                disabled={leavePending}
-                            >
-                                Huỷ
-                            </Button>
-                            <Button
-                                type="submit"
-                                variant="destructive"
-                                disabled={leavePending || leaveTournament === ""}
-                            >
-                                {leaveLabel}
-                            </Button>
-                        </DialogFooter>
                     </FieldGroup>
                 </form>
+
+                <DialogFooter>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={onClose}
+                        disabled={leavePending}
+                    >
+                        Huỷ
+                    </Button>
+                    <Button
+                        type="submit"
+                        form={formId}
+                        variant="destructive"
+                        disabled={leavePending || leaveTournament === ""}
+                    >
+                        {leaveLabel}
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     )
