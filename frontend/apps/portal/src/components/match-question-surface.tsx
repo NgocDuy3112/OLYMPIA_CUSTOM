@@ -383,9 +383,9 @@ export function MatchQuestionSurface({
 
     return (
         <ComposeDndProvider onAdd={handleAdd} onReorder={handleReorder}>
-            <section aria-label="Câu hỏi của trận" className="grid gap-4 rounded-xl border bg-card p-4">
-                <header className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-sm font-semibold">Câu hỏi của trận</h2>
+            <section aria-label="Câu hỏi của trận" className="grid gap-4 rounded-xl border bg-card p-4 shadow-xs">
+                <header className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <h2 className="font-heading text-sm font-semibold">Câu hỏi của trận</h2>
                     <Badge variant="outline">{match.questions.length} câu · đóng băng</Badge>
                     {lastEvent && (
                         <span className="text-xs text-muted-foreground">

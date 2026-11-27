@@ -12,6 +12,7 @@ import {
     DialogTitle,
 } from "@shared/ui/dialog"
 import { Input } from "@shared/ui/input"
+import { Label } from "@shared/ui/label"
 import {
     BUCKET_GROUPS,
     BUCKET_VALUES,
@@ -29,6 +30,10 @@ import {
 import { AudiencePreview } from "./question-author/AudiencePreview"
 import { MediaField } from "./question-author/MediaField"
 import { OptionsField } from "./question-author/OptionsField"
+
+const FIELD = "w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+const SELECT = `h-8 ${FIELD}`
+const AREA = `py-2 ${FIELD}`
 
 export type {
     AuthorDraft,
@@ -163,16 +168,14 @@ export function QuestionAuthorDialog({
                 </DialogHeader>
 
                 <div className="grid gap-4">
-                    {
-}
                     <div className="grid gap-4 sm:grid-cols-[1fr_11rem]">
                         <div className="grid gap-2">
-                            <label className="text-sm font-medium" htmlFor="q-bucket">Round group</label>
+                            <Label htmlFor="q-bucket">Round group</Label>
                             <select
                                 id="q-bucket"
                                 value={draft.bucket}
                                 onChange={(event) => changeBucket(event.target.value)}
-                                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
+                                className={SELECT}
                             >
                                 <option value="">— pick a group —</option>
                                 {BUCKET_GROUPS.map((group) => (
@@ -193,28 +196,26 @@ export function QuestionAuthorDialog({
                     </div>
 
                     <div className="grid gap-2">
-                        <label className="text-sm font-medium" htmlFor="q-text">Question</label>
+                        <Label htmlFor="q-text">Question</Label>
                         <textarea
                             id="q-text"
                             value={draft.questionText}
                             onChange={(event) => patch({ questionText: event.target.value })}
                             rows={3}
-                            className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm"
+                            className={AREA}
                         />
                     </div>
 
                     {shape !== "keyword" && (
                         <div className="grid gap-2">
-                            <label className="text-sm font-medium" htmlFor="q-accepted">
-                                {acceptedLabel}
-                            </label>
+                            <Label htmlFor="q-accepted">{acceptedLabel}</Label>
                             <textarea
                                 id="q-accepted"
                                 value={draft.accepted}
                                 onChange={(event) => patch({ accepted: event.target.value })}
                                 rows={2}
                                 placeholder="Hà Nội"
-                                className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm"
+                                className={AREA}
                             />
                         </div>
                     )}
@@ -228,7 +229,7 @@ export function QuestionAuthorDialog({
 
                     {shape === "keyword" && (
                         <div className="grid gap-2">
-                            <label className="text-sm font-medium" htmlFor="q-code">Keyword code</label>
+                            <Label htmlFor="q-code">Keyword code</Label>
                             <Input
                                 id="q-code"
                                 value={draft.code}
@@ -242,10 +243,8 @@ export function QuestionAuthorDialog({
                     )}
 
                     {showLink && (
-                        <div className="grid gap-1 border-t pt-2">
-                            <label className="text-sm font-medium" htmlFor="q-set">
-                                Set · the keyword this hint joins
-                            </label>
+                        <div className="grid gap-2 border-t pt-3">
+                            <Label htmlFor="q-set">Set · the keyword this hint joins</Label>
                             <select
                                 id="q-set"
                                 value={draft.keywordId}
@@ -258,7 +257,7 @@ export function QuestionAuthorDialog({
                                         patch({ keywordId: "", bucket: "" })
                                     }
                                 }}
-                                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
+                                className={SELECT}
                             >
                                 <option value="">Not linked — pick another round group instead</option>
                                 {keywordOptions.map((keyword) => (
@@ -268,7 +267,7 @@ export function QuestionAuthorDialog({
                                 ))}
                             </select>
                             {keywordList.data && keywordOptions.length === 0 && (
-                                <span className="text-xs text-amber-600 dark:text-amber-500">
+                                <span className="text-xs text-amber-700 dark:text-amber-400">
                                     No KEYWORD question exists yet — create the keyword first.
                                 </span>
                             )}
@@ -294,7 +293,7 @@ export function QuestionAuthorDialog({
                     )}
 
                     <div className="grid gap-2">
-                        <span className="text-sm font-medium">Media (optional)</span>
+                        <Label>Media (optional)</Label>
                         <MediaField media={draft.media} onChange={(media) => patch({ media })} />
                     </div>
 
@@ -305,7 +304,7 @@ export function QuestionAuthorDialog({
                     )}
                 </div>
 
-                <DialogFooter className="items-center gap-2">
+                <DialogFooter>
                     {problem !== null && (
                         <Badge variant="outline" className="mr-auto text-destructive">
                             {problem}
