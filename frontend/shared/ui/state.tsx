@@ -13,6 +13,14 @@ export function LoadingState({ label = "Đang tải" }: { label?: string }) {
     )
 }
 
+export function PageLoading() {
+    return (
+        <div className="mx-auto w-full max-w-360 px-4 py-6 md:py-10">
+            <LoadingState />
+        </div>
+    )
+}
+
 export function EmptyState({
     icon: Icon,
     title,

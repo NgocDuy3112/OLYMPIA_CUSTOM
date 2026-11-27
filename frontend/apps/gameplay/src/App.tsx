@@ -11,21 +11,13 @@ import { useSchedule, useTournament, type TournamentDetail } from "@shared/resul
 import { IconField } from "@shared/decors/icon-field"
 import { GlowWash } from "@shared/decors/glow-wash"
 import { ErrorBoundary } from "@shared/lib/error-boundary"
-import { ErrorPanel, LoadingState } from "@shared/ui/state"
+import { ErrorPanel, PageLoading } from "@shared/ui/state"
 import { ChangePasswordPage } from "@shared/results/ChangePasswordPage"
 
 interface TournamentContext { tournament: TournamentDetail }
 
 function isNotFound(error: unknown): boolean {
     return error instanceof ApiError && error.status === 404
-}
-
-function PageLoading() {
-    return (
-        <div className="mx-auto w-full max-w-360 px-4 py-6 md:py-10">
-            <LoadingState />
-        </div>
-    )
 }
 
 function TournamentLayout() {

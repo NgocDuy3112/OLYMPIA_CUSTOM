@@ -20,7 +20,7 @@ import { CodePage } from "./pages/CodePage"
 import { ErrorBoundary } from "@shared/lib/error-boundary"
 import { IconField } from "@shared/decors/icon-field"
 import { GlowWash } from "@shared/decors/glow-wash"
-import { ErrorPanel, LoadingState } from "@shared/ui/state"
+import { ErrorPanel, PageLoading } from "@shared/ui/state"
 
 export function ResultsNav({ tournamentId }: { tournamentId?: string }) {
     const [enterOpen, setEnterOpen] = useState(false)
@@ -102,14 +102,6 @@ function AccountSlot({ onEnterMatch }: { onEnterMatch: () => void }) {
             <Button variant="ghost" size="sm" aria-label="Đăng xuất" onClick={() => logout.mutate()}>
                 <LogOut className="size-4" aria-hidden />
             </Button>
-        </div>
-    )
-}
-
-function PageLoading() {
-    return (
-        <div className="mx-auto w-full max-w-360 px-4 py-6 md:py-10">
-            <LoadingState />
         </div>
     )
 }
