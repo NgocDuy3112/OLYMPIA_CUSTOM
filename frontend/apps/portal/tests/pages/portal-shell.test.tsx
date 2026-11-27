@@ -39,6 +39,17 @@ describe("PortalShell", () => {
         expect(screen.getByRole("main")).toHaveAttribute("id", "portal-main")
     })
 
+    it("keeps a name and a tooltip on every nav item when the rail is compact", async () => {
+        // Below lg the rail drops its labels and shows icons only, so the
+        // accessible name and the tooltip have to carry the item on their own.
+        renderShell()
+
+        for (const label of ["Tournaments", "Thí sinh", "Questions", "MCP keys", "Operators", "Audit log"]) {
+            const link = await screen.findByRole("link", { name: label })
+            expect(link).toHaveAttribute("title", label)
+        }
+    })
+
     it("marks the current section for assistive tech", async () => {
         renderShell()
 

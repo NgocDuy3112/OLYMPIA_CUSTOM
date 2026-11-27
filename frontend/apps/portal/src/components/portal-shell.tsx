@@ -33,10 +33,11 @@ export function PortalShell() {
             >
                 Skip to content
             </a>
-            <aside className="sticky top-0 flex h-dvh w-56 shrink-0 flex-col overflow-y-auto border-r bg-muted/30">
+            <aside className="sticky top-0 flex h-dvh w-14 shrink-0 flex-col overflow-y-auto border-r bg-muted/30 lg:w-56">
                 <Link
                     to="/"
-                    className="flex items-center gap-2 border-b px-4 py-4 font-medium transition-colors outline-none hover:text-primary focus-visible:ring-3 focus-visible:ring-ring/50"
+                    aria-label="AOC home"
+                    className="flex items-center justify-center gap-2 border-b px-2 py-4 font-medium transition-colors outline-none hover:text-primary focus-visible:ring-3 focus-visible:ring-ring/50 lg:justify-start lg:px-4"
                 >
                     <span
                         className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground"
@@ -44,7 +45,7 @@ export function PortalShell() {
                     >
                         O
                     </span>
-                    AOC
+                    <span className="hidden lg:inline">AOC</span>
                 </Link>
 
                 <nav className="flex flex-col gap-1 p-2">
@@ -60,11 +61,13 @@ export function PortalShell() {
                             <Link
                                 key={item.to}
                                 to={item.to}
+                                aria-label={item.label}
+                                title={item.label}
                                 aria-current={ariaCurrent}
-                                className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 ${navCls}`}
+                                className={`flex items-center justify-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 lg:justify-start ${navCls}`}
                             >
                                 <Icon className="size-4 shrink-0" aria-hidden />
-                                {item.label}
+                                <span className="hidden lg:inline">{item.label}</span>
                             </Link>
                         )
                     })}
@@ -73,13 +76,13 @@ export function PortalShell() {
                 <div className="mt-auto border-t p-2">
                     <Button
                         variant="ghost"
-                        className="w-full justify-start gap-2.5"
+                        className="w-full justify-center gap-2.5 lg:justify-start"
                         aria-label="Sign out"
                         disabled={logout.isPending}
                         onClick={() => logout.mutate()}
                     >
                         <LogOut className="size-4 shrink-0" aria-hidden />
-                        Sign out
+                        <span className="hidden lg:inline">Sign out</span>
                     </Button>
                 </div>
             </aside>
