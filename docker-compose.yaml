@@ -99,8 +99,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    volumes:
+      - aoc-backup-pgdata:/var/lib/postgresql
 
 volumes:
+  aoc-backup-pgdata:
   aoc-postgresql:
     external: true
   aoc-redis:
