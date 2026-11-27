@@ -12,7 +12,7 @@ using AOC.Infrastructure.Configuration;
 using AOC.Domain.Contracts;
 namespace AOC.Api.Realtime;
 
-public abstract class LiveHubBase(MatchHubRegistry registry) : Hub
+public abstract class LiveHubBase(MatchHubRegistry registry) : Hub, IRefusableHub
 {
     protected string MatchId = "";
 
@@ -47,13 +47,10 @@ public abstract class LiveHubBase(MatchHubRegistry registry) : Hub
     protected void HoldSubscription(Action unsubscribe) => stopSubscription = unsubscribe;
 
     protected Task RefuseAsync(ApiException error)
-        => RefuseAsync(Protocol.CloseCodeFor(error.Status), error.Error, error.Message);
+        => ((IRefusableHub)this).RefuseAsync(error);
 
-    protected async Task RefuseAsync(int? closeCode, string error, string message)
-    {
-        await Clients.Caller.SendAsync("message", Protocol.Error(error, message, closeCode: closeCode));
-        Context.Abort();
-    }
+    protected Task RefuseAsync(int? closeCode, string error, string message)
+        => ((IRefusableHub)this).RefuseAsync(closeCode, error, message);
 
     protected void ReleaseSubscription()
     {

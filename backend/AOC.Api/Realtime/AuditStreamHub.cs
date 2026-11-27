@@ -1,11 +1,10 @@
 using Microsoft.AspNetCore.SignalR;
 using AOC.Api.Http;
-using AOC.Api.Modules.Live;
 using AOC.Infrastructure.Configuration;
 
 namespace AOC.Api.Realtime;
 
-public sealed class AuditStreamHub : Hub
+public sealed class AuditStreamHub : Hub, IRefusableHub
 {
     public override async Task OnConnectedAsync()
     {
@@ -16,9 +15,7 @@ public sealed class AuditStreamHub : Hub
         }
         catch (ApiException ex)
         {
-            await Clients.Caller.SendAsync("message",
-                Protocol.Error(ex.Error, ex.Message, closeCode: Protocol.CloseCodeFor(ex.Status)));
-            Context.Abort();
+            await ((IRefusableHub)this).RefuseAsync(ex);
             return;
         }
 
