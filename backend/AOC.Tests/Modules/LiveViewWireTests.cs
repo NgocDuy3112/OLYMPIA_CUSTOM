@@ -169,6 +169,26 @@ public class LiveViewWireTests
     }
 
     [Fact]
+    public void GiaiMa_SecondHintWindow_StillTellsThePlayerItsDeadline()
+    {
+        // The deck only enables the answer input when open[0].deadlineAt is set.
+        var afterFirst = GiaiMaTurn.StartWindow(
+            GiaiMaTurn.PickHint(GiaiMaTurn.StartGiaiMa(["u1"], ["h1", "h2"]), "h1"), T0);
+        afterFirst = GiaiMaTurn.ResolveOpenHint(afterFirst,
+            new Dictionary<string, bool> { ["u1"] = true });
+        var second = GiaiMaTurn.StartWindow(
+            GiaiMaTurn.PickHint(afterFirst, "h2"), "2026-01-01T12:00:20.000Z");
+
+        var view = LiveView.BuildPlayerView(new LiveView.ViewInput(
+            "m1", "giai-ma", 1, "2026-01-01T12:00:20.000Z", "u1", second, []));
+
+        var open = Assert.IsType<List<object?>>(view["open"]);
+        var entry = Assert.IsType<Dictionary<string, object?>>(Assert.Single(open));
+        Assert.Equal("h2", entry["questionId"]);
+        Assert.Equal("2026-01-01T12:00:35.000Z", entry["deadlineAt"]);
+    }
+
+    [Fact]
     public void FourViews_KeepEveryWireKey()
     {
         var keys = new HashSet<string>();

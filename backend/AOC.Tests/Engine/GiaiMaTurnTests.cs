@@ -31,20 +31,17 @@ public class GiaiMaTurnTests
         => GiaiMaTurn.StartWindow(GiaiMaTurn.PickHint(s, hint), now);
 
     private static GiaiMaState PlayHint(GiaiMaState s, string hint, string now)
-    {
-        var picked = GiaiMaTurn.PickHint(s, hint);
-        if (picked.KeywordClosesAt is not null) return picked;
-        return GiaiMaTurn.StartWindow(picked, now);
-    }
+        => GiaiMaTurn.StartWindow(GiaiMaTurn.PickHint(s, hint), now);
 
     private static GiaiMaState PlayHints(string[] ids, string[] hintOrder,
         Func<string, string, bool> answers)
     {
         var s = GiaiMaTurn.StartGiaiMa(ids, H);
-        foreach (var hint in hintOrder)
+        for (var i = 0; i < hintOrder.Length; i++)
         {
             if (s.Step != "hints") break;
-            s = PlayHint(s, hint, Now);
+            var hint = hintOrder[i];
+            s = PlayHint(s, hint, At(i * 20));
             var byPlayer = s.Players
                 .Where(p => !p.KeywordLocked)
                 .ToDictionary(p => p.Id, p => answers(hint, p.Id));
@@ -75,7 +72,7 @@ public class GiaiMaTurnTests
         var s = OpenHint(GiaiMaTurn.StartGiaiMa(["a"], H), "h5", Now);
         Assert.Equal("h5", s.OpenHint);
         s = GiaiMaTurn.ResolveOpenHint(s, new Dictionary<string, bool> { ["a"] = true });
-        s = PlayHint(s, "h1", Now);
+        s = PlayHint(s, "h1", At(20));
         Assert.Equal("h1", s.OpenHint);
         Assert.Equal(["h5"], s.Picked);
     }
@@ -164,7 +161,7 @@ public class GiaiMaTurnTests
         var s = GiaiMaTurn.StartGiaiMa(["a", "b"], H);
         s = GiaiMaTurn.ResolveOpenHint(OpenHint(s, "h1", Now),
             new Dictionary<string, bool> { ["a"] = true, ["b"] = false });
-        s = GiaiMaTurn.ResolveOpenHint(PlayHint(s, "h2", Now),
+        s = GiaiMaTurn.ResolveOpenHint(PlayHint(s, "h2", At(20)),
             new Dictionary<string, bool> { ["a"] = true, ["b"] = false });
         s = GiaiMaTurn.LockKeyword(s, "a");
         Assert.True(s.Players.First(p => p.Id == "a").KeywordLocked);
@@ -178,7 +175,7 @@ public class GiaiMaTurnTests
         var s = GiaiMaTurn.StartGiaiMa(["a", "b"], H);
         s = GiaiMaTurn.ResolveOpenHint(OpenHint(s, "h1", Now),
             new Dictionary<string, bool> { ["a"] = true, ["b"] = false });
-        s = GiaiMaTurn.ResolveOpenHint(PlayHint(s, "h2", Now),
+        s = GiaiMaTurn.ResolveOpenHint(PlayHint(s, "h2", At(20)),
             new Dictionary<string, bool> { ["a"] = true, ["b"] = false });
         s = GiaiMaTurn.LockKeyword(s, "a");
         s = GiaiMaTurn.JudgeKeyword(s, "a", true);
@@ -416,16 +413,52 @@ public class GiaiMaTurnTests
     }
 
     [Fact]
-    public void StartWindow_IsRefusedOnceTheKeywordCountdownHasRun()
+    public void StartWindow_RefusesWhileTheStandaloneKeywordCountdownRuns()
     {
-        var s = GiaiMaTurn.StartKeywordCountdown(GiaiMaTurn.PickHint(GiaiMaTurn.StartGiaiMa(["a"], H), "h1"), Now);
-        Assert.Equal("WINDOW_OPEN", CodeOf(() => GiaiMaTurn.StartWindow(s, At(16))));
+        var s = GiaiMaTurn.StartKeywordCountdown(
+            GiaiMaTurn.PickHint(GiaiMaTurn.StartGiaiMa(["a"], H), "h1"), At(10));
+
+        Assert.Equal("WINDOW_OPEN", CodeOf(() => GiaiMaTurn.StartWindow(s, At(12))));
+        Assert.True(GiaiMaTurn.KeywordWindowRunning(s, At(12)));
+        Assert.False(GiaiMaTurn.IsWindowOpen(s, At(12)));
     }
 
     [Fact]
-    public void StartKeywordCountdown_IsRefusedOnceTheWindowStarted()
+    public void StartWindow_RunsAgainOnceTheStandaloneKeywordCountdownRanOut()
+    {
+        var s = GiaiMaTurn.StartKeywordCountdown(
+            GiaiMaTurn.PickHint(GiaiMaTurn.StartGiaiMa(["a"], H), "h1"), Now);
+
+        var next = GiaiMaTurn.StartWindow(s, At(20));
+
+        Assert.True(GiaiMaTurn.IsWindowOpen(next, At(20)));
+        Assert.True(GiaiMaTurn.CanPlayerAnswer(next, "a", At(20)));
+        Assert.Equal(At(35), next.KeywordClosesAt);
+    }
+
+    [Fact]
+    public void Second_hint_opens_its_own_window_and_rearms_the_keyword_clock()
     {
         var s = OpenHint(GiaiMaTurn.StartGiaiMa(["a"], H), "h1", Now);
+        s = GiaiMaTurn.ResolveOpenHint(s, new Dictionary<string, bool> { ["a"] = true });
+        Assert.Equal(At(15), s.KeywordClosesAt);
+
+        var next = GiaiMaTurn.StartWindow(GiaiMaTurn.PickHint(s, "h2"), At(20));
+
+        Assert.Equal("h2", next.OpenHint);
+        Assert.True(GiaiMaTurn.IsWindowOpen(next, At(20)));
+        Assert.True(GiaiMaTurn.CanPlayerAnswer(next, "a", At(20)));
+        Assert.Equal(At(35), next.KeywordClosesAt);
+        Assert.True(GiaiMaTurn.KeywordWindowOpen(next, At(34)));
+        Assert.False(GiaiMaTurn.KeywordWindowOpen(next, At(36)));
+    }
+
+    [Fact]
+    public void StartKeywordCountdown_IsRefusedAfterTheWindowStartedAndAfterItRanOut()
+    {
+        var s = OpenHint(GiaiMaTurn.StartGiaiMa(["a"], H), "h1", Now);
+
         Assert.Equal("WINDOW_OPEN", CodeOf(() => GiaiMaTurn.StartKeywordCountdown(s, At(2))));
+        Assert.Equal("WINDOW_OPEN", CodeOf(() => GiaiMaTurn.StartKeywordCountdown(s, At(20))));
     }
 }

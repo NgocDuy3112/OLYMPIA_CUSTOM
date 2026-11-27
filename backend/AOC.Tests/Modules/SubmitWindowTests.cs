@@ -191,6 +191,55 @@ public class SubmitWindowTests
     }
 
     [DbFact]
+    public async Task GiaiMa_Second_hint_opens_and_takes_an_answer_after_the_first_clock_ran_out()
+    {
+        var fixture = (await SeedAsync(["giai-ma"]))["giai-ma"];
+        using var db = AuthTestDb.OpenDb();
+
+        var playerId = fixture.UserId.ToString();
+        var firstHint = fixture.QuestionId.ToString();
+        var match = db.Matches.Single(m => m.Id == fixture.MatchId);
+        var secondHint = Guid.NewGuid().ToString();
+        var questions = match.QuestionsList;
+        questions.Add(new MatchQuestion
+        {
+            Id = secondHint,
+            RoundId = "giai-ma",
+            TurnId = "phase1",
+            Position = 1,
+            Mode = QuestionMode.text,
+            Kind = QuestionKind.TEXT,
+            QuestionText = "Thành phố nào là thủ đô của Việt Nam?",
+            Points = 10,
+            Payload = new QuestionPayload.Text(["Hà Nội"]),
+            SourceId = Guid.NewGuid().ToString()
+        });
+        match.Questions = JsonDefaults.Serialize(questions);
+        await db.SaveChangesAsync();
+
+        var now = DateTime.UtcNow;
+        var state = GiaiMaTurn.StartWindow(
+            GiaiMaTurn.PickHint(GiaiMaTurn.StartGiaiMa([playerId], [firstHint, secondHint]), firstHint),
+            Iso(now.AddSeconds(-40)));
+        state = GiaiMaTurn.ResolveOpenHint(state,
+            new Dictionary<string, bool> { [playerId] = false });
+        state = GiaiMaTurn.StartWindow(GiaiMaTurn.PickHint(state, secondHint), Iso(now.AddSeconds(-2)));
+
+        var live = db.MatchLive.Single(l => l.MatchId == fixture.MatchId);
+        live.State = JsonSerializer.SerializeToElement(state, JsonApi.Options);
+        await db.SaveChangesAsync();
+
+        await fixture.Submit.SubmitAnswerAsync(new SubmitService.SubmitContext(
+            fixture.MatchId, fixture.UserId, Guid.Parse(secondHint),
+            JsonSerializer.SerializeToElement(
+                new SubmittedAnswerValue.Text("Hà Nội"), JsonApi.Options)));
+
+        var stored = db.Answers.Single(a =>
+            a.MatchId == fixture.MatchId && a.QuestionId == Guid.Parse(secondHint));
+        Assert.Equal("Hà Nội", Assert.IsType<AnswerValue.Text>(stored.ValueObject).Value);
+    }
+
+    [DbFact]
     public async Task GiaiMa_Answer_lands_while_the_countdown_started_by_the_window_is_running()
     {
         var fixture = (await SeedAsync(["giai-ma"]))["giai-ma"];

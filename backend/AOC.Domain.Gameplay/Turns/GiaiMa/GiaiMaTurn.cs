@@ -60,8 +60,12 @@ public static class GiaiMaTurn
             throw Err("NO_OPEN_HINT", "no hint is open — pick a hint first");
         if (state.HintWindow.IsOpen(nowIso))
             throw Err("WINDOW_OPEN", "the answer window is already running");
-        if (state.KeywordClosesAt is not null)
-            throw Err("WINDOW_OPEN", "the keyword countdown has already run");
+        if (KeywordWindowRunning(state, nowIso))
+            throw Err("WINDOW_OPEN", "the keyword countdown is running");
+        // Each hint gets its own window, and §7.2 has "Đếm giờ" arm the keyword
+        // clock alongside it — so this replaces the previous window's deadline.
+        // Only a clock that is still running blocks a new window; a spent one is
+        // what the next hint's window exists for.
         return state with
         {
             HintWindow = FreshHintWindow(state).OpenFor(nowIso, state.Rules.HintWindowS),
