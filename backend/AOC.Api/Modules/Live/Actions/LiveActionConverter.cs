@@ -26,6 +26,14 @@ public sealed class LiveActionConverter : JsonConverter<LiveAction>
             return v;
         }
 
+        static bool BoolOf(JsonElement element, string path, string field)
+        {
+            if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(field, out var v)
+                || v.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                throw new JsonException($"missing boolean '{field}' at '{path}'");
+            return v.GetBoolean();
+        }
+
         string Str(string name)
         {
             if (root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String)
@@ -44,8 +52,14 @@ public sealed class LiveActionConverter : JsonConverter<LiveAction>
             return null;
         }
 
-        bool Bool(string name) => root.TryGetProperty(name, out var v)
-            && v.ValueKind is JsonValueKind.True or JsonValueKind.False && v.GetBoolean();
+        bool Bool(string name)
+        {
+            if (root.TryGetProperty(name, out var v) && v.ValueKind is JsonValueKind.True or JsonValueKind.False)
+            {
+                return v.GetBoolean();
+            }
+            throw new JsonException($"missing boolean '{name}'");
+        }
 
         int Int(string name)
         {
@@ -91,7 +105,7 @@ public sealed class LiveActionConverter : JsonConverter<LiveAction>
                 throw new JsonException($"missing array '{name}'");
             return v.EnumerateArray().Select((e, index) => (
                 RequireString(FieldOf(e, $"{name}[{index}]", "playerId"), $"{name}[{index}].playerId"),
-                e.TryGetProperty("correct", out var c) && c.ValueKind == JsonValueKind.True
+                BoolOf(e, $"{name}[{index}]", "correct")
             )).ToList();
         }
 
@@ -102,7 +116,7 @@ public sealed class LiveActionConverter : JsonConverter<LiveAction>
             return v.EnumerateArray().Select((e, index) => (
                 RequireString(FieldOf(e, $"{name}[{index}]", "playerId"), $"{name}[{index}].playerId"),
                 RequireString(FieldOf(e, $"{name}[{index}]", "questionId"), $"{name}[{index}].questionId"),
-                e.TryGetProperty("correct", out var c) && c.ValueKind == JsonValueKind.True
+                BoolOf(e, $"{name}[{index}]", "correct")
             )).ToList();
         }
 
