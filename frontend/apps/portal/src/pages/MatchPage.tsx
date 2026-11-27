@@ -1,9 +1,8 @@
 import { Link, useParams } from "react-router-dom"
 import { ChevronRight, SearchX } from "lucide-react"
 import { buttonVariants } from "@shared/ui/button"
-import { LoadingState } from "@shared/ui/state"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/ui/tabs"
-import { Page, PageHeader, EmptyState, ErrorPanel } from "@/components/page"
+import { Page, PageHeader, EmptyState, ErrorPanel, ListSkeleton } from "@/components/page"
 import { useMatches, useTournament } from "@/lib/tournament"
 import { StandardMatchControl, StatusBadge } from "@/components/standard-match-control"
 import { MatchQuestionSurface } from "@/components/match-question-surface"
@@ -19,7 +18,14 @@ export function MatchPage() {
     const tournament = useTournament(tournamentId ?? "")
     const back = `/tournaments/${tournamentId}`
 
-    if (matches.isPending) return <LoadingState label="Đang tải trận" />
+    if (matches.isPending) {
+        return (
+            <Page>
+                <p role="status" aria-label="Đang tải trận" className="sr-only" />
+                <ListSkeleton rows={3} />
+            </Page>
+        )
+    }
 
     const match = matches.data?.items.find((row) => row.id === matchId)
 
