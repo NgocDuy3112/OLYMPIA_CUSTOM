@@ -29,7 +29,7 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
     let keywordSlot: ReactNode = null
     if (eliminated) {
         keywordSlot = (
-            <span className="flex h-[3.3cqw] items-center rounded-lg bg-red-50 px-[1.2cqw] font-sans font-semibold text-red-600 ring-1 ring-red-200" style={{ fontSize: pt(12), borderRadius: STRIP_R }}>
+            <span className="flex h-[3.3cqw] items-center rounded-lg bg-destructive/10 px-[1.2cqw] font-sans font-semibold text-destructive ring-1 ring-destructive/30" style={{ fontSize: pt(12), borderRadius: STRIP_R }}>
                 Bạn không giải được từ khóa — bị loại vòng này
             </span>
         )

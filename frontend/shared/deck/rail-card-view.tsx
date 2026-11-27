@@ -42,8 +42,8 @@ interface PlayerCardProps {
 
 const PILL_TONE: Record<NonNullable<RailCardData["badge"]>["tone"], string> = {
     primary: "bg-primary text-primary-foreground",
-    amber: "bg-amber-50 text-amber-700 ring-1 ring-amber-300",
-    emerald: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-300",
+    amber: "bg-chart-4/15 text-chart-4 ring-1 ring-chart-4/30",
+    emerald: "bg-chart-3/15 text-chart-3 ring-1 ring-chart-3/30",
 }
 
 function badgePill(tone: NonNullable<RailCardData["badge"]>["tone"]): string {
@@ -194,15 +194,15 @@ export function PlayerCard({ card, onSelect, onScoreClick, selectHint, title }: 
                 "aria-pressed": selected,
             }
         }
-        hoverCls = "cursor-pointer hover:ring-sky-400 active:ring-sky-600"
+        hoverCls = "cursor-pointer hover:ring-chart-1 active:ring-chart-1"
         if (selected) hoverCls = "cursor-pointer"
-        if (selectHint) hoverCls = "cursor-pointer hover:ring-emerald-400 active:ring-emerald-600"
+        if (selectHint) hoverCls = "cursor-pointer hover:ring-chart-3 active:ring-chart-3"
     }
 
     let statusNode: ReactNode = null
     if (statusVisible(card)) {
         statusNode = (
-            <div className="flex min-w-0 flex-col items-center justify-center gap-[0.2cqw] font-sans leading-none text-foreground/85">
+            <div className="flex min-w-0 flex-col items-center justify-center gap-[0.3cqw] font-sans leading-none text-foreground/85">
                 <Icon card={card} />
                 <RailAnswerLine answer={card.answer ?? null} answeredMs={card.answeredMs ?? null} buzzLabel={card.buzzLabel ?? null} buzzMs={card.buzzMs ?? null} />
                 <ValueLine card={card} state={state} />
@@ -221,8 +221,8 @@ export function PlayerCard({ card, onSelect, onScoreClick, selectHint, title }: 
         >
             <div className="flex min-h-0 flex-1 gap-[0.7cqw]">
                 <Avatar card={card} />
-                <div className="relative flex min-w-0 min-h-0 flex-1 flex-col justify-start gap-[0.25cqw] overflow-hidden pt-[0.2cqw] text-center">
-                    <div className={flashing ? "contents-faded flex min-h-0 flex-1 flex-col items-center justify-start gap-[0.25cqw]" : "flex min-h-0 flex-1 flex-col items-center justify-start gap-[0.25cqw]"}>
+                <div className="relative flex min-w-0 min-h-0 flex-1 flex-col justify-start gap-[0.3cqw] overflow-hidden pt-[0.2cqw] text-center">
+                    <div className={flashing ? "contents-faded flex min-h-0 flex-1 flex-col items-center justify-start gap-[0.3cqw]" : "flex min-h-0 flex-1 flex-col items-center justify-start gap-[0.3cqw]"}>
                         <span className="flex min-w-0 items-center justify-center gap-[0.3cqw] font-display font-semibold leading-none text-foreground" style={{ fontSize: pt(16) }}>
                             <span className="truncate">{card.name}</span>
                         </span>

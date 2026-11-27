@@ -15,8 +15,8 @@ export function QuestionChip({ value, tone = "gray", clickable, onClick, title, 
     live?: boolean
 }) {
     const toneClass = tone === "purple"
-        ? "bg-primary text-primary-foreground ring-primary"
-        : "bg-muted text-foreground ring-border"
+        ? "bg-primary text-primary-foreground ring-2 ring-chart-4"
+        : "bg-muted text-foreground ring-1 ring-border"
     const width = fixedWidth ? "w-[7cqw]" : "min-w-[7cqw] shrink-0"
     let pulse = ""
     if (live) pulse = " stage-pulse"
@@ -26,7 +26,7 @@ export function QuestionChip({ value, tone = "gray", clickable, onClick, title, 
             onClick={clickable ? onClick : undefined}
             aria-disabled={clickable ? undefined : true}
             title={title}
-            className={`flex h-[4.43cqw] ${width} items-center justify-center rounded-lg px-[1.4cqw] shadow-sm ring-1 font-display leading-none ${toneClass} ${clickable ? "cursor-pointer transition hover:brightness-95" : "cursor-default"}${pulse}`}
+            className={`flex h-[4.43cqw] ${width} items-center justify-center rounded-lg px-[1.4cqw] shadow-sm font-display leading-none ${toneClass} ${clickable ? "cursor-pointer transition hover:brightness-95" : "cursor-default"}${pulse}`}
             style={DECK_PAD}
         >
             <span style={{ fontSize: pt(34) }}>{value ?? ""}</span>

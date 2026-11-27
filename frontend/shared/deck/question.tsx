@@ -29,7 +29,7 @@ export function QuestionBlock({ question, media, mediaHint = "hình ảnh câu h
     let mediaPad = ""
     if (media) mediaPad = "pr-[1.2cqw]"
     let revealCls = ""
-    if (onReveal) revealCls = "cursor-pointer rounded-xl ring-1 ring-transparent transition hover:ring-primary/40"
+    if (onReveal) revealCls = "cursor-pointer rounded-xl ring-1 ring-transparent transition hover:ring-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     return (
         <div
             className={`flex min-h-0 flex-1 items-end gap-[1.4cqw] ${mediaPad} ${revealCls}`}
@@ -37,7 +37,7 @@ export function QuestionBlock({ question, media, mediaHint = "hình ảnh câu h
         >
             <p
                 className={`min-w-0 self-start flex-1 font-sans font-medium leading-snug text-foreground`}
-                style={{ fontSize: pt(14), ...DECK_PAD }}
+                style={{ fontSize: pt(15), ...DECK_PAD }}
             >
                 {question ?? ""}
             </p>
@@ -85,7 +85,7 @@ export function KeywordLengthBanner({ length, kind, code, onClick }: { length: n
             type="button"
             onClick={onClick}
             title={onClick ? "HIỆN TRẢ LỜI từ khoá" : undefined}
-            className="flex h-31.25 shrink-0 items-center justify-center gap-[1.5cqw] rounded-2xl bg-card px-[2cqw] shadow-md ring-1 ring-border transition hover:ring-primary/60"
+            className="flex h-31.25 shrink-0 items-center justify-center gap-[1.5cqw] rounded-2xl bg-card px-[2cqw] shadow-md ring-2 ring-primary/30 transition hover:ring-primary/60"
         >
             {code !== null && code !== undefined && code !== "" ? (
                 <span className="font-display font-bold uppercase tracking-wide text-primary" style={{ fontSize: pt(40) }}>
@@ -143,7 +143,7 @@ export function AudienceFace({ options }: { options: Array<{ id: string; text: s
                     <span
                         key={option.id}
                         className="flex items-center justify-center gap-[0.5cqw] rounded-lg bg-background px-[0.8cqw] py-[0.6cqw] text-center font-sans font-semibold text-foreground ring-1 ring-border"
-                        style={{ fontSize: pt(12) }}
+                        style={{ fontSize: pt(13) }}
                     >
                         <b>{String.fromCharCode(65 + index)}.</b>
                         <span className="min-w-0 truncate">{option.text}</span>

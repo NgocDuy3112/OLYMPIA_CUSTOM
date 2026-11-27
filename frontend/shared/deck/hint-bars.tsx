@@ -36,7 +36,7 @@ export function HintBars({ tiles, openTile, pickedTiles, verdicts, answers, onPi
                     return (
                         <div
                             key={index}
-                            className="flex h-[75px] items-center justify-center gap-[1cqw] px-[1.2cqw] bg-card ring-1 ring-border"
+                            className="flex h-[75px] items-center justify-center gap-[1cqw] px-[1.2cqw] bg-background/50 ring-1 ring-border"
                         >
                             <span
                                 className="text-center font-sans font-semibold leading-tight break-words whitespace-pre-line text-foreground"

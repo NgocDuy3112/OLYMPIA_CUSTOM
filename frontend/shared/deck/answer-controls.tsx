@@ -5,20 +5,20 @@ import { COPY } from "./copy"
 import type { AnswerValue, PlayerQuestion } from "./types"
 
 const INPUT =
-    "h-[3.3cqw] min-w-0 flex-1 rounded-lg border border-input bg-background px-[0.9cqw] font-sans text-foreground outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
+    "h-[3.3cqw] min-w-0 flex-1 rounded-lg border border-input bg-background px-[1.1cqw] font-sans text-foreground outline-none transition placeholder:text-muted-foreground focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
 const SUBMIT =
-    "flex h-[3.3cqw] w-[9.08cqw] shrink-0 items-center justify-center rounded-lg bg-primary font-sans font-semibold uppercase text-primary-foreground shadow-sm transition hover:brightness-110 disabled:opacity-50"
+    "flex h-[3.3cqw] w-[9.08cqw] shrink-0 items-center justify-center rounded-lg font-sans font-semibold uppercase tracking-wide shadow-sm transition"
 
 const optionClass = (selected: boolean): string => {
     let tone = "bg-muted text-foreground ring-1 ring-border hover:bg-accent"
     if (selected) tone = "bg-primary text-primary-foreground ring-2 ring-ring"
-    return `flex h-[3.3cqw] w-[9.08cqw] shrink-0 items-center justify-center px-[0.4cqw] text-center font-sans font-semibold leading-tight shadow-sm transition ${tone}`
+    return `flex h-[3.3cqw] w-[9.08cqw] shrink-0 items-center justify-center px-[0.5cqw] text-center font-sans font-semibold leading-tight shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${tone}`
 }
 
 const submitClass = (ready: boolean): string => {
-    let cursor = "cursor-default opacity-50"
-    if (ready) cursor = "cursor-pointer"
-    return `${SUBMIT} ${cursor}`
+    let tone = "cursor-default bg-muted text-muted-foreground"
+    if (ready) tone = "cursor-pointer bg-primary text-primary-foreground ring-2 ring-primary/40 hover:brightness-110"
+    return `${SUBMIT} ${tone}`
 }
 
 export function AnswerBand({ question, answered, disabled, busy, error, typedOnly, onSubmit }: {
@@ -67,6 +67,7 @@ export function AnswerBand({ question, answered, disabled, busy, error, typedOnl
                         type="button"
                         disabled={disabled || busy}
                         title={option.text}
+                        aria-pressed={state.picked === option.id}
                         onClick={() => setDraft({ qid, picked: option.id, text: "" })}
                         className={optionClass(state.picked === option.id)}
                         style={{ fontSize: pt(10), borderRadius: STRIP_R }}
@@ -126,7 +127,7 @@ export function SubmissionLog({ entries }: { entries: SubmissionEntry[] }) {
     if (entries.length === 0) return null
     return (
         <section
-            className="flex w-full flex-col gap-[0.4cqw] rounded-lg bg-muted/40 px-[1.2cqw] py-[0.8cqw] ring-1 ring-border"
+            className="flex w-full flex-col gap-[0.5cqw] rounded-lg bg-muted/40 px-[1.2cqw] py-[0.9cqw] ring-1 ring-border"
             aria-label="Trạng thái trả lời"
         >
             {entries.map((entry) => {
@@ -139,7 +140,7 @@ export function SubmissionLog({ entries }: { entries: SubmissionEntry[] }) {
                         className="font-sans text-muted-foreground"
                         style={{ fontSize: pt(12) }}
                     >
-                        Bạn đã trả lời {label}: <b>{entry.answer}</b> ({formatElapsed(entry.elapsedS)}s)
+                        Bạn đã trả lời {label}: <b className="font-semibold text-foreground">{entry.answer}</b> ({formatElapsed(entry.elapsedS)}s)
                     </p>
                 )
             })}
@@ -175,7 +176,7 @@ export function KeywordBox({ busy, disabled, onSubmit }: { busy: boolean; disabl
     const [draft, setDraft] = useState({ locked: false, text: "" })
     const [confirming, setConfirming] = useState(false)
     if (draft.locked) {
-        return <span className="inline-flex items-center gap-[0.5cqw] font-sans font-semibold text-emerald-600" style={{ fontSize: pt(12) }}>Đã nộp từ khóa — chờ điều hành chốt</span>
+        return <span className="inline-flex items-center gap-[0.5cqw] font-sans font-semibold text-chart-3" style={{ fontSize: pt(12) }}>Đã nộp từ khóa — chờ điều hành chốt</span>
     }
     if (disabled) {
         return <span role="status" className="inline-flex items-center gap-[0.5cqw] font-sans font-semibold text-muted-foreground" style={{ fontSize: pt(12) }}>Từ khóa đã hết giờ — không nộp được nữa</span>

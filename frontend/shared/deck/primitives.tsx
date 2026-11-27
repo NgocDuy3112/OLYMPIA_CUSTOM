@@ -6,16 +6,16 @@ import { DECK_PAD, pt, toClock } from "./geometry"
 
 export function StageLayout({ rail, children }: { rail?: ReactNode; children: ReactNode }) {
     return (
-        <div className="absolute inset-0 flex gap-[4cqw] p-[3cqw]">
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-[1.2cqw]">{children}</div>
-            {rail && <aside className="flex w-[27cqw] shrink-0 flex-col gap-[1cqw]">{rail}</aside>}
+        <div className="absolute inset-0 flex gap-[3.4cqw] p-[3cqw]">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-[1.3cqw]">{children}</div>
+            {rail && <aside className="flex w-[27cqw] shrink-0 flex-col gap-[1.1cqw]">{rail}</aside>}
         </div>
     )
 }
 
 export function MainCard({ className = "", children }: { className?: string; children?: ReactNode }) {
     return (
-        <section className={`flex min-h-0 flex-col gap-[1.2cqw] overflow-hidden rounded-2xl bg-card p-[1.6cqw] shadow-md ring-1 ring-border ${className}`}>
+        <section className={`flex min-h-0 flex-col gap-[1.4cqw] overflow-hidden rounded-2xl bg-card p-[1.8cqw] shadow-md ring-1 ring-border ${className}`}>
             {children}
         </section>
     )
@@ -62,6 +62,7 @@ export function Timer({ remaining, size = 40 }: {
     if (remaining !== null) {
         text = toClock(formatRemaining(remaining))
         tone = "text-foreground"
+        if (remaining <= 10_000) tone = "text-destructive"
         if (remaining <= 0) announcement = "Hết giờ"
         else if (remaining <= 10_000) announcement = "Còn 10 giây"
     }
@@ -75,9 +76,9 @@ export function Timer({ remaining, size = 40 }: {
 
 
 export function VerdictIcon({ verdict }: { verdict: "CORRECT" | "INCORRECT" | null | undefined }) {
-    if (verdict === "CORRECT") return <CheckCircle2 className="size-[1.15em] shrink-0 text-emerald-600" aria-label="Đúng" />
-    if (verdict === "INCORRECT") return <XCircle className="size-[1.15em] shrink-0 text-red-600" aria-label="Sai" />
-    return <Hourglass className="size-[1.15em] shrink-0 text-amber-500" aria-label="Chưa chấm" />
+    if (verdict === "CORRECT") return <CheckCircle2 className="size-[1.15em] shrink-0 text-chart-3" aria-label="Đúng" />
+    if (verdict === "INCORRECT") return <XCircle className="size-[1.15em] shrink-0 text-chart-2" aria-label="Sai" />
+    return <Hourglass className="size-[1.15em] shrink-0 text-chart-4" aria-label="Chưa chấm" />
 }
 
 export function Status({ error, hint }: { error?: string | null; hint?: ReactNode }) {
@@ -86,7 +87,7 @@ export function Status({ error, hint }: { error?: string | null; hint?: ReactNod
         statusSlot = <span role="alert" className="font-semibold text-destructive">{error}</span>
     }
     return (
-        <div className="flex shrink-0 items-center justify-end pr-[1cqw] text-right leading-tight" style={{ fontSize: pt(10), ...DECK_PAD }}>
+        <div className="flex shrink-0 items-center justify-end pr-[1cqw] text-right font-medium leading-tight" style={{ fontSize: pt(12), ...DECK_PAD }}>
             {statusSlot}
         </div>
     )
@@ -95,8 +96,8 @@ export function Status({ error, hint }: { error?: string | null; hint?: ReactNod
 
 export function Gate({ title, body, children }: { title: string; body: string; children?: ReactNode }) {
     return (
-        <div className="flex h-full items-center justify-center p-[6cqw]">
-            <div className="flex max-w-xl flex-col items-center gap-[2cqw] rounded-2xl bg-card p-[6cqw] text-center shadow-md ring-1 ring-border">
+        <div className="flex h-full items-center justify-center p-[5cqw]">
+            <div className="flex max-w-xl flex-col items-center gap-[1.6cqw] rounded-2xl bg-card p-[4.2cqw] text-center shadow-md ring-1 ring-border">
                 <h1 className="font-display text-3xl font-bold uppercase text-foreground">{title}</h1>
                 <p className="font-sans text-sm text-muted-foreground">{body}</p>
                 {children}

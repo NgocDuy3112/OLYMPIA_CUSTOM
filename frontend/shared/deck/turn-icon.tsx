@@ -6,11 +6,11 @@ export type TurnIconKind = "star" | "swords"
 export function TurnIcon({ kind }: { kind: TurnIconKind }) {
     let Icon = Star
     let label = "Ngôi sao hy vọng"
-    let tone = "text-amber-400 fill-amber-400"
+    let tone = "text-chart-4 fill-chart-4"
     if (kind === "swords") {
         Icon = Swords
         label = "Lượt chỉ định"
-        tone = "text-emerald-500"
+        tone = "text-chart-3"
     }
     return (
         <span

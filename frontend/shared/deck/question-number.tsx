@@ -3,8 +3,8 @@ import { STRIP_R, pt } from "./geometry"
 export type QuestionNumberState = "done" | "active" | "pending"
 
 const NUMBER_TONE: Record<QuestionNumberState, string> = {
-    done: "bg-primary/85 text-primary-foreground",
-    active: "bg-primary text-primary-foreground ring-2 ring-primary-foreground/70",
+    done: "bg-primary/60 text-primary-foreground",
+    active: "bg-primary text-primary-foreground ring-2 ring-chart-4",
     pending: "bg-transparent text-muted-foreground ring-1 ring-border",
 }
 
@@ -65,7 +65,7 @@ export function QuestionNumbers({ total, done, active, next, onAdvance, showDone
                 let tone: string | undefined = undefined
                 if (onAdvance !== undefined && index === next) {
                     advance = () => onAdvance(index)
-                    if (state === "pending") tone = "bg-card text-foreground ring-1 ring-primary"
+                    if (state === "pending") tone = "bg-background/60 text-foreground ring-2 ring-primary"
                 }
                 return (
                     <QuestionNumber
